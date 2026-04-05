@@ -1,3 +1,8 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 
-contextBridge.exposeInMainWorld("electronAPI", {});
+contextBridge.exposeInMainWorld("electronAPI", {
+  getSettings: () => ipcRenderer.invoke("store:getSettings"),
+  saveSettings: (settings: Record<string, string>) =>
+    ipcRenderer.invoke("store:setSettings", settings),
+  isConfigured: () => ipcRenderer.invoke("store:isConfigured"),
+});

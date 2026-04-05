@@ -39,6 +39,8 @@ export default function App() {
     backendOnline,
     jiraBaseUrl,
     githubUsername,
+    saveSettings,
+    refreshConfig,
   } = useConfig();
   const {
     jiraIssues,
@@ -111,6 +113,8 @@ export default function App() {
             jiraBaseUrl={jiraBaseUrl}
             githubUsername={githubUsername}
             onBack={() => setActiveTab("summary")}
+            saveSettings={saveSettings}
+            refreshConfig={refreshConfig}
           />
         ) : (
           <>

@@ -15,7 +15,29 @@ const REQUIRED_ENV_VARS = [
   "GITHUB_USERNAME",
 ] as const;
 
+let runtimeConfig: ServerConfig | null = null;
+
+/**
+ * Store runtime configuration provided by the frontend.
+ * The port is automatically derived from the environment or defaults to 3001.
+ */
+export function setRuntimeConfig(config: Omit<ServerConfig, "port">): void {
+  runtimeConfig = {
+    ...config,
+    port: parseInt(process.env.VITE_API_PORT || "3001", 10),
+  };
+}
+
+/**
+ * Returns the current server configuration.
+ * If runtime config has been set via setRuntimeConfig(), it takes precedence.
+ * Otherwise falls back to environment variables.
+ */
 export function getConfig(): ServerConfig {
+  if (runtimeConfig) {
+    return runtimeConfig;
+  }
+
   const missing: string[] = [];
 
   for (const varName of REQUIRED_ENV_VARS) {
@@ -39,6 +61,18 @@ export function getConfig(): ServerConfig {
     githubUsername: process.env.GITHUB_USERNAME!,
     port: parseInt(process.env.VITE_API_PORT || "3001", 10),
   };
+}
+
+/**
+ * Returns true if the server is configured, either via runtime config
+ * or via environment variables.
+ */
+export function isConfigured(): boolean {
+  if (runtimeConfig) {
+    return true;
+  }
+
+  return REQUIRED_ENV_VARS.every((varName) => !!process.env[varName]);
 }
 
 /**

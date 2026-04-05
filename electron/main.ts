@@ -1,6 +1,7 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { fork, ChildProcess } from "child_process";
 import path from "path";
+import { getSettings, setSettings, isConfigured } from "./store";
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
@@ -80,6 +81,20 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // IPC handlers for settings store
+  ipcMain.handle("store:getSettings", () => {
+    return getSettings();
+  });
+
+  ipcMain.handle("store:setSettings", (_event, settings) => {
+    setSettings(settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("store:isConfigured", () => {
+    return isConfigured();
+  });
+
   startBackendServer();
   createWindow();
 });

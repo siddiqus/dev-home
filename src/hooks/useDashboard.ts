@@ -3,7 +3,7 @@ import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } 
 import { fetchAssignedIssues, fetchRecentMentions } from "../services/jira";
 import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
 
-const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface UseDashboardReturn {
   jiraIssues: JiraIssue[];
