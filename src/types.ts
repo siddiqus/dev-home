@@ -31,6 +31,7 @@ export interface JiraIssue {
   };
   updated: string;
   self: string;
+  description: string;
   fields: Record<string, any>;
 }
 
@@ -72,6 +73,7 @@ export interface GitHubPR {
   base: {
     ref: string;
   };
+  body: string;
   repository_url: string;
   repo_full_name: string;
 }
@@ -111,6 +113,7 @@ export interface GitHubReviewRequest {
   base: {
     ref: string;
   };
+  body: string;
   repository_url: string;
   repo_full_name: string;
 }

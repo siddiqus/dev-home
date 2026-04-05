@@ -26,15 +26,16 @@ function extractRepoFullName(repositoryUrl: string): string {
 
 /**
  * Map a GitHub search issue/PR item to a clean PR object.
+ * The search API doesn't include head/base refs, so accept optional overrides.
  */
-function mapPrItem(item: any) {
+function mapPrItem(item: any, prDetails?: any) {
   return {
     id: item.id,
     number: item.number,
     title: item.title,
     html_url: item.html_url,
     state: item.state,
-    draft: item.draft || false,
+    draft: item.draft || prDetails?.draft || false,
     created_at: item.created_at,
     updated_at: item.updated_at,
     user: {
@@ -42,14 +43,40 @@ function mapPrItem(item: any) {
       avatar_url: item.user?.avatar_url,
     },
     head: {
-      ref: item.pull_request?.head?.ref || "",
+      ref: prDetails?.head?.ref || "",
     },
     base: {
-      ref: item.pull_request?.base?.ref || "",
+      ref: prDetails?.base?.ref || "",
     },
+    body: prDetails?.body || item.body || "",
     repository_url: item.repository_url,
     repo_full_name: extractRepoFullName(item.repository_url),
   };
+}
+
+/**
+ * Fetch full PR details (including head/base refs) for a list of search result items.
+ */
+async function fetchPrDetails(items: any[], headers: Record<string, string>): Promise<Map<number, any>> {
+  const detailsMap = new Map<number, any>();
+
+  const fetches = items.map(async (item) => {
+    const prUrl = item.pull_request?.url;
+    if (!prUrl) return;
+
+    try {
+      const res = await fetch(prUrl, { headers });
+      if (res.ok) {
+        const details = await res.json();
+        detailsMap.set(item.id, details);
+      }
+    } catch {
+      // Silently skip — the PR will just have empty branch refs
+    }
+  });
+
+  await Promise.all(fetches);
+  return detailsMap;
 }
 
 /**
@@ -75,7 +102,9 @@ router.get("/prs", async (_req: Request, res: Response) => {
     }
 
     const data: any = await response.json();
-    const prs = (data.items || []).map(mapPrItem);
+    const items = data.items || [];
+    const detailsMap = await fetchPrDetails(items, headers);
+    const prs = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
 
     res.json({ prs });
   } catch (err: any) {
@@ -107,7 +136,9 @@ router.get("/reviews", async (_req: Request, res: Response) => {
     }
 
     const data: any = await response.json();
-    const reviews = (data.items || []).map(mapPrItem);
+    const items = data.items || [];
+    const detailsMap = await fetchPrDetails(items, headers);
+    const reviews = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
 
     res.json({ reviews });
   } catch (err: any) {

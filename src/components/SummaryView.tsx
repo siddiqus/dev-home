@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
@@ -7,6 +7,7 @@ import Badge from "react-bootstrap/Badge";
 import { IconSubtask, IconAt, IconGitPullRequest, IconEye } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { DescriptionModal } from "./DescriptionModal";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -61,11 +62,15 @@ interface ItemRowProps {
   time: string;
   badge?: string;
   badgeClass?: string;
+  onClick?: () => void;
 }
 
-function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps) {
+function ItemRow({ url, title, subtitle, time, badge, badgeClass, onClick }: ItemRowProps) {
   return (
-    <div className="summary-item d-flex align-items-center gap-3 px-3 py-2">
+    <div
+      className="summary-item d-flex align-items-center gap-3 px-3 py-2"
+      onClick={onClick}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={url}
@@ -73,6 +78,7 @@ function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps
           rel="noopener noreferrer"
           className="text-truncate-custom d-block"
           style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+          onClick={(e) => e.stopPropagation()}
         >
           {title}
         </a>
@@ -111,6 +117,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   jiraBaseUrl,
   onNavigate,
 }) => {
+  const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
+  const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+
   if (loading && jiraIssues.length === 0 && openPRs.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
@@ -146,6 +155,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     .slice(0, 5);
 
   return (
+    <>
     <Row className="g-3">
       {/* Row 1 */}
       <Col md={6}>
@@ -166,6 +176,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 time={r.updated_at}
                 badge="Review"
                 badgeClass="badge-status-yellow"
+                onClick={() => setSelectedPR(r)}
               />
             ))
           ) : (
@@ -191,6 +202,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 time={pr.updated_at}
                 badge={pr.draft ? "Draft" : "Open"}
                 badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                onClick={() => setSelectedPR(pr)}
               />
             ))
           ) : (
@@ -243,6 +255,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         ? "badge-status-blue"
                         : "badge-status-neutral"
                 }
+                onClick={() => setSelectedIssue(issue)}
               />
             ))
           ) : (
@@ -251,5 +264,28 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         </Section>
       </Col>
     </Row>
+
+    <DescriptionModal
+      show={!!selectedIssue}
+      onHide={() => setSelectedIssue(null)}
+      title={selectedIssue ? `${selectedIssue.key}: ${selectedIssue.summary}` : ""}
+      subtitle={selectedIssue?.project.name}
+      description={selectedIssue?.description || ""}
+      url={
+        selectedIssue && jiraBase
+          ? `${jiraBase}/browse/${selectedIssue.key}`
+          : undefined
+      }
+    />
+
+    <DescriptionModal
+      show={!!selectedPR}
+      onHide={() => setSelectedPR(null)}
+      title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
+      subtitle={selectedPR?.repo_full_name}
+      description={selectedPR?.body || ""}
+      url={selectedPR?.html_url}
+    />
+    </>
   );
 };
