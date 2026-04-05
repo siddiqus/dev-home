@@ -93,7 +93,7 @@ export default function App() {
 
       <Container
         fluid
-        className="px-3 pt-2"
+        className="px-3 pt-2 mb-4"
         style={{ height: "calc(100vh - 38px)", overflow: "auto" }}
       >
         {/* Error alert */}
@@ -149,7 +149,7 @@ export default function App() {
             </Nav>
 
             {/* Tab content */}
-            <div className="tab-content-area" key={effectiveTab}>
+            <div className="tab-content-area mb-4" key={effectiveTab}>
               {effectiveTab === "summary" && (
                 <SummaryView
                   jiraIssues={jiraIssues}
