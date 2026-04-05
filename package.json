@@ -16,7 +16,55 @@
     "lint:server": "cd server && npx eslint src/",
     "lint:server:fix": "cd server && npx eslint src/ --fix",
     "lint:all": "yarn lint && yarn lint:server",
-    "fix:all": "yarn lint:fix && yarn lint:server:fix"
+    "fix:all": "yarn lint:fix && yarn lint:server:fix",
+    "icons": "bash scripts/generate-icons.sh",
+    "pack": "yarn icons && yarn build && electron-builder --dir",
+    "dist": "yarn icons && yarn build && electron-builder",
+    "dist:mac": "yarn icons && yarn build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.devhome.app",
+    "productName": "Dev Home",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server/dist/",
+        "to": "server/dist/",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "server/node_modules/",
+        "to": "server/node_modules/",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "server/package.json",
+        "to": "server/package.json"
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns"
+    },
+    "dmg": {
+      "title": "Dev Home",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
   },
   "dependencies": {
     "@optiaxiom/react": "^1.9.23",

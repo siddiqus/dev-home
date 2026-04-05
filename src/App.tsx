@@ -19,7 +19,7 @@ import { SettingsView } from "./components/SettingsView";
 export default function App() {
   const [activeTab, setActiveTab] = useState("summary");
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "dark";
+    return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "light";
   });
 
   const toggleTheme = () => {

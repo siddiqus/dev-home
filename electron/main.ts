@@ -3,6 +3,8 @@ import { fork, ChildProcess } from "child_process";
 import path from "path";
 import { getSettings, setSettings, isConfigured } from "./store";
 
+declare const __API_PORT__: string;
+
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
 
@@ -13,9 +15,15 @@ function startBackendServer() {
     return;
   }
 
-  const serverEntry = path.join(__dirname, "../server/dist/index.js");
+  // In packaged app, server is in extraResources; in dev/unpacked, it's relative to __dirname
+  const serverEntry = app.isPackaged
+    ? path.join(process.resourcesPath, "server", "dist", "index.js")
+    : path.join(__dirname, "../server/dist/index.js");
   serverProcess = fork(serverEntry, [], {
-    env: { ...process.env },
+    env: {
+      ...process.env,
+      VITE_API_PORT: __API_PORT__,
+    },
     silent: true,
   });
 

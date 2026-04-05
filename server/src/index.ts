@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 
-// Load the shared .env from the project root
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+// Load the shared .env from the project root (not available in packaged app)
+const envPath = path.resolve(__dirname, "../../.env");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
