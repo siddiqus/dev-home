@@ -6,6 +6,15 @@ const router = Router();
 const GITHUB_API = "https://api.github.com";
 
 /**
+ * Get an ISO date string for three months ago (YYYY-MM-DD).
+ */
+function threeMonthsAgoDate(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 3);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Build authorization headers for GitHub API.
  */
 function getGitHubHeaders() {
@@ -57,7 +66,10 @@ function mapPrItem(item: any, prDetails?: any) {
 /**
  * Fetch full PR details (including head/base refs) for a list of search result items.
  */
-async function fetchPrDetails(items: any[], headers: Record<string, string>): Promise<Map<number, any>> {
+async function fetchPrDetails(
+  items: any[],
+  headers: Record<string, string>,
+): Promise<Map<number, any>> {
   const detailsMap = new Map<number, any>();
 
   const fetches = items.map(async (item) => {
@@ -88,7 +100,7 @@ router.get("/prs", async (_req: Request, res: Response) => {
     const config = getConfig();
     const headers = getGitHubHeaders();
 
-    const q = `author:${config.githubUsername} type:pr state:open`;
+    const q = `author:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
     const url = `${GITHUB_API}/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=50`;
 
     const response = await fetch(url, { headers });
@@ -122,7 +134,7 @@ router.get("/reviews", async (_req: Request, res: Response) => {
     const config = getConfig();
     const headers = getGitHubHeaders();
 
-    const q = `review-requested:${config.githubUsername} type:pr state:open`;
+    const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
     const url = `${GITHUB_API}/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=50`;
 
     const response = await fetch(url, { headers });
@@ -157,17 +169,21 @@ router.get("/mentions", async (_req: Request, res: Response) => {
     const headers = getGitHubHeaders();
 
     // Fetch from 3 sources in parallel
+    const cutoff = threeMonthsAgoDate();
     const [notificationsRes, prMentionsRes, issueMentionsRes] = await Promise.all([
-      fetch(`${GITHUB_API}/notifications?participating=true&all=false&per_page=50`, { headers }),
+      fetch(
+        `${GITHUB_API}/notifications?participating=true&all=false&per_page=50&since=${cutoff}T00:00:00Z`,
+        { headers },
+      ),
       fetch(
         `${GITHUB_API}/search/issues?q=${encodeURIComponent(
-          `mentions:${config.githubUsername} type:pr`,
+          `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
         )}&sort=updated&per_page=30`,
         { headers },
       ),
       fetch(
         `${GITHUB_API}/search/issues?q=${encodeURIComponent(
-          `mentions:${config.githubUsername} type:issue`,
+          `mentions:${config.githubUsername} type:issue state:open updated:>=${cutoff}`,
         )}&sort=updated&per_page=30`,
         { headers },
       ),

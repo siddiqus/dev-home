@@ -67,10 +67,7 @@ interface ItemRowProps {
 
 function ItemRow({ url, title, subtitle, time, badge, badgeClass, onClick }: ItemRowProps) {
   return (
-    <div
-      className="summary-item d-flex align-items-center gap-3 px-3 py-2"
-      onClick={onClick}
-    >
+    <div className="summary-item d-flex align-items-center gap-3 px-3 py-2" onClick={onClick}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={url}
@@ -156,136 +153,138 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
   return (
     <>
-    <Row className="g-3">
-      {/* Row 1 */}
-      <Col md={6}>
-        <Section
-          icon={<IconEye size={13} stroke={1.8} />}
-          title="Review Requests"
-          badgeClass="badge-status-yellow"
-          count={reviewRequests.length}
-          onSeeMore={() => onNavigate("reviews")}
-        >
-          {topReviews.length > 0 ? (
-            topReviews.map((r) => (
-              <ItemRow
-                key={r.id}
-                url={r.html_url}
-                title={`#${r.number} ${r.title}`}
-                subtitle={`${r.repo_full_name} · ${r.user.login}`}
-                time={r.updated_at}
-                badge="Review"
-                badgeClass="badge-status-yellow"
-                onClick={() => setSelectedPR(r)}
-              />
-            ))
-          ) : (
-            <EmptyRow text="No pending reviews" />
-          )}
-        </Section>
-      </Col>
-      <Col md={6}>
-        <Section
-          icon={<IconGitPullRequest size={13} stroke={1.8} />}
-          title="Open Pull Requests"
-          badgeClass="badge-status-green"
-          count={openPRs.length}
-          onSeeMore={() => onNavigate("prs")}
-        >
-          {topPRs.length > 0 ? (
-            topPRs.map((pr) => (
-              <ItemRow
-                key={pr.id}
-                url={pr.html_url}
-                title={`#${pr.number} ${pr.title}`}
-                subtitle={pr.repo_full_name}
-                time={pr.updated_at}
-                badge={pr.draft ? "Draft" : "Open"}
-                badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
-                onClick={() => setSelectedPR(pr)}
-              />
-            ))
-          ) : (
-            <EmptyRow text="No open pull requests" />
-          )}
-        </Section>
-      </Col>
+      <Row className="g-3">
+        {/* Row 1 */}
+        <Col md={6}>
+          <Section
+            icon={<IconEye size={13} stroke={1.8} />}
+            title="Review Requests"
+            badgeClass="badge-status-yellow"
+            count={reviewRequests.length}
+            onSeeMore={() => onNavigate("reviews")}
+          >
+            {topReviews.length > 0 ? (
+              topReviews.map((r) => (
+                <ItemRow
+                  key={r.id}
+                  url={r.html_url}
+                  title={`#${r.number} ${r.title}`}
+                  subtitle={`${r.repo_full_name} · ${r.user.login}`}
+                  time={r.updated_at}
+                  badge="Review"
+                  badgeClass="badge-status-yellow"
+                  onClick={() => setSelectedPR(r)}
+                />
+              ))
+            ) : (
+              <EmptyRow text="No pending reviews" />
+            )}
+          </Section>
+        </Col>
+        <Col md={6}>
+          <Section
+            icon={<IconGitPullRequest size={13} stroke={1.8} />}
+            title="Open Pull Requests"
+            badgeClass="badge-status-green"
+            count={openPRs.length}
+            onSeeMore={() => onNavigate("prs")}
+          >
+            {topPRs.length > 0 ? (
+              topPRs.map((pr) => (
+                <ItemRow
+                  key={pr.id}
+                  url={pr.html_url}
+                  title={`#${pr.number} ${pr.title}`}
+                  subtitle={pr.repo_full_name}
+                  time={pr.updated_at}
+                  badge={pr.draft ? "Draft" : "Open"}
+                  badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                  onClick={() => setSelectedPR(pr)}
+                />
+              ))
+            ) : (
+              <EmptyRow text="No open pull requests" />
+            )}
+          </Section>
+        </Col>
 
-      {/* Row 2 */}
-      <Col md={6}>
-        <Section
-          icon={<IconAt size={13} stroke={1.8} />}
-          title="Mentions"
-          badgeClass="badge-status-purple"
-          count={jiraComments.length + githubMentions.length}
-          onSeeMore={() => onNavigate("mentions")}
-        >
-          {allMentions.length > 0 ? (
-            allMentions.map((m) => (
-              <ItemRow key={m.id} url={m.url} title={m.title} subtitle={m.subtitle} time={m.time} />
-            ))
-          ) : (
-            <EmptyRow text="No recent mentions" />
-          )}
-        </Section>
-      </Col>
-      <Col md={6}>
-        <Section
-          icon={<IconSubtask size={13} stroke={1.8} />}
-          title="JIRA Tasks"
-          badgeClass="badge-status-blue"
-          count={jiraIssues.length}
-          onSeeMore={() => onNavigate("jira")}
-        >
-          {topIssues.length > 0 ? (
-            topIssues.map((issue) => (
-              <ItemRow
-                key={issue.key}
-                url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
-                title={`${issue.key}: ${issue.summary}`}
-                subtitle={issue.project.name}
-                time={issue.updated}
-                badge={issue.status.name}
-                badgeClass={
-                  issue.status.statusCategory.colorName === "green"
-                    ? "badge-status-green"
-                    : issue.status.statusCategory.colorName === "yellow"
-                      ? "badge-status-yellow"
-                      : issue.status.statusCategory.colorName === "blue"
-                        ? "badge-status-blue"
-                        : "badge-status-neutral"
-                }
-                onClick={() => setSelectedIssue(issue)}
-              />
-            ))
-          ) : (
-            <EmptyRow text="No assigned issues" />
-          )}
-        </Section>
-      </Col>
-    </Row>
+        {/* Row 2 */}
+        <Col md={6}>
+          <Section
+            icon={<IconAt size={13} stroke={1.8} />}
+            title="Mentions"
+            badgeClass="badge-status-purple"
+            count={jiraComments.length + githubMentions.length}
+            onSeeMore={() => onNavigate("mentions")}
+          >
+            {allMentions.length > 0 ? (
+              allMentions.map((m) => (
+                <ItemRow
+                  key={m.id}
+                  url={m.url}
+                  title={m.title}
+                  subtitle={m.subtitle}
+                  time={m.time}
+                />
+              ))
+            ) : (
+              <EmptyRow text="No recent mentions" />
+            )}
+          </Section>
+        </Col>
+        <Col md={6}>
+          <Section
+            icon={<IconSubtask size={13} stroke={1.8} />}
+            title="JIRA Tasks"
+            badgeClass="badge-status-blue"
+            count={jiraIssues.length}
+            onSeeMore={() => onNavigate("jira")}
+          >
+            {topIssues.length > 0 ? (
+              topIssues.map((issue) => (
+                <ItemRow
+                  key={issue.key}
+                  url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
+                  title={`${issue.key}: ${issue.summary}`}
+                  subtitle={issue.project.name}
+                  time={issue.updated}
+                  badge={issue.status.name}
+                  badgeClass={
+                    issue.status.statusCategory.colorName === "green"
+                      ? "badge-status-green"
+                      : issue.status.statusCategory.colorName === "yellow"
+                        ? "badge-status-yellow"
+                        : issue.status.statusCategory.colorName === "blue"
+                          ? "badge-status-blue"
+                          : "badge-status-neutral"
+                  }
+                  onClick={() => setSelectedIssue(issue)}
+                />
+              ))
+            ) : (
+              <EmptyRow text="No assigned issues" />
+            )}
+          </Section>
+        </Col>
+      </Row>
 
-    <DescriptionModal
-      show={!!selectedIssue}
-      onHide={() => setSelectedIssue(null)}
-      title={selectedIssue ? `${selectedIssue.key}: ${selectedIssue.summary}` : ""}
-      subtitle={selectedIssue?.project.name}
-      description={selectedIssue?.description || ""}
-      url={
-        selectedIssue && jiraBase
-          ? `${jiraBase}/browse/${selectedIssue.key}`
-          : undefined
-      }
-    />
+      <DescriptionModal
+        show={!!selectedIssue}
+        onHide={() => setSelectedIssue(null)}
+        title={selectedIssue ? `${selectedIssue.key}: ${selectedIssue.summary}` : ""}
+        subtitle={selectedIssue?.project.name}
+        description={selectedIssue?.description || ""}
+        url={selectedIssue && jiraBase ? `${jiraBase}/browse/${selectedIssue.key}` : undefined}
+      />
 
-    <DescriptionModal
-      show={!!selectedPR}
-      onHide={() => setSelectedPR(null)}
-      title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
-      subtitle={selectedPR?.repo_full_name}
-      description={selectedPR?.body || ""}
-      url={selectedPR?.html_url}
-    />
+      <DescriptionModal
+        show={!!selectedPR}
+        onHide={() => setSelectedPR(null)}
+        title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
+        subtitle={selectedPR?.repo_full_name}
+        description={selectedPR?.body || ""}
+        url={selectedPR?.html_url}
+      />
     </>
   );
 };

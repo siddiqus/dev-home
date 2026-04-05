@@ -26,7 +26,10 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           <div>
             <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
             {subtitle && (
-              <div className="text-secondary-custom" style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}>
+              <div
+                className="text-secondary-custom"
+                style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
+              >
                 {subtitle}
               </div>
             )}

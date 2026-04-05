@@ -131,7 +131,7 @@ export default function App() {
                 },
                 {
                   key: "reviews",
-                  label: "Reviews",
+                  label: "Reviews Requested",
                   count: reviewRequests.length,
                 },
               ].map((tab) => (

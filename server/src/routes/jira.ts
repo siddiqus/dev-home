@@ -134,11 +134,7 @@ function adfToMarkdown(node: any): string {
       return (node.content || []).map(adfToMarkdown).join("\n");
 
     case "tableRow":
-      return (
-        "| " +
-        (node.content || []).map((cell: any) => adfToMarkdown(cell)).join(" | ") +
-        " |"
-      );
+      return "| " + (node.content || []).map((cell: any) => adfToMarkdown(cell)).join(" | ") + " |";
 
     case "tableHeader":
     case "tableCell":
@@ -166,8 +162,16 @@ router.get("/issues", async (_req: Request, res: Response) => {
     const config = getConfig();
     const headers = getJiraAuthHeaders();
 
-    const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved ORDER BY updated DESC`;
-    const fields = ["summary", "status", "priority", "assignee", "project", "updated", "description"];
+    const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved AND updated >= -90d ORDER BY updated DESC`;
+    const fields = [
+      "summary",
+      "status",
+      "priority",
+      "assignee",
+      "project",
+      "updated",
+      "description",
+    ];
 
     const url = `${config.jiraBaseUrl}/rest/api/3/search/jql`;
 
@@ -243,7 +247,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
     // Extract username from email (part before @)
     const username = config.jiraEmail.split("@")[0];
 
-    const jql = `text ~ "${config.jiraEmail}" ORDER BY updated DESC`;
+    const jql = `text ~ "${config.jiraEmail}" AND resolution = Unresolved AND updated >= -90d ORDER BY updated DESC`;
     const fields = ["summary"];
     const maxResults = 20;
 

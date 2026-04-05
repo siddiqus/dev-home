@@ -38,8 +38,6 @@ export const ReviewRequests: React.FC<ReviewRequestsProps> = ({ reviews, loading
       <Table hover>
         <thead>
           <tr>
-            <th style={{ width: 80 }} />
-            <th>PR</th>
             <th>Title</th>
             <th>Repository</th>
             <th>Author</th>
@@ -49,17 +47,6 @@ export const ReviewRequests: React.FC<ReviewRequestsProps> = ({ reviews, loading
         <tbody>
           {reviews.map((pr) => (
             <tr key={pr.id} onClick={() => setSelectedPR(pr)} style={{ cursor: "pointer" }}>
-              <td>
-                <span className="badge badge-status-yellow">Review</span>
-              </td>
-              <td>
-                <span
-                  className="text-secondary-custom"
-                  style={{ fontWeight: 500, whiteSpace: "nowrap" }}
-                >
-                  #{pr.number}
-                </span>
-              </td>
               <td>
                 <a
                   href={pr.html_url}
