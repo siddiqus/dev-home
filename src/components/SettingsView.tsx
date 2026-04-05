@@ -34,10 +34,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </Button>
 
       <h5 style={{ marginBottom: 4 }}>Settings</h5>
-      <p
-        className="text-secondary-custom"
-        style={{ fontSize: "0.8125rem", marginBottom: 24 }}
-      >
+      <p className="text-secondary-custom" style={{ fontSize: "0.8125rem", marginBottom: 24 }}>
         Connection status for your JIRA and GitHub integrations.
       </p>
 
@@ -46,9 +43,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <Card.Body>
           <div className="d-flex align-items-center gap-2 mb-3">
             <h6 className="mb-0">Backend Server</h6>
-            <span
-              className={`status-dot ${backendOnline ? "online" : "offline"}`}
-            />
+            <span className={`status-dot ${backendOnline ? "online" : "offline"}`} />
             <span
               style={{
                 fontSize: "0.75rem",
@@ -69,9 +64,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {backendOnline && !configured && (
             <Alert variant="warning" className="py-2 mb-0">
-              The backend server is running but not configured. Add your JIRA
-              and GitHub credentials to the <code>server/.env</code> file, then
-              restart the server.
+              The backend server is running but not configured. Add your JIRA and GitHub credentials
+              to the <code>server/.env</code> file, then restart the server.
             </Alert>
           )}
 
@@ -107,13 +101,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <Card>
         <Card.Body>
           <h6 style={{ marginBottom: 12 }}>Configuration</h6>
-          <p
-            className="text-secondary-custom"
-            style={{ fontSize: "0.8125rem", marginBottom: 12 }}
-          >
-            Credentials are managed via environment variables in the backend
-            server. To update your configuration, edit the{" "}
-            <code>server/.env</code> file with the following variables:
+          <p className="text-secondary-custom" style={{ fontSize: "0.8125rem", marginBottom: 12 }}>
+            Credentials are managed via environment variables in the backend server. To update your
+            configuration, edit the <code>server/.env</code> file with the following variables:
           </p>
           <div className="code-block">
             {`JIRA_BASE_URL=https://your-org.atlassian.net

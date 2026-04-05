@@ -16,10 +16,7 @@ function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength).trimEnd() + "...";
 }
 
-export const GitHubMentions: React.FC<GitHubMentionsProps> = ({
-  mentions,
-  loading,
-}) => {
+export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loading }) => {
   if (loading && mentions.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
@@ -43,28 +40,19 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({
       {mentions.map((mention) => (
         <div key={mention.id} className="comment-card">
           <div className="d-flex gap-3 align-items-start">
-            <img
-              src={mention.user.avatar_url}
-              alt={mention.user.login}
-              className="avatar-md"
-            />
+            <img src={mention.user.avatar_url} alt={mention.user.login} className="avatar-md" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="d-flex justify-content-between align-items-center gap-2">
                 <div className="d-flex align-items-center gap-2">
                   <span style={{ fontWeight: 600, fontSize: "0.8125rem" }}>
                     {mention.user.login}
                   </span>
-                  <span
-                    className="text-secondary-custom"
-                    style={{ fontSize: "0.75rem" }}
-                  >
+                  <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
                     {formatRelativeTime(mention.created_at)}
                   </span>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                  <span className="badge badge-status-neutral">
-                    {mention.repo_full_name}
-                  </span>
+                  <span className="badge badge-status-neutral">{mention.repo_full_name}</span>
                   <span
                     className="text-secondary-custom"
                     style={{ fontSize: "0.75rem", fontWeight: 500 }}

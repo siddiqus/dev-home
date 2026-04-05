@@ -8,11 +8,11 @@ export interface ServerConfig {
 }
 
 const REQUIRED_ENV_VARS = [
-  'JIRA_BASE_URL',
-  'JIRA_EMAIL',
-  'JIRA_API_TOKEN',
-  'GITHUB_TOKEN',
-  'GITHUB_USERNAME',
+  "JIRA_BASE_URL",
+  "JIRA_EMAIL",
+  "JIRA_API_TOKEN",
+  "GITHUB_TOKEN",
+  "GITHUB_USERNAME",
 ] as const;
 
 export function getConfig(): ServerConfig {
@@ -26,18 +26,18 @@ export function getConfig(): ServerConfig {
 
   if (missing.length > 0) {
     throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}. ` +
-        'Please copy .env.example to .env and fill in the values.'
+      `Missing required environment variables: ${missing.join(", ")}. ` +
+        "Please copy .env.example to .env and fill in the values.",
     );
   }
 
   return {
-    jiraBaseUrl: process.env.JIRA_BASE_URL!.replace(/\/$/, ''),
+    jiraBaseUrl: process.env.JIRA_BASE_URL!.replace(/\/$/, ""),
     jiraEmail: process.env.JIRA_EMAIL!,
     jiraApiToken: process.env.JIRA_API_TOKEN!,
     githubToken: process.env.GITHUB_TOKEN!,
     githubUsername: process.env.GITHUB_USERNAME!,
-    port: parseInt(process.env.VITE_API_PORT || '3001', 10),
+    port: parseInt(process.env.VITE_API_PORT || "3001", 10),
   };
 }
 

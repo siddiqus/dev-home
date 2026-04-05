@@ -8,9 +8,7 @@ const router = Router();
  */
 function getJiraAuthHeaders() {
   const config = getConfig();
-  const credentials = Buffer.from(
-    `${config.jiraEmail}:${config.jiraApiToken}`
-  ).toString("base64");
+  const credentials = Buffer.from(`${config.jiraEmail}:${config.jiraApiToken}`).toString("base64");
 
   return {
     Authorization: `Basic ${credentials}`,
@@ -52,14 +50,7 @@ router.get("/issues", async (_req: Request, res: Response) => {
     const headers = getJiraAuthHeaders();
 
     const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved ORDER BY updated DESC`;
-    const fields = [
-      "summary",
-      "status",
-      "priority",
-      "assignee",
-      "project",
-      "updated",
-    ];
+    const fields = ["summary", "status", "priority", "assignee", "project", "updated"];
 
     const url = `${config.jiraBaseUrl}/rest/api/3/search/jql`;
 
@@ -84,13 +75,10 @@ router.get("/issues", async (_req: Request, res: Response) => {
       "[JIRA /issues] Total:",
       data.total,
       "Count:",
-      data.issues?.length ?? data.length ?? "N/A"
+      data.issues?.length ?? data.length ?? "N/A",
     );
     if (!data.issues && Array.isArray(data)) {
-      console.log(
-        "[JIRA /issues] Response is array directly, length:",
-        data.length
-      );
+      console.log("[JIRA /issues] Response is array directly, length:", data.length);
     }
 
     const issues = (data.issues || data || []).map((issue: any) => ({
@@ -151,11 +139,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
 
     if (!searchResponse.ok) {
       const errorBody = await searchResponse.text();
-      console.error(
-        "[JIRA /mentions] Search error:",
-        searchResponse.status,
-        errorBody
-      );
+      console.error("[JIRA /mentions] Search error:", searchResponse.status, errorBody);
       return res.status(searchResponse.status).json({
         error: `JIRA API returned ${searchResponse.status}: ${errorBody}`,
       });
@@ -173,7 +157,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
         if (!commentResponse.ok) {
           console.error(
             `[JIRA /mentions] Failed to fetch comments for ${issue.key}:`,
-            commentResponse.status
+            commentResponse.status,
           );
           return [];
         }
@@ -208,7 +192,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
       } catch (err: any) {
         console.error(
           `[JIRA /mentions] Exception fetching comments for ${issue.key}:`,
-          err.message
+          err.message,
         );
         return [];
       }

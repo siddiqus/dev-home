@@ -11,10 +11,7 @@ interface ReviewRequestsProps {
   loading: boolean;
 }
 
-export const ReviewRequests: React.FC<ReviewRequestsProps> = ({
-  reviews,
-  loading,
-}) => {
+export const ReviewRequests: React.FC<ReviewRequestsProps> = ({ reviews, loading }) => {
   if (loading && reviews.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
@@ -71,25 +68,16 @@ export const ReviewRequests: React.FC<ReviewRequestsProps> = ({
               </a>
             </td>
             <td>
-              <span className="badge badge-status-neutral">
-                {pr.repo_full_name}
-              </span>
+              <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
             </td>
             <td>
               <div className="d-flex align-items-center gap-2">
-                <img
-                  src={pr.user.avatar_url}
-                  alt={pr.user.login}
-                  className="avatar-sm"
-                />
+                <img src={pr.user.avatar_url} alt={pr.user.login} className="avatar-sm" />
                 <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
               </div>
             </td>
             <td>
-              <span
-                className="text-secondary-custom"
-                style={{ whiteSpace: "nowrap" }}
-              >
+              <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
                 {formatRelativeTime(pr.updated_at)}
               </span>
             </td>

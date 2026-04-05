@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from "express";
 
 const router = Router();
 
@@ -6,9 +6,9 @@ const router = Router();
  * GET /api/config
  * Returns configuration status without exposing secrets.
  */
-router.get('/', (_req: Request, res: Response) => {
-  const jiraBaseUrl = process.env.JIRA_BASE_URL || '';
-  const githubUsername = process.env.GITHUB_USERNAME || '';
+router.get("/", (_req: Request, res: Response) => {
+  const jiraBaseUrl = process.env.JIRA_BASE_URL || "";
+  const githubUsername = process.env.GITHUB_USERNAME || "";
 
   const configured = !!(
     process.env.JIRA_BASE_URL &&
@@ -20,7 +20,7 @@ router.get('/', (_req: Request, res: Response) => {
 
   res.json({
     configured,
-    jiraBaseUrl: jiraBaseUrl.replace(/\/+$/, ''),
+    jiraBaseUrl: jiraBaseUrl.replace(/\/+$/, ""),
     githubUsername,
   });
 });

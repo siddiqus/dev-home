@@ -9,7 +9,7 @@ export function formatRelativeTime(dateString: string): string {
   const diffMs = now - then;
 
   if (diffMs < 0) {
-    return 'just now';
+    return "just now";
   }
 
   const seconds = Math.floor(diffMs / 1000);
@@ -21,7 +21,7 @@ export function formatRelativeTime(dateString: string): string {
   const years = Math.floor(days / 365);
 
   if (seconds < 60) {
-    return 'just now';
+    return "just now";
   }
 
   if (minutes < 60) {

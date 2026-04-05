@@ -1,14 +1,12 @@
-import { GitHubPR, GitHubComment, GitHubReviewRequest } from '../types';
-import { API_BASE } from './config';
+import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
+import { API_BASE } from "./config";
 
 export async function fetchOpenPRs(): Promise<GitHubPR[]> {
   const response = await fetch(`${API_BASE}/github/prs`);
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `Failed to fetch open PRs (${response.status}): ${errorBody}`
-    );
+    throw new Error(`Failed to fetch open PRs (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();
@@ -20,9 +18,7 @@ export async function fetchReviewRequests(): Promise<GitHubReviewRequest[]> {
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `Failed to fetch review requests (${response.status}): ${errorBody}`
-    );
+    throw new Error(`Failed to fetch review requests (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();
@@ -34,9 +30,7 @@ export async function fetchMentions(): Promise<GitHubComment[]> {
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `Failed to fetch GitHub mentions (${response.status}): ${errorBody}`
-    );
+    throw new Error(`Failed to fetch GitHub mentions (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();

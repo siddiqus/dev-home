@@ -22,7 +22,7 @@ export interface JiraIssue {
   assignee: {
     displayName: string;
     avatarUrls: {
-      '48x48': string;
+      "48x48": string;
     };
   };
   project: {
@@ -39,7 +39,7 @@ export interface JiraComment {
   author: {
     displayName: string;
     avatarUrls: {
-      '48x48': string;
+      "48x48": string;
     };
   };
   body: {
@@ -127,4 +127,4 @@ export interface DashboardData {
 }
 
 // View Type
-export type ViewType = 'dashboard' | 'settings';
+export type ViewType = "dashboard" | "settings";

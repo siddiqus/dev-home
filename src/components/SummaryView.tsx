@@ -4,13 +4,7 @@ import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
-import {
-  IconSubtask,
-  IconMessageCircle,
-  IconAt,
-  IconGitPullRequest,
-  IconEye,
-} from "@tabler/icons-react";
+import { IconSubtask, IconAt, IconGitPullRequest, IconEye } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 

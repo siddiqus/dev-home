@@ -1,0 +1,7 @@
+node_modules
+dist
+dist-electron
+server/node_modules
+server/dist
+yarn.lock
+*.log

@@ -1,14 +1,12 @@
-import { JiraIssue, JiraComment } from '../types';
-import { API_BASE } from './config';
+import { JiraIssue, JiraComment } from "../types";
+import { API_BASE } from "./config";
 
 export async function fetchAssignedIssues(): Promise<JiraIssue[]> {
   const response = await fetch(`${API_BASE}/jira/issues`);
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `Failed to fetch assigned JIRA issues (${response.status}): ${errorBody}`
-    );
+    throw new Error(`Failed to fetch assigned JIRA issues (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();
@@ -20,9 +18,7 @@ export async function fetchRecentMentions(): Promise<JiraComment[]> {
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(
-      `Failed to fetch JIRA mentions (${response.status}): ${errorBody}`
-    );
+    throw new Error(`Failed to fetch JIRA mentions (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();

@@ -26,10 +26,7 @@ function getBadgeClass(colorName: string): string {
   }
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({
-  statusName,
-  colorName,
-}) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ statusName, colorName }) => {
   const badgeClass = getBadgeClass(colorName);
 
   return <span className={`badge ${badgeClass}`}>{statusName}</span>;

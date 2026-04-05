@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } from '../types';
-import { fetchAssignedIssues, fetchRecentMentions } from '../services/jira';
-import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from '../services/github';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
+import { fetchAssignedIssues, fetchRecentMentions } from "../services/jira";
+import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
 
 const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -42,40 +42,34 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         fetchMentions(),
       ]);
 
-      const [
-        issuesResult,
-        commentsResult,
-        prsResult,
-        reviewsResult,
-        mentionsResult,
-      ] = results;
+      const [issuesResult, commentsResult, prsResult, reviewsResult, mentionsResult] = results;
 
-      if (issuesResult.status === 'fulfilled') {
+      if (issuesResult.status === "fulfilled") {
         setJiraIssues(issuesResult.value);
       }
-      if (commentsResult.status === 'fulfilled') {
+      if (commentsResult.status === "fulfilled") {
         setJiraComments(commentsResult.value);
       }
-      if (prsResult.status === 'fulfilled') {
+      if (prsResult.status === "fulfilled") {
         setOpenPRs(prsResult.value);
       }
-      if (reviewsResult.status === 'fulfilled') {
+      if (reviewsResult.status === "fulfilled") {
         setReviewRequests(reviewsResult.value);
       }
-      if (mentionsResult.status === 'fulfilled') {
+      if (mentionsResult.status === "fulfilled") {
         setGithubMentions(mentionsResult.value);
       }
 
       // Collect errors from rejected promises
       const errors = results
-        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .filter((r): r is PromiseRejectedResult => r.status === "rejected")
         .map((r) => r.reason?.message || String(r.reason));
 
       if (errors.length > 0) {
-        setError(errors.join('; '));
+        setError(errors.join("; "));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }

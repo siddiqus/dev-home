@@ -13,11 +13,7 @@ interface JiraTasksProps {
   baseUrl?: string;
 }
 
-export const JiraTasks: React.FC<JiraTasksProps> = ({
-  issues,
-  loading,
-  baseUrl,
-}) => {
+export const JiraTasks: React.FC<JiraTasksProps> = ({ issues, loading, baseUrl }) => {
   if (loading && issues.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
@@ -76,10 +72,7 @@ export const JiraTasks: React.FC<JiraTasksProps> = ({
                 </a>
               </td>
               <td>
-                <span
-                  className="text-truncate-custom d-block"
-                  style={{ maxWidth: 420 }}
-                >
+                <span className="text-truncate-custom d-block" style={{ maxWidth: 420 }}>
                   {issue.summary}
                 </span>
               </td>
@@ -90,15 +83,10 @@ export const JiraTasks: React.FC<JiraTasksProps> = ({
                 />
               </td>
               <td>
-                <span className="badge badge-status-neutral">
-                  {issue.project.key}
-                </span>
+                <span className="badge badge-status-neutral">{issue.project.key}</span>
               </td>
               <td>
-                <span
-                  className="text-secondary-custom"
-                  style={{ whiteSpace: "nowrap" }}
-                >
+                <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
                   {formatRelativeTime(issue.updated)}
                 </span>
               </td>

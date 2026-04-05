@@ -65,17 +65,12 @@ export const OpenPRs: React.FC<OpenPRsProps> = ({ prs, loading }) => {
               </a>
             </td>
             <td>
-              <span className="badge badge-status-neutral">
-                {pr.repo_full_name}
-              </span>
+              <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
             </td>
             <td>
               <div className="d-flex align-items-center gap-1">
                 <span className="branch-tag">{pr.head.ref}</span>
-                <span
-                  className="text-secondary-custom"
-                  style={{ fontSize: "0.75rem" }}
-                >
+                <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
                   {"\u2192"}
                 </span>
                 <span className="branch-tag">{pr.base.ref}</span>
@@ -89,10 +84,7 @@ export const OpenPRs: React.FC<OpenPRsProps> = ({ prs, loading }) => {
               )}
             </td>
             <td>
-              <span
-                className="text-secondary-custom"
-                style={{ whiteSpace: "nowrap" }}
-              >
+              <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
                 {formatRelativeTime(pr.updated_at)}
               </span>
             </td>

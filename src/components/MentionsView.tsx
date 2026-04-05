@@ -30,11 +30,7 @@ export const MentionsView: React.FC<MentionsViewProps> = ({
             </Badge>
           )}
         </div>
-        <JiraComments
-          comments={jiraComments}
-          loading={loading}
-          baseUrl={jiraBaseUrl}
-        />
+        <JiraComments comments={jiraComments} loading={loading} baseUrl={jiraBaseUrl} />
       </Col>
       <Col lg={6}>
         <div className="section-header">

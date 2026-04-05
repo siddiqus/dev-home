@@ -17,11 +17,7 @@ function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength).trimEnd() + "...";
 }
 
-export const JiraComments: React.FC<JiraCommentsProps> = ({
-  comments,
-  loading,
-  baseUrl,
-}) => {
+export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, baseUrl }) => {
   if (loading && comments.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
@@ -61,10 +57,7 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({
                     <span style={{ fontWeight: 600, fontSize: "0.8125rem" }}>
                       {comment.author.displayName}
                     </span>
-                    <span
-                      className="text-secondary-custom"
-                      style={{ fontSize: "0.75rem" }}
-                    >
+                    <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
                       {formatRelativeTime(comment.created)}
                     </span>
                   </div>

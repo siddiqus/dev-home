@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { checkBackendHealth, fetchBackendConfig } from '../services/config';
+import { useState, useEffect } from "react";
+import { checkBackendHealth, fetchBackendConfig } from "../services/config";
 
 interface UseConfigReturn {
   configured: boolean;
@@ -13,8 +13,8 @@ export function useConfig(): UseConfigReturn {
   const [configured, setConfigured] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
-  const [jiraBaseUrl, setJiraBaseUrl] = useState<string>('');
-  const [githubUsername, setGithubUsername] = useState<string>('');
+  const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
+  const [githubUsername, setGithubUsername] = useState<string>("");
 
   useEffect(() => {
     async function init() {
@@ -29,7 +29,7 @@ export function useConfig(): UseConfigReturn {
           setGithubUsername(config.githubUsername);
         }
       } catch (err) {
-        console.error('Failed to initialize config:', err);
+        console.error("Failed to initialize config:", err);
       } finally {
         setLoading(false);
       }
