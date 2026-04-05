@@ -52,14 +52,17 @@ export default function App() {
   } = useDashboard(configured);
 
   // If config is not yet loaded, show settings first
-  const effectiveTab =
-    !configured && !configLoading ? "settings" : activeTab;
+  const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
 
   return (
     <>
       {/* Thin top bar -- draggable for Electron, with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
-        <Container fluid className="px-3" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center" }}>
+        <Container
+          fluid
+          className="px-3"
+          style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center" }}
+        >
           <div />
           <Navbar.Brand
             className="d-flex align-items-center gap-2 mx-auto mb-0"
@@ -69,15 +72,8 @@ export default function App() {
             Dev Home
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
-            {loading && (
-              <Spinner animation="border" size="sm" variant="secondary" />
-            )}
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={refresh}
-              disabled={loading}
-            >
+            {loading && <Spinner animation="border" size="sm" variant="secondary" />}
+            <Button variant="outline-secondary" size="sm" onClick={refresh} disabled={loading}>
               <IconRefresh size={14} />
             </Button>
             <Button
@@ -88,11 +84,7 @@ export default function App() {
             >
               {theme === "dark" ? <IconSun size={14} /> : <IconMoon size={14} />}
             </Button>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => setActiveTab("settings")}
-            >
+            <Button variant="outline-secondary" size="sm" onClick={() => setActiveTab("settings")}>
               <IconSettings size={14} />
             </Button>
           </div>
@@ -144,10 +136,7 @@ export default function App() {
                 },
               ].map((tab) => (
                 <Nav.Item key={tab.key}>
-                  <Nav.Link
-                    active={effectiveTab === tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                  >
+                  <Nav.Link active={effectiveTab === tab.key} onClick={() => setActiveTab(tab.key)}>
                     {tab.label}
                     {tab.count !== undefined && tab.count > 0 && (
                       <Badge bg="secondary" pill className="ms-2">
@@ -170,14 +159,11 @@ export default function App() {
                   reviewRequests={reviewRequests}
                   loading={loading}
                   jiraBaseUrl={jiraBaseUrl}
+                  onNavigate={setActiveTab}
                 />
               )}
               {effectiveTab === "jira" && (
-                <JiraTasks
-                  issues={jiraIssues}
-                  loading={loading}
-                  baseUrl={jiraBaseUrl}
-                />
+                <JiraTasks issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
               )}
               {effectiveTab === "mentions" && (
                 <MentionsView
@@ -187,9 +173,7 @@ export default function App() {
                   jiraBaseUrl={jiraBaseUrl}
                 />
               )}
-              {effectiveTab === "prs" && (
-                <OpenPRs prs={openPRs} loading={loading} />
-              )}
+              {effectiveTab === "prs" && <OpenPRs prs={openPRs} loading={loading} />}
               {effectiveTab === "reviews" && (
                 <ReviewRequests reviews={reviewRequests} loading={loading} />
               )}

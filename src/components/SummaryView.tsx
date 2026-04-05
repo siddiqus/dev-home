@@ -22,6 +22,7 @@ interface SummaryViewProps {
   reviewRequests: GitHubPR[];
   loading: boolean;
   jiraBaseUrl: string;
+  onNavigate: (tab: string) => void;
 }
 
 interface SectionProps {
@@ -30,9 +31,10 @@ interface SectionProps {
   badgeClass: string;
   count: number;
   children: React.ReactNode;
+  onSeeMore?: () => void;
 }
 
-function Section({ icon, title, badgeClass, count, children }: SectionProps) {
+function Section({ icon, title, badgeClass, count, children, onSeeMore }: SectionProps) {
   return (
     <Card className="h-100">
       <Card.Body className="p-0">
@@ -46,6 +48,13 @@ function Section({ icon, title, badgeClass, count, children }: SectionProps) {
           )}
         </div>
         <div style={{ marginTop: 8 }}>{children}</div>
+        {onSeeMore && (
+          <div className="see-more-row px-3 py-2">
+            <button className="see-more-btn" onClick={onSeeMore}>
+              See more
+            </button>
+          </div>
+        )}
       </Card.Body>
     </Card>
   );
@@ -60,14 +69,7 @@ interface ItemRowProps {
   badgeClass?: string;
 }
 
-function ItemRow({
-  url,
-  title,
-  subtitle,
-  time,
-  badge,
-  badgeClass,
-}: ItemRowProps) {
+function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps) {
   return (
     <div className="summary-item d-flex align-items-center gap-3 px-3 py-2">
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -80,22 +82,12 @@ function ItemRow({
         >
           {title}
         </a>
-        <div
-          className="text-secondary-custom"
-          style={{ fontSize: "0.75rem", marginTop: 1 }}
-        >
+        <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1 }}>
           {subtitle}
         </div>
       </div>
-      <div
-        className="d-flex align-items-center gap-2"
-        style={{ flexShrink: 0 }}
-      >
-        {badge && (
-          <Badge className={badgeClass || "badge-status-neutral"}>
-            {badge}
-          </Badge>
-        )}
+      <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
+        {badge && <Badge className={badgeClass || "badge-status-neutral"}>{badge}</Badge>}
         <span
           className="text-secondary-custom"
           style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
@@ -109,10 +101,7 @@ function ItemRow({
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <div
-      className="text-secondary-custom px-3 py-3"
-      style={{ fontSize: "0.8125rem" }}
-    >
+    <div className="text-secondary-custom px-3 py-3" style={{ fontSize: "0.8125rem" }}>
       {text}
     </div>
   );
@@ -126,6 +115,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   reviewRequests,
   loading,
   jiraBaseUrl,
+  onNavigate,
 }) => {
   if (loading && jiraIssues.length === 0 && openPRs.length === 0) {
     return (
@@ -170,6 +160,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           title="Review Requests"
           badgeClass="badge-status-yellow"
           count={reviewRequests.length}
+          onSeeMore={() => onNavigate("reviews")}
         >
           {topReviews.length > 0 ? (
             topReviews.map((r) => (
@@ -194,6 +185,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           title="Open Pull Requests"
           badgeClass="badge-status-green"
           count={openPRs.length}
+          onSeeMore={() => onNavigate("prs")}
         >
           {topPRs.length > 0 ? (
             topPRs.map((pr) => (
@@ -204,9 +196,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 subtitle={pr.repo_full_name}
                 time={pr.updated_at}
                 badge={pr.draft ? "Draft" : "Open"}
-                badgeClass={
-                  pr.draft ? "badge-status-neutral" : "badge-status-green"
-                }
+                badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
               />
             ))
           ) : (
@@ -222,16 +212,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           title="Mentions"
           badgeClass="badge-status-purple"
           count={jiraComments.length + githubMentions.length}
+          onSeeMore={() => onNavigate("mentions")}
         >
           {allMentions.length > 0 ? (
             allMentions.map((m) => (
-              <ItemRow
-                key={m.id}
-                url={m.url}
-                title={m.title}
-                subtitle={m.subtitle}
-                time={m.time}
-              />
+              <ItemRow key={m.id} url={m.url} title={m.title} subtitle={m.subtitle} time={m.time} />
             ))
           ) : (
             <EmptyRow text="No recent mentions" />
@@ -244,14 +229,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           title="JIRA Tasks"
           badgeClass="badge-status-blue"
           count={jiraIssues.length}
+          onSeeMore={() => onNavigate("jira")}
         >
           {topIssues.length > 0 ? (
             topIssues.map((issue) => (
               <ItemRow
                 key={issue.key}
-                url={
-                  jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`
-                }
+                url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
                 title={`${issue.key}: ${issue.summary}`}
                 subtitle={issue.project.name}
                 time={issue.updated}
@@ -260,10 +244,10 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   issue.status.statusCategory.colorName === "green"
                     ? "badge-status-green"
                     : issue.status.statusCategory.colorName === "yellow"
-                    ? "badge-status-yellow"
-                    : issue.status.statusCategory.colorName === "blue"
-                    ? "badge-status-blue"
-                    : "badge-status-neutral"
+                      ? "badge-status-yellow"
+                      : issue.status.statusCategory.colorName === "blue"
+                        ? "badge-status-blue"
+                        : "badge-status-neutral"
                 }
               />
             ))

@@ -21,8 +21,9 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #0d1117;
@@ -113,7 +114,9 @@ a:hover {
   font-size: 0.8125rem;
   font-weight: 500;
   padding: 6px 14px;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -486,7 +489,9 @@ a:hover {
   border: 1px solid #21262d;
   border-radius: 8px;
   padding: 14px 16px;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 
 .comment-card:hover {
@@ -503,6 +508,29 @@ a:hover {
 
 .summary-item:hover {
   background-color: #1c2128;
+}
+
+/* --- See more button --- */
+.see-more-row {
+  border-top: 1px solid #21262d;
+  text-align: center;
+}
+
+.see-more-btn {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.see-more-btn:hover {
+  color: #58a6ff;
+  background-color: rgba(88, 166, 255, 0.08);
 }
 
 /* --- Section headers --- */
@@ -707,6 +735,19 @@ a,
 
 [data-theme="light"] .summary-item:hover {
   background-color: #f6f8fa;
+}
+
+[data-theme="light"] .see-more-row {
+  border-top-color: #eaeef2;
+}
+
+[data-theme="light"] .see-more-btn {
+  color: #656d76;
+}
+
+[data-theme="light"] .see-more-btn:hover {
+  color: #0969da;
+  background-color: rgba(9, 105, 218, 0.08);
 }
 
 [data-theme="light"] .section-header {
