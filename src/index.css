@@ -1,0 +1,794 @@
+/* ============================================
+   Dev Home — Dark Developer Theme
+   GitHub-dark inspired, Linear-clean aesthetic
+   ============================================ */
+
+/* --- Reset & Base --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0d1117;
+  color: #c9d1d9;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  -webkit-app-region: no-drag;
+}
+
+/* --- Electron title bar drag region --- */
+.top-bar {
+  -webkit-app-region: drag;
+  background-color: #010409 !important;
+  border-bottom: 1px solid #21262d;
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 38px;
+}
+
+.top-bar button,
+.top-bar a,
+.top-bar .btn,
+.top-bar input {
+  -webkit-app-region: no-drag;
+}
+
+.top-bar .navbar-brand {
+  color: #c9d1d9 !important;
+  user-select: none;
+}
+
+/* --- Bootstrap CSS Variable Overrides --- */
+:root {
+  --bs-body-bg: #0d1117;
+  --bs-body-color: #c9d1d9;
+  --bs-border-color: #30363d;
+  --bs-card-bg: #161b22;
+  --bs-card-border-color: #30363d;
+  --bs-card-cap-bg: #161b22;
+  --bs-link-color: #58a6ff;
+  --bs-link-hover-color: #79b8ff;
+}
+
+/* --- Links --- */
+a {
+  color: #58a6ff;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+a:hover {
+  color: #79b8ff;
+  text-decoration: underline;
+}
+
+/* --- Cards --- */
+.card {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #c9d1d9;
+}
+
+.card-header {
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.card-body {
+  background-color: transparent;
+}
+
+/* --- Nav Tabs (Pill / Segmented Control Style) --- */
+.dev-tabs.nav-tabs {
+  border-bottom: none;
+  gap: 4px;
+  background-color: #161b22;
+  border-radius: 8px;
+  padding: 4px;
+  display: inline-flex;
+  width: auto;
+}
+
+.dev-tabs.nav-tabs .nav-link {
+  border: none;
+  border-radius: 6px;
+  color: #8b949e;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  transition: background-color 150ms ease, color 150ms ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dev-tabs.nav-tabs .nav-link:hover {
+  color: #c9d1d9;
+  background-color: #1c2128;
+}
+
+.dev-tabs.nav-tabs .nav-link.active {
+  color: #58a6ff;
+  background-color: rgba(31, 111, 235, 0.133);
+  border: none;
+  font-weight: 600;
+}
+
+.dev-tabs.nav-tabs .nav-link:focus-visible {
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.4);
+  outline: none;
+}
+
+/* --- Tab Content Area --- */
+.tab-content-area {
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Tables --- */
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: #c9d1d9;
+  --bs-table-border-color: #21262d;
+  --bs-table-striped-bg: #161b22;
+  --bs-table-hover-bg: #1c2128;
+  color: #c9d1d9;
+  font-size: 0.8125rem;
+  margin-bottom: 0;
+}
+
+.table > thead > tr > th {
+  border-bottom: 1px solid #21262d;
+  color: #8b949e;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.table > tbody > tr > td {
+  border-bottom: 1px solid #21262d;
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.table > tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+.table > tbody > tr:hover > td {
+  background-color: #1c2128;
+}
+
+/* --- Badges --- */
+.badge {
+  font-weight: 500;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+.badge.bg-secondary {
+  background-color: #30363d !important;
+  color: #8b949e;
+}
+
+/* Status badge colors */
+.badge-status-blue {
+  background-color: rgba(56, 139, 253, 0.15);
+  color: #58a6ff;
+}
+
+.badge-status-green {
+  background-color: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+}
+
+.badge-status-yellow {
+  background-color: rgba(210, 153, 34, 0.15);
+  color: #d29922;
+}
+
+.badge-status-red {
+  background-color: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+.badge-status-purple {
+  background-color: rgba(163, 113, 247, 0.15);
+  color: #a371f7;
+}
+
+.badge-status-neutral {
+  background-color: rgba(139, 148, 158, 0.15);
+  color: #8b949e;
+}
+
+/* --- Alerts --- */
+.alert {
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  border: 1px solid;
+}
+
+.alert-danger {
+  background-color: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.3);
+  color: #f85149;
+}
+
+.alert-warning {
+  background-color: rgba(210, 153, 34, 0.1);
+  border-color: rgba(210, 153, 34, 0.3);
+  color: #d29922;
+}
+
+/* --- Buttons --- */
+.btn-outline-secondary {
+  color: #8b949e;
+  border-color: #30363d;
+  background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+  color: #c9d1d9;
+  background-color: #21262d;
+  border-color: #8b949e;
+}
+
+.btn-outline-secondary:disabled {
+  color: #484f58;
+  border-color: #21262d;
+}
+
+.btn-outline-primary {
+  color: #58a6ff;
+  border-color: #1f6feb;
+}
+
+.btn-outline-primary:hover {
+  color: #fff;
+  background-color: #1f6feb;
+  border-color: #1f6feb;
+}
+
+/* --- ListGroup --- */
+.list-group {
+  border-radius: 8px;
+}
+
+.list-group-item {
+  background-color: #161b22;
+  border-color: #21262d;
+  color: #c9d1d9;
+  padding: 12px 16px;
+  transition: background-color 150ms ease;
+}
+
+.list-group-item:hover {
+  background-color: #1c2128;
+}
+
+.list-group-item:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.list-group-item:last-child {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* --- Spinner --- */
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* --- Code blocks --- */
+.code-block {
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #c9d1d9;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* --- Branch tag --- */
+.branch-tag {
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: rgba(56, 139, 253, 0.1);
+  color: #58a6ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* --- Status indicator dot --- */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background-color: #3fb950;
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
+}
+
+.status-dot.offline {
+  background-color: #f85149;
+  box-shadow: 0 0 6px rgba(248, 81, 73, 0.4);
+}
+
+/* --- Type indicator dots (for summary view) --- */
+.type-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.type-indicator.jira-issue {
+  background-color: rgba(56, 139, 253, 0.15);
+  color: #58a6ff;
+}
+
+.type-indicator.jira-comment {
+  background-color: rgba(163, 113, 247, 0.15);
+  color: #a371f7;
+}
+
+.type-indicator.github-mention {
+  background-color: rgba(139, 148, 158, 0.15);
+  color: #8b949e;
+}
+
+.type-indicator.github-pr {
+  background-color: rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+}
+
+.type-indicator.github-review {
+  background-color: rgba(210, 153, 34, 0.15);
+  color: #d29922;
+}
+
+/* --- Muted / Helper text --- */
+.text-muted-custom {
+  color: #484f58 !important;
+}
+
+.text-secondary-custom {
+  color: #8b949e !important;
+}
+
+/* --- Container fluid padding override --- */
+.container-fluid {
+  max-width: 100%;
+}
+
+/* --- Empty state --- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 8px;
+  text-align: center;
+}
+
+.empty-state .empty-icon {
+  color: #484f58;
+  opacity: 0.5;
+}
+
+/* --- Avatar --- */
+.avatar-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-md {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* --- Priority icon --- */
+.priority-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* --- Truncate text --- */
+.text-truncate-custom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Comment card --- */
+.comment-card {
+  background-color: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.comment-card:hover {
+  background-color: #1c2128;
+  border-color: #30363d;
+}
+
+/* --- Summary item rows --- */
+.summary-item {
+  border-bottom: 1px solid #21262d;
+  transition: background-color 120ms ease;
+  cursor: pointer;
+}
+
+.summary-item:hover {
+  background-color: #1c2128;
+}
+
+/* --- Section headers --- */
+.section-header {
+  color: #8b949e;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- Selection / focus styles --- */
+*:focus-visible {
+  outline: 2px solid rgba(88, 166, 255, 0.4);
+  outline-offset: 1px;
+}
+
+/* --- Smooth transitions for all interactive elements --- */
+button,
+a,
+.nav-link,
+.list-group-item {
+  transition: all 150ms ease;
+}
+
+/* ============================================
+   Light Mode Overrides
+   ============================================ */
+[data-theme="light"] body,
+[data-theme="light"] {
+  background-color: #ffffff;
+  color: #1f2328;
+}
+
+[data-theme="light"] .top-bar {
+  background-color: #f6f8fa !important;
+  border-bottom-color: #d1d9e0;
+}
+
+[data-theme="light"] .top-bar .navbar-brand {
+  color: #1f2328 !important;
+}
+
+[data-theme="light"] .card {
+  background-color: #ffffff;
+  border-color: #d1d9e0;
+  color: #1f2328;
+}
+
+[data-theme="light"] .card-header {
+  background-color: #f6f8fa;
+  border-bottom-color: #d1d9e0;
+}
+
+[data-theme="light"] .dev-tabs.nav-tabs {
+  background-color: #f6f8fa;
+}
+
+[data-theme="light"] .dev-tabs.nav-tabs .nav-link {
+  color: #656d76;
+}
+
+[data-theme="light"] .dev-tabs.nav-tabs .nav-link:hover {
+  color: #1f2328;
+  background-color: #eaeef2;
+}
+
+[data-theme="light"] .dev-tabs.nav-tabs .nav-link.active {
+  color: #0969da;
+  background-color: rgba(9, 105, 218, 0.1);
+}
+
+[data-theme="light"] .table {
+  --bs-table-bg: transparent;
+  --bs-table-color: #1f2328;
+  --bs-table-border-color: #d1d9e0;
+  --bs-table-hover-bg: #f6f8fa;
+  color: #1f2328;
+}
+
+[data-theme="light"] .table > thead > tr > th {
+  color: #656d76;
+  border-bottom-color: #d1d9e0;
+}
+
+[data-theme="light"] .table > tbody > tr > td {
+  border-bottom-color: #eaeef2;
+}
+
+[data-theme="light"] .table > tbody > tr:hover > td {
+  background-color: #f6f8fa;
+}
+
+[data-theme="light"] a {
+  color: #0969da;
+}
+
+[data-theme="light"] a:hover {
+  color: #0550ae;
+}
+
+[data-theme="light"] .text-secondary-custom {
+  color: #656d76 !important;
+}
+
+[data-theme="light"] .badge.bg-secondary {
+  background-color: #eaeef2 !important;
+  color: #656d76;
+}
+
+[data-theme="light"] .badge-status-blue {
+  background-color: rgba(9, 105, 218, 0.1);
+  color: #0969da;
+}
+
+[data-theme="light"] .badge-status-green {
+  background-color: rgba(26, 127, 55, 0.1);
+  color: #1a7f37;
+}
+
+[data-theme="light"] .badge-status-yellow {
+  background-color: rgba(154, 103, 0, 0.1);
+  color: #9a6700;
+}
+
+[data-theme="light"] .badge-status-red {
+  background-color: rgba(207, 34, 46, 0.1);
+  color: #cf222e;
+}
+
+[data-theme="light"] .badge-status-purple {
+  background-color: rgba(130, 80, 223, 0.1);
+  color: #8250df;
+}
+
+[data-theme="light"] .badge-status-neutral {
+  background-color: rgba(101, 109, 118, 0.1);
+  color: #656d76;
+}
+
+[data-theme="light"] .comment-card {
+  background-color: #ffffff;
+  border-color: #d1d9e0;
+}
+
+[data-theme="light"] .comment-card:hover {
+  background-color: #f6f8fa;
+  border-color: #bbc0c5;
+}
+
+[data-theme="light"] .list-group-item {
+  background-color: #ffffff;
+  border-color: #d1d9e0;
+  color: #1f2328;
+}
+
+[data-theme="light"] .list-group-item:hover {
+  background-color: #f6f8fa;
+}
+
+[data-theme="light"] .btn-outline-secondary {
+  color: #656d76;
+  border-color: #d1d9e0;
+}
+
+[data-theme="light"] .btn-outline-secondary:hover {
+  color: #1f2328;
+  background-color: #f6f8fa;
+  border-color: #bbc0c5;
+}
+
+[data-theme="light"] .alert-danger {
+  background-color: rgba(207, 34, 46, 0.08);
+  border-color: rgba(207, 34, 46, 0.25);
+  color: #cf222e;
+}
+
+[data-theme="light"] .alert-warning {
+  background-color: rgba(154, 103, 0, 0.08);
+  border-color: rgba(154, 103, 0, 0.25);
+  color: #9a6700;
+}
+
+[data-theme="light"] .code-block {
+  background-color: #f6f8fa;
+  border-color: #d1d9e0;
+  color: #1f2328;
+}
+
+[data-theme="light"] .branch-tag {
+  background-color: rgba(9, 105, 218, 0.08);
+  color: #0969da;
+}
+
+[data-theme="light"] .summary-item {
+  border-bottom-color: #eaeef2;
+}
+
+[data-theme="light"] .summary-item:hover {
+  background-color: #f6f8fa;
+}
+
+[data-theme="light"] .section-header {
+  color: #656d76;
+}
+
+[data-theme="light"] .empty-state .empty-icon {
+  color: #bbc0c5;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #d1d9e0;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #bbc0c5;
+}
+
+/* Override Bootstrap dark-variant components in light mode */
+[data-theme="light"] .table-dark,
+[data-theme="light"] .table-dark > thead,
+[data-theme="light"] .table-dark > tbody,
+[data-theme="light"] .table-dark > thead > tr > th,
+[data-theme="light"] .table-dark > tbody > tr > td {
+  --bs-table-bg: transparent;
+  --bs-table-color: #1f2328;
+  background-color: transparent !important;
+  color: #1f2328 !important;
+  border-color: #eaeef2 !important;
+}
+
+[data-theme="light"] .table-dark > thead > tr > th {
+  color: #656d76 !important;
+  border-bottom-color: #d1d9e0 !important;
+}
+
+[data-theme="light"] .table-dark > tbody > tr:hover > td {
+  background-color: #f6f8fa !important;
+}
+
+/* Bootstrap Badge overrides — force readable text in light mode */
+[data-theme="light"] .badge.bg-warning {
+  background-color: rgba(154, 103, 0, 0.12) !important;
+  color: #9a6700 !important;
+}
+
+[data-theme="light"] .badge.bg-success {
+  background-color: rgba(26, 127, 55, 0.12) !important;
+  color: #1a7f37 !important;
+}
+
+[data-theme="light"] .badge.bg-danger {
+  background-color: rgba(207, 34, 46, 0.12) !important;
+  color: #cf222e !important;
+}
+
+[data-theme="light"] .badge.bg-info {
+  background-color: rgba(9, 105, 218, 0.12) !important;
+  color: #0969da !important;
+}
+
+[data-theme="light"] .badge.bg-primary {
+  background-color: rgba(9, 105, 218, 0.12) !important;
+  color: #0969da !important;
+}
+
+[data-theme="light"] .badge.bg-dark {
+  background-color: #eaeef2 !important;
+  color: #1f2328 !important;
+}
+
+/* Spinner in light mode */
+[data-theme="light"] .spinner-border {
+  color: #656d76;
+}
+
+/* Status dot text beside it */
+[data-theme="light"] .status-dot.online + span,
+[data-theme="light"] .status-dot.offline + span {
+  color: inherit;
+}

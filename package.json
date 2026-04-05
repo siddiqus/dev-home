@@ -1,0 +1,39 @@
+{
+  "name": "dev-home",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Developer Home Dashboard - JIRA & GitHub integration",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -n server,app -c blue,green \"yarn dev:server\" \"yarn dev:app\"",
+    "dev:server": "cd server && npx tsx watch src/index.ts",
+    "dev:app": "vite",
+    "build": "tsc && vite build && cd server && yarn build",
+    "build:server": "cd server && yarn build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@optiaxiom/react": "^1.9.23",
+    "@tabler/icons-react": "^3.0.0",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/table-core": "^8.21.3",
+    "bootstrap": "^5.3.8",
+    "octokit": "^4.1.0",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^18.3.1",
+    "react-is": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.2.1",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0",
+    "vite-plugin-electron": "^0.28.0",
+    "vite-plugin-electron-renderer": "^0.14.0"
+  }
+}
