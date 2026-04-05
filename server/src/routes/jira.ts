@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express';
-import { getConfig } from '../config';
+import { Router, Request, Response } from "express";
+import { getConfig } from "../config";
 
 const router = Router();
 
@@ -10,12 +10,12 @@ function getJiraAuthHeaders() {
   const config = getConfig();
   const credentials = Buffer.from(
     `${config.jiraEmail}:${config.jiraApiToken}`
-  ).toString('base64');
+  ).toString("base64");
 
   return {
     Authorization: `Basic ${credentials}`,
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
+    Accept: "application/json",
+    "Content-Type": "application/json",
   };
 }
 
@@ -23,11 +23,11 @@ function getJiraAuthHeaders() {
  * Recursively extract plain text from an Atlassian Document Format (ADF) node.
  */
 function extractTextFromADF(node: any): string {
-  if (!node) return '';
+  if (!node) return "";
 
-  if (typeof node === 'string') return node;
+  if (typeof node === "string") return node;
 
-  let text = '';
+  let text = "";
 
   if (node.text) {
     text += node.text;
@@ -46,26 +46,32 @@ function extractTextFromADF(node: any): string {
  * GET /api/jira/issues
  * Fetch unresolved issues assigned to the current user.
  */
-router.get('/issues', async (_req: Request, res: Response) => {
+router.get("/issues", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
     const headers = getJiraAuthHeaders();
 
-    const jql =
-      'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC';
-    const fields = ['summary', 'status', 'priority', 'assignee', 'project', 'updated'];
+    const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved ORDER BY updated DESC`;
+    const fields = [
+      "summary",
+      "status",
+      "priority",
+      "assignee",
+      "project",
+      "updated",
+    ];
 
     const url = `${config.jiraBaseUrl}/rest/api/3/search/jql`;
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify({ jql, fields }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error('[JIRA /issues] Error:', response.status, errorBody);
+      console.error("[JIRA /issues] Error:", response.status, errorBody);
       return res.status(response.status).json({
         error: `JIRA API returned ${response.status}: ${errorBody}`,
       });
@@ -73,7 +79,21 @@ router.get('/issues', async (_req: Request, res: Response) => {
 
     const data: any = await response.json();
 
-    const issues = (data.issues || []).map((issue: any) => ({
+    console.log("[JIRA /issues] Raw response keys:", Object.keys(data));
+    console.log(
+      "[JIRA /issues] Total:",
+      data.total,
+      "Count:",
+      data.issues?.length ?? data.length ?? "N/A"
+    );
+    if (!data.issues && Array.isArray(data)) {
+      console.log(
+        "[JIRA /issues] Response is array directly, length:",
+        data.length
+      );
+    }
+
+    const issues = (data.issues || data || []).map((issue: any) => ({
       key: issue.key,
       summary: issue.fields?.summary,
       status: {
@@ -100,7 +120,7 @@ router.get('/issues', async (_req: Request, res: Response) => {
 
     res.json({ issues });
   } catch (err: any) {
-    console.error('[JIRA /issues] Exception:', err.message);
+    console.error("[JIRA /issues] Exception:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -109,30 +129,33 @@ router.get('/issues', async (_req: Request, res: Response) => {
  * GET /api/jira/mentions
  * Fetch recent comments that mention the current user.
  */
-router.get('/mentions', async (_req: Request, res: Response) => {
+router.get("/mentions", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
     const headers = getJiraAuthHeaders();
 
     // Extract username from email (part before @)
-    const username = config.jiraEmail.split('@')[0];
+    const username = config.jiraEmail.split("@")[0];
 
-    const jql =
-      'text ~ currentUser() AND comment ~ currentUser() ORDER BY updated DESC';
-    const fields = ['summary'];
+    const jql = `text ~ "${config.jiraEmail}" ORDER BY updated DESC`;
+    const fields = ["summary"];
     const maxResults = 20;
 
     const searchUrl = `${config.jiraBaseUrl}/rest/api/3/search/jql`;
 
     const searchResponse = await fetch(searchUrl, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify({ jql, fields, maxResults }),
     });
 
     if (!searchResponse.ok) {
       const errorBody = await searchResponse.text();
-      console.error('[JIRA /mentions] Search error:', searchResponse.status, errorBody);
+      console.error(
+        "[JIRA /mentions] Search error:",
+        searchResponse.status,
+        errorBody
+      );
       return res.status(searchResponse.status).json({
         error: `JIRA API returned ${searchResponse.status}: ${errorBody}`,
       });
@@ -201,7 +224,7 @@ router.get('/mentions', async (_req: Request, res: Response) => {
 
     res.json({ comments: allComments });
   } catch (err: any) {
-    console.error('[JIRA /mentions] Exception:', err.message);
+    console.error("[JIRA /mentions] Exception:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

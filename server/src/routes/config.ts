@@ -18,20 +18,9 @@ router.get('/', (_req: Request, res: Response) => {
     process.env.GITHUB_USERNAME
   );
 
-  // Mask the JIRA base URL to only show the domain
-  let maskedJiraBaseUrl = '';
-  if (jiraBaseUrl) {
-    try {
-      const url = new URL(jiraBaseUrl);
-      maskedJiraBaseUrl = url.hostname;
-    } catch {
-      maskedJiraBaseUrl = jiraBaseUrl.replace(/https?:\/\//, '').split('/')[0];
-    }
-  }
-
   res.json({
     configured,
-    jiraBaseUrl: maskedJiraBaseUrl,
+    jiraBaseUrl: jiraBaseUrl.replace(/\/+$/, ''),
     githubUsername,
   });
 });

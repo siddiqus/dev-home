@@ -60,10 +60,16 @@ interface ItemRowProps {
   badgeClass?: string;
 }
 
-function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps) {
+function ItemRow({
+  url,
+  title,
+  subtitle,
+  time,
+  badge,
+  badgeClass,
+}: ItemRowProps) {
   return (
     <div className="summary-item d-flex align-items-center gap-3 px-3 py-2">
-
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={url}
@@ -74,13 +80,26 @@ function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps
         >
           {title}
         </a>
-        <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1 }}>
+        <div
+          className="text-secondary-custom"
+          style={{ fontSize: "0.75rem", marginTop: 1 }}
+        >
           {subtitle}
         </div>
       </div>
-      <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-        {badge && <Badge className={badgeClass || "badge-status-neutral"}>{badge}</Badge>}
-        <span className="text-secondary-custom" style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}>
+      <div
+        className="d-flex align-items-center gap-2"
+        style={{ flexShrink: 0 }}
+      >
+        {badge && (
+          <Badge className={badgeClass || "badge-status-neutral"}>
+            {badge}
+          </Badge>
+        )}
+        <span
+          className="text-secondary-custom"
+          style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
+        >
           {formatRelativeTime(time)}
         </span>
       </div>
@@ -90,7 +109,10 @@ function ItemRow({ url, title, subtitle, time, badge, badgeClass }: ItemRowProps
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <div className="text-secondary-custom px-3 py-3" style={{ fontSize: "0.8125rem" }}>
+    <div
+      className="text-secondary-custom px-3 py-3"
+      style={{ fontSize: "0.8125rem" }}
+    >
       {text}
     </div>
   );
@@ -113,7 +135,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     );
   }
 
-  const jiraBase = jiraBaseUrl?.replace(/\/$/, "") || "";
+  const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
 
   const topReviews = reviewRequests.slice(0, 5);
   const topPRs = openPRs.slice(0, 5);
@@ -182,7 +204,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 subtitle={pr.repo_full_name}
                 time={pr.updated_at}
                 badge={pr.draft ? "Draft" : "Open"}
-                badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                badgeClass={
+                  pr.draft ? "badge-status-neutral" : "badge-status-green"
+                }
               />
             ))
           ) : (
@@ -225,16 +249,21 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             topIssues.map((issue) => (
               <ItemRow
                 key={issue.key}
-                url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
+                url={
+                  jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`
+                }
                 title={`${issue.key}: ${issue.summary}`}
                 subtitle={issue.project.name}
                 time={issue.updated}
                 badge={issue.status.name}
                 badgeClass={
-                  issue.status.statusCategory.colorName === "green" ? "badge-status-green" :
-                  issue.status.statusCategory.colorName === "yellow" ? "badge-status-yellow" :
-                  issue.status.statusCategory.colorName === "blue" ? "badge-status-blue" :
-                  "badge-status-neutral"
+                  issue.status.statusCategory.colorName === "green"
+                    ? "badge-status-green"
+                    : issue.status.statusCategory.colorName === "yellow"
+                    ? "badge-status-yellow"
+                    : issue.status.statusCategory.colorName === "blue"
+                    ? "badge-status-blue"
+                    : "badge-status-neutral"
                 }
               />
             ))
