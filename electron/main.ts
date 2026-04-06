@@ -17,8 +17,8 @@ function startBackendServer() {
 
   // In packaged app, server is in extraResources; in dev/unpacked, it's relative to __dirname
   const serverEntry = app.isPackaged
-    ? path.join(process.resourcesPath, "server", "dist", "index.js")
-    : path.join(__dirname, "../server/dist/index.js");
+    ? path.join(process.resourcesPath, "server", "dist", "bundle.js")
+    : path.join(__dirname, "../server/dist/bundle.js");
   serverProcess = fork(serverEntry, [], {
     env: {
       ...process.env,
