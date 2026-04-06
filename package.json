@@ -47,7 +47,8 @@
         }
       ],
       "category": "public.app-category.developer-tools",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "electronLanguages": ["en"]
     },
     "dmg": {
       "title": "Dev Home",
