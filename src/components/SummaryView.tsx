@@ -161,7 +161,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="Review Requests"
             badgeClass="badge-status-yellow"
             count={reviewRequests.length}
-            onSeeMore={() => onNavigate("reviews")}
+            onSeeMore={reviewRequests.length > 5 ? () => onNavigate("reviews") : undefined}
           >
             {topReviews.length > 0 ? (
               topReviews.map((r) => (
@@ -187,7 +187,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="Open Pull Requests"
             badgeClass="badge-status-green"
             count={openPRs.length}
-            onSeeMore={() => onNavigate("prs")}
+            onSeeMore={openPRs.length > 5 ? () => onNavigate("prs") : undefined}
           >
             {topPRs.length > 0 ? (
               topPRs.map((pr) => (
@@ -215,7 +215,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="Mentions"
             badgeClass="badge-status-purple"
             count={jiraComments.length + githubMentions.length}
-            onSeeMore={() => onNavigate("mentions")}
+            onSeeMore={jiraComments.length + githubMentions.length > 5 ? () => onNavigate("mentions") : undefined}
           >
             {allMentions.length > 0 ? (
               allMentions.map((m) => (
@@ -238,7 +238,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="JIRA Tasks"
             badgeClass="badge-status-blue"
             count={jiraIssues.length}
-            onSeeMore={() => onNavigate("jira")}
+            onSeeMore={jiraIssues.length > 5 ? () => onNavigate("jira") : undefined}
           >
             {topIssues.length > 0 ? (
               topIssues.map((issue) => (

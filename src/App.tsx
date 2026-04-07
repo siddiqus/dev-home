@@ -177,9 +177,9 @@ export default function App() {
                   jiraBaseUrl={jiraBaseUrl}
                 />
               )}
-              {effectiveTab === "prs" && <OpenPRs prs={openPRs} loading={loading} />}
+              {effectiveTab === "prs" && <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />}
               {effectiveTab === "reviews" && (
-                <ReviewRequests reviews={reviewRequests} loading={loading} />
+                <ReviewRequests reviews={reviewRequests} loading={loading} jiraIssues={jiraIssues} />
               )}
             </div>
           </>

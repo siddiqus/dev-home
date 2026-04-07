@@ -170,7 +170,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
 
     // Fetch from 3 sources in parallel
     const cutoff = threeMonthsAgoDate();
-    const [notificationsRes, prMentionsRes, issueMentionsRes] = await Promise.all([
+    const [notificationsRes, prMentionsRes] = await Promise.all([
       fetch(
         `${GITHUB_API}/notifications?participating=true&all=false&per_page=50&since=${cutoff}T00:00:00Z`,
         { headers },
@@ -178,12 +178,6 @@ router.get("/mentions", async (_req: Request, res: Response) => {
       fetch(
         `${GITHUB_API}/search/issues?q=${encodeURIComponent(
           `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
-        )}&sort=updated&per_page=30`,
-        { headers },
-      ),
-      fetch(
-        `${GITHUB_API}/search/issues?q=${encodeURIComponent(
-          `mentions:${config.githubUsername} type:issue state:open updated:>=${cutoff}`,
         )}&sort=updated&per_page=30`,
         { headers },
       ),
@@ -256,30 +250,6 @@ router.get("/mentions", async (_req: Request, res: Response) => {
       }
     } else {
       console.error("[GitHub /mentions] PR search error:", prMentionsRes.status);
-    }
-
-    // Process issue mentions from search
-    if (issueMentionsRes.ok) {
-      const issueData: any = await issueMentionsRes.json();
-      for (const item of issueData.items || []) {
-        mentions.push({
-          id: item.id,
-          html_url: item.html_url,
-          body: item.body || "",
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          user: {
-            login: item.user?.login,
-            avatar_url: item.user?.avatar_url,
-          },
-          issue_url: item.url || "",
-          pr_number: item.pull_request ? item.number : null,
-          repo_full_name: extractRepoFullName(item.repository_url),
-          context_title: item.title || "",
-        });
-      }
-    } else {
-      console.error("[GitHub /mentions] Issue search error:", issueMentionsRes.status);
     }
 
     // Deduplicate by id

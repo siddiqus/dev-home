@@ -476,6 +476,57 @@ a:hover {
   display: block;
 }
 
+/* --- Ticket group header --- */
+.ticket-group-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ticket-group-header:hover > td {
+  background-color: #1c2128;
+}
+
+.ticket-group-header > td {
+  background-color: #161b22;
+  border-bottom: 1px solid #21262d;
+  padding: 6px 12px !important;
+}
+
+.ticket-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  color: #484f58;
+  vertical-align: middle;
+}
+
+.ticket-group-label {
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #58a6ff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.ticket-group-count {
+  font-size: 0.6875rem;
+  color: #484f58;
+  margin-left: 8px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.ticket-group-title {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #8b949e;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 /* --- Truncate text --- */
 .text-truncate-custom {
   overflow: hidden;
@@ -727,6 +778,31 @@ a,
 [data-theme="light"] .branch-tag {
   background-color: rgba(9, 105, 218, 0.08);
   color: #0969da;
+}
+
+[data-theme="light"] .ticket-group-header:hover > td {
+  background-color: #eaeef2;
+}
+
+[data-theme="light"] .ticket-group-header > td {
+  background-color: #f6f8fa;
+  border-bottom-color: #d1d9e0;
+}
+
+[data-theme="light"] .ticket-group-chevron {
+  color: #656d76;
+}
+
+[data-theme="light"] .ticket-group-label {
+  color: #0969da;
+}
+
+[data-theme="light"] .ticket-group-count {
+  color: #656d76;
+}
+
+[data-theme="light"] .ticket-group-title {
+  color: #656d76;
 }
 
 [data-theme="light"] .summary-item {

@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export interface AppSettings {
   jiraBaseUrl: string;
   jiraEmail: string;
@@ -19,11 +21,13 @@ declare global {
 const API_PORT = import.meta.env.VITE_API_PORT || "3001";
 export const API_BASE = `http://localhost:${API_PORT}/api`;
 
+export const apiClient = axios.create({
+  baseURL: API_BASE,
+});
+
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/health`);
-    if (!response.ok) return false;
-    const data = await response.json();
+    const { data } = await apiClient.get("/health");
     return data.status === "ok";
   } catch {
     return false;
@@ -35,11 +39,7 @@ export async function fetchBackendConfig(): Promise<{
   jiraBaseUrl: string;
   githubUsername: string;
 }> {
-  const response = await fetch(`${API_BASE}/config`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch backend config (${response.status})`);
-  }
-  const data = await response.json();
+  const { data } = await apiClient.get("/config");
   return {
     configured: data.configured,
     jiraBaseUrl: data.jiraBaseUrl,
@@ -48,14 +48,7 @@ export async function fetchBackendConfig(): Promise<{
 }
 
 export async function saveSettingsToBackend(settings: AppSettings): Promise<void> {
-  const response = await fetch(`${API_BASE}/config`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(settings),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to save settings to backend (${response.status})`);
-  }
+  await apiClient.post("/config", settings);
 }
 
 export async function loadSettingsFromStore(): Promise<AppSettings | null> {
