@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getConfig } from "../config";
 import { createGitHubClient } from "../clients/githubApiClient";
-import axios from "axios";
+import { graphql } from "../clients/githubGraphqlClient";
 
 const router = Router();
 
@@ -14,61 +14,57 @@ function threeMonthsAgoDate(): string {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Extract repo full name (owner/repo) from a GitHub repository_url.
- */
-function extractRepoFullName(repositoryUrl: string): string {
-  const match = repositoryUrl?.match(/\/repos\/(.+)$/);
-  return match ? match[1] : "";
-}
+const SEARCH_PRS_QUERY = `
+  query SearchPRs($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
+      nodes {
+        ... on PullRequest {
+          databaseId
+          number
+          title
+          url
+          state
+          isDraft
+          createdAt
+          updatedAt
+          author { login avatarUrl }
+          body
+          headRefName
+          baseRefName
+          repository { nameWithOwner url }
+        }
+      }
+    }
+  }
+`;
 
 /**
- * Map a GitHub search issue/PR item to a clean PR object.
- * The search API doesn't include head/base refs, so accept optional overrides.
+ * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
  */
-function mapPrItem(item: any, prDetails?: any) {
+function mapGraphQLPr(node: any) {
   return {
-    id: item.id,
-    number: item.number,
-    title: item.title,
-    html_url: item.html_url,
-    state: item.state,
-    draft: item.draft || prDetails?.draft || false,
-    created_at: item.created_at,
-    updated_at: item.updated_at,
+    id: node.databaseId,
+    number: node.number,
+    title: node.title,
+    html_url: node.url,
+    state: node.state?.toLowerCase() || "open",
+    draft: node.isDraft || false,
+    created_at: node.createdAt,
+    updated_at: node.updatedAt,
     user: {
-      login: item.user?.login,
-      avatar_url: item.user?.avatar_url,
+      login: node.author?.login || "",
+      avatar_url: node.author?.avatarUrl || "",
     },
     head: {
-      ref: prDetails?.head?.ref || "",
+      ref: node.headRefName || "",
     },
     base: {
-      ref: prDetails?.base?.ref || "",
+      ref: node.baseRefName || "",
     },
-    body: prDetails?.body || item.body || "",
-    repository_url: item.repository_url,
-    repo_full_name: extractRepoFullName(item.repository_url),
+    body: node.body || "",
+    repository_url: `https://api.github.com/repos/${node.repository?.nameWithOwner || ""}`,
+    repo_full_name: node.repository?.nameWithOwner || "",
   };
-}
-
-/**
- * Fetch full PR details (including head/base refs) for a list of search result items.
- */
-async function fetchPrDetails(items: any[]): Promise<Map<number, any>> {
-  return new Map();
-
-  // const client = createGitHubClient(""); // pass base url as empty because we want the full pr url
-  // const detailsMap = new Map<number, any>();
-
-  // const urls = items.map((item) => item.pull_request?.url).filter(Boolean);
-  // const results = await Promise.all(urls.map((url) => client.get(url).then((res) => res.data)));
-  // results.forEach((data, index) => {
-  //   const itemId = items[index].id;
-  //   detailsMap.set(itemId, data);
-  // });
-
-  // return detailsMap;
 }
 
 /**
@@ -78,17 +74,14 @@ async function fetchPrDetails(items: any[]): Promise<Map<number, any>> {
 router.get("/prs", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
-    const github = createGitHubClient();
-
     const q = `author:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
 
-    const { data } = await github.get("/search/issues", {
-      params: { q, sort: "updated", per_page: 50 },
+    const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
+      query: q,
+      first: 50,
     });
 
-    const items = data.items || [];
-    const detailsMap = await fetchPrDetails(items);
-    const prs = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
+    const prs = (result.search.nodes || []).map(mapGraphQLPr);
 
     res.json({ prs });
   } catch (err: any) {
@@ -106,17 +99,14 @@ router.get("/prs", async (_req: Request, res: Response) => {
 router.get("/reviews", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
-    const github = createGitHubClient();
-
     const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
 
-    const { data } = await github.get("/search/issues", {
-      params: { q, sort: "updated", per_page: 50 },
+    const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
+      query: q,
+      first: 50,
     });
 
-    const items = data.items || [];
-    const detailsMap = await fetchPrDetails(items);
-    const reviews = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
+    const reviews = (result.search.nodes || []).map(mapGraphQLPr);
 
     res.json({ reviews });
   } catch (err: any) {
@@ -127,91 +117,127 @@ router.get("/reviews", async (_req: Request, res: Response) => {
   }
 });
 
+const SEARCH_MENTIONS_QUERY = `
+  query SearchMentions($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
+      nodes {
+        ... on PullRequest {
+          databaseId
+          number
+          title
+          url
+          createdAt
+          updatedAt
+          author { login avatarUrl }
+          body
+          repository { nameWithOwner }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Map a GitHub GraphQL PullRequest node to the frontend GitHubComment shape.
+ */
+function mapGraphQLNodeToComment(node: any) {
+  return {
+    id: node.databaseId,
+    html_url: node.url,
+    body: node.body || "",
+    created_at: node.createdAt,
+    updated_at: node.updatedAt,
+    user: {
+      login: node.author?.login || "",
+      avatar_url: node.author?.avatarUrl || "",
+    },
+    issue_url: node.url,
+    pr_number: node.number,
+    repo_full_name: node.repository?.nameWithOwner || "",
+    context_title: node.title || "",
+  };
+}
+
+/**
+ * Fetch notification comments with controlled concurrency.
+ * Processes in batches to avoid overwhelming the API.
+ */
+async function fetchCommentsInBatches(
+  notifications: any[],
+  github: ReturnType<typeof createGitHubClient>,
+  batchSize: number = 10
+): Promise<any[]> {
+  const targets = notifications.filter((n: any) => n.subject?.latest_comment_url);
+  const results: any[] = [];
+
+  for (let i = 0; i < targets.length; i += batchSize) {
+    const batch = targets.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (notification: any) => {
+        try {
+          const { data: comment } = await github.get(notification.subject.latest_comment_url);
+          return {
+            id: comment.id,
+            html_url: comment.html_url,
+            body: comment.body || "",
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
+            user: {
+              login: comment.user?.login,
+              avatar_url: comment.user?.avatar_url,
+            },
+            issue_url: comment.issue_url || "",
+            pr_number: null,
+            repo_full_name: notification.repository?.full_name || "",
+            context_title: notification.subject?.title || "",
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    results.push(...batchResults.filter(Boolean));
+  }
+
+  return results;
+}
+
 /**
  * GET /api/github/mentions
- * Fetch GitHub mentions from notifications and search results.
+ * Fetch GitHub mentions from notifications (REST) and search results (GraphQL).
  */
 router.get("/mentions", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
     const github = createGitHubClient();
-
     const cutoff = threeMonthsAgoDate();
 
-    // Fetch from 2 sources in parallel
+    // Fetch from 2 sources in parallel: REST notifications + GraphQL PR mentions
     const [notificationsRes, prMentionsRes] = await Promise.allSettled([
       github.get("/notifications", {
         params: { participating: true, all: false, per_page: 50, since: `${cutoff}T00:00:00Z` },
       }),
-      github.get("/search/issues", {
-        params: {
-          q: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
-          sort: "updated",
-          per_page: 30,
-        },
+      graphql<{ search: { nodes: any[] } }>(SEARCH_MENTIONS_QUERY, {
+        query: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
+        first: 30,
       }),
     ]);
 
     const mentions: any[] = [];
 
-    // Process notifications — fetch latest comment for each
+    // Process notifications — fetch latest comment for each in controlled batches
     if (notificationsRes.status === "fulfilled") {
       const notifications = notificationsRes.value.data as any[];
-
-      const commentFetches = notifications
-        .filter((n: any) => n.subject?.latest_comment_url)
-        .map(async (notification: any) => {
-          try {
-            const { data: comment } = await github.get(notification.subject.latest_comment_url);
-
-            const repoFullName = notification.repository?.full_name || "";
-
-            return {
-              id: comment.id,
-              html_url: comment.html_url,
-              body: comment.body || "",
-              created_at: comment.created_at,
-              updated_at: comment.updated_at,
-              user: {
-                login: comment.user?.login,
-                avatar_url: comment.user?.avatar_url,
-              },
-              issue_url: comment.issue_url || "",
-              pr_number: null,
-              repo_full_name: repoFullName,
-              context_title: notification.subject?.title || "",
-            };
-          } catch {
-            return null;
-          }
-        });
-
-      const commentResults = await Promise.all(commentFetches);
-      mentions.push(...commentResults.filter(Boolean));
+      const comments = await fetchCommentsInBatches(notifications, github);
+      mentions.push(...comments);
     } else {
       console.error("[GitHub /mentions] Notifications error:", notificationsRes.reason?.message);
     }
 
-    // Process PR mentions from search
+    // Process PR mentions from GraphQL search
     if (prMentionsRes.status === "fulfilled") {
-      const prData = prMentionsRes.value.data;
-      for (const item of prData.items || []) {
-        mentions.push({
-          id: item.id,
-          html_url: item.html_url,
-          body: item.body || "",
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          user: {
-            login: item.user?.login,
-            avatar_url: item.user?.avatar_url,
-          },
-          issue_url: item.url || "",
-          pr_number: item.number,
-          repo_full_name: extractRepoFullName(item.repository_url),
-          context_title: item.title || "",
-        });
-      }
+      const nodes = prMentionsRes.value.search.nodes || [];
+      mentions.push(...nodes.map(mapGraphQLNodeToComment));
     } else {
       console.error("[GitHub /mentions] PR search error:", prMentionsRes.reason?.message);
     }

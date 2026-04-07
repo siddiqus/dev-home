@@ -68,7 +68,7 @@ const PRRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick })
     <td>
       <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
     </td>
-    {/* <td>
+    <td>
       <div className="d-flex align-items-center gap-1">
         <span className="branch-tag">{pr.head.ref}</span>
         <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
@@ -76,7 +76,7 @@ const PRRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick })
         </span>
         <span className="branch-tag">{pr.base.ref}</span>
       </div>
-    </td> */}
+    </td>
     <td>
       {pr.draft ? (
         <span className="badge badge-status-neutral">Draft</span>
@@ -137,7 +137,7 @@ export const OpenPRs: React.FC<OpenPRsProps> = ({ prs, loading, jiraIssues = [] 
             <th>PR</th>
             <th>Title</th>
             <th>Repository</th>
-            {/* <th>Branch</th> */}
+            <th>Branch</th>
             <th>Status</th>
             <th>Updated</th>
           </tr>
