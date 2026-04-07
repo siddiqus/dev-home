@@ -100,7 +100,7 @@ export default function App() {
       >
         {/* Error alert */}
         {error && (
-          <Alert variant="danger" className="py-2 small" dismissible>
+          <Alert variant="danger" className="small" dismissible>
             {error}
           </Alert>
         )}

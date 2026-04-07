@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
 import { getConfig } from "../config";
+import { createGitHubClient } from "../clients/githubApiClient";
+import axios from "axios";
 
 const router = Router();
-
-const GITHUB_API = "https://api.github.com";
 
 /**
  * Get an ISO date string for three months ago (YYYY-MM-DD).
@@ -12,17 +12,6 @@ function threeMonthsAgoDate(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 3);
   return d.toISOString().slice(0, 10);
-}
-
-/**
- * Build authorization headers for GitHub API.
- */
-function getGitHubHeaders() {
-  const config = getConfig();
-  return {
-    Authorization: `Bearer ${config.githubToken}`,
-    Accept: "application/vnd.github+json",
-  };
 }
 
 /**
@@ -66,29 +55,20 @@ function mapPrItem(item: any, prDetails?: any) {
 /**
  * Fetch full PR details (including head/base refs) for a list of search result items.
  */
-async function fetchPrDetails(
-  items: any[],
-  headers: Record<string, string>,
-): Promise<Map<number, any>> {
-  const detailsMap = new Map<number, any>();
+async function fetchPrDetails(items: any[]): Promise<Map<number, any>> {
+  return new Map();
 
-  const fetches = items.map(async (item) => {
-    const prUrl = item.pull_request?.url;
-    if (!prUrl) return;
+  // const client = createGitHubClient(""); // pass base url as empty because we want the full pr url
+  // const detailsMap = new Map<number, any>();
 
-    try {
-      const res = await fetch(prUrl, { headers });
-      if (res.ok) {
-        const details = await res.json();
-        detailsMap.set(item.id, details);
-      }
-    } catch {
-      // Silently skip — the PR will just have empty branch refs
-    }
-  });
+  // const urls = items.map((item) => item.pull_request?.url).filter(Boolean);
+  // const results = await Promise.all(urls.map((url) => client.get(url).then((res) => res.data)));
+  // results.forEach((data, index) => {
+  //   const itemId = items[index].id;
+  //   detailsMap.set(itemId, data);
+  // });
 
-  await Promise.all(fetches);
-  return detailsMap;
+  // return detailsMap;
 }
 
 /**
@@ -98,30 +78,24 @@ async function fetchPrDetails(
 router.get("/prs", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
-    const headers = getGitHubHeaders();
+    const github = createGitHubClient();
 
     const q = `author:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
-    const url = `${GITHUB_API}/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=50`;
 
-    const response = await fetch(url, { headers });
+    const { data } = await github.get("/search/issues", {
+      params: { q, sort: "updated", per_page: 50 },
+    });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("[GitHub /prs] Error:", response.status, errorBody);
-      return res.status(response.status).json({
-        error: `GitHub API returned ${response.status}: ${errorBody}`,
-      });
-    }
-
-    const data: any = await response.json();
     const items = data.items || [];
-    const detailsMap = await fetchPrDetails(items, headers);
+    const detailsMap = await fetchPrDetails(items);
     const prs = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
 
     res.json({ prs });
   } catch (err: any) {
-    console.error("[GitHub /prs] Exception:", err.message);
-    res.status(500).json({ error: err.message });
+    const status = err.response?.status || 500;
+    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+    console.error("[GitHub /prs] Error:", status, message);
+    res.status(status).json({ error: message });
   }
 });
 
@@ -132,30 +106,24 @@ router.get("/prs", async (_req: Request, res: Response) => {
 router.get("/reviews", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
-    const headers = getGitHubHeaders();
+    const github = createGitHubClient();
 
     const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
-    const url = `${GITHUB_API}/search/issues?q=${encodeURIComponent(q)}&sort=updated&per_page=50`;
 
-    const response = await fetch(url, { headers });
+    const { data } = await github.get("/search/issues", {
+      params: { q, sort: "updated", per_page: 50 },
+    });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("[GitHub /reviews] Error:", response.status, errorBody);
-      return res.status(response.status).json({
-        error: `GitHub API returned ${response.status}: ${errorBody}`,
-      });
-    }
-
-    const data: any = await response.json();
     const items = data.items || [];
-    const detailsMap = await fetchPrDetails(items, headers);
+    const detailsMap = await fetchPrDetails(items);
     const reviews = items.map((item: any) => mapPrItem(item, detailsMap.get(item.id)));
 
     res.json({ reviews });
   } catch (err: any) {
-    console.error("[GitHub /reviews] Exception:", err.message);
-    res.status(500).json({ error: err.message });
+    const status = err.response?.status || 500;
+    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+    console.error("[GitHub /reviews] Error:", status, message);
+    res.status(status).json({ error: message });
   }
 });
 
@@ -166,40 +134,36 @@ router.get("/reviews", async (_req: Request, res: Response) => {
 router.get("/mentions", async (_req: Request, res: Response) => {
   try {
     const config = getConfig();
-    const headers = getGitHubHeaders();
+    const github = createGitHubClient();
 
-    // Fetch from 3 sources in parallel
     const cutoff = threeMonthsAgoDate();
-    const [notificationsRes, prMentionsRes] = await Promise.all([
-      fetch(
-        `${GITHUB_API}/notifications?participating=true&all=false&per_page=50&since=${cutoff}T00:00:00Z`,
-        { headers },
-      ),
-      fetch(
-        `${GITHUB_API}/search/issues?q=${encodeURIComponent(
-          `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
-        )}&sort=updated&per_page=30`,
-        { headers },
-      ),
+
+    // Fetch from 2 sources in parallel
+    const [notificationsRes, prMentionsRes] = await Promise.allSettled([
+      github.get("/notifications", {
+        params: { participating: true, all: false, per_page: 50, since: `${cutoff}T00:00:00Z` },
+      }),
+      github.get("/search/issues", {
+        params: {
+          q: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
+          sort: "updated",
+          per_page: 30,
+        },
+      }),
     ]);
 
-    // Process notifications — fetch latest comment for each
     const mentions: any[] = [];
 
-    if (notificationsRes.ok) {
-      const notifications = (await notificationsRes.json()) as any[];
+    // Process notifications — fetch latest comment for each
+    if (notificationsRes.status === "fulfilled") {
+      const notifications = notificationsRes.value.data as any[];
 
       const commentFetches = notifications
         .filter((n: any) => n.subject?.latest_comment_url)
         .map(async (notification: any) => {
           try {
-            const commentRes = await fetch(notification.subject.latest_comment_url, { headers });
+            const { data: comment } = await github.get(notification.subject.latest_comment_url);
 
-            if (!commentRes.ok) return null;
-
-            const comment: any = await commentRes.json();
-
-            // Extract repo full name from notification.repository
             const repoFullName = notification.repository?.full_name || "";
 
             return {
@@ -225,12 +189,12 @@ router.get("/mentions", async (_req: Request, res: Response) => {
       const commentResults = await Promise.all(commentFetches);
       mentions.push(...commentResults.filter(Boolean));
     } else {
-      console.error("[GitHub /mentions] Notifications error:", notificationsRes.status);
+      console.error("[GitHub /mentions] Notifications error:", notificationsRes.reason?.message);
     }
 
     // Process PR mentions from search
-    if (prMentionsRes.ok) {
-      const prData: any = await prMentionsRes.json();
+    if (prMentionsRes.status === "fulfilled") {
+      const prData = prMentionsRes.value.data;
       for (const item of prData.items || []) {
         mentions.push({
           id: item.id,
@@ -249,7 +213,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
         });
       }
     } else {
-      console.error("[GitHub /mentions] PR search error:", prMentionsRes.status);
+      console.error("[GitHub /mentions] PR search error:", prMentionsRes.reason?.message);
     }
 
     // Deduplicate by id
@@ -267,8 +231,10 @@ router.get("/mentions", async (_req: Request, res: Response) => {
 
     res.json({ mentions: deduplicated });
   } catch (err: any) {
-    console.error("[GitHub /mentions] Exception:", err.message);
-    res.status(500).json({ error: err.message });
+    const status = err.response?.status || 500;
+    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+    console.error("[GitHub /mentions] Error:", status, message);
+    res.status(status).json({ error: message });
   }
 });
 
