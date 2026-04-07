@@ -71,65 +71,63 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchAll = useCallback(async () => {
+  const pendingRef = useRef(0);
+  const errorsRef = useRef<string[]>([]);
+
+  const fetchAll = useCallback(() => {
     if (!active) return;
 
     setLoading(true);
     setError(null);
+    errorsRef.current = [];
 
-    try {
-      const results = await Promise.allSettled([
-        fetchAssignedIssues(),
-        fetchRecentMentions(),
-        fetchOpenPRs(),
-        fetchReviewRequests(),
-        fetchMentions(),
-      ]);
-
-      const [issuesResult, commentsResult, prsResult, reviewsResult, mentionsResult] = results;
-
-      // Extract fulfilled values, falling back to current state if rejected
-      const newJiraIssues =
-        issuesResult.status === "fulfilled" ? issuesResult.value : undefined;
-      const newJiraComments =
-        commentsResult.status === "fulfilled" ? commentsResult.value : undefined;
-      const newOpenPRs =
-        prsResult.status === "fulfilled" ? prsResult.value : undefined;
-      const newReviewRequests =
-        reviewsResult.status === "fulfilled" ? reviewsResult.value : undefined;
-      const newGithubMentions =
-        mentionsResult.status === "fulfilled" ? mentionsResult.value : undefined;
-
-      if (newJiraIssues !== undefined) setJiraIssues(newJiraIssues);
-      if (newJiraComments !== undefined) setJiraComments(newJiraComments);
-      if (newOpenPRs !== undefined) setOpenPRs(newOpenPRs);
-      if (newReviewRequests !== undefined) setReviewRequests(newReviewRequests);
-      if (newGithubMentions !== undefined) setGithubMentions(newGithubMentions);
-
-      // Save to cache using the latest successfully fetched data.
-      // For any field that failed, preserve the previous cached value.
-      const previousCache = loadCache();
-      saveCache({
-        jiraIssues: newJiraIssues ?? previousCache?.jiraIssues ?? [],
-        jiraComments: newJiraComments ?? previousCache?.jiraComments ?? [],
-        githubMentions: newGithubMentions ?? previousCache?.githubMentions ?? [],
-        openPRs: newOpenPRs ?? previousCache?.openPRs ?? [],
-        reviewRequests: newReviewRequests ?? previousCache?.reviewRequests ?? [],
-      });
-
-      // Collect errors from rejected promises
-      const errors = results
-        .filter((r): r is PromiseRejectedResult => r.status === "rejected")
-        .map((r) => r.reason?.message || String(r.reason));
-
-      if (errors.length > 0) {
-        setError(errors.join("; "));
+    const settle = (errorMsg?: string) => {
+      if (errorMsg) errorsRef.current.push(errorMsg);
+      pendingRef.current -= 1;
+      if (pendingRef.current <= 0) {
+        pendingRef.current = 0;
+        setLoading(false);
+        if (errorsRef.current.length > 0) {
+          setError(errorsRef.current.join("; "));
+        }
+        // Save cache once all fetches have settled
+        const prev = loadCache();
+        saveCache({
+          jiraIssues: prev?.jiraIssues ?? [],
+          jiraComments: prev?.jiraComments ?? [],
+          githubMentions: prev?.githubMentions ?? [],
+          openPRs: prev?.openPRs ?? [],
+          reviewRequests: prev?.reviewRequests ?? [],
+        });
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    const updateCache = (field: keyof Omit<DashboardCacheData, "timestamp">, value: any) => {
+      const prev = loadCache();
+      saveCache({ ...prev, jiraIssues: prev?.jiraIssues ?? [], jiraComments: prev?.jiraComments ?? [], githubMentions: prev?.githubMentions ?? [], openPRs: prev?.openPRs ?? [], reviewRequests: prev?.reviewRequests ?? [], [field]: value });
+    };
+
+    pendingRef.current = 5;
+
+    fetchAssignedIssues()
+      .then((data) => { setJiraIssues(data); updateCache("jiraIssues", data); settle(); })
+      .catch((err) => settle(err?.message || String(err)));
+
+    fetchRecentMentions()
+      .then((data) => { setJiraComments(data); updateCache("jiraComments", data); settle(); })
+      .catch((err) => settle(err?.message || String(err)));
+
+    fetchOpenPRs()
+      .then((data) => { setOpenPRs(data); updateCache("openPRs", data); settle(); })
+      .catch((err) => settle(err?.message || String(err)));
+
+    fetchReviewRequests()
+      .then((data) => { setReviewRequests(data); updateCache("reviewRequests", data); settle(); })
+      .catch((err) => settle(err?.message || String(err)));
+
+    fetchMentions()
+      .then((data) => { setGithubMentions(data); updateCache("githubMentions", data); settle(); })
+      .catch((err) => settle(err?.message || String(err)));
   }, [active]);
 
   // Fetch data when active changes to true
