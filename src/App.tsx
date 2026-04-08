@@ -6,12 +6,7 @@ import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import Spinner from "react-bootstrap/Spinner";
-import {
-  IconCode,
-  IconRefresh,
-  IconSettings,
-  IconPlus,
-} from "@tabler/icons-react";
+import { IconCode, IconRefresh, IconSettings, IconPlus } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
@@ -152,6 +147,11 @@ export default function App() {
             <Nav variant="tabs" className="mb-3 dev-tabs">
               {[
                 { key: "summary", label: "Summary" },
+                {
+                  key: "notes",
+                  label: "Notes",
+                  count: unresolvedNotes.length,
+                },
                 { key: "jira", label: "JIRA Tasks", count: jiraIssues.length },
                 {
                   key: "mentions",
@@ -167,11 +167,6 @@ export default function App() {
                   key: "reviews",
                   label: "Reviews Requested",
                   count: reviewRequests.length,
-                },
-                {
-                  key: "notes",
-                  label: "Notes",
-                  count: unresolvedNotes.length,
                 },
               ].map((tab) => (
                 <Nav.Item key={tab.key}>
@@ -202,7 +197,10 @@ export default function App() {
                   notes={unresolvedNotes}
                   onResolveNote={resolveNote}
                   onAddNote={() => setShowAddNote(true)}
-                  onEditNote={(note) => { setEditingNote(note); setShowAddNote(true); }}
+                  onEditNote={(note) => {
+                    setEditingNote(note);
+                    setShowAddNote(true);
+                  }}
                 />
               )}
               {effectiveTab === "jira" && (
