@@ -6,7 +6,7 @@ import path from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
-  const apiPort = env.VITE_API_PORT || "3001";
+  const apiPort = env.VITE_API_PORT || "3571";
 
   return {
   plugins: [
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
           build: {
             outDir: "dist-electron",
             rollupOptions: {
-              external: ["electron"],
+              external: ["electron", "better-sqlite3"],
             },
           },
         },

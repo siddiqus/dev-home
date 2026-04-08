@@ -1,50 +1,40 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { fork, ChildProcess } from "child_process";
 import path from "path";
+import http from "http";
 import { getSettings, setSettings, isConfigured } from "./store";
+import { createServer } from "../server/src/index";
 
 declare const __API_PORT__: string;
 
 let mainWindow: BrowserWindow | null = null;
-let serverProcess: ChildProcess | null = null;
+let httpServer: http.Server | null = null;
 
 function startBackendServer() {
   // In dev mode, the server is started separately via concurrently.
-  // In production (packaged app), fork the server process.
   if (process.env.VITE_DEV_SERVER_URL) {
     return;
   }
 
-  // In packaged app, server is in extraResources; in dev/unpacked, it's relative to __dirname
-  const serverEntry = app.isPackaged
-    ? path.join(process.resourcesPath, "server", "dist", "bundle.js")
-    : path.join(__dirname, "../server/dist/bundle.js");
-  serverProcess = fork(serverEntry, [], {
-    env: {
-      ...process.env,
-      VITE_API_PORT: __API_PORT__,
-      DEV_HOME_DB_PATH: path.join(app.getPath("userData"), "notes.db"),
-    },
-    silent: true,
+  // Set env vars the server needs before creating it
+  process.env.VITE_API_PORT = __API_PORT__;
+  process.env.DEV_HOME_DB_PATH = path.join(app.getPath("userData"), "notes.db");
+
+  const expressApp = createServer();
+  const port = parseInt(__API_PORT__, 10);
+
+  httpServer = expressApp.listen(port, () => {
+    console.log(`[server] listening on http://localhost:${port}`);
   });
 
-  serverProcess.stdout?.on("data", (data) => {
-    console.log(`[server] ${data.toString().trim()}`);
-  });
-
-  serverProcess.stderr?.on("data", (data) => {
-    console.error(`[server] ${data.toString().trim()}`);
-  });
-
-  serverProcess.on("error", (err) => {
+  httpServer.on("error", (err) => {
     console.error("[server] Failed to start:", err.message);
   });
 }
 
 function stopBackendServer() {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
+  if (httpServer) {
+    httpServer.close();
+    httpServer = null;
   }
 }
 

@@ -387,13 +387,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       )}
                     </div>
                     <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-                      <Badge className="badge-status-neutral">
-                        {note.type === "jira_ticket"
-                          ? "JIRA"
-                          : note.type === "github_pr"
-                            ? "PR"
-                            : "Note"}
-                      </Badge>
                       <span
                         className="text-secondary-custom"
                         style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}

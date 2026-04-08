@@ -1,23 +1,13 @@
-import dotenv from "dotenv";
-import path from "path";
-import fs from "fs";
-
-// Load the shared .env from the project root (not available in packaged app)
-const envPath = path.resolve(__dirname, "../../.env");
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-}
-
-import "express-async-errors";
-import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import express, { Request, Response } from "express";
+import "express-async-errors";
 import { validateEnv } from "./config";
-import { errorHandler } from "./utils/errors";
-import jiraRoutes from "./routes/jira";
-import githubRoutes from "./routes/github";
-import configRoutes from "./routes/config";
-import notesRoutes from "./routes/notes";
 import { closeDb } from "./db";
+import configRoutes from "./routes/config";
+import githubRoutes from "./routes/github";
+import jiraRoutes from "./routes/jira";
+import notesRoutes from "./routes/notes";
+import { errorHandler } from "./utils/errors";
 
 export function createServer() {
   const app = express();
@@ -73,7 +63,7 @@ export function startServer() {
   }
 
   const app = createServer();
-  const PORT = parseInt(process.env.VITE_API_PORT || "3001", 10);
+  const PORT = parseInt(process.env.VITE_API_PORT || "3571", 10);
 
   const server = app.listen(PORT, () => {
     console.log(`[dev-home] server listening on http://localhost:${PORT}`);
@@ -92,8 +82,3 @@ process.on("SIGINT", () => {
   closeDb();
   process.exit(0);
 });
-
-// Run directly (e.g. `tsx server/src/index.ts` or `yarn dev:server`)
-if (require.main === module) {
-  startServer();
-}

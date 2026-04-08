@@ -19,12 +19,12 @@ let runtimeConfig: ServerConfig | null = null;
 
 /**
  * Store runtime configuration provided by the frontend.
- * The port is automatically derived from the environment or defaults to 3001.
+ * The port is automatically derived from the environment or defaults to 3571.
  */
 export function setRuntimeConfig(config: Omit<ServerConfig, "port">): void {
   runtimeConfig = {
     ...config,
-    port: parseInt(process.env.VITE_API_PORT || "3001", 10),
+    port: parseInt(process.env.VITE_API_PORT || "3571", 10),
   };
 }
 
@@ -59,7 +59,7 @@ export function getConfig(): ServerConfig {
     jiraApiToken: process.env.JIRA_API_TOKEN!,
     githubToken: process.env.GITHUB_TOKEN!,
     githubUsername: process.env.GITHUB_USERNAME!,
-    port: parseInt(process.env.VITE_API_PORT || "3001", 10),
+    port: parseInt(process.env.VITE_API_PORT || "3571", 10),
   };
 }
 
