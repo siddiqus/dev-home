@@ -8,9 +8,11 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
+import "express-async-errors";
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { validateEnv } from "./config";
+import { errorHandler } from "./utils/errors";
 import jiraRoutes from "./routes/jira";
 import githubRoutes from "./routes/github";
 import configRoutes from "./routes/config";
@@ -53,11 +55,8 @@ export function createServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Error handling middleware
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error("[Server Error]", err.message);
-    res.status(500).json({ error: err.message || "Internal server error" });
-  });
+  // Error handling middleware — catches thrown errors from async routes
+  app.use(errorHandler);
 
   return app;
 }

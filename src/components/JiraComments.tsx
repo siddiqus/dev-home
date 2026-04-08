@@ -4,17 +4,12 @@ import { IconMessageCircle } from "@tabler/icons-react";
 import { JiraComment } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { EmptyState } from "./EmptyState";
+import { truncateText } from "../utils/text";
 
 interface JiraCommentsProps {
   comments: JiraComment[];
   loading: boolean;
   baseUrl?: string;
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (!text) return "";
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trimEnd() + "...";
 }
 
 export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, baseUrl }) => {
@@ -81,9 +76,9 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
                   on: {comment.issueSummary}
                 </div>
                 <div
+                  className="text-secondary-custom"
                   style={{
                     fontSize: "0.8125rem",
-                    color: "#8b949e",
                     marginTop: 6,
                     lineHeight: 1.5,
                   }}

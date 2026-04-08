@@ -6,37 +6,12 @@ import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { EmptyState } from "./EmptyState";
 import { DescriptionModal } from "./DescriptionModal";
+import { groupByTicket } from "../utils/tickets";
 
 interface ReviewRequestsProps {
   reviews: GitHubPR[];
   loading: boolean;
   jiraIssues?: JiraIssue[];
-}
-
-function extractTicket(title: string): string | null {
-  const match = title.match(/\[([a-zA-Z]+-\d+)\]/i);
-  return match ? match[1].toUpperCase() : null;
-}
-
-function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: GitHubPR[] }[] {
-  // Sort all PRs by updated_at ascending first
-  const sorted = [...prs].sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  );
-
-  // Group adjacent PRs that share the same ticket
-  const groups: { ticket: string | null; prs: GitHubPR[] }[] = [];
-  for (const pr of sorted) {
-    const ticket = extractTicket(pr.title);
-    const last = groups[groups.length - 1];
-    if (last && last.ticket === ticket) {
-      last.prs.push(pr);
-    } else {
-      groups.push({ ticket, prs: [pr] });
-    }
-  }
-
-  return groups;
 }
 
 const ReviewRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick }) => (
@@ -70,7 +45,11 @@ const ReviewRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClic
   </tr>
 );
 
-export const ReviewRequests: React.FC<ReviewRequestsProps> = ({ reviews, loading, jiraIssues = [] }) => {
+export const ReviewRequests: React.FC<ReviewRequestsProps> = ({
+  reviews,
+  loading,
+  jiraIssues = [],
+}) => {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -125,10 +104,7 @@ export const ReviewRequests: React.FC<ReviewRequestsProps> = ({ reviews, loading
             return (
               <React.Fragment key={group.ticket ?? "ungrouped"}>
                 {isGroup && (
-                  <tr
-                    className="ticket-group-header"
-                    onClick={() => toggleGroup(group.ticket!)}
-                  >
+                  <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
                     <td colSpan={4}>
                       <span className="ticket-group-chevron">
                         {isCollapsed ? (

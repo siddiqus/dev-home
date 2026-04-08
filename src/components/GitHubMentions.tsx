@@ -4,16 +4,11 @@ import { IconAt } from "@tabler/icons-react";
 import { GitHubComment } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { EmptyState } from "./EmptyState";
+import { truncateText } from "../utils/text";
 
 interface GitHubMentionsProps {
   mentions: GitHubComment[];
   loading: boolean;
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (!text) return "";
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trimEnd() + "...";
 }
 
 export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loading }) => {
@@ -70,9 +65,9 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
                 </div>
               )}
               <div
+                className="text-secondary-custom"
                 style={{
                   fontSize: "0.8125rem",
-                  color: "#8b949e",
                   marginTop: 6,
                   lineHeight: 1.5,
                 }}

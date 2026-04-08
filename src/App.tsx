@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Nav from "react-bootstrap/Nav";
@@ -30,9 +30,9 @@ export default function App() {
   };
 
   // Set theme on mount
-  useState(() => {
+  useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-  });
+  }, [theme]);
   const {
     configured,
     loading: configLoading,
@@ -177,9 +177,15 @@ export default function App() {
                   jiraBaseUrl={jiraBaseUrl}
                 />
               )}
-              {effectiveTab === "prs" && <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />}
+              {effectiveTab === "prs" && (
+                <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />
+              )}
               {effectiveTab === "reviews" && (
-                <ReviewRequests reviews={reviewRequests} loading={loading} jiraIssues={jiraIssues} />
+                <ReviewRequests
+                  reviews={reviewRequests}
+                  loading={loading}
+                  jiraIssues={jiraIssues}
+                />
               )}
             </div>
           </>

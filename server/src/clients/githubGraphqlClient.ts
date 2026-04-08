@@ -14,7 +14,7 @@ interface GraphQLResponse<T = any> {
  */
 export async function graphql<T = any>(
   query: string,
-  variables: Record<string, any> = {}
+  variables: Record<string, any> = {},
 ): Promise<T> {
   const config = getConfig();
 
@@ -26,7 +26,7 @@ export async function graphql<T = any>(
         Authorization: `Bearer ${config.githubToken}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   if (response.data.errors && response.data.errors.length > 0) {

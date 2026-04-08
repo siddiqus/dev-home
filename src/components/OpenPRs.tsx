@@ -6,37 +6,12 @@ import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { EmptyState } from "./EmptyState";
 import { DescriptionModal } from "./DescriptionModal";
+import { groupByTicket } from "../utils/tickets";
 
 interface OpenPRsProps {
   prs: GitHubPR[];
   loading: boolean;
   jiraIssues?: JiraIssue[];
-}
-
-function extractTicket(title: string): string | null {
-  const match = title.match(/^[A-Z]+-\d+/i);
-  return match ? match[0] : null;
-}
-
-function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: GitHubPR[] }[] {
-  // Sort all PRs by updated_at ascending first
-  const sorted = [...prs].sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  );
-
-  // Group adjacent PRs that share the same ticket
-  const groups: { ticket: string | null; prs: GitHubPR[] }[] = [];
-  for (const pr of sorted) {
-    const ticket = extractTicket(pr.title);
-    const last = groups[groups.length - 1];
-    if (last && last.ticket === ticket) {
-      last.prs.push(pr);
-    } else {
-      groups.push({ ticket, prs: [pr] });
-    }
-  }
-
-  return groups;
 }
 
 const PRRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick }) => (
@@ -149,10 +124,7 @@ export const OpenPRs: React.FC<OpenPRsProps> = ({ prs, loading, jiraIssues = [] 
             return (
               <React.Fragment key={group.ticket ?? "ungrouped"}>
                 {isGroup && (
-                  <tr
-                    className="ticket-group-header"
-                    onClick={() => toggleGroup(group.ticket!)}
-                  >
+                  <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
                     <td colSpan={6}>
                       <span className="ticket-group-chevron">
                         {isCollapsed ? (

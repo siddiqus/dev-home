@@ -94,29 +94,7 @@ export interface GitHubComment {
   context_title: string;
 }
 
-export interface GitHubReviewRequest {
-  id: number;
-  number: number;
-  title: string;
-  html_url: string;
-  state: string;
-  draft: boolean;
-  created_at: string;
-  updated_at: string;
-  user: {
-    login: string;
-    avatar_url: string;
-  };
-  head: {
-    ref: string;
-  };
-  base: {
-    ref: string;
-  };
-  body: string;
-  repository_url: string;
-  repo_full_name: string;
-}
+export type GitHubReviewRequest = GitHubPR;
 
 // Dashboard Data
 export interface DashboardData {

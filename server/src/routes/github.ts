@@ -8,9 +8,9 @@ const router = Router();
 /**
  * Get an ISO date string for three months ago (YYYY-MM-DD).
  */
-function threeMonthsAgoDate(): string {
+function monthsAgo(months: number = 1): string {
   const d = new Date();
-  d.setMonth(d.getMonth() - 3);
+  d.setMonth(d.getMonth() - months);
   return d.toISOString().slice(0, 10);
 }
 
@@ -72,24 +72,17 @@ function mapGraphQLPr(node: any) {
  * Fetch open pull requests authored by the configured user.
  */
 router.get("/prs", async (_req: Request, res: Response) => {
-  try {
-    const config = getConfig();
-    const q = `author:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
+  const config = getConfig();
+  const q = `author:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
-    const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
-      query: q,
-      first: 50,
-    });
+  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
+    query: q,
+    first: 50,
+  });
 
-    const prs = (result.search.nodes || []).map(mapGraphQLPr);
+  const prs = (result.search.nodes || []).map(mapGraphQLPr);
 
-    res.json({ prs });
-  } catch (err: any) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    console.error("[GitHub /prs] Error:", status, message);
-    res.status(status).json({ error: message });
-  }
+  res.json({ prs });
 });
 
 /**
@@ -97,24 +90,17 @@ router.get("/prs", async (_req: Request, res: Response) => {
  * Fetch open PRs where the configured user's review is requested.
  */
 router.get("/reviews", async (_req: Request, res: Response) => {
-  try {
-    const config = getConfig();
-    const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${threeMonthsAgoDate()}`;
+  const config = getConfig();
+  const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
-    const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
-      query: q,
-      first: 50,
-    });
+  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
+    query: q,
+    first: 50,
+  });
 
-    const reviews = (result.search.nodes || []).map(mapGraphQLPr);
+  const reviews = (result.search.nodes || []).map(mapGraphQLPr);
 
-    res.json({ reviews });
-  } catch (err: any) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    console.error("[GitHub /reviews] Error:", status, message);
-    res.status(status).json({ error: message });
-  }
+  res.json({ reviews });
 });
 
 const SEARCH_MENTIONS_QUERY = `
@@ -165,7 +151,7 @@ function mapGraphQLNodeToComment(node: any) {
 async function fetchCommentsInBatches(
   notifications: any[],
   github: ReturnType<typeof createGitHubClient>,
-  batchSize: number = 10
+  batchSize: number = 10,
 ): Promise<any[]> {
   const targets = notifications.filter((n: any) => n.subject?.latest_comment_url);
   const results: any[] = [];
@@ -194,7 +180,7 @@ async function fetchCommentsInBatches(
         } catch {
           return null;
         }
-      })
+      }),
     );
     results.push(...batchResults.filter(Boolean));
   }
@@ -207,61 +193,54 @@ async function fetchCommentsInBatches(
  * Fetch GitHub mentions from notifications (REST) and search results (GraphQL).
  */
 router.get("/mentions", async (_req: Request, res: Response) => {
-  try {
-    const config = getConfig();
-    const github = createGitHubClient();
-    const cutoff = threeMonthsAgoDate();
+  const config = getConfig();
+  const github = createGitHubClient();
+  const cutoff = monthsAgo();
 
-    // Fetch from 2 sources in parallel: REST notifications + GraphQL PR mentions
-    const [notificationsRes, prMentionsRes] = await Promise.allSettled([
-      github.get("/notifications", {
-        params: { participating: true, all: false, per_page: 50, since: `${cutoff}T00:00:00Z` },
-      }),
-      graphql<{ search: { nodes: any[] } }>(SEARCH_MENTIONS_QUERY, {
-        query: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
-        first: 30,
-      }),
-    ]);
+  // Fetch from 2 sources in parallel: REST notifications + GraphQL PR mentions
+  const [notificationsRes, prMentionsRes] = await Promise.allSettled([
+    github.get("/notifications", {
+      params: { participating: true, all: false, per_page: 50, since: `${cutoff}T00:00:00Z` },
+    }),
+    graphql<{ search: { nodes: any[] } }>(SEARCH_MENTIONS_QUERY, {
+      query: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
+      first: 30,
+    }),
+  ]);
 
-    const mentions: any[] = [];
+  const mentions: any[] = [];
 
-    // Process notifications — fetch latest comment for each in controlled batches
-    if (notificationsRes.status === "fulfilled") {
-      const notifications = notificationsRes.value.data as any[];
-      const comments = await fetchCommentsInBatches(notifications, github);
-      mentions.push(...comments);
-    } else {
-      console.error("[GitHub /mentions] Notifications error:", notificationsRes.reason?.message);
-    }
-
-    // Process PR mentions from GraphQL search
-    if (prMentionsRes.status === "fulfilled") {
-      const nodes = prMentionsRes.value.search.nodes || [];
-      mentions.push(...nodes.map(mapGraphQLNodeToComment));
-    } else {
-      console.error("[GitHub /mentions] PR search error:", prMentionsRes.reason?.message);
-    }
-
-    // Deduplicate by id
-    const seen = new Set<number>();
-    const deduplicated = mentions.filter((m) => {
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-
-    // Sort by updated_at DESC
-    deduplicated.sort((a, b) => {
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    });
-
-    res.json({ mentions: deduplicated });
-  } catch (err: any) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    console.error("[GitHub /mentions] Error:", status, message);
-    res.status(status).json({ error: message });
+  // Process notifications — fetch latest comment for each in controlled batches
+  if (notificationsRes.status === "fulfilled") {
+    const notifications = notificationsRes.value.data as any[];
+    const comments = await fetchCommentsInBatches(notifications, github);
+    mentions.push(...comments);
+  } else {
+    console.error("[GitHub /mentions] Notifications error:", notificationsRes.reason?.message);
   }
+
+  // Process PR mentions from GraphQL search
+  if (prMentionsRes.status === "fulfilled") {
+    const nodes = prMentionsRes.value.search.nodes || [];
+    mentions.push(...nodes.map(mapGraphQLNodeToComment));
+  } else {
+    console.error("[GitHub /mentions] PR search error:", prMentionsRes.reason?.message);
+  }
+
+  // Deduplicate by id
+  const seen = new Set<number>();
+  const deduplicated = mentions.filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+
+  // Sort by updated_at DESC
+  deduplicated.sort((a, b) => {
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  });
+
+  res.json({ mentions: deduplicated });
 });
 
 export default router;

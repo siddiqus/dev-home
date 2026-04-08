@@ -62,10 +62,16 @@ interface UseDashboardReturn {
 export function useDashboard(active: boolean): UseDashboardReturn {
   const cachedRef = useRef(loadCache());
   const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>(cachedRef.current?.jiraIssues ?? []);
-  const [jiraComments, setJiraComments] = useState<JiraComment[]>(cachedRef.current?.jiraComments ?? []);
-  const [githubMentions, setGithubMentions] = useState<GitHubComment[]>(cachedRef.current?.githubMentions ?? []);
+  const [jiraComments, setJiraComments] = useState<JiraComment[]>(
+    cachedRef.current?.jiraComments ?? [],
+  );
+  const [githubMentions, setGithubMentions] = useState<GitHubComment[]>(
+    cachedRef.current?.githubMentions ?? [],
+  );
   const [openPRs, setOpenPRs] = useState<GitHubPR[]>(cachedRef.current?.openPRs ?? []);
-  const [reviewRequests, setReviewRequests] = useState<GitHubReviewRequest[]>(cachedRef.current?.reviewRequests ?? []);
+  const [reviewRequests, setReviewRequests] = useState<GitHubReviewRequest[]>(
+    cachedRef.current?.reviewRequests ?? [],
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,29 +110,57 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
     const updateCache = (field: keyof Omit<DashboardCacheData, "timestamp">, value: any) => {
       const prev = loadCache();
-      saveCache({ ...prev, jiraIssues: prev?.jiraIssues ?? [], jiraComments: prev?.jiraComments ?? [], githubMentions: prev?.githubMentions ?? [], openPRs: prev?.openPRs ?? [], reviewRequests: prev?.reviewRequests ?? [], [field]: value });
+      saveCache({
+        ...prev,
+        jiraIssues: prev?.jiraIssues ?? [],
+        jiraComments: prev?.jiraComments ?? [],
+        githubMentions: prev?.githubMentions ?? [],
+        openPRs: prev?.openPRs ?? [],
+        reviewRequests: prev?.reviewRequests ?? [],
+        [field]: value,
+      });
     };
 
     pendingRef.current = 5;
 
     fetchAssignedIssues()
-      .then((data) => { setJiraIssues(data); updateCache("jiraIssues", data); settle(); })
+      .then((data) => {
+        setJiraIssues(data);
+        updateCache("jiraIssues", data);
+        settle();
+      })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchRecentMentions()
-      .then((data) => { setJiraComments(data); updateCache("jiraComments", data); settle(); })
+      .then((data) => {
+        setJiraComments(data);
+        updateCache("jiraComments", data);
+        settle();
+      })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchOpenPRs()
-      .then((data) => { setOpenPRs(data); updateCache("openPRs", data); settle(); })
+      .then((data) => {
+        setOpenPRs(data);
+        updateCache("openPRs", data);
+        settle();
+      })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchReviewRequests()
-      .then((data) => { setReviewRequests(data); updateCache("reviewRequests", data); settle(); })
+      .then((data) => {
+        setReviewRequests(data);
+        updateCache("reviewRequests", data);
+        settle();
+      })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchMentions()
-      .then((data) => { setGithubMentions(data); updateCache("githubMentions", data); settle(); })
+      .then((data) => {
+        setGithubMentions(data);
+        updateCache("githubMentions", data);
+        settle();
+      })
       .catch((err) => settle(err?.message || String(err)));
   }, [active]);
 

@@ -104,6 +104,16 @@ function EmptyRow({ text }: { text: string }) {
   );
 }
 
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  green: "badge-status-green",
+  yellow: "badge-status-yellow",
+  blue: "badge-status-blue",
+};
+
+function statusBadgeClass(colorName: string): string {
+  return STATUS_BADGE_CLASSES[colorName] || "badge-status-neutral";
+}
+
 export const SummaryView: React.FC<SummaryViewProps> = ({
   jiraIssues,
   jiraComments,
@@ -215,7 +225,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="Mentions"
             badgeClass="badge-status-purple"
             count={jiraComments.length + githubMentions.length}
-            onSeeMore={jiraComments.length + githubMentions.length > 5 ? () => onNavigate("mentions") : undefined}
+            onSeeMore={
+              jiraComments.length + githubMentions.length > 5
+                ? () => onNavigate("mentions")
+                : undefined
+            }
           >
             {allMentions.length > 0 ? (
               allMentions.map((m) => (
@@ -249,15 +263,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   subtitle={issue.project.name}
                   time={issue.updated}
                   badge={issue.status.name}
-                  badgeClass={
-                    issue.status.statusCategory.colorName === "green"
-                      ? "badge-status-green"
-                      : issue.status.statusCategory.colorName === "yellow"
-                        ? "badge-status-yellow"
-                        : issue.status.statusCategory.colorName === "blue"
-                          ? "badge-status-blue"
-                          : "badge-status-neutral"
-                  }
+                  badgeClass={statusBadgeClass(issue.status.statusCategory.colorName)}
                   onClick={() => setSelectedIssue(issue)}
                 />
               ))
