@@ -1,0 +1,64 @@
+import { useState, useEffect, useCallback } from "react";
+import { Note, NoteType } from "../types";
+import { fetchNotes, createNote, updateNote, deleteNote } from "../services/notes";
+
+export function useNotes(active: boolean) {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadNotes = useCallback(async () => {
+    if (!active) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchNotes();
+      setNotes(data);
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [active]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
+  const unresolvedNotes = notes.filter((n) => n.resolved === 0);
+
+  const addNote = useCallback(async (type: NoteType, content: string, referenceId?: string) => {
+    const newNote = await createNote({ type, content, reference_id: referenceId });
+    setNotes((prev) => [newNote, ...prev]);
+  }, []);
+
+  const resolveNote = useCallback(async (id: number) => {
+    const updated = await updateNote(id, { resolved: true });
+    setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+  }, []);
+
+  const editNote = useCallback(
+    async (id: number, updates: { content?: string; reference_id?: string }) => {
+      const updated = await updateNote(id, updates);
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    },
+    [],
+  );
+
+  const removeNote = useCallback(async (id: number) => {
+    await deleteNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  return {
+    notes,
+    unresolvedNotes,
+    loading,
+    error,
+    addNote,
+    editNote,
+    resolveNote,
+    removeNote,
+    refresh: loadNotes,
+  };
+}

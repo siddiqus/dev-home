@@ -41,6 +41,9 @@
         ]
       }
     ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
     "mac": {
       "target": [
         {
@@ -74,6 +77,7 @@
   },
   "dependencies": {
     "axios": "^1.14.0",
+    "better-sqlite3": "^12.8.0",
     "electron-store": "^11.0.2"
   },
   "devDependencies": {

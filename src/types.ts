@@ -110,3 +110,16 @@ export interface DashboardData {
 
 // View Type
 export type ViewType = "dashboard" | "settings";
+
+// Note Types
+export type NoteType = "free_text" | "jira_ticket" | "github_pr";
+
+export interface Note {
+  id: number;
+  type: NoteType;
+  content: string;
+  reference_id: string | null;
+  resolved: number;
+  created_at: string;
+  updated_at: string;
+}

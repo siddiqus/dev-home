@@ -6,3 +6,4 @@ dist-electron
 .DS_Store
 release
 build
+server/data/

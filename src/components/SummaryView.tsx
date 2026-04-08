@@ -4,8 +4,15 @@ import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
-import { IconSubtask, IconAt, IconGitPullRequest, IconEye } from "@tabler/icons-react";
-import { JiraIssue, JiraComment, GitHubPR, GitHubComment } from "../types";
+import {
+  IconSubtask,
+  IconAt,
+  IconGitPullRequest,
+  IconEye,
+  IconNote,
+  IconCheck,
+} from "@tabler/icons-react";
+import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
 
 const REASON_SUMMARY: Record<string, string> = {
   approval_requested: "requested your approval",
@@ -26,6 +33,8 @@ interface SummaryViewProps {
   loading: boolean;
   jiraBaseUrl: string;
   onNavigate: (tab: string) => void;
+  notes: Note[];
+  onResolveNote: (id: number) => Promise<void>;
 }
 
 interface SectionProps {
@@ -131,6 +140,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   loading,
   jiraBaseUrl,
   onNavigate,
+  notes,
+  onResolveNote,
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
@@ -148,6 +159,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const topReviews = reviewRequests.slice(0, 5);
   const topPRs = openPRs.slice(0, 5);
   const topIssues = jiraIssues.slice(0, 5);
+  const topNotes = notes.slice(0, 5);
 
   // Combine jira comments + github mentions, sort by date, take 5
   const allMentions = [
@@ -173,7 +185,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     <>
       <Row className="g-3">
         {/* Row 1 */}
-        <Col md={6}>
+        <Col md={4}>
           <Section
             icon={<IconEye size={13} stroke={1.8} />}
             title="Review Requests"
@@ -198,7 +210,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             )}
           </Section>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Section
             icon={<IconGitPullRequest size={13} stroke={1.8} />}
             title="Open Pull Requests"
@@ -221,6 +233,48 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               ))
             ) : (
               <EmptyRow text="No open pull requests" />
+            )}
+          </Section>
+        </Col>
+        <Col md={4}>
+          <Section
+            icon={<IconNote size={13} stroke={1.8} />}
+            title="Notes"
+            badgeClass="badge-status-purple"
+            count={notes.length}
+            onSeeMore={notes.length > 5 ? () => onNavigate("personal") : undefined}
+          >
+            {topNotes.length > 0 ? (
+              topNotes.map((note) => {
+                const noteUrl =
+                  note.type === "jira_ticket" && note.reference_id
+                    ? `${jiraBase}/browse/${note.reference_id}`
+                    : note.type === "github_pr" && note.reference_id
+                      ? note.reference_id
+                      : "#";
+                const noteTitle =
+                  note.type === "free_text" ? note.content : note.reference_id || "";
+                const noteSubtitle = note.type !== "free_text" && note.content ? note.content : "";
+                return (
+                  <ItemRow
+                    key={note.id}
+                    url={noteUrl}
+                    title={noteTitle}
+                    subtitle={noteSubtitle}
+                    time={note.created_at}
+                    badge={
+                      note.type === "jira_ticket"
+                        ? "JIRA"
+                        : note.type === "github_pr"
+                          ? "PR"
+                          : "Note"
+                    }
+                    badgeClass="badge-status-neutral"
+                  />
+                );
+              })
+            ) : (
+              <EmptyRow text="No notes" />
             )}
           </Section>
         </Col>

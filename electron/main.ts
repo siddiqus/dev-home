@@ -23,6 +23,7 @@ function startBackendServer() {
     env: {
       ...process.env,
       VITE_API_PORT: __API_PORT__,
+      DEV_HOME_DB_PATH: path.join(app.getPath("userData"), "notes.db"),
     },
     silent: true,
   });

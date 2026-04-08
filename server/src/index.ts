@@ -16,6 +16,8 @@ import { errorHandler } from "./utils/errors";
 import jiraRoutes from "./routes/jira";
 import githubRoutes from "./routes/github";
 import configRoutes from "./routes/config";
+import notesRoutes from "./routes/notes";
+import { closeDb } from "./db";
 
 export function createServer() {
   const app = express();
@@ -49,6 +51,7 @@ export function createServer() {
   app.use("/api/jira", jiraRoutes);
   app.use("/api/github", githubRoutes);
   app.use("/api/config", configRoutes);
+  app.use("/api/notes", notesRoutes);
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {
@@ -78,6 +81,17 @@ export function startServer() {
 
   return server;
 }
+
+// Graceful shutdown — close SQLite connection
+process.on("SIGTERM", () => {
+  closeDb();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  closeDb();
+  process.exit(0);
+});
 
 // Run directly (e.g. `tsx server/src/index.ts` or `yarn dev:server`)
 if (require.main === module) {

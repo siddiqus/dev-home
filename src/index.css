@@ -1127,3 +1127,55 @@ a,
 [data-theme="light"] .markdown-body th {
   background-color: #f6f8fa;
 }
+
+/* ============================================
+   Form Controls
+   ============================================ */
+.form-control,
+.form-select {
+  background-color: #0d1117;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: #0d1117;
+  border-color: #58a6ff;
+  color: #c9d1d9;
+  box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25);
+}
+
+.form-control::placeholder {
+  color: #484f58;
+}
+
+.form-select option {
+  background-color: #161b22;
+  color: #c9d1d9;
+}
+
+/* --- Light mode form controls --- */
+[data-theme="light"] .form-control,
+[data-theme="light"] .form-select {
+  background-color: #ffffff;
+  border-color: #d1d9e0;
+  color: #1f2328;
+}
+
+[data-theme="light"] .form-control:focus,
+[data-theme="light"] .form-select:focus {
+  background-color: #ffffff;
+  border-color: #0969da;
+  color: #1f2328;
+  box-shadow: 0 0 0 0.2rem rgba(9, 105, 218, 0.25);
+}
+
+[data-theme="light"] .form-control::placeholder {
+  color: #656d76;
+}
+
+[data-theme="light"] .form-select option {
+  background-color: #ffffff;
+  color: #1f2328;
+}

@@ -6,14 +6,24 @@ import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import Spinner from "react-bootstrap/Spinner";
-import { IconCode, IconRefresh, IconSettings, IconSun, IconMoon } from "@tabler/icons-react";
+import {
+  IconCode,
+  IconRefresh,
+  IconSettings,
+  IconSun,
+  IconMoon,
+  IconPlus,
+} from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
+import { useNotes } from "./hooks/useNotes";
 import { SummaryView } from "./components/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { MentionsView } from "./components/MentionsView";
 import { OpenPRs } from "./components/OpenPRs";
 import { ReviewRequests } from "./components/ReviewRequests";
+import { PersonalNotes } from "./components/PersonalNotes";
+import { AddNoteModal } from "./components/AddNoteModal";
 import { SettingsView } from "./components/SettingsView";
 
 export default function App() {
@@ -52,6 +62,18 @@ export default function App() {
     error,
     refresh,
   } = useDashboard(configured);
+  const {
+    notes,
+    unresolvedNotes,
+    loading: notesLoading,
+    addNote,
+    editNote,
+    resolveNote,
+    removeNote,
+    refresh: refreshNotes,
+  } = useNotes(configured);
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [editingNote, setEditingNote] = useState<import("./types").Note | null>(null);
 
   // If config is not yet loaded, show settings first
   const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
@@ -75,7 +97,23 @@ export default function App() {
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
-            <Button variant="outline-secondary" size="sm" onClick={refresh} disabled={loading}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setShowAddNote(true)}
+              title="Add personal note"
+            >
+              <IconPlus size={14} />
+            </Button>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => {
+                refresh();
+                refreshNotes();
+              }}
+              disabled={loading}
+            >
               <IconRefresh size={14} />
             </Button>
             <Button
@@ -138,6 +176,11 @@ export default function App() {
                   label: "Reviews Requested",
                   count: reviewRequests.length,
                 },
+                {
+                  key: "notes",
+                  label: "Notes",
+                  count: unresolvedNotes.length,
+                },
               ].map((tab) => (
                 <Nav.Item key={tab.key}>
                   <Nav.Link active={effectiveTab === tab.key} onClick={() => setActiveTab(tab.key)}>
@@ -164,6 +207,8 @@ export default function App() {
                   loading={loading}
                   jiraBaseUrl={jiraBaseUrl}
                   onNavigate={setActiveTab}
+                  notes={unresolvedNotes}
+                  onResolveNote={resolveNote}
                 />
               )}
               {effectiveTab === "jira" && (
@@ -187,10 +232,34 @@ export default function App() {
                   jiraIssues={jiraIssues}
                 />
               )}
+              {effectiveTab === "notes" && (
+                <PersonalNotes
+                  notes={notes}
+                  loading={notesLoading}
+                  onResolve={resolveNote}
+                  onDelete={removeNote}
+                  onEdit={(note) => {
+                    setEditingNote(note);
+                    setShowAddNote(true);
+                  }}
+                  jiraBaseUrl={jiraBaseUrl}
+                />
+              )}
             </div>
           </>
         )}
       </Container>
+
+      <AddNoteModal
+        show={showAddNote}
+        onHide={() => {
+          setShowAddNote(false);
+          setEditingNote(null);
+        }}
+        onSave={addNote}
+        editingNote={editingNote}
+        onEdit={editNote}
+      />
     </>
   );
 }
