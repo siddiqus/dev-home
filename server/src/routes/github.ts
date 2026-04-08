@@ -103,45 +103,64 @@ router.get("/reviews", async (_req: Request, res: Response) => {
   res.json({ reviews });
 });
 
-const SEARCH_MENTIONS_QUERY = `
-  query SearchMentions($query: String!, $first: Int!) {
-    search(query: $query, type: ISSUE, first: $first) {
-      nodes {
-        ... on PullRequest {
-          databaseId
-          number
-          title
-          url
-          createdAt
-          updatedAt
-          author { login avatarUrl }
-          body
-          repository { nameWithOwner }
-        }
-      }
-    }
-  }
-`;
+/**
+ * Extract the issue/PR number from a GitHub API subject URL.
+ * e.g. "https://api.github.com/repos/owner/repo/pulls/123" -> 123
+ */
+function extractSubjectNumber(url: string | undefined): number | null {
+  if (!url) return null;
+  const match = url.match(/\/(\d+)$/);
+  return match ? parseInt(match[1], 10) : null;
+}
 
 /**
- * Map a GitHub GraphQL PullRequest node to the frontend GitHubComment shape.
+ * Convert a GitHub API subject URL to a browser-facing HTML URL.
+ * e.g. "https://api.github.com/repos/owner/repo/pulls/123"
+ *   -> "https://github.com/owner/repo/pull/123"
  */
-function mapGraphQLNodeToComment(node: any) {
-  return {
-    id: node.databaseId,
-    html_url: node.url,
-    body: node.body || "",
-    created_at: node.createdAt,
-    updated_at: node.updatedAt,
-    user: {
-      login: node.author?.login || "",
-      avatar_url: node.author?.avatarUrl || "",
-    },
-    issue_url: node.url,
-    pr_number: node.number,
-    repo_full_name: node.repository?.nameWithOwner || "",
-    context_title: node.title || "",
-  };
+function subjectUrlToHtml(apiUrl: string | undefined, repoFullName: string): string {
+  if (!apiUrl) return `https://github.com/${repoFullName}`;
+  // /repos/owner/repo/pulls/123 -> /owner/repo/pull/123
+  // /repos/owner/repo/issues/456 -> /owner/repo/issues/456
+  const match = apiUrl.match(/repos\/(.+)\/(pulls|issues)\/(\d+)$/);
+  if (!match) return `https://github.com/${repoFullName}`;
+  const [, ownerRepo, type, number] = match;
+  const htmlType = type === "pulls" ? "pull" : "issues";
+  return `https://github.com/${ownerRepo}/${htmlType}/${number}`;
+}
+
+const ALLOWED_REASONS = new Set([
+  "approval_requested",
+  "assign",
+  "mention",
+  "review_requested",
+  "team_mention",
+]);
+
+/**
+ * Fetch all pages of notifications from the GitHub REST API,
+ * filtered to only relevant participation reasons.
+ */
+async function fetchAllNotifications(
+  github: ReturnType<typeof createGitHubClient>,
+  since: string,
+): Promise<any[]> {
+  const all: any[] = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    const { data } = await github.get("/notifications", {
+      params: { participating: true, all: true, per_page: perPage, since, page },
+    });
+    for (const n of data) {
+      if (ALLOWED_REASONS.has(n.reason)) all.push(n);
+    }
+    if (data.length < perPage) break;
+    page++;
+  }
+
+  return all;
 }
 
 /**
@@ -153,29 +172,49 @@ async function fetchCommentsInBatches(
   github: ReturnType<typeof createGitHubClient>,
   batchSize: number = 10,
 ): Promise<any[]> {
-  const targets = notifications.filter((n: any) => n.subject?.latest_comment_url);
   const results: any[] = [];
 
-  for (let i = 0; i < targets.length; i += batchSize) {
-    const batch = targets.slice(i, i + batchSize);
+  for (let i = 0; i < notifications.length; i += batchSize) {
+    const batch = notifications.slice(i, i + batchSize);
     const batchResults = await Promise.all(
       batch.map(async (notification: any) => {
+        const commentUrl = notification.subject?.latest_comment_url;
         try {
-          const { data: comment } = await github.get(notification.subject.latest_comment_url);
+          if (commentUrl) {
+            const { data: comment } = await github.get(commentUrl);
+            return {
+              id: comment.id,
+              html_url: comment.html_url,
+              body: comment.body || "",
+              created_at: comment.created_at,
+              updated_at: comment.updated_at,
+              user: {
+                login: comment.user?.login || "",
+                avatar_url: comment.user?.avatar_url || "",
+              },
+              issue_url: comment.issue_url || "",
+              pr_number: extractSubjectNumber(notification.subject?.url),
+              repo_full_name: notification.repository?.full_name || "",
+              context_title: notification.subject?.title || "",
+              reason: notification.reason || "",
+            };
+          }
+          // No comment URL — use notification-level info
           return {
-            id: comment.id,
-            html_url: comment.html_url,
-            body: comment.body || "",
-            created_at: comment.created_at,
-            updated_at: comment.updated_at,
-            user: {
-              login: comment.user?.login,
-              avatar_url: comment.user?.avatar_url,
-            },
-            issue_url: comment.issue_url || "",
-            pr_number: null,
+            id: notification.id,
+            html_url: subjectUrlToHtml(
+              notification.subject?.url,
+              notification.repository?.full_name || "",
+            ),
+            body: "",
+            created_at: notification.updated_at,
+            updated_at: notification.updated_at,
+            user: { login: "", avatar_url: "" },
+            issue_url: "",
+            pr_number: extractSubjectNumber(notification.subject?.url),
             repo_full_name: notification.repository?.full_name || "",
             context_title: notification.subject?.title || "",
+            reason: notification.reason || "",
           };
         } catch {
           return null;
@@ -190,46 +229,19 @@ async function fetchCommentsInBatches(
 
 /**
  * GET /api/github/mentions
- * Fetch GitHub mentions from notifications (REST) and search results (GraphQL).
+ * Fetch GitHub mentions from the notifications API (participating, all, 2-month window).
  */
 router.get("/mentions", async (_req: Request, res: Response) => {
-  const config = getConfig();
   const github = createGitHubClient();
-  const cutoff = monthsAgo();
+  const since = `${monthsAgo(2)}T00:00:00Z`;
 
-  // Fetch from 2 sources in parallel: REST notifications + GraphQL PR mentions
-  const [notificationsRes, prMentionsRes] = await Promise.allSettled([
-    github.get("/notifications", {
-      params: { participating: true, all: false, per_page: 50, since: `${cutoff}T00:00:00Z` },
-    }),
-    graphql<{ search: { nodes: any[] } }>(SEARCH_MENTIONS_QUERY, {
-      query: `mentions:${config.githubUsername} type:pr state:open updated:>=${cutoff}`,
-      first: 30,
-    }),
-  ]);
+  const notifications = await fetchAllNotifications(github, since);
+  const mentions = await fetchCommentsInBatches(notifications, github);
 
-  const mentions: any[] = [];
-
-  // Process notifications — fetch latest comment for each in controlled batches
-  if (notificationsRes.status === "fulfilled") {
-    const notifications = notificationsRes.value.data as any[];
-    const comments = await fetchCommentsInBatches(notifications, github);
-    mentions.push(...comments);
-  } else {
-    console.error("[GitHub /mentions] Notifications error:", notificationsRes.reason?.message);
-  }
-
-  // Process PR mentions from GraphQL search
-  if (prMentionsRes.status === "fulfilled") {
-    const nodes = prMentionsRes.value.search.nodes || [];
-    mentions.push(...nodes.map(mapGraphQLNodeToComment));
-  } else {
-    console.error("[GitHub /mentions] PR search error:", prMentionsRes.reason?.message);
-  }
-
-  // Deduplicate by id
-  const seen = new Set<number>();
+  // Filter out bot mentions and deduplicate by id
+  const seen = new Set<number | string>();
   const deduplicated = mentions.filter((m) => {
+    if (["github-actions", "datadog-official"].includes(m.user?.login)) return false;
     if (seen.has(m.id)) return false;
     seen.add(m.id);
     return true;

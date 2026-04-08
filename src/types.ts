@@ -92,6 +92,7 @@ export interface GitHubComment {
   pr_number: number;
   repo_full_name: string;
   context_title: string;
+  reason: string;
 }
 
 export type GitHubReviewRequest = GitHubPR;

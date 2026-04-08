@@ -6,6 +6,14 @@ import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
 
+const REASON_LABELS: Record<string, string> = {
+  approval_requested: "Approval Requested",
+  assign: "Assigned",
+  mention: "Mentioned",
+  review_requested: "Review Requested",
+  team_mention: "Team Mentioned",
+};
+
 interface GitHubMentionsProps {
   mentions: GitHubComment[];
   loading: boolean;
@@ -47,6 +55,11 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
                   </span>
                 </div>
                 <div className="d-flex align-items-center gap-2">
+                  {mention.reason && (
+                    <span className="badge badge-status-purple">
+                      {REASON_LABELS[mention.reason] || mention.reason}
+                    </span>
+                  )}
                   <span className="badge badge-status-neutral">{mention.repo_full_name}</span>
                   <span
                     className="text-secondary-custom"

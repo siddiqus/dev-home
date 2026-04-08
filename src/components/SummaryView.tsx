@@ -6,6 +6,14 @@ import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
 import { IconSubtask, IconAt, IconGitPullRequest, IconEye } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment } from "../types";
+
+const REASON_SUMMARY: Record<string, string> = {
+  approval_requested: "requested your approval",
+  assign: "assigned you",
+  mention: "mentioned you",
+  review_requested: "requested your review",
+  team_mention: "mentioned your team",
+};
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { DescriptionModal } from "./DescriptionModal";
 
@@ -152,7 +160,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     })),
     ...githubMentions.map((m) => ({
       id: `gm-${m.id}`,
-      title: `${m.user.login} mentioned you`,
+      title: `${m.user.login} ${REASON_SUMMARY[m.reason] || "mentioned you"}`,
       subtitle: m.context_title || m.repo_full_name,
       url: m.html_url,
       time: m.created_at,
@@ -181,7 +189,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   title={`#${r.number} ${r.title}`}
                   subtitle={`${r.repo_full_name} · ${r.user.login}`}
                   time={r.updated_at}
-                  badge="Review"
                   badgeClass="badge-status-yellow"
                   onClick={() => setSelectedPR(r)}
                 />
