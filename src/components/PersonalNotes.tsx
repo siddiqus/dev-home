@@ -49,6 +49,16 @@ function getReferenceUrl(note: Note, jiraBaseUrl: string): string | null {
   return null;
 }
 
+/** Format a GitHub URL like https://github.com/org/repo/pull/123 as repo#123 */
+function formatGitHubTitle(url: string): string {
+  const match = url.match(/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/);
+  if (match) return `${match[1]}#${match[2]}`;
+  // Repo-only URL: show just repo name
+  const repoMatch = url.match(/github\.com\/[^/]+\/([^/\s]+)/);
+  if (repoMatch) return repoMatch[1];
+  return url;
+}
+
 export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   notes,
   loading,
@@ -162,7 +172,11 @@ function NoteRow({
   onEdit: (note: Note) => void;
 }) {
   const url = getReferenceUrl(note, jiraBaseUrl);
-  const title = note.type === "free_text" ? note.content : note.reference_id || "";
+  const title = note.type === "free_text"
+    ? note.content
+    : note.type === "github_pr"
+      ? formatGitHubTitle(note.reference_id || "")
+      : note.reference_id || "";
   const subtitle = note.type !== "free_text" && note.content ? note.content : "";
 
   return (
@@ -183,12 +197,12 @@ function NoteRow({
             {title}
           </a>
         ) : (
-          <div className="text-truncate-custom" style={{ fontWeight: 500, fontSize: "0.8125rem" }}>
+          <div style={{ fontWeight: 500, fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
             {title}
           </div>
         )}
         {subtitle && (
-          <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1 }}>
+          <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}>
             {subtitle}
           </div>
         )}

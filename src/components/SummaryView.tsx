@@ -146,6 +146,15 @@ function statusBadgeClass(colorName: string): string {
   return STATUS_BADGE_CLASSES[colorName] || "badge-status-neutral";
 }
 
+/** Format a GitHub URL like https://github.com/org/repo/pull/123 as repo#123 */
+function formatGitHubTitle(url: string): string {
+  const match = url.match(/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/);
+  if (match) return `${match[1]}#${match[2]}`;
+  const repoMatch = url.match(/github\.com\/[^/]+\/([^/\s]+)/);
+  if (repoMatch) return repoMatch[1];
+  return url;
+}
+
 export const SummaryView: React.FC<SummaryViewProps> = ({
   jiraIssues,
   jiraComments,
@@ -176,7 +185,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const topReviews = reviewRequests.slice(0, 5);
   const topPRs = openPRs.slice(0, 5);
   const topIssues = jiraIssues.slice(0, 5);
-  const topNotes = notes.slice(0, 5);
+  const topNotes = notes.slice(0, 10);
 
   // Combine jira comments + github mentions, sort by date, take 5
   const allMentions = [
@@ -317,7 +326,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             title="Notes"
             badgeClass="badge-status-purple"
             count={notes.length}
-            onSeeMore={notes.length > 5 ? () => onNavigate("notes") : undefined}
+            onSeeMore={notes.length > 10 ? () => onNavigate("notes") : undefined}
             headerAction={
               <Button
                 variant="outline-secondary"
@@ -339,7 +348,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       ? note.reference_id
                       : "#";
                 const noteTitle =
-                  note.type === "free_text" ? note.content : note.reference_id || "";
+                  note.type === "free_text"
+                    ? note.content
+                    : note.type === "github_pr"
+                      ? formatGitHubTitle(note.reference_id || "")
+                      : note.reference_id || "";
                 const noteSubtitle = note.type !== "free_text" && note.content ? note.content : "";
                 return (
                   <div
@@ -359,8 +372,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         </a>
                       ) : (
                         <div
-                          className="text-truncate-custom"
-                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                          style={{ fontWeight: 500, fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}
                         >
                           {noteTitle}
                         </div>
@@ -368,7 +380,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       {noteSubtitle && (
                         <div
                           className="text-secondary-custom"
-                          style={{ fontSize: "0.75rem", marginTop: 1 }}
+                          style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}
                         >
                           {noteSubtitle}
                         </div>
