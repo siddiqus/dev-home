@@ -120,7 +120,7 @@ export const AddNoteModal: React.FC<AddNoteModalProps> = ({
     <Modal show={show} onHide={handleClose} centered className="description-modal">
       <Modal.Header closeButton>
         <Modal.Title style={{ fontSize: "1rem", fontWeight: 600 }}>
-          {isEditing ? "Edit Note" : "Add Personal Note"}
+          {isEditing ? "Edit Note" : "Add Note"}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>

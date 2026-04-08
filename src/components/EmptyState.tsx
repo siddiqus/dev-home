@@ -4,9 +4,10 @@ interface EmptyStateProps {
   icon: React.ReactNode;
   title: string;
   description: string;
+  action?: React.ReactNode;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description }) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description, action }) => {
   return (
     <div className="empty-state">
       <div className="empty-icon">{icon}</div>
@@ -21,6 +22,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description
       >
         {description}
       </div>
+      {action}
     </div>
   );
 };

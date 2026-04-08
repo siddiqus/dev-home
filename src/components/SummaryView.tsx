@@ -4,6 +4,7 @@ import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
+import Button from "react-bootstrap/Button";
 import {
   IconSubtask,
   IconAt,
@@ -11,6 +12,8 @@ import {
   IconEye,
   IconNote,
   IconCheck,
+  IconPlus,
+  IconPencil,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
 
@@ -35,6 +38,8 @@ interface SummaryViewProps {
   onNavigate: (tab: string) => void;
   notes: Note[];
   onResolveNote: (id: number) => Promise<void>;
+  onAddNote: () => void;
+  onEditNote: (note: Note) => void;
 }
 
 interface SectionProps {
@@ -44,9 +49,18 @@ interface SectionProps {
   count: number;
   children: React.ReactNode;
   onSeeMore?: () => void;
+  headerAction?: React.ReactNode;
 }
 
-function Section({ icon, title, badgeClass, count, children, onSeeMore }: SectionProps) {
+function Section({
+  icon,
+  title,
+  badgeClass,
+  count,
+  children,
+  onSeeMore,
+  headerAction,
+}: SectionProps) {
   return (
     <Card className="h-100">
       <Card.Body className="p-0">
@@ -58,6 +72,7 @@ function Section({ icon, title, badgeClass, count, children, onSeeMore }: Sectio
               {count}
             </Badge>
           )}
+          {headerAction && <span style={{ marginLeft: "auto" }}>{headerAction}</span>}
         </div>
         <div style={{ marginTop: 8 }}>{children}</div>
         {onSeeMore && (
@@ -142,6 +157,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   onNavigate,
   notes,
   onResolveNote,
+  onAddNote,
+  onEditNote,
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
@@ -184,65 +201,134 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   return (
     <>
       <Row className="g-3">
-        {/* Row 1 */}
-        <Col md={4}>
-          <Section
-            icon={<IconEye size={13} stroke={1.8} />}
-            title="Review Requests"
-            badgeClass="badge-status-yellow"
-            count={reviewRequests.length}
-            onSeeMore={reviewRequests.length > 5 ? () => onNavigate("reviews") : undefined}
-          >
-            {topReviews.length > 0 ? (
-              topReviews.map((r) => (
-                <ItemRow
-                  key={r.id}
-                  url={r.html_url}
-                  title={`#${r.number} ${r.title}`}
-                  subtitle={`${r.repo_full_name} · ${r.user.login}`}
-                  time={r.updated_at}
-                  badgeClass="badge-status-yellow"
-                  onClick={() => setSelectedPR(r)}
-                />
-              ))
-            ) : (
-              <EmptyRow text="No pending reviews" />
-            )}
-          </Section>
+        <Col md="8">
+          <Row className="g-2">
+            <Col md={6}>
+              <Section
+                icon={<IconEye size={13} stroke={1.8} />}
+                title="Review Requests"
+                badgeClass="badge-status-yellow"
+                count={reviewRequests.length}
+                onSeeMore={reviewRequests.length > 5 ? () => onNavigate("reviews") : undefined}
+              >
+                {topReviews.length > 0 ? (
+                  topReviews.map((r) => (
+                    <ItemRow
+                      key={r.id}
+                      url={r.html_url}
+                      title={`#${r.number} ${r.title}`}
+                      subtitle={`${r.repo_full_name} · ${r.user.login}`}
+                      time={r.updated_at}
+                      badgeClass="badge-status-yellow"
+                      onClick={() => setSelectedPR(r)}
+                    />
+                  ))
+                ) : (
+                  <EmptyRow text="No pending reviews" />
+                )}
+              </Section>
+            </Col>
+            <Col md={6}>
+              <Section
+                icon={<IconGitPullRequest size={13} stroke={1.8} />}
+                title="Open Pull Requests"
+                badgeClass="badge-status-green"
+                count={openPRs.length}
+                onSeeMore={openPRs.length > 5 ? () => onNavigate("prs") : undefined}
+              >
+                {topPRs.length > 0 ? (
+                  topPRs.map((pr) => (
+                    <ItemRow
+                      key={pr.id}
+                      url={pr.html_url}
+                      title={`#${pr.number} ${pr.title}`}
+                      subtitle={pr.repo_full_name}
+                      time={pr.updated_at}
+                      badge={pr.draft ? "Draft" : "Open"}
+                      badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                      onClick={() => setSelectedPR(pr)}
+                    />
+                  ))
+                ) : (
+                  <EmptyRow text="No open pull requests" />
+                )}
+              </Section>
+            </Col>
+
+            {/* Row 2 */}
+            <Col md={6}>
+              <Section
+                icon={<IconAt size={13} stroke={1.8} />}
+                title="Mentions"
+                badgeClass="badge-status-purple"
+                count={jiraComments.length + githubMentions.length}
+                onSeeMore={
+                  jiraComments.length + githubMentions.length > 5
+                    ? () => onNavigate("mentions")
+                    : undefined
+                }
+              >
+                {allMentions.length > 0 ? (
+                  allMentions.map((m) => (
+                    <ItemRow
+                      key={m.id}
+                      url={m.url}
+                      title={m.title}
+                      subtitle={m.subtitle}
+                      time={m.time}
+                    />
+                  ))
+                ) : (
+                  <EmptyRow text="No recent mentions" />
+                )}
+              </Section>
+            </Col>
+            <Col md={6}>
+              <Section
+                icon={<IconSubtask size={13} stroke={1.8} />}
+                title="JIRA Tasks"
+                badgeClass="badge-status-blue"
+                count={jiraIssues.length}
+                onSeeMore={jiraIssues.length > 5 ? () => onNavigate("jira") : undefined}
+              >
+                {topIssues.length > 0 ? (
+                  topIssues.map((issue) => (
+                    <ItemRow
+                      key={issue.key}
+                      url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
+                      title={`${issue.key}: ${issue.summary}`}
+                      subtitle={issue.project.name}
+                      time={issue.updated}
+                      badge={issue.status.name}
+                      badgeClass={statusBadgeClass(issue.status.statusCategory.colorName)}
+                      onClick={() => setSelectedIssue(issue)}
+                    />
+                  ))
+                ) : (
+                  <EmptyRow text="No assigned issues" />
+                )}
+              </Section>
+            </Col>
+          </Row>
         </Col>
-        <Col md={4}>
-          <Section
-            icon={<IconGitPullRequest size={13} stroke={1.8} />}
-            title="Open Pull Requests"
-            badgeClass="badge-status-green"
-            count={openPRs.length}
-            onSeeMore={openPRs.length > 5 ? () => onNavigate("prs") : undefined}
-          >
-            {topPRs.length > 0 ? (
-              topPRs.map((pr) => (
-                <ItemRow
-                  key={pr.id}
-                  url={pr.html_url}
-                  title={`#${pr.number} ${pr.title}`}
-                  subtitle={pr.repo_full_name}
-                  time={pr.updated_at}
-                  badge={pr.draft ? "Draft" : "Open"}
-                  badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
-                  onClick={() => setSelectedPR(pr)}
-                />
-              ))
-            ) : (
-              <EmptyRow text="No open pull requests" />
-            )}
-          </Section>
-        </Col>
-        <Col md={4}>
+        <Col md="4">
           <Section
             icon={<IconNote size={13} stroke={1.8} />}
             title="Notes"
             badgeClass="badge-status-purple"
             count={notes.length}
-            onSeeMore={notes.length > 5 ? () => onNavigate("personal") : undefined}
+            onSeeMore={notes.length > 5 ? () => onNavigate("notes") : undefined}
+            headerAction={
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                style={{ padding: "1px 5px", lineHeight: 1 }}
+                title="Add note"
+                onClick={onAddNote}
+              >
+                <IconPlus size={12} />
+              </Button>
+            }
           >
             {topNotes.length > 0 ? (
               topNotes.map((note) => {
@@ -256,80 +342,76 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   note.type === "free_text" ? note.content : note.reference_id || "";
                 const noteSubtitle = note.type !== "free_text" && note.content ? note.content : "";
                 return (
-                  <ItemRow
+                  <div
                     key={note.id}
-                    url={noteUrl}
-                    title={noteTitle}
-                    subtitle={noteSubtitle}
-                    time={note.created_at}
-                    badge={
-                      note.type === "jira_ticket"
-                        ? "JIRA"
-                        : note.type === "github_pr"
-                          ? "PR"
-                          : "Note"
-                    }
-                    badgeClass="badge-status-neutral"
-                  />
+                    className="summary-item d-flex align-items-center gap-3 px-3 py-2"
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {noteUrl !== "#" ? (
+                        <a
+                          href={noteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-truncate-custom d-block"
+                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                        >
+                          {noteTitle}
+                        </a>
+                      ) : (
+                        <div
+                          className="text-truncate-custom"
+                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                        >
+                          {noteTitle}
+                        </div>
+                      )}
+                      {noteSubtitle && (
+                        <div
+                          className="text-secondary-custom"
+                          style={{ fontSize: "0.75rem", marginTop: 1 }}
+                        >
+                          {noteSubtitle}
+                        </div>
+                      )}
+                    </div>
+                    <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
+                      <Badge className="badge-status-neutral">
+                        {note.type === "jira_ticket"
+                          ? "JIRA"
+                          : note.type === "github_pr"
+                            ? "PR"
+                            : "Note"}
+                      </Badge>
+                      <span
+                        className="text-secondary-custom"
+                        style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
+                      >
+                        {formatRelativeTime(note.created_at)}
+                      </span>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        style={{ padding: "2px 6px" }}
+                        title="Edit"
+                        onClick={() => onEditNote(note)}
+                      >
+                        <IconPencil size={12} />
+                      </Button>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        style={{ padding: "2px 6px" }}
+                        title="Resolve"
+                        onClick={() => onResolveNote(note.id)}
+                      >
+                        <IconCheck size={12} />
+                      </Button>
+                    </div>
+                  </div>
                 );
               })
             ) : (
               <EmptyRow text="No notes" />
-            )}
-          </Section>
-        </Col>
-
-        {/* Row 2 */}
-        <Col md={6}>
-          <Section
-            icon={<IconAt size={13} stroke={1.8} />}
-            title="Mentions"
-            badgeClass="badge-status-purple"
-            count={jiraComments.length + githubMentions.length}
-            onSeeMore={
-              jiraComments.length + githubMentions.length > 5
-                ? () => onNavigate("mentions")
-                : undefined
-            }
-          >
-            {allMentions.length > 0 ? (
-              allMentions.map((m) => (
-                <ItemRow
-                  key={m.id}
-                  url={m.url}
-                  title={m.title}
-                  subtitle={m.subtitle}
-                  time={m.time}
-                />
-              ))
-            ) : (
-              <EmptyRow text="No recent mentions" />
-            )}
-          </Section>
-        </Col>
-        <Col md={6}>
-          <Section
-            icon={<IconSubtask size={13} stroke={1.8} />}
-            title="JIRA Tasks"
-            badgeClass="badge-status-blue"
-            count={jiraIssues.length}
-            onSeeMore={jiraIssues.length > 5 ? () => onNavigate("jira") : undefined}
-          >
-            {topIssues.length > 0 ? (
-              topIssues.map((issue) => (
-                <ItemRow
-                  key={issue.key}
-                  url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
-                  title={`${issue.key}: ${issue.summary}`}
-                  subtitle={issue.project.name}
-                  time={issue.updated}
-                  badge={issue.status.name}
-                  badgeClass={statusBadgeClass(issue.status.statusCategory.colorName)}
-                  onClick={() => setSelectedIssue(issue)}
-                />
-              ))
-            ) : (
-              <EmptyRow text="No assigned issues" />
             )}
           </Section>
         </Col>

@@ -10,6 +10,7 @@ import {
   IconCheck,
   IconTrash,
   IconPencil,
+  IconPlus,
 } from "@tabler/icons-react";
 import { Note } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
@@ -21,6 +22,7 @@ interface PersonalNotesProps {
   onResolve: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onEdit: (note: Note) => void;
+  onAdd: () => void;
   jiraBaseUrl: string;
 }
 
@@ -53,6 +55,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   onResolve,
   onDelete,
   onEdit,
+  onAdd,
   jiraBaseUrl,
 }) => {
   if (loading && notes.length === 0) {
@@ -68,7 +71,13 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
       <EmptyState
         icon={<IconNote size={48} stroke={1} />}
         title="No notes"
-        description="Add a note using the + button in the top bar."
+        description="Add a note using the button below."
+        action={
+          <Button variant="outline-secondary" size="sm" className="mt-2" onClick={onAdd}>
+            <IconPlus size={14} className="me-1" />
+            Add Note
+          </Button>
+        }
       />
     );
   }
@@ -78,6 +87,12 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
 
   return (
     <div>
+      <div className="d-flex justify-content-end mb-2">
+        <Button variant="outline-secondary" size="sm" onClick={onAdd}>
+          <IconPlus size={14} className="me-1" />
+          Add Note
+        </Button>
+      </div>
       {unresolved.length > 0 && (
         <Card className="mb-3">
           <Card.Body className="p-0">

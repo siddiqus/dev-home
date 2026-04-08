@@ -4,7 +4,7 @@ import Card from "react-bootstrap/Card";
 import Alert from "react-bootstrap/Alert";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconSun, IconMoon } from "@tabler/icons-react";
 import { AppSettings, loadSettingsFromStore } from "../services/config";
 
 interface SettingsViewProps {
@@ -15,6 +15,8 @@ interface SettingsViewProps {
   onBack: () => void;
   saveSettings: (settings: AppSettings) => Promise<void>;
   refreshConfig: () => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }
 
 const EMPTY_SETTINGS: AppSettings = {
@@ -33,6 +35,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onBack,
   saveSettings,
   refreshConfig: _refreshConfig,
+  theme,
+  onToggleTheme,
 }) => {
   const [formState, setFormState] = useState<AppSettings>(EMPTY_SETTINGS);
   const [saving, setSaving] = useState(false);
@@ -227,6 +231,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               size="sm"
             />
           </Form.Group>
+        </Card.Body>
+      </Card>
+
+      {/* Appearance */}
+      <Card className="mb-3">
+        <Card.Body>
+          <h6 style={{ marginBottom: 12 }}>Appearance</h6>
+          <div className="d-flex gap-3">
+            {(["light", "dark"] as const).map((mode) => {
+              const isSelected = theme === mode;
+              return (
+                <button
+                  key={mode}
+                  className={`theme-option${isSelected ? " theme-option-selected" : ""}`}
+                  onClick={() => { if (!isSelected) onToggleTheme(); }}
+                  type="button"
+                >
+                  <div className="theme-option-preview" data-preview={mode}>
+                    <div className="theme-preview-bar" />
+                    <div className="theme-preview-body">
+                      <div className="theme-preview-line" />
+                      <div className="theme-preview-line short" />
+                    </div>
+                  </div>
+                  <div className="theme-option-label">
+                    {mode === "light" ? <IconSun size={14} /> : <IconMoon size={14} />}
+                    <span>{mode === "light" ? "Light" : "Dark"}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </Card.Body>
       </Card>
 

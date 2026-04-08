@@ -10,8 +10,6 @@ import {
   IconCode,
   IconRefresh,
   IconSettings,
-  IconSun,
-  IconMoon,
   IconPlus,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -101,7 +99,7 @@ export default function App() {
               variant="outline-secondary"
               size="sm"
               onClick={() => setShowAddNote(true)}
-              title="Add personal note"
+              title="Add a note"
             >
               <IconPlus size={14} />
             </Button>
@@ -115,14 +113,6 @@ export default function App() {
               disabled={loading}
             >
               <IconRefresh size={14} />
-            </Button>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={toggleTheme}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {theme === "dark" ? <IconSun size={14} /> : <IconMoon size={14} />}
             </Button>
             <Button variant="outline-secondary" size="sm" onClick={() => setActiveTab("settings")}>
               <IconSettings size={14} />
@@ -153,6 +143,8 @@ export default function App() {
             onBack={() => setActiveTab("summary")}
             saveSettings={saveSettings}
             refreshConfig={refreshConfig}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
         ) : (
           <>
@@ -209,6 +201,8 @@ export default function App() {
                   onNavigate={setActiveTab}
                   notes={unresolvedNotes}
                   onResolveNote={resolveNote}
+                  onAddNote={() => setShowAddNote(true)}
+                  onEditNote={(note) => { setEditingNote(note); setShowAddNote(true); }}
                 />
               )}
               {effectiveTab === "jira" && (
@@ -242,6 +236,7 @@ export default function App() {
                     setEditingNote(note);
                     setShowAddNote(true);
                   }}
+                  onAdd={() => setShowAddNote(true)}
                   jiraBaseUrl={jiraBaseUrl}
                 />
               )}
