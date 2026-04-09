@@ -18,8 +18,9 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm run build
-      - run: npm run dist
+      - run: yarn install
+      - run: yarn build
+      - run: yarn dist
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
