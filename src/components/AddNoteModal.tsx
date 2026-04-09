@@ -3,7 +3,6 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import Badge from "react-bootstrap/Badge";
 import { Note, NoteType } from "../types";
 
 interface AddNoteModalProps {
@@ -16,7 +15,10 @@ interface AddNoteModalProps {
 
 /** Trim leading/trailing blank lines and whitespace, but preserve internal newlines */
 function trimEnds(s: string): string {
-  return s.replace(/^\s*\n/, "").replace(/\n\s*$/, "").trim();
+  return s
+    .replace(/^\s*\n/, "")
+    .replace(/\n\s*$/, "")
+    .trim();
 }
 
 // Matches a full JIRA URL like https://org.atlassian.net/browse/PROJ-123
@@ -42,7 +44,9 @@ function detectNote(text: string): { type: NoteType; referenceId: string; conten
 
   if (jiraMatch && jiraIndex <= githubIndex) {
     const referenceId = jiraMatch[1]; // captured group is the key in both patterns
-    const restOfFirstLine = (firstLine.slice(0, jiraMatch.index) + firstLine.slice(jiraMatch.index + jiraMatch[0].length)).trim();
+    const restOfFirstLine = (
+      firstLine.slice(0, jiraMatch.index) + firstLine.slice(jiraMatch.index + jiraMatch[0].length)
+    ).trim();
     const restOfLines = lines.slice(1).join("\n");
     const content = restOfFirstLine
       ? restOfFirstLine + (restOfLines ? "\n" + restOfLines : "")
@@ -52,7 +56,10 @@ function detectNote(text: string): { type: NoteType; referenceId: string; conten
 
   if (githubMatch) {
     const referenceId = githubMatch[0];
-    const restOfFirstLine = (firstLine.slice(0, githubMatch.index) + firstLine.slice(githubMatch.index + githubMatch[0].length)).trim();
+    const restOfFirstLine = (
+      firstLine.slice(0, githubMatch.index) +
+      firstLine.slice(githubMatch.index + githubMatch[0].length)
+    ).trim();
     const restOfLines = lines.slice(1).join("\n");
     const content = restOfFirstLine
       ? restOfFirstLine + (restOfLines ? "\n" + restOfLines : "")

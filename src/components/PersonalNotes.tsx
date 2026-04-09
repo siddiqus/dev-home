@@ -172,11 +172,12 @@ function NoteRow({
   onEdit: (note: Note) => void;
 }) {
   const url = getReferenceUrl(note, jiraBaseUrl);
-  const title = note.type === "free_text"
-    ? note.content
-    : note.type === "github_pr"
-      ? formatGitHubTitle(note.reference_id || "")
-      : note.reference_id || "";
+  const title =
+    note.type === "free_text"
+      ? note.content
+      : note.type === "github_pr"
+        ? formatGitHubTitle(note.reference_id || "")
+        : note.reference_id || "";
   const subtitle = note.type !== "free_text" && note.content ? note.content : "";
 
   return (
@@ -202,7 +203,10 @@ function NoteRow({
           </div>
         )}
         {subtitle && (
-          <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}>
+          <div
+            className="text-secondary-custom"
+            style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}
+          >
             {subtitle}
           </div>
         )}

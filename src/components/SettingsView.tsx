@@ -245,7 +245,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   key={mode}
                   className={`theme-option${isSelected ? " theme-option-selected" : ""}`}
-                  onClick={() => { if (!isSelected) onToggleTheme(); }}
+                  onClick={() => {
+                    if (!isSelected) onToggleTheme();
+                  }}
                   type="button"
                 >
                   <div className="theme-option-preview" data-preview={mode}>
