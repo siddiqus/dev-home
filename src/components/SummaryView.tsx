@@ -13,7 +13,6 @@ import {
   IconNote,
   IconCheck,
   IconPlus,
-  IconExternalLink,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
 
@@ -367,6 +366,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   <div
                     key={note.id}
                     className="summary-item d-flex align-items-center gap-3 px-3 py-2"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => onOpenNote(note)}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="d-flex align-items-center gap-2">
@@ -377,6 +378,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                             rel="noopener noreferrer"
                             className="text-truncate-custom"
                             style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {noteTitle}
                           </a>
@@ -409,17 +411,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         variant="outline-secondary"
                         size="sm"
                         style={{ padding: "2px 6px" }}
-                        title="Open"
-                        onClick={() => onOpenNote(note)}
-                      >
-                        <IconExternalLink size={12} />
-                      </Button>
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        style={{ padding: "2px 6px" }}
                         title="Resolve"
-                        onClick={() => onResolveNote(note.id)}
+                        onClick={(e) => { e.stopPropagation(); onResolveNote(note.id); }}
                       >
                         <IconCheck size={12} />
                       </Button>

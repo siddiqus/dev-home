@@ -10,7 +10,6 @@ import {
   IconCheck,
   IconTrash,
   IconPlus,
-  IconExternalLink,
 } from "@tabler/icons-react";
 import { Note } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
@@ -182,7 +181,11 @@ function NoteRow({
     "Untitled note";
 
   return (
-    <div className="summary-item d-flex align-items-center gap-3 px-3 py-2">
+    <div
+      className="summary-item d-flex align-items-center gap-3 px-3 py-2"
+      style={{ cursor: "pointer" }}
+      onClick={() => onOpenNote(note)}
+    >
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         {TYPE_ICON[note.type]}
       </div>
@@ -195,6 +198,7 @@ function NoteRow({
               rel="noopener noreferrer"
               className="text-truncate-custom"
               style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+              onClick={(e) => e.stopPropagation()}
             >
               {title}
             </a>
@@ -224,22 +228,13 @@ function NoteRow({
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         <Badge className="badge-status-neutral">{TYPE_LABEL[note.type]}</Badge>
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          style={{ padding: "2px 6px" }}
-          title="Open"
-          onClick={() => onOpenNote(note)}
-        >
-          <IconExternalLink size={12} />
-        </Button>
         {note.resolved === 0 && (
           <Button
             variant="outline-secondary"
             size="sm"
             style={{ padding: "2px 6px" }}
             title="Resolve"
-            onClick={() => onResolve(note.id)}
+            onClick={(e) => { e.stopPropagation(); onResolve(note.id); }}
           >
             <IconCheck size={12} />
           </Button>
@@ -249,7 +244,7 @@ function NoteRow({
           size="sm"
           style={{ padding: "2px 6px" }}
           title="Delete"
-          onClick={() => onDelete(note.id)}
+          onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
         >
           <IconTrash size={12} />
         </Button>
