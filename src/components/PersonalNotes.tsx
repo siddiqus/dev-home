@@ -3,15 +3,14 @@ import Card from "react-bootstrap/Card";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import ReactMarkdown from "react-markdown";
 import {
   IconNote,
   IconBrandJira,
   IconGitPullRequest,
   IconCheck,
   IconTrash,
-  IconPencil,
   IconPlus,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { Note } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
@@ -22,7 +21,7 @@ interface PersonalNotesProps {
   loading: boolean;
   onResolve: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
-  onEdit: (note: Note) => void;
+  onOpenNote: (note: Note) => void;
   onAdd: () => void;
   jiraBaseUrl: string;
 }
@@ -65,7 +64,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   loading,
   onResolve,
   onDelete,
-  onEdit,
+  onOpenNote,
   onAdd,
   jiraBaseUrl,
 }) => {
@@ -122,7 +121,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   onResolve={onResolve}
                   onDelete={onDelete}
-                  onEdit={onEdit}
+                  onOpenNote={onOpenNote}
                 />
               ))}
             </div>
@@ -148,7 +147,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   onResolve={onResolve}
                   onDelete={onDelete}
-                  onEdit={onEdit}
+                  onOpenNote={onOpenNote}
                 />
               ))}
             </div>
@@ -164,22 +163,23 @@ function NoteRow({
   jiraBaseUrl,
   onResolve,
   onDelete,
-  onEdit,
+  onOpenNote,
 }: {
   note: Note;
   jiraBaseUrl: string;
   onResolve: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
-  onEdit: (note: Note) => void;
+  onOpenNote: (note: Note) => void;
 }) {
   const url = getReferenceUrl(note, jiraBaseUrl);
   const title =
-    note.type === "free_text"
-      ? note.content
-      : note.type === "github_pr"
-        ? formatGitHubTitle(note.reference_id || "")
-        : note.reference_id || "";
-  const subtitle = note.type !== "free_text" && note.content ? note.content : "";
+    note.title ||
+    (note.type === "github_pr"
+      ? formatGitHubTitle(note.reference_id || "")
+      : note.type === "jira_ticket"
+        ? note.reference_id || ""
+        : "") ||
+    "Untitled note";
 
   return (
     <div className="summary-item d-flex align-items-center gap-3 px-3 py-2">
@@ -187,50 +187,51 @@ function NoteRow({
         {TYPE_ICON[note.type]}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-truncate-custom d-block"
-            style={{ fontWeight: 500, fontSize: "0.8125rem" }}
-            onClick={(e) => e.stopPropagation()}
+        <div className="d-flex align-items-center gap-2">
+          {url ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-truncate-custom"
+              style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+            >
+              {title}
+            </a>
+          ) : (
+            <span
+              className="text-truncate-custom"
+              style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+            >
+              {title}
+            </span>
+          )}
+          <span
+            className="text-secondary-custom"
+            style={{ fontSize: "0.6875rem", whiteSpace: "nowrap", flexShrink: 0 }}
           >
-            {title}
-          </a>
-        ) : (
-          <div className="markdown-body note-markdown" style={{ fontWeight: 500, fontSize: "0.8125rem" }}>
-            <ReactMarkdown>{title}</ReactMarkdown>
-          </div>
-        )}
-        {subtitle && (
+            {formatRelativeTime(note.created_at)}
+          </span>
+        </div>
+        {note.content && (
           <div
-            className="markdown-body note-markdown text-secondary-custom"
+            className="text-secondary-custom note-content-truncate"
             style={{ fontSize: "0.75rem", marginTop: 1 }}
           >
-            <ReactMarkdown>{subtitle}</ReactMarkdown>
+            {note.content}
           </div>
         )}
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         <Badge className="badge-status-neutral">{TYPE_LABEL[note.type]}</Badge>
-        <span
-          className="text-secondary-custom"
-          style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
-        >
-          {formatRelativeTime(note.created_at)}
-        </span>
         <Button
           variant="outline-secondary"
           size="sm"
           style={{ padding: "2px 6px" }}
-          title="Edit"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(note);
-          }}
+          title="Open"
+          onClick={() => onOpenNote(note)}
         >
-          <IconPencil size={12} />
+          <IconExternalLink size={12} />
         </Button>
         {note.resolved === 0 && (
           <Button
@@ -238,10 +239,7 @@ function NoteRow({
             size="sm"
             style={{ padding: "2px 6px" }}
             title="Resolve"
-            onClick={(e) => {
-              e.stopPropagation();
-              onResolve(note.id);
-            }}
+            onClick={() => onResolve(note.id)}
           >
             <IconCheck size={12} />
           </Button>
@@ -251,10 +249,7 @@ function NoteRow({
           size="sm"
           style={{ padding: "2px 6px" }}
           title="Delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(note.id);
-          }}
+          onClick={() => onDelete(note.id)}
         >
           <IconTrash size={12} />
         </Button>

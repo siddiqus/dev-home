@@ -33,7 +33,7 @@ router.get("/", (req: Request, res: Response) => {
  */
 router.post("/", (req: Request, res: Response) => {
   const db = getDb();
-  const { type, content, reference_id } = req.body;
+  const { type, content, reference_id, title } = req.body;
 
   if (!type || !VALID_TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(", ")}` });
@@ -45,8 +45,8 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
-  const stmt = db.prepare("INSERT INTO notes (type, content, reference_id) VALUES (?, ?, ?)");
-  const result = stmt.run(type, content || "", reference_id || null);
+  const stmt = db.prepare("INSERT INTO notes (type, title, content, reference_id) VALUES (?, ?, ?, ?)");
+  const result = stmt.run(type, title || "", content || "", reference_id || null);
 
   const note = db.prepare("SELECT * FROM notes WHERE id = ?").get(result.lastInsertRowid);
   res.status(201).json({ note });
@@ -59,7 +59,7 @@ router.post("/", (req: Request, res: Response) => {
 router.patch("/:id", (req: Request, res: Response) => {
   const db = getDb();
   const { id } = req.params;
-  const { resolved, content, reference_id } = req.body;
+  const { resolved, content, reference_id, title } = req.body;
 
   const existing = db.prepare("SELECT * FROM notes WHERE id = ?").get(id);
   if (!existing) {
@@ -73,6 +73,11 @@ router.patch("/:id", (req: Request, res: Response) => {
   if (resolved !== undefined) {
     setClauses.push("resolved = ?");
     params.push(resolved ? 1 : 0);
+  }
+
+  if (title !== undefined) {
+    setClauses.push("title = ?");
+    params.push(title);
   }
 
   if (content !== undefined) {

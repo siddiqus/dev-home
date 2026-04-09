@@ -27,8 +27,8 @@ export function useNotes(active: boolean) {
 
   const unresolvedNotes = notes.filter((n) => n.resolved === 0);
 
-  const addNote = useCallback(async (type: NoteType, content: string, referenceId?: string) => {
-    const newNote = await createNote({ type, content, reference_id: referenceId });
+  const addNote = useCallback(async (type: NoteType, content: string, referenceId?: string, title?: string) => {
+    const newNote = await createNote({ type, title, content, reference_id: referenceId });
     setNotes((prev) => [newNote, ...prev]);
   }, []);
 
@@ -38,7 +38,7 @@ export function useNotes(active: boolean) {
   }, []);
 
   const editNote = useCallback(
-    async (id: number, updates: { content?: string; reference_id?: string }) => {
+    async (id: number, updates: { title?: string; content?: string; reference_id?: string }) => {
       const updated = await updateNote(id, updates);
       setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
     },

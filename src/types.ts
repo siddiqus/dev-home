@@ -117,6 +117,7 @@ export type NoteType = "free_text" | "jira_ticket" | "github_pr";
 export interface Note {
   id: number;
   type: NoteType;
+  title: string;
   content: string;
   reference_id: string | null;
   resolved: number;

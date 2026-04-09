@@ -69,13 +69,20 @@
     }
   },
   "dependencies": {
+    "@tiptap/extension-link": "^3.22.3",
+    "@tiptap/extension-placeholder": "^3.22.3",
+    "@tiptap/pm": "^3.22.3",
+    "@tiptap/react": "^3.22.3",
+    "@tiptap/starter-kit": "^3.22.3",
     "axios": "^1.14.0",
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "electron-store": "^11.0.2",
     "express": "^4.21.0",
     "express-async-errors": "^3.1.1",
-    "get-port": "^7.2.0"
+    "get-port": "^7.2.0",
+    "remark-breaks": "^4.0.0",
+    "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.7.0",

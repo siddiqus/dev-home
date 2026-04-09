@@ -16,7 +16,7 @@ import { MentionsView } from "./components/MentionsView";
 import { OpenPRs } from "./components/OpenPRs";
 import { ReviewRequests } from "./components/ReviewRequests";
 import { PersonalNotes } from "./components/PersonalNotes";
-import { AddNoteModal } from "./components/AddNoteModal";
+import { NoteEditorModal } from "./components/NoteEditorModal";
 import { SettingsView } from "./components/SettingsView";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
@@ -68,8 +68,8 @@ export default function App() {
     refresh: refreshNotes,
   } = useNotes(configured);
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
-  const [showAddNote, setShowAddNote] = useState(false);
-  const [editingNote, setEditingNote] = useState<import("./types").Note | null>(null);
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
   // If config is not yet loaded, show settings first
   const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
@@ -96,7 +96,7 @@ export default function App() {
             <Button
               variant="outline-secondary"
               size="sm"
-              onClick={() => setShowAddNote(true)}
+              onClick={() => setShowNoteEditor(true)}
               title="Add a note"
             >
               <IconPlus size={14} />
@@ -209,10 +209,10 @@ export default function App() {
                   onNavigate={setActiveTab}
                   notes={unresolvedNotes}
                   onResolveNote={resolveNote}
-                  onAddNote={() => setShowAddNote(true)}
-                  onEditNote={(note) => {
-                    setEditingNote(note);
-                    setShowAddNote(true);
+                  onAddNote={() => setShowNoteEditor(true)}
+                  onOpenNote={(note) => {
+                    setOpenNote(note);
+                    setShowNoteEditor(true);
                   }}
                 />
               )}
@@ -243,11 +243,11 @@ export default function App() {
                   loading={notesLoading}
                   onResolve={resolveNote}
                   onDelete={removeNote}
-                  onEdit={(note) => {
-                    setEditingNote(note);
-                    setShowAddNote(true);
+                  onOpenNote={(note) => {
+                    setOpenNote(note);
+                    setShowNoteEditor(true);
                   }}
-                  onAdd={() => setShowAddNote(true)}
+                  onAdd={() => setShowNoteEditor(true)}
                   jiraBaseUrl={jiraBaseUrl}
                 />
               )}
@@ -256,15 +256,16 @@ export default function App() {
         )}
       </Container>
 
-      <AddNoteModal
-        show={showAddNote}
+      <NoteEditorModal
+        show={showNoteEditor}
         onHide={() => {
-          setShowAddNote(false);
-          setEditingNote(null);
+          setShowNoteEditor(false);
+          setOpenNote(null);
         }}
         onSave={addNote}
-        editingNote={editingNote}
+        note={openNote}
         onEdit={editNote}
+        jiraBaseUrl={jiraBaseUrl}
       />
     </>
   );

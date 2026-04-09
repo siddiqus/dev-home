@@ -12,6 +12,7 @@ export async function fetchNotes(resolved?: boolean): Promise<Note[]> {
 
 export async function createNote(note: {
   type: NoteType;
+  title?: string;
   content: string;
   reference_id?: string;
 }): Promise<Note> {
@@ -21,7 +22,7 @@ export async function createNote(note: {
 
 export async function updateNote(
   id: number,
-  updates: { resolved?: boolean; content?: string; reference_id?: string },
+  updates: { resolved?: boolean; title?: string; content?: string; reference_id?: string },
 ): Promise<Note> {
   const { data } = await apiClient.patch(`/notes/${id}`, updates);
   return data.note;

@@ -1,6 +1,7 @@
 import React from "react";
 import Modal from "react-bootstrap/Modal";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 
 interface DescriptionModalProps {
   show: boolean;
@@ -39,7 +40,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       <Modal.Body>
         {description ? (
           <div className="markdown-body">
-            <ReactMarkdown>{description}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkBreaks]}>{description}</ReactMarkdown>
           </div>
         ) : (
           <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>

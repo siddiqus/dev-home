@@ -5,7 +5,6 @@ import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
-import ReactMarkdown from "react-markdown";
 import {
   IconSubtask,
   IconAt,
@@ -14,7 +13,7 @@ import {
   IconNote,
   IconCheck,
   IconPlus,
-  IconPencil,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
 
@@ -40,7 +39,7 @@ interface SummaryViewProps {
   notes: Note[];
   onResolveNote: (id: number) => Promise<void>;
   onAddNote: () => void;
-  onEditNote: (note: Note) => void;
+  onOpenNote: (note: Note) => void;
 }
 
 interface SectionProps {
@@ -168,7 +167,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   notes,
   onResolveNote,
   onAddNote,
-  onEditNote,
+  onOpenNote,
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
@@ -351,66 +350,69 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             {topNotes.length > 0 ? (
               topNotes.map((note) => {
                 const noteUrl =
-                  note.type === "jira_ticket" && note.reference_id
+                  note.type === "jira_ticket" && note.reference_id && jiraBase
                     ? `${jiraBase}/browse/${note.reference_id}`
                     : note.type === "github_pr" && note.reference_id
                       ? note.reference_id
-                      : "#";
+                      : null;
                 const noteTitle =
-                  note.type === "free_text"
-                    ? note.content
-                    : note.type === "github_pr"
-                      ? formatGitHubTitle(note.reference_id || "")
-                      : note.reference_id || "";
-                const noteSubtitle = note.type !== "free_text" && note.content ? note.content : "";
+                  note.title ||
+                  (note.type === "github_pr"
+                    ? formatGitHubTitle(note.reference_id || "")
+                    : note.type === "jira_ticket"
+                      ? note.reference_id || ""
+                      : "") ||
+                  "Untitled note";
                 return (
                   <div
                     key={note.id}
                     className="summary-item d-flex align-items-center gap-3 px-3 py-2"
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {noteUrl !== "#" ? (
-                        <a
-                          href={noteUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-truncate-custom d-block"
-                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                      <div className="d-flex align-items-center gap-2">
+                        {noteUrl ? (
+                          <a
+                            href={noteUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-truncate-custom"
+                            style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                          >
+                            {noteTitle}
+                          </a>
+                        ) : (
+                          <span
+                            className="text-truncate-custom"
+                            style={{ fontWeight: 500, fontSize: "0.8125rem" }}
+                          >
+                            {noteTitle}
+                          </span>
+                        )}
+                        <span
+                          className="text-secondary-custom"
+                          style={{ fontSize: "0.6875rem", whiteSpace: "nowrap", flexShrink: 0 }}
                         >
-                          {noteTitle}
-                        </a>
-                      ) : (
+                          {formatRelativeTime(note.created_at)}
+                        </span>
+                      </div>
+                      {note.content && (
                         <div
-                          className="markdown-body note-markdown note-markdown-truncate"
-                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
-                        >
-                          <ReactMarkdown>{noteTitle}</ReactMarkdown>
-                        </div>
-                      )}
-                      {noteSubtitle && (
-                        <div
-                          className="markdown-body note-markdown note-markdown-truncate text-secondary-custom"
+                          className="text-secondary-custom note-content-truncate"
                           style={{ fontSize: "0.75rem", marginTop: 1 }}
                         >
-                          <ReactMarkdown>{noteSubtitle}</ReactMarkdown>
+                          {note.content}
                         </div>
                       )}
                     </div>
                     <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-                      <span
-                        className="text-secondary-custom"
-                        style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
-                      >
-                        {formatRelativeTime(note.created_at)}
-                      </span>
                       <Button
                         variant="outline-secondary"
                         size="sm"
                         style={{ padding: "2px 6px" }}
-                        title="Edit"
-                        onClick={() => onEditNote(note)}
+                        title="Open"
+                        onClick={() => onOpenNote(note)}
                       >
-                        <IconPencil size={12} />
+                        <IconExternalLink size={12} />
                       </Button>
                       <Button
                         variant="outline-secondary"
@@ -449,6 +451,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
       />
+
     </>
   );
 };

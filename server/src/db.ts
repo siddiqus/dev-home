@@ -35,6 +35,7 @@ export function getDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL CHECK(type IN ('free_text', 'jira_ticket', 'github_pr')),
+      title TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
       reference_id TEXT DEFAULT NULL,
       resolved INTEGER NOT NULL DEFAULT 0,
@@ -42,6 +43,12 @@ export function getDb(): Database.Database {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: add title column if missing (existing databases)
+  const columns = db.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
+  if (!columns.some((c) => c.name === "title")) {
+    db.exec("ALTER TABLE notes ADD COLUMN title TEXT NOT NULL DEFAULT ''");
+  }
 
   return db;
 }
