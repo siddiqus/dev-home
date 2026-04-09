@@ -21,7 +21,8 @@
     "pack": "yarn icons && yarn build && electron-builder --dir",
     "dist": "yarn icons && yarn build && electron-builder",
     "dist:mac": "yarn icons && yarn build && electron-builder --mac",
-    "ghtag": "sh ./scripts/release-tag.sh"
+    "ghtag": "sh ./scripts/release-tag.sh",
+    "tag:push": "sh ./scripts/push-tag.sh"
   },
   "build": {
     "appId": "com.devhome.app",
