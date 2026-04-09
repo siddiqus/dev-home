@@ -125,7 +125,7 @@ router.get("/issues", async (_req: Request, res: Response) => {
   const config = getConfig();
   const jira = createJiraClient();
 
-  const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved AND updated >= -90d ORDER BY updated DESC`;
+  const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
   const fields = ["summary", "status", "priority", "assignee", "project", "updated", "description"];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
@@ -170,7 +170,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   // Extract username from email (part before @)
   const username = config.jiraEmail.split("@")[0];
 
-  const jql = `text ~ "${config.jiraEmail}" AND resolution = Unresolved AND updated >= -90d ORDER BY updated DESC`;
+  const jql = `text ~ "${config.jiraEmail}" AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
   const fields = ["summary"];
   const maxResults = 20;
 

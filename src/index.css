@@ -257,6 +257,18 @@ a:hover {
   color: #d29922;
 }
 
+.alert-info {
+  background-color: rgba(56, 139, 253, 0.1);
+  border-color: rgba(56, 139, 253, 0.3);
+  color: #58a6ff;
+}
+
+.alert-info a,
+.alert-info .alert-link {
+  color: #79b8ff;
+  font-weight: 600;
+}
+
 /* --- Buttons --- */
 .btn-outline-secondary {
   color: #8b949e;
@@ -769,6 +781,18 @@ a,
   color: #9a6700;
 }
 
+[data-theme="light"] .alert-info {
+  background-color: rgba(9, 105, 218, 0.08);
+  border-color: rgba(9, 105, 218, 0.25);
+  color: #0969da;
+}
+
+[data-theme="light"] .alert-info a,
+[data-theme="light"] .alert-info .alert-link {
+  color: #0550ae;
+  font-weight: 600;
+}
+
 [data-theme="light"] .code-block {
   background-color: #f6f8fa;
   border-color: #d1d9e0;
@@ -1126,6 +1150,41 @@ a,
 
 [data-theme="light"] .markdown-body th {
   background-color: #f6f8fa;
+}
+
+/* --- Note-inline markdown (compact) --- */
+.note-markdown {
+  line-height: 1.5;
+}
+
+.note-markdown p {
+  margin-bottom: 0.25em;
+}
+
+.note-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.note-markdown ul,
+.note-markdown ol {
+  margin-bottom: 0.25em;
+  padding-left: 1.25em;
+}
+
+.note-markdown pre {
+  margin-bottom: 0.25em;
+}
+
+.note-markdown blockquote {
+  margin-bottom: 0.25em;
+}
+
+/* 3-line truncation for summary view notes */
+.note-markdown-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ============================================

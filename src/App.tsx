@@ -18,6 +18,8 @@ import { ReviewRequests } from "./components/ReviewRequests";
 import { PersonalNotes } from "./components/PersonalNotes";
 import { AddNoteModal } from "./components/AddNoteModal";
 import { SettingsView } from "./components/SettingsView";
+import { UpdateBanner } from "./components/UpdateBanner";
+import { useUpdateCheck } from "./hooks/useUpdateCheck";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("summary");
@@ -65,6 +67,7 @@ export default function App() {
     removeNote,
     refresh: refreshNotes,
   } = useNotes(configured);
+  const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
   const [showAddNote, setShowAddNote] = useState(false);
   const [editingNote, setEditingNote] = useState<import("./types").Note | null>(null);
 
@@ -121,6 +124,16 @@ export default function App() {
         className="px-3 pt-2 mb-4"
         style={{ height: "calc(100vh - 38px)", overflow: "auto" }}
       >
+        {/* Update banner */}
+        {updateInfo && (
+          <UpdateBanner
+            latestVersion={updateInfo.latestVersion}
+            currentVersion={updateInfo.currentVersion}
+            downloadUrl={updateInfo.downloadUrl}
+            onDismiss={dismissUpdate}
+          />
+        )}
+
         {/* Error alert */}
         {error && (
           <Alert variant="danger" className="small" dismissible>

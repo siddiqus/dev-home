@@ -5,6 +5,7 @@ import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
+import ReactMarkdown from "react-markdown";
 import {
   IconSubtask,
   IconAt,
@@ -380,17 +381,18 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         </a>
                       ) : (
                         <div
-                          style={{ fontWeight: 500, fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}
+                          className="markdown-body note-markdown note-markdown-truncate"
+                          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
                         >
-                          {noteTitle}
+                          <ReactMarkdown>{noteTitle}</ReactMarkdown>
                         </div>
                       )}
                       {noteSubtitle && (
                         <div
-                          className="text-secondary-custom"
-                          style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}
+                          className="markdown-body note-markdown note-markdown-truncate text-secondary-custom"
+                          style={{ fontSize: "0.75rem", marginTop: 1 }}
                         >
-                          {noteSubtitle}
+                          <ReactMarkdown>{noteSubtitle}</ReactMarkdown>
                         </div>
                       )}
                     </div>

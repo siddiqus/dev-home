@@ -3,6 +3,7 @@ import Card from "react-bootstrap/Card";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
+import ReactMarkdown from "react-markdown";
 import {
   IconNote,
   IconBrandJira,
@@ -198,16 +199,16 @@ function NoteRow({
             {title}
           </a>
         ) : (
-          <div style={{ fontWeight: 500, fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
-            {title}
+          <div className="markdown-body note-markdown" style={{ fontWeight: 500, fontSize: "0.8125rem" }}>
+            <ReactMarkdown>{title}</ReactMarkdown>
           </div>
         )}
         {subtitle && (
           <div
-            className="text-secondary-custom"
-            style={{ fontSize: "0.75rem", marginTop: 1, whiteSpace: "pre-wrap" }}
+            className="markdown-body note-markdown text-secondary-custom"
+            style={{ fontSize: "0.75rem", marginTop: 1 }}
           >
-            {subtitle}
+            <ReactMarkdown>{subtitle}</ReactMarkdown>
           </div>
         )}
       </div>

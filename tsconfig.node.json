@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["vite.config.ts", "electron", "server/src"]
+  "include": ["vite.config.ts", "electron", "server/src", "package.json"]
 }

@@ -80,7 +80,9 @@ router.get("/prs", async (_req: Request, res: Response) => {
     first: 50,
   });
 
-  const prs = (result.search.nodes || []).map(mapGraphQLPr);
+  const prs = (result.search.nodes || [])
+    .map(mapGraphQLPr)
+    .filter((pr: any) => pr.state === "open");
 
   res.json({ prs });
 });
@@ -98,7 +100,9 @@ router.get("/reviews", async (_req: Request, res: Response) => {
     first: 50,
   });
 
-  const reviews = (result.search.nodes || []).map(mapGraphQLPr);
+  const reviews = (result.search.nodes || [])
+    .map(mapGraphQLPr)
+    .filter((pr: any) => pr.state === "open");
 
   res.json({ reviews });
 });
@@ -161,6 +165,41 @@ async function fetchAllNotifications(
   }
 
   return all;
+}
+
+/**
+ * Filter out notifications whose subject (PR/issue) is no longer open.
+ * Fetches the subject URL in batches to check state.
+ */
+async function filterOpenNotifications(
+  notifications: any[],
+  github: ReturnType<typeof createGitHubClient>,
+  batchSize: number = 10,
+): Promise<any[]> {
+  const results: any[] = [];
+
+  for (let i = 0; i < notifications.length; i += batchSize) {
+    const batch = notifications.slice(i, i + batchSize);
+    const checked = await Promise.all(
+      batch.map(async (notification: any) => {
+        const subjectUrl = notification.subject?.url;
+        if (!subjectUrl) return notification;
+        try {
+          const { data: subject } = await github.get(subjectUrl);
+          // PRs have "state" (open/closed) and "merged" boolean
+          // Issues have "state" (open/closed)
+          if (subject.state && subject.state !== "open") return null;
+          return notification;
+        } catch {
+          // If we can't fetch the subject, include it (fail open)
+          return notification;
+        }
+      }),
+    );
+    results.push(...checked.filter(Boolean));
+  }
+
+  return results;
 }
 
 /**
@@ -235,7 +274,8 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   const github = createGitHubClient();
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
-  const notifications = await fetchAllNotifications(github, since);
+  const allNotifications = await fetchAllNotifications(github, since);
+  const notifications = await filterOpenNotifications(allNotifications, github);
   const mentions = await fetchCommentsInBatches(notifications, github);
 
   // Filter out bot mentions and deduplicate by id
