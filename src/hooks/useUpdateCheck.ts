@@ -39,6 +39,18 @@ function buildDownloadUrl(version: string): string {
   return `https://github.com/siddiqus/dev-home/releases/download/v${version}/Dev-Home-${version}-arm64.dmg`;
 }
 
+function isNewerVersion(latest: string, current: string): boolean {
+  const latestParts = latest.split(".").map(Number);
+  const currentParts = current.split(".").map(Number);
+  for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
+    const l = latestParts[i] ?? 0;
+    const c = currentParts[i] ?? 0;
+    if (l > c) return true;
+    if (l < c) return false;
+  }
+  return false;
+}
+
 export function useUpdateCheck() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -49,7 +61,7 @@ export function useUpdateCheck() {
   const checkForUpdate = useCallback(async () => {
     const cached = loadCache();
     if (cached && isCacheFresh(cached)) {
-      if (cached.latestVersion !== currentVersion) {
+      if (isNewerVersion(cached.latestVersion, currentVersion)) {
         setUpdateInfo({
           latestVersion: cached.latestVersion,
           downloadUrl: buildDownloadUrl(cached.latestVersion),
@@ -69,7 +81,7 @@ export function useUpdateCheck() {
 
       saveCache(latestVersion);
 
-      if (latestVersion !== currentVersion) {
+      if (isNewerVersion(latestVersion, currentVersion)) {
         setUpdateInfo({
           latestVersion,
           downloadUrl: buildDownloadUrl(latestVersion),
