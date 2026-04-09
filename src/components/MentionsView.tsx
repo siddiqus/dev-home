@@ -19,6 +19,13 @@ export const MentionsView: React.FC<MentionsViewProps> = ({
   loading,
   jiraBaseUrl,
 }) => {
+  const sortedJiraComments = [...jiraComments].sort(
+    (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime(),
+  );
+  const sortedGithubMentions = [...githubMentions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
   return (
     <Row>
       <Col lg={6} className="mb-3 mb-lg-0">
@@ -30,7 +37,7 @@ export const MentionsView: React.FC<MentionsViewProps> = ({
             </Badge>
           )}
         </div>
-        <JiraComments comments={jiraComments} loading={loading} baseUrl={jiraBaseUrl} />
+        <JiraComments comments={sortedJiraComments} loading={loading} baseUrl={jiraBaseUrl} />
       </Col>
       <Col lg={6}>
         <div className="section-header">
@@ -41,7 +48,7 @@ export const MentionsView: React.FC<MentionsViewProps> = ({
             </Badge>
           )}
         </div>
-        <GitHubMentions mentions={githubMentions} loading={loading} />
+        <GitHubMentions mentions={sortedGithubMentions} loading={loading} />
       </Col>
     </Row>
   );

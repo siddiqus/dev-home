@@ -241,7 +241,8 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   // Filter out bot mentions and deduplicate by id
   const seen = new Set<number | string>();
   const deduplicated = mentions.filter((m) => {
-    if (["github-actions", "datadog-official"].includes(m.user?.login)) return false;
+    if (!m.user?.login) return false;
+    if (["github-actions", "datadog-official"].some((u) => m.user?.login.includes(u))) return false;
     if (seen.has(m.id)) return false;
     seen.add(m.id);
     return true;

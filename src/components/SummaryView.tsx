@@ -182,10 +182,18 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 
   const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
 
-  const topReviews = reviewRequests.slice(0, 5);
-  const topPRs = openPRs.slice(0, 5);
-  const topIssues = jiraIssues.slice(0, 5);
-  const topNotes = notes.slice(0, 10);
+  const topReviews = [...reviewRequests]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 5);
+  const topPRs = [...openPRs]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 5);
+  const topIssues = [...jiraIssues]
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+    .slice(0, 5);
+  const topNotes = [...notes]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
 
   // Combine jira comments + github mentions, sort by date, take 5
   const allMentions = [

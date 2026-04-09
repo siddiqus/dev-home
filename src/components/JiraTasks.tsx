@@ -14,10 +14,13 @@ interface JiraTasksProps {
   baseUrl?: string;
 }
 
-export const JiraTasks: React.FC<JiraTasksProps> = ({ issues, loading, baseUrl }) => {
+export const JiraTasks: React.FC<JiraTasksProps> = ({ issues: rawIssues, loading, baseUrl }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
+  const issues = [...rawIssues].sort(
+    (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime(),
+  );
 
-  if (loading && issues.length === 0) {
+  if (loading && rawIssues.length === 0) {
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
         <Spinner animation="border" variant="secondary" />
@@ -25,7 +28,7 @@ export const JiraTasks: React.FC<JiraTasksProps> = ({ issues, loading, baseUrl }
     );
   }
 
-  if (issues.length === 0) {
+  if (rawIssues.length === 0) {
     return (
       <EmptyState
         icon={<IconChecklist size={40} stroke={1.5} />}
