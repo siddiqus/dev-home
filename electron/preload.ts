@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   saveSettings: (settings: Record<string, string>) =>
     ipcRenderer.invoke("store:setSettings", settings),
   isConfigured: () => ipcRenderer.invoke("store:isConfigured"),
+  getApiPort: () => ipcRenderer.invoke("app:getApiPort"),
 });

@@ -5,6 +5,7 @@ import {
   loadSettingsFromStore,
   saveSettingsToStore,
   saveSettingsToBackend,
+  initApiPort,
   AppSettings,
 } from "../services/config";
 
@@ -28,6 +29,9 @@ export function useConfig(): UseConfigReturn {
   const init = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Resolve the dynamic backend port before any API calls
+      await initApiPort();
 
       // First try to load settings from electron-store
       const storedSettings = await loadSettingsFromStore();

@@ -14,16 +14,31 @@ declare global {
       getSettings: () => Promise<AppSettings>;
       saveSettings: (settings: AppSettings) => Promise<void>;
       isConfigured: () => Promise<boolean>;
+      getApiPort: () => Promise<number>;
     };
   }
 }
 
-const API_PORT = import.meta.env.VITE_API_PORT || "3571";
-export const API_BASE = `http://localhost:${API_PORT}/api`;
+const DEFAULT_PORT = import.meta.env.VITE_API_PORT || "3571";
 
 export const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: `http://localhost:${DEFAULT_PORT}/api`,
 });
+
+export let API_BASE = `http://localhost:${DEFAULT_PORT}/api`;
+
+export async function initApiPort(): Promise<void> {
+  if (!window.electronAPI) {
+    return;
+  }
+  try {
+    const port = await window.electronAPI.getApiPort();
+    API_BASE = `http://localhost:${port}/api`;
+    apiClient.defaults.baseURL = API_BASE;
+  } catch {
+    // Fall back to default port
+  }
+}
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {

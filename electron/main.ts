@@ -8,22 +8,27 @@ declare const __API_PORT__: string;
 
 let mainWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
+let resolvedPort: number = parseInt(__API_PORT__, 10);
 
-function startBackendServer() {
+async function startBackendServer() {
   // In dev mode, the server is started separately via concurrently.
   if (process.env.VITE_DEV_SERVER_URL) {
+    resolvedPort = parseInt(process.env.VITE_API_PORT || __API_PORT__, 10);
     return;
   }
 
+  const defaultPort = parseInt(__API_PORT__, 10);
+  const getPort = (await import("get-port")).default;
+  resolvedPort = await getPort({ port: defaultPort });
+
   // Set env vars the server needs before creating it
-  process.env.VITE_API_PORT = __API_PORT__;
+  process.env.VITE_API_PORT = String(resolvedPort);
   process.env.DEV_HOME_DB_PATH = path.join(app.getPath("userData"), "notes.db");
 
   const expressApp = createServer();
-  const port = parseInt(__API_PORT__, 10);
 
-  httpServer = expressApp.listen(port, () => {
-    console.log(`[server] listening on http://localhost:${port}`);
+  httpServer = expressApp.listen(resolvedPort, () => {
+    console.log(`[server] listening on http://localhost:${resolvedPort}`);
   });
 
   httpServer.on("error", (err) => {
@@ -79,7 +84,7 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // IPC handlers for settings store
   ipcMain.handle("store:getSettings", () => {
     return getSettings();
@@ -94,7 +99,11 @@ app.whenReady().then(() => {
     return isConfigured();
   });
 
-  startBackendServer();
+  ipcMain.handle("app:getApiPort", () => {
+    return resolvedPort;
+  });
+
+  await startBackendServer();
   createWindow();
 });
 
