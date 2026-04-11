@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const CACHE_KEY = "dev-home-update-check";
-const GITHUB_RELEASES_URL =
-  "https://api.github.com/repos/siddiqus/dev-home/releases/latest";
+const GITHUB_RELEASES_URL = "https://api.github.com/repos/siddiqus/dev-home/releases/latest";
 
 interface UpdateCheckCache {
   latestVersion: string;

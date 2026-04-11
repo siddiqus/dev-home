@@ -38,14 +38,7 @@ export function getConfig(): ServerConfig {
     return runtimeConfig;
   }
 
-  const missing: string[] = [];
-
-  for (const varName of REQUIRED_ENV_VARS) {
-    if (!process.env[varName]) {
-      missing.push(varName);
-    }
-  }
-
+  const missing = validateEnv();
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missing.join(", ")}. ` +

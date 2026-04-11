@@ -27,27 +27,50 @@ export function useNotes(active: boolean) {
 
   const unresolvedNotes = notes.filter((n) => n.resolved === 0);
 
-  const addNote = useCallback(async (type: NoteType, content: string, referenceId?: string, title?: string) => {
-    const newNote = await createNote({ type, title, content, reference_id: referenceId });
-    setNotes((prev) => [newNote, ...prev]);
-  }, []);
+  const addNote = useCallback(
+    async (type: NoteType, content: string, referenceId?: string, title?: string) => {
+      try {
+        const newNote = await createNote({ type, title, content, reference_id: referenceId });
+        setNotes((prev) => [newNote, ...prev]);
+      } catch (err: any) {
+        setError(err?.message || "Failed to add note");
+        throw err;
+      }
+    },
+    [],
+  );
 
   const resolveNote = useCallback(async (id: number) => {
-    const updated = await updateNote(id, { resolved: true });
-    setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    try {
+      const updated = await updateNote(id, { resolved: true });
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    } catch (err: any) {
+      setError(err?.message || "Failed to resolve note");
+      throw err;
+    }
   }, []);
 
   const editNote = useCallback(
     async (id: number, updates: { title?: string; content?: string; reference_id?: string }) => {
-      const updated = await updateNote(id, updates);
-      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+      try {
+        const updated = await updateNote(id, updates);
+        setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+      } catch (err: any) {
+        setError(err?.message || "Failed to edit note");
+        throw err;
+      }
     },
     [],
   );
 
   const removeNote = useCallback(async (id: number) => {
-    await deleteNote(id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await deleteNote(id);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete note");
+      throw err;
+    }
   }, []);
 
   return {

@@ -5,6 +5,7 @@ import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/gi
 
 const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface DashboardCacheData {
   jiraIssues: JiraIssue[];
@@ -28,6 +29,10 @@ function loadCache(): DashboardCacheData | null {
       !Array.isArray(parsed.openPRs) ||
       !Array.isArray(parsed.reviewRequests)
     ) {
+      return null;
+    }
+    // Discard stale cache
+    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) {
       return null;
     }
     return parsed;
@@ -76,95 +81,91 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   const [error, setError] = useState<string | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const pendingRef = useRef(0);
-  const errorsRef = useRef<string[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchAll = useCallback(() => {
     if (!active) return;
 
+    // Cancel any in-flight requests
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
-    errorsRef.current = [];
+
+    // Accumulate results to avoid repeated localStorage reads/writes
+    const pendingData: Partial<Omit<DashboardCacheData, "timestamp">> = {};
+    let pendingCount = 5;
+    const errors: string[] = [];
 
     const settle = (errorMsg?: string) => {
-      if (errorMsg) errorsRef.current.push(errorMsg);
-      pendingRef.current -= 1;
-      if (pendingRef.current <= 0) {
-        pendingRef.current = 0;
+      if (controller.signal.aborted) return;
+      if (errorMsg) errors.push(errorMsg);
+      pendingCount -= 1;
+      if (pendingCount <= 0) {
         setLoading(false);
-        if (errorsRef.current.length > 0) {
-          setError(errorsRef.current.join("; "));
+        if (errors.length > 0) {
+          setError(errors.join("; "));
         }
-        // Save cache once all fetches have settled
-        const prev = loadCache();
+        // Save cache once with all accumulated data
         saveCache({
-          jiraIssues: prev?.jiraIssues ?? [],
-          jiraComments: prev?.jiraComments ?? [],
-          githubMentions: prev?.githubMentions ?? [],
-          openPRs: prev?.openPRs ?? [],
-          reviewRequests: prev?.reviewRequests ?? [],
+          jiraIssues: pendingData.jiraIssues ?? [],
+          jiraComments: pendingData.jiraComments ?? [],
+          githubMentions: pendingData.githubMentions ?? [],
+          openPRs: pendingData.openPRs ?? [],
+          reviewRequests: pendingData.reviewRequests ?? [],
         });
       }
     };
 
-    const updateCache = (field: keyof Omit<DashboardCacheData, "timestamp">, value: any) => {
-      const prev = loadCache();
-      saveCache({
-        ...prev,
-        jiraIssues: prev?.jiraIssues ?? [],
-        jiraComments: prev?.jiraComments ?? [],
-        githubMentions: prev?.githubMentions ?? [],
-        openPRs: prev?.openPRs ?? [],
-        reviewRequests: prev?.reviewRequests ?? [],
-        [field]: value,
-      });
-    };
-
-    pendingRef.current = 5;
-
     fetchAssignedIssues()
       .then((data) => {
+        if (controller.signal.aborted) return;
         setJiraIssues(data);
-        updateCache("jiraIssues", data);
+        pendingData.jiraIssues = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchRecentMentions()
       .then((data) => {
+        if (controller.signal.aborted) return;
         setJiraComments(data);
-        updateCache("jiraComments", data);
+        pendingData.jiraComments = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchOpenPRs()
       .then((data) => {
+        if (controller.signal.aborted) return;
         setOpenPRs(data);
-        updateCache("openPRs", data);
+        pendingData.openPRs = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchReviewRequests()
       .then((data) => {
+        if (controller.signal.aborted) return;
         setReviewRequests(data);
-        updateCache("reviewRequests", data);
+        pendingData.reviewRequests = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
 
     fetchMentions()
       .then((data) => {
+        if (controller.signal.aborted) return;
         setGithubMentions(data);
-        updateCache("githubMentions", data);
+        pendingData.githubMentions = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
   }, [active]);
 
-  // Fetch data when active changes to true
+  // Fetch data when active changes to true, with visibility-based polling
   useEffect(() => {
     if (!active) return;
 
@@ -173,11 +174,30 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     // Set up polling interval
     intervalRef.current = setInterval(fetchAll, POLLING_INTERVAL_MS);
 
+    // Pause polling when window is hidden, resume when visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      } else {
+        if (!intervalRef.current) {
+          fetchAll();
+          intervalRef.current = setInterval(fetchAll, POLLING_INTERVAL_MS);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      abortRef.current?.abort();
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [active, fetchAll]);
 

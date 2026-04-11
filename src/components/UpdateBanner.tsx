@@ -23,8 +23,7 @@ export function UpdateBanner({
     >
       <IconDownload size={16} />
       <span>
-        A new version <strong>v{latestVersion}</strong> is available (current: v
-        {currentVersion}).{" "}
+        A new version <strong>v{latestVersion}</strong> is available (current: v{currentVersion}).{" "}
         <Alert.Link href={downloadUrl} target="_blank" rel="noopener noreferrer">
           Download update
         </Alert.Link>

@@ -83,14 +83,3 @@ export async function saveSettingsToStore(settings: AppSettings): Promise<void> 
   }
   await window.electronAPI.saveSettings(settings);
 }
-
-export async function isStoreConfigured(): Promise<boolean> {
-  if (!window.electronAPI) {
-    return false;
-  }
-  try {
-    return await window.electronAPI.isConfigured();
-  } catch {
-    return false;
-  }
-}

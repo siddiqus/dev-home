@@ -19,6 +19,7 @@ import { PersonalNotes } from "./components/PersonalNotes";
 import { NoteEditorModal } from "./components/NoteEditorModal";
 import { SettingsView } from "./components/SettingsView";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 
 export default function App() {
@@ -45,7 +46,6 @@ export default function App() {
     jiraBaseUrl,
     githubUsername,
     saveSettings,
-    refreshConfig,
   } = useConfig();
   const {
     jiraIssues,
@@ -119,142 +119,146 @@ export default function App() {
         </Container>
       </Navbar>
 
-      <Container
-        fluid
-        className="px-3 pt-2 mb-4"
-        style={{ height: "calc(100vh - 38px)", overflow: "auto" }}
-      >
-        {/* Update banner */}
-        {updateInfo && (
-          <UpdateBanner
-            latestVersion={updateInfo.latestVersion}
-            currentVersion={updateInfo.currentVersion}
-            downloadUrl={updateInfo.downloadUrl}
-            onDismiss={dismissUpdate}
-          />
-        )}
+      <ErrorBoundary>
+        <Container
+          fluid
+          className="px-3 pt-2 mb-4"
+          style={{ height: "calc(100vh - 38px)", overflow: "auto" }}
+        >
+          {/* Update banner */}
+          {updateInfo && (
+            <UpdateBanner
+              latestVersion={updateInfo.latestVersion}
+              currentVersion={updateInfo.currentVersion}
+              downloadUrl={updateInfo.downloadUrl}
+              onDismiss={dismissUpdate}
+            />
+          )}
 
-        {/* Error alert */}
-        {error && (
-          <Alert variant="danger" className="small" dismissible>
-            {error}
-          </Alert>
-        )}
+          {/* Error alert */}
+          {error && (
+            <Alert variant="danger" className="small" dismissible>
+              {error}
+            </Alert>
+          )}
 
-        {/* Show settings or dashboard */}
-        {effectiveTab === "settings" ? (
-          <SettingsView
-            backendOnline={backendOnline}
-            configured={configured}
-            jiraBaseUrl={jiraBaseUrl}
-            githubUsername={githubUsername}
-            onBack={() => setActiveTab("summary")}
-            saveSettings={saveSettings}
-            refreshConfig={refreshConfig}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-          />
-        ) : (
-          <>
-            {/* Tab navigation -- pill/segmented style */}
-            <Nav variant="tabs" className="mb-3 dev-tabs">
-              {[
-                { key: "summary", label: "Summary" },
-                {
-                  key: "notes",
-                  label: "Notes",
-                  count: unresolvedNotes.length,
-                },
-                { key: "jira", label: "JIRA Tasks", count: jiraIssues.length },
-                {
-                  key: "mentions",
-                  label: "Mentions",
-                  count: jiraComments.length + githubMentions.length,
-                },
-                {
-                  key: "prs",
-                  label: "Pull Requests",
-                  count: openPRs.length,
-                },
-                {
-                  key: "reviews",
-                  label: "Reviews Requested",
-                  count: reviewRequests.length,
-                },
-              ].map((tab) => (
-                <Nav.Item key={tab.key}>
-                  <Nav.Link active={effectiveTab === tab.key} onClick={() => setActiveTab(tab.key)}>
-                    {tab.label}
-                    {tab.count !== undefined && tab.count > 0 && (
-                      <Badge bg="secondary" pill className="ms-2">
-                        {tab.count}
-                      </Badge>
-                    )}
-                  </Nav.Link>
-                </Nav.Item>
-              ))}
-            </Nav>
+          {/* Show settings or dashboard */}
+          {effectiveTab === "settings" ? (
+            <SettingsView
+              backendOnline={backendOnline}
+              configured={configured}
+              jiraBaseUrl={jiraBaseUrl}
+              githubUsername={githubUsername}
+              onBack={() => setActiveTab("summary")}
+              saveSettings={saveSettings}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
+          ) : (
+            <>
+              {/* Tab navigation -- pill/segmented style */}
+              <Nav variant="tabs" className="mb-3 dev-tabs">
+                {[
+                  { key: "summary", label: "Summary" },
+                  {
+                    key: "notes",
+                    label: "Notes",
+                    count: unresolvedNotes.length,
+                  },
+                  { key: "jira", label: "JIRA Tasks", count: jiraIssues.length },
+                  {
+                    key: "mentions",
+                    label: "Mentions",
+                    count: jiraComments.length + githubMentions.length,
+                  },
+                  {
+                    key: "prs",
+                    label: "Pull Requests",
+                    count: openPRs.length,
+                  },
+                  {
+                    key: "reviews",
+                    label: "Reviews Requested",
+                    count: reviewRequests.length,
+                  },
+                ].map((tab) => (
+                  <Nav.Item key={tab.key}>
+                    <Nav.Link
+                      active={effectiveTab === tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                    >
+                      {tab.label}
+                      {tab.count !== undefined && tab.count > 0 && (
+                        <Badge bg="secondary" pill className="ms-2">
+                          {tab.count}
+                        </Badge>
+                      )}
+                    </Nav.Link>
+                  </Nav.Item>
+                ))}
+              </Nav>
 
-            {/* Tab content */}
-            <div className="tab-content-area mb-4" key={effectiveTab}>
-              {effectiveTab === "summary" && (
-                <SummaryView
-                  jiraIssues={jiraIssues}
-                  jiraComments={jiraComments}
-                  githubMentions={githubMentions}
-                  openPRs={openPRs}
-                  reviewRequests={reviewRequests}
-                  loading={loading}
-                  jiraBaseUrl={jiraBaseUrl}
-                  onNavigate={setActiveTab}
-                  notes={unresolvedNotes}
-                  onResolveNote={resolveNote}
-                  onAddNote={() => setShowNoteEditor(true)}
-                  onOpenNote={(note) => {
-                    setOpenNote(note);
-                    setShowNoteEditor(true);
-                  }}
-                />
-              )}
-              {effectiveTab === "jira" && (
-                <JiraTasks issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
-              )}
-              {effectiveTab === "mentions" && (
-                <MentionsView
-                  jiraComments={jiraComments}
-                  githubMentions={githubMentions}
-                  loading={loading}
-                  jiraBaseUrl={jiraBaseUrl}
-                />
-              )}
-              {effectiveTab === "prs" && (
-                <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />
-              )}
-              {effectiveTab === "reviews" && (
-                <ReviewRequests
-                  reviews={reviewRequests}
-                  loading={loading}
-                  jiraIssues={jiraIssues}
-                />
-              )}
-              {effectiveTab === "notes" && (
-                <PersonalNotes
-                  notes={notes}
-                  loading={notesLoading}
-                  onResolve={resolveNote}
-                  onDelete={removeNote}
-                  onOpenNote={(note) => {
-                    setOpenNote(note);
-                    setShowNoteEditor(true);
-                  }}
-                  onAdd={() => setShowNoteEditor(true)}
-                  jiraBaseUrl={jiraBaseUrl}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </Container>
+              {/* Tab content */}
+              <div className="tab-content-area mb-4" key={effectiveTab}>
+                {effectiveTab === "summary" && (
+                  <SummaryView
+                    jiraIssues={jiraIssues}
+                    jiraComments={jiraComments}
+                    githubMentions={githubMentions}
+                    openPRs={openPRs}
+                    reviewRequests={reviewRequests}
+                    loading={loading}
+                    jiraBaseUrl={jiraBaseUrl}
+                    onNavigate={setActiveTab}
+                    notes={unresolvedNotes}
+                    onResolveNote={resolveNote}
+                    onAddNote={() => setShowNoteEditor(true)}
+                    onOpenNote={(note) => {
+                      setOpenNote(note);
+                      setShowNoteEditor(true);
+                    }}
+                  />
+                )}
+                {effectiveTab === "jira" && (
+                  <JiraTasks issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
+                )}
+                {effectiveTab === "mentions" && (
+                  <MentionsView
+                    jiraComments={jiraComments}
+                    githubMentions={githubMentions}
+                    loading={loading}
+                    jiraBaseUrl={jiraBaseUrl}
+                  />
+                )}
+                {effectiveTab === "prs" && (
+                  <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />
+                )}
+                {effectiveTab === "reviews" && (
+                  <ReviewRequests
+                    reviews={reviewRequests}
+                    loading={loading}
+                    jiraIssues={jiraIssues}
+                  />
+                )}
+                {effectiveTab === "notes" && (
+                  <PersonalNotes
+                    notes={notes}
+                    loading={notesLoading}
+                    onResolve={resolveNote}
+                    onDelete={removeNote}
+                    onOpenNote={(note) => {
+                      setOpenNote(note);
+                      setShowNoteEditor(true);
+                    }}
+                    onAdd={() => setShowNoteEditor(true)}
+                    jiraBaseUrl={jiraBaseUrl}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </Container>
+      </ErrorBoundary>
 
       <NoteEditorModal
         show={showNoteEditor}

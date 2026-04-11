@@ -14,7 +14,6 @@ interface SettingsViewProps {
   githubUsername: string;
   onBack: () => void;
   saveSettings: (settings: AppSettings) => Promise<void>;
-  refreshConfig: () => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }
@@ -34,7 +33,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   githubUsername,
   onBack,
   saveSettings,
-  refreshConfig: _refreshConfig,
   theme,
   onToggleTheme,
 }) => {

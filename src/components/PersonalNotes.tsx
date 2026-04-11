@@ -12,7 +12,8 @@ import {
   IconPlus,
 } from "@tabler/icons-react";
 import { Note } from "../types";
-import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
+import { formatRelativeTime } from "../utils/time";
 import { EmptyState } from "./EmptyState";
 
 interface PersonalNotesProps {
@@ -36,27 +37,6 @@ const TYPE_LABEL: Record<string, string> = {
   jira_ticket: "JIRA",
   github_pr: "PR",
 };
-
-function getReferenceUrl(note: Note, jiraBaseUrl: string): string | null {
-  if (note.type === "jira_ticket" && note.reference_id) {
-    const base = jiraBaseUrl.replace(/\/+$/, "");
-    return base ? `${base}/browse/${note.reference_id}` : null;
-  }
-  if (note.type === "github_pr" && note.reference_id) {
-    return note.reference_id;
-  }
-  return null;
-}
-
-/** Format a GitHub URL like https://github.com/org/repo/pull/123 as repo#123 */
-function formatGitHubTitle(url: string): string {
-  const match = url.match(/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/);
-  if (match) return `${match[1]}#${match[2]}`;
-  // Repo-only URL: show just repo name
-  const repoMatch = url.match(/github\.com\/[^/]+\/([^/\s]+)/);
-  if (repoMatch) return repoMatch[1];
-  return url;
-}
 
 export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   notes,
@@ -171,14 +151,7 @@ function NoteRow({
   onOpenNote: (note: Note) => void;
 }) {
   const url = getReferenceUrl(note, jiraBaseUrl);
-  const title =
-    note.title ||
-    (note.type === "github_pr"
-      ? formatGitHubTitle(note.reference_id || "")
-      : note.type === "jira_ticket"
-        ? note.reference_id || ""
-        : "") ||
-    "Untitled note";
+  const title = getNoteDisplayTitle(note);
 
   return (
     <div
@@ -234,7 +207,10 @@ function NoteRow({
             size="sm"
             style={{ padding: "2px 6px" }}
             title="Resolve"
-            onClick={(e) => { e.stopPropagation(); onResolve(note.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onResolve(note.id);
+            }}
           >
             <IconCheck size={12} />
           </Button>
@@ -244,7 +220,10 @@ function NoteRow({
           size="sm"
           style={{ padding: "2px 6px" }}
           title="Delete"
-          onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(note.id);
+          }}
         >
           <IconTrash size={12} />
         </Button>

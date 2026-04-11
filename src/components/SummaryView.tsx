@@ -15,16 +15,11 @@ import {
   IconPlus,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
-
-const REASON_SUMMARY: Record<string, string> = {
-  approval_requested: "requested your approval",
-  assign: "assigned you",
-  mention: "mentioned you",
-  review_requested: "requested your review",
-  team_mention: "mentioned your team",
-};
-import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
+import { REASON_SUMMARY } from "../utils/github";
+import { formatRelativeTime } from "../utils/time";
 import { DescriptionModal } from "./DescriptionModal";
+import { ChecksStatusIcon } from "./ChecksStatusIcon";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -93,10 +88,20 @@ interface ItemRowProps {
   time: string;
   badge?: string;
   badgeClass?: string;
+  checksStatus?: string | null;
   onClick?: () => void;
 }
 
-function ItemRow({ url, title, subtitle, time, badge, badgeClass, onClick }: ItemRowProps) {
+function ItemRow({
+  url,
+  title,
+  subtitle,
+  time,
+  badge,
+  badgeClass,
+  checksStatus,
+  onClick,
+}: ItemRowProps) {
   return (
     <div className="summary-item d-flex align-items-center gap-3 px-3 py-2" onClick={onClick}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -116,6 +121,7 @@ function ItemRow({ url, title, subtitle, time, badge, badgeClass, onClick }: Ite
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         {badge && <Badge className={badgeClass || "badge-status-neutral"}>{badge}</Badge>}
+        <ChecksStatusIcon status={checksStatus ?? null} />
         <span
           className="text-secondary-custom"
           style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
@@ -143,15 +149,6 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 
 function statusBadgeClass(colorName: string): string {
   return STATUS_BADGE_CLASSES[colorName] || "badge-status-neutral";
-}
-
-/** Format a GitHub URL like https://github.com/org/repo/pull/123 as repo#123 */
-function formatGitHubTitle(url: string): string {
-  const match = url.match(/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/);
-  if (match) return `${match[1]}#${match[2]}`;
-  const repoMatch = url.match(/github\.com\/[^/]+\/([^/\s]+)/);
-  if (repoMatch) return repoMatch[1];
-  return url;
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -236,6 +233,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       subtitle={`${r.repo_full_name} · ${r.user.login}`}
                       time={r.updated_at}
                       badgeClass="badge-status-yellow"
+                      checksStatus={r.checks_status}
                       onClick={() => setSelectedPR(r)}
                     />
                   ))
@@ -262,6 +260,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       time={pr.updated_at}
                       badge={pr.draft ? "Draft" : "Open"}
                       badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                      checksStatus={pr.checks_status}
                       onClick={() => setSelectedPR(pr)}
                     />
                   ))
@@ -348,20 +347,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           >
             {topNotes.length > 0 ? (
               topNotes.map((note) => {
-                const noteUrl =
-                  note.type === "jira_ticket" && note.reference_id && jiraBase
-                    ? `${jiraBase}/browse/${note.reference_id}`
-                    : note.type === "github_pr" && note.reference_id
-                      ? note.reference_id
-                      : null;
-                const noteTitle =
-                  note.title ||
-                  (note.type === "github_pr"
-                    ? formatGitHubTitle(note.reference_id || "")
-                    : note.type === "jira_ticket"
-                      ? note.reference_id || ""
-                      : "") ||
-                  "Untitled note";
+                const noteUrl = getReferenceUrl(note, jiraBase);
+                const noteTitle = getNoteDisplayTitle(note);
                 return (
                   <div
                     key={note.id}
@@ -412,7 +399,10 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         size="sm"
                         style={{ padding: "2px 6px" }}
                         title="Resolve"
-                        onClick={(e) => { e.stopPropagation(); onResolveNote(note.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResolveNote(note.id);
+                        }}
                       >
                         <IconCheck size={12} />
                       </Button>
@@ -444,7 +434,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
       />
-
     </>
   );
 };

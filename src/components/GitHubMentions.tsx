@@ -2,17 +2,10 @@ import React from "react";
 import Spinner from "react-bootstrap/Spinner";
 import { IconAt } from "@tabler/icons-react";
 import { GitHubComment } from "../types";
-import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { formatRelativeTime } from "../utils/time";
 import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
-
-const REASON_LABELS: Record<string, string> = {
-  approval_requested: "Approval Requested",
-  assign: "Assigned",
-  mention: "Mentioned",
-  review_requested: "Review Requested",
-  team_mention: "Team Mentioned",
-};
+import { REASON_LABELS } from "../utils/github";
 
 interface GitHubMentionsProps {
   mentions: GitHubComment[];

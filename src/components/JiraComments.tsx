@@ -2,7 +2,7 @@ import React from "react";
 import Spinner from "react-bootstrap/Spinner";
 import { IconMessageCircle } from "@tabler/icons-react";
 import { JiraComment } from "../types";
-import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { formatRelativeTime } from "../utils/time";
 import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
 

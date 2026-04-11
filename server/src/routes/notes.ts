@@ -45,7 +45,9 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
-  const stmt = db.prepare("INSERT INTO notes (type, title, content, reference_id) VALUES (?, ?, ?, ?)");
+  const stmt = db.prepare(
+    "INSERT INTO notes (type, title, content, reference_id) VALUES (?, ?, ?, ?)",
+  );
   const result = stmt.run(type, title || "", content || "", reference_id || null);
 
   const note = db.prepare("SELECT * FROM notes WHERE id = ?").get(result.lastInsertRowid);

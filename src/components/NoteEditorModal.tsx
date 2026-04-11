@@ -25,6 +25,7 @@ import {
 } from "@tabler/icons-react";
 import { Note, NoteType } from "../types";
 import { detectNote } from "../utils/noteDetection";
+import { getReferenceUrl } from "../utils/text";
 
 // tiptap-markdown doesn't ship type declarations for its storage
 function getMarkdown(editor: Editor): string {
@@ -35,26 +36,17 @@ interface NoteEditorModalProps {
   show: boolean;
   onHide: () => void;
   onSave: (type: NoteType, content: string, referenceId?: string, title?: string) => Promise<void>;
-  onEdit?: (id: number, updates: { title?: string; content?: string; reference_id?: string }) => Promise<void>;
+  onEdit?: (
+    id: number,
+    updates: { title?: string; content?: string; reference_id?: string },
+  ) => Promise<void>;
   note?: Note | null;
   jiraBaseUrl: string;
 }
 
-function getReferenceUrl(note: Note, jiraBaseUrl: string): string | null {
-  if (note.type === "jira_ticket" && note.reference_id) {
-    const base = jiraBaseUrl.replace(/\/+$/, "");
-    return base ? `${base}/browse/${note.reference_id}` : null;
-  }
-  if (note.type === "github_pr" && note.reference_id) {
-    return note.reference_id;
-  }
-  return null;
-}
-
 function EditorToolbar({ editor }: { editor: Editor | null }) {
-  if (!editor) return null;
-
   const addLink = useCallback(() => {
+    if (!editor) return;
     const previousUrl = editor.getAttributes("link").href;
     const url = window.prompt("URL", previousUrl || "https://");
     if (url === null) return;
@@ -64,6 +56,8 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
       editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }
   }, [editor]);
+
+  if (!editor) return null;
 
   return (
     <div className="tiptap-toolbar">
@@ -220,7 +214,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
         HTMLAttributes: { class: "tiptap-link" },
       }),
       Placeholder.configure({
-        placeholder: "Write a note (supports markdown), paste a JIRA ticket (PROJ-123), or a GitHub URL...",
+        placeholder:
+          "Write a note (supports markdown), paste a JIRA ticket (PROJ-123), or a GitHub URL...",
       }),
       Markdown.configure({
         html: false,

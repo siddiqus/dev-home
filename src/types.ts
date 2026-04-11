@@ -76,6 +76,7 @@ export interface GitHubPR {
   body: string;
   repository_url: string;
   repo_full_name: string;
+  checks_status: string | null;
 }
 
 export interface GitHubComment {

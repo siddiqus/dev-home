@@ -32,6 +32,15 @@ const SEARCH_PRS_QUERY = `
           headRefName
           baseRefName
           repository { nameWithOwner url }
+          commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  state
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -64,6 +73,7 @@ function mapGraphQLPr(node: any) {
     body: node.body || "",
     repository_url: `https://api.github.com/repos/${node.repository?.nameWithOwner || ""}`,
     repo_full_name: node.repository?.nameWithOwner || "",
+    checks_status: node.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
   };
 }
 
@@ -132,6 +142,9 @@ function subjectUrlToHtml(apiUrl: string | undefined, repoFullName: string): str
   const htmlType = type === "pulls" ? "pull" : "issues";
   return `https://github.com/${ownerRepo}/${htmlType}/${number}`;
 }
+
+/** Bot usernames to filter out from mention notifications. */
+const IGNORED_BOTS = ["github-actions", "datadog-official"];
 
 const ALLOWED_REASONS = new Set([
   "approval_requested",
@@ -282,7 +295,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   const seen = new Set<number | string>();
   const deduplicated = mentions.filter((m) => {
     if (!m.user?.login) return false;
-    if (["github-actions", "datadog-official"].some((u) => m.user?.login.includes(u))) return false;
+    if (IGNORED_BOTS.some((bot) => m.user?.login.includes(bot))) return false;
     if (seen.has(m.id)) return false;
     seen.add(m.id);
     return true;
