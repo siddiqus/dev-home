@@ -111,6 +111,7 @@ export const GroupedPRTable: React.FC<GroupedPRTableProps> = ({
         subtitle={selectedPR?.repo_full_name}
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
+        checks={selectedPR?.checks}
       />
     </>
   );

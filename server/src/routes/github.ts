@@ -37,6 +37,21 @@ const SEARCH_PRS_QUERY = `
               commit {
                 statusCheckRollup {
                   state
+                  contexts(first: 50) {
+                    nodes {
+                      ... on CheckRun {
+                        name
+                        conclusion
+                        status
+                        detailsUrl
+                      }
+                      ... on StatusContext {
+                        context
+                        state
+                        targetUrl
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -48,9 +63,31 @@ const SEARCH_PRS_QUERY = `
 `;
 
 /**
+ * Map a statusCheckRollup context node to a normalized check run shape.
+ */
+function mapCheckContext(ctx: any) {
+  // CheckRun nodes have `name`, `conclusion`, `status`, `detailsUrl`
+  if (ctx.name !== undefined) {
+    return {
+      name: ctx.name,
+      status: (ctx.conclusion || ctx.status || "PENDING").toUpperCase(),
+      url: ctx.detailsUrl || null,
+    };
+  }
+  // StatusContext nodes have `context`, `state`, `targetUrl`
+  return {
+    name: ctx.context || "",
+    status: (ctx.state || "PENDING").toUpperCase(),
+    url: ctx.targetUrl || null,
+  };
+}
+
+/**
  * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
  */
 function mapGraphQLPr(node: any) {
+  const rollup = node.commits?.nodes?.[0]?.commit?.statusCheckRollup;
+  const contextNodes = rollup?.contexts?.nodes || [];
   return {
     id: node.databaseId,
     number: node.number,
@@ -73,7 +110,8 @@ function mapGraphQLPr(node: any) {
     body: node.body || "",
     repository_url: `https://api.github.com/repos/${node.repository?.nameWithOwner || ""}`,
     repo_full_name: node.repository?.nameWithOwner || "",
-    checks_status: node.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
+    checks_status: rollup?.state || null,
+    checks: contextNodes.map(mapCheckContext),
   };
 }
 

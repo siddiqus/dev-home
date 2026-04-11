@@ -958,9 +958,16 @@ a,
   opacity: 0.8;
 }
 
+.description-modal .modal-checks-section {
+  padding: 20px 30px;
+  border-bottom: 1px solid #21262d;
+  max-height: 20vh;
+  overflow-y: auto;
+}
+
 .description-modal .modal-body {
-  padding: 20px;
-  max-height: 60vh;
+  padding: 30px;
+  max-height: 50vh;
   overflow-y: auto;
 }
 
@@ -1088,6 +1095,10 @@ a,
 }
 
 [data-theme="light"] .description-modal .modal-header {
+  border-bottom-color: #d1d9e0;
+}
+
+[data-theme="light"] .description-modal .modal-checks-section {
   border-bottom-color: #d1d9e0;
 }
 

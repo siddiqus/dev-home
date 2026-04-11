@@ -433,6 +433,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         subtitle={selectedPR?.repo_full_name}
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
+        checks={selectedPR?.checks}
       />
     </>
   );
