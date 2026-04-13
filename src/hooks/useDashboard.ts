@@ -99,6 +99,24 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     let pendingCount = 5;
     const errors: string[] = [];
 
+    // Remove GitHub mentions that duplicate review requests for the same PR.
+    // A mention with reason "review_requested" is redundant when the same PR
+    // already appears in the dedicated review-requests list.
+    const deduplicateMentions = () => {
+      const reviews = pendingData.reviewRequests;
+      const mentions = pendingData.githubMentions;
+      if (!reviews || !mentions) return;
+
+      const reviewPRKeys = new Set(reviews.map((r) => `${r.repo_full_name}#${r.number}`));
+      const filtered = mentions.filter(
+        (m) =>
+          m.reason !== "review_requested" ||
+          !reviewPRKeys.has(`${m.repo_full_name}#${m.pr_number}`),
+      );
+      pendingData.githubMentions = filtered;
+      setGithubMentions(filtered);
+    };
+
     const settle = (errorMsg?: string) => {
       if (controller.signal.aborted) return;
       if (errorMsg) errors.push(errorMsg);
@@ -108,6 +126,8 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         if (errors.length > 0) {
           setError(errors.join("; "));
         }
+        // Deduplicate mentions against review requests before caching
+        deduplicateMentions();
         // Save cache once with all accumulated data
         saveCache({
           jiraIssues: pendingData.jiraIssues ?? [],
