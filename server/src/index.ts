@@ -6,6 +6,7 @@ import { closeDb } from "./db";
 import configRoutes from "./routes/config";
 import githubRoutes from "./routes/github";
 import jiraRoutes from "./routes/jira";
+import kanbanRoutes from "./routes/kanban";
 import notesRoutes from "./routes/notes";
 import { errorHandler } from "./utils/errors";
 
@@ -42,6 +43,7 @@ export function createServer() {
   app.use("/api/github", githubRoutes);
   app.use("/api/config", configRoutes);
   app.use("/api/notes", notesRoutes);
+  app.use("/api/kanban", kanbanRoutes);
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {

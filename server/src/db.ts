@@ -44,6 +44,19 @@ export function getDb(): Database.Database {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS kanban_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_type TEXT NOT NULL CHECK(item_type IN ('note', 'pr', 'review')),
+      item_id TEXT NOT NULL,
+      column_name TEXT NOT NULL CHECK(column_name IN ('todo', 'in_progress', 'on_hold', 'in_review', 'done')),
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(item_type, item_id)
+    );
+  `);
+
   // Migration: add title column if missing (existing databases)
   const columns = db.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
   if (!columns.some((c) => c.name === "title")) {

@@ -21,6 +21,8 @@ import { SettingsView } from "./components/SettingsView";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
+import { useKanban } from "./hooks/useKanban";
+import { KanbanBoard } from "./components/KanbanBoard";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("summary");
@@ -67,6 +69,19 @@ export default function App() {
     removeNote,
     refresh: refreshNotes,
   } = useNotes(configured);
+  const {
+    columnTiles,
+    loading: kanbanLoading,
+    doneItemIds,
+    moveItem: kanbanMoveItem,
+    refresh: refreshKanban,
+  } = useKanban({
+    active: configured,
+    openPRs,
+    reviewRequests,
+    notes: unresolvedNotes,
+    jiraBaseUrl,
+  });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
@@ -107,6 +122,7 @@ export default function App() {
               onClick={() => {
                 refresh();
                 refreshNotes();
+                refreshKanban();
               }}
               disabled={loading}
             >
@@ -160,6 +176,7 @@ export default function App() {
               <Nav variant="tabs" className="mb-3 dev-tabs">
                 {[
                   { key: "summary", label: "Summary" },
+                  { key: "board", label: "Board" },
                   {
                     key: "notes",
                     label: "Notes",
@@ -217,6 +234,15 @@ export default function App() {
                       setOpenNote(note);
                       setShowNoteEditor(true);
                     }}
+                    doneItemIds={doneItemIds}
+                  />
+                )}
+                {effectiveTab === "board" && (
+                  <KanbanBoard
+                    columnTiles={columnTiles}
+                    loading={kanbanLoading}
+                    jiraBaseUrl={jiraBaseUrl}
+                    onMoveItem={kanbanMoveItem}
                   />
                 )}
                 {effectiveTab === "jira" && (
