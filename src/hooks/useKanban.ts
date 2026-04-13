@@ -81,8 +81,13 @@ export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl 
   }, [loadItems]);
 
   // Auto-populate: ensure all source items exist on the board
-  // Runs after initial kanban load completes AND source data is available
-  const hasSourceData = openPRs.length > 0 || reviewRequests.length > 0 || notes.length > 0;
+  // Runs after initial kanban load completes AND source data is available.
+  // Track which source types have loaded (have data) to avoid marking items
+  // as stale before their source data has arrived (race condition fix).
+  const hasPRData = openPRs.length > 0;
+  const hasReviewData = reviewRequests.length > 0;
+  const hasNoteData = notes.length > 0;
+  const hasSourceData = hasPRData || hasReviewData || hasNoteData;
 
   useEffect(() => {
     if (!active || !initialLoadDone.current || !hasSourceData || populatingRef.current) {
@@ -123,15 +128,18 @@ export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl 
       }
     }
 
-    // Auto-move stale items: items on the board whose source data is gone
+    // Auto-move stale items: items on the board whose source data is gone.
+    // Only check a given item type if that type's source data has loaded,
+    // otherwise we'd incorrectly mark items as stale during a race condition
+    // where one data source loads before another.
     const toMoveToDone: KanbanItem[] = [];
     for (const ki of kanbanItems) {
       if (ki.column_name === "done") continue;
-      if (ki.item_type === "pr" && !prMap.has(ki.item_id)) {
+      if (ki.item_type === "pr" && hasPRData && !prMap.has(ki.item_id)) {
         toMoveToDone.push(ki);
-      } else if (ki.item_type === "review" && !reviewMap.has(ki.item_id)) {
+      } else if (ki.item_type === "review" && hasReviewData && !reviewMap.has(ki.item_id)) {
         toMoveToDone.push(ki);
-      } else if (ki.item_type === "note" && !noteMap.has(ki.item_id)) {
+      } else if (ki.item_type === "note" && hasNoteData && !noteMap.has(ki.item_id)) {
         toMoveToDone.push(ki);
       }
     }
@@ -172,6 +180,9 @@ export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl 
   }, [
     active,
     hasSourceData,
+    hasPRData,
+    hasReviewData,
+    hasNoteData,
     openPRs,
     reviewRequests,
     notes,
