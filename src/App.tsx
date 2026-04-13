@@ -18,6 +18,7 @@ import { ReviewRequests } from "./components/ReviewRequests";
 import { PersonalNotes } from "./components/PersonalNotes";
 import { NoteEditorModal } from "./components/NoteEditorModal";
 import { SettingsView } from "./components/SettingsView";
+import packageJson from "../package.json";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
@@ -104,7 +105,7 @@ export default function App() {
             style={{ fontSize: "0.8125rem", fontWeight: 600 }}
           >
             <IconCode size={16} />
-            Dev Home
+            Dev Home ({packageJson.version})
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
