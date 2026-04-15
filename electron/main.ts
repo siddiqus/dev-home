@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell, Menu, clipboard } from "electron";
 import path from "path";
 import http from "http";
 import { getSettings, setSettings, isConfigured } from "./store";
@@ -79,6 +79,59 @@ function createWindow() {
     }
   });
 
+  // Context menu (right-click)
+  mainWindow.webContents.on("context-menu", (_event, params) => {
+    const menuItems: Electron.MenuItemConstructorOptions[] = [];
+
+    if (params.linkURL) {
+      menuItems.push(
+        {
+          label: "Open Link",
+          click: () => shell.openExternal(params.linkURL),
+        },
+        {
+          label: "Copy Link",
+          click: () => clipboard.writeText(params.linkURL),
+        },
+        { type: "separator" },
+      );
+    }
+
+    if (params.isEditable) {
+      menuItems.push(
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { type: "separator" },
+      );
+    } else if (params.selectionText) {
+      menuItems.push({ role: "copy" }, { type: "separator" });
+    }
+
+    menuItems.push(
+      { role: "selectAll" },
+      { type: "separator" },
+      {
+        label: "Reload",
+        click: () => mainWindow?.webContents.reload(),
+      },
+    );
+
+    if (process.env.VITE_DEV_SERVER_URL) {
+      menuItems.push({ type: "separator" }, { role: "toggleDevTools" });
+    }
+
+    Menu.buildFromTemplate(menuItems).popup();
+  });
+
+  // Find-in-page: forward results from webContents back to renderer
+  mainWindow.webContents.on("found-in-page", (_event, result) => {
+    mainWindow?.webContents.send("find-result", {
+      activeMatchOrdinal: result.activeMatchOrdinal,
+      matches: result.matches,
+    });
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -103,8 +156,90 @@ app.whenReady().then(async () => {
     return resolvedPort;
   });
 
+  // Find-in-page IPC handlers
+  ipcMain.handle(
+    "find-in-page",
+    (_event, text: string, forward: boolean, findNext: boolean) => {
+      if (mainWindow && text) {
+        mainWindow.webContents.findInPage(text, { forward, findNext });
+      }
+    },
+  );
+
+  ipcMain.handle("stop-find-in-page", () => {
+    if (mainWindow) {
+      mainWindow.webContents.stopFindInPage("clearSelection");
+    }
+  });
+
   await startBackendServer();
   createWindow();
+
+  // Application menu
+  const isMac = process.platform === "darwin";
+  const menuTemplate: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" as const },
+              { type: "separator" as const },
+              { role: "hide" as const },
+              { role: "hideOthers" as const },
+              { role: "unhide" as const },
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+        { type: "separator" },
+        {
+          label: "Find",
+          accelerator: "CmdOrCtrl+F",
+          click: () => mainWindow?.webContents.send("toggle-find"),
+        },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        { role: "zoom" },
+        ...(isMac
+          ? [
+              { type: "separator" as const },
+              { role: "front" as const },
+            ]
+          : [{ role: "close" as const }]),
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 });
 
 app.on("window-all-closed", () => {

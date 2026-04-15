@@ -15,6 +15,12 @@ declare global {
       saveSettings: (settings: AppSettings) => Promise<void>;
       isConfigured: () => Promise<boolean>;
       getApiPort: () => Promise<number>;
+      findInPage: (text: string, forward: boolean, findNext: boolean) => Promise<void>;
+      stopFindInPage: () => Promise<void>;
+      onToggleFind: (callback: () => void) => () => void;
+      onFindResult: (
+        callback: (result: { activeMatchOrdinal: number; matches: number }) => void,
+      ) => () => void;
     };
   }
 }

@@ -24,6 +24,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./components/KanbanBoard";
+import { FindInPage } from "./components/FindInPage";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("summary");
@@ -92,6 +93,7 @@ export default function App() {
 
   return (
     <>
+      <FindInPage />
       {/* Thin top bar -- draggable for Electron, with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container
