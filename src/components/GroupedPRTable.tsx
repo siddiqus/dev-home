@@ -13,7 +13,7 @@ interface GroupedPRTableProps {
   jiraIssues?: JiraIssue[];
   headers: React.ReactNode;
   columnCount: number;
-  renderRow: (pr: GitHubPR, onClick: () => void) => React.ReactNode;
+  renderRow: (pr: GitHubPR, onClick: () => void, isGrouped: boolean) => React.ReactNode;
   emptyIcon: React.ReactNode;
   emptyTitle: string;
   emptyDescription: string;
@@ -95,7 +95,7 @@ export const GroupedPRTable: React.FC<GroupedPRTableProps> = ({
                 {!isCollapsed &&
                   group.prs.map((pr) => (
                     <React.Fragment key={pr.id}>
-                      {renderRow(pr, () => setSelectedPR(pr))}
+                      {renderRow(pr, () => setSelectedPR(pr), isGroup)}
                     </React.Fragment>
                   ))}
               </React.Fragment>

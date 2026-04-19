@@ -12,9 +12,13 @@ interface PRTableProps {
   variant: "my-prs" | "review-requests";
 }
 
-const MyPRRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick }) => (
+const MyPRRow: React.FC<{ pr: GitHubPR; onClick: () => void; isGrouped: boolean }> = ({
+  pr,
+  onClick,
+  isGrouped,
+}) => (
   <tr key={pr.id} onClick={onClick} style={{ cursor: "pointer" }}>
-    <td>
+    <td style={isGrouped ? { paddingLeft: 30 } : undefined}>
       <a
         href={pr.html_url}
         target="_blank"
@@ -68,9 +72,13 @@ const MyPRRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick 
   </tr>
 );
 
-const ReviewRequestRow: React.FC<{ pr: GitHubPR; onClick: () => void }> = ({ pr, onClick }) => (
+const ReviewRequestRow: React.FC<{ pr: GitHubPR; onClick: () => void; isGrouped: boolean }> = ({
+  pr,
+  onClick,
+  isGrouped,
+}) => (
   <tr key={pr.id} onClick={onClick} style={{ cursor: "pointer" }}>
-    <td>
+    <td style={isGrouped ? { paddingLeft: 30 } : undefined}>
       <a
         href={pr.html_url}
         target="_blank"
@@ -131,11 +139,11 @@ export const PRTable: React.FC<PRTableProps> = ({ prs, loading, jiraIssues = [],
           </>
         )
       }
-      renderRow={(pr, onClick) =>
+      renderRow={(pr, onClick, isGrouped) =>
         isMyPRs ? (
-          <MyPRRow pr={pr} onClick={onClick} />
+          <MyPRRow pr={pr} onClick={onClick} isGrouped={isGrouped} />
         ) : (
-          <ReviewRequestRow pr={pr} onClick={onClick} />
+          <ReviewRequestRow pr={pr} onClick={onClick} isGrouped={isGrouped} />
         )
       }
       emptyIcon={
