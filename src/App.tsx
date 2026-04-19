@@ -13,8 +13,7 @@ import { useNotes } from "./hooks/useNotes";
 import { SummaryView } from "./components/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { MentionsView } from "./components/MentionsView";
-import { OpenPRs } from "./components/OpenPRs";
-import { ReviewRequests } from "./components/ReviewRequests";
+import { PRTable } from "./components/PRTable";
 import { PersonalNotes } from "./components/PersonalNotes";
 import { NoteEditorModal } from "./components/NoteEditorModal";
 import { SettingsView } from "./components/SettingsView";
@@ -260,13 +259,19 @@ export default function App() {
                   />
                 )}
                 {effectiveTab === "prs" && (
-                  <OpenPRs prs={openPRs} loading={loading} jiraIssues={jiraIssues} />
-                )}
-                {effectiveTab === "reviews" && (
-                  <ReviewRequests
-                    reviews={reviewRequests}
+                  <PRTable
+                    prs={openPRs}
                     loading={loading}
                     jiraIssues={jiraIssues}
+                    variant="my-prs"
+                  />
+                )}
+                {effectiveTab === "reviews" && (
+                  <PRTable
+                    prs={reviewRequests}
+                    loading={loading}
+                    jiraIssues={jiraIssues}
+                    variant="review-requests"
                   />
                 )}
                 {effectiveTab === "notes" && (
