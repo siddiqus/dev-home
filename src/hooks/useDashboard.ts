@@ -99,20 +99,31 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     let pendingCount = 5;
     const errors: string[] = [];
 
-    // Remove GitHub mentions that duplicate review requests for the same PR.
-    // A mention with reason "review_requested" is redundant when the same PR
-    // already appears in the dedicated review-requests list.
+    // PR comments and notification mentions arrive independently; accumulated here
+    // and merged at settle time to avoid race-condition overwrites.
+    let pendingPRComments: GitHubComment[] = [];
+    let pendingNotificationMentions: GitHubComment[] | null = null;
+
+    // Merge PR comments + notification mentions, remove review_requested dupes,
+    // and deduplicate by comment ID.
     const deduplicateMentions = () => {
       const reviews = pendingData.reviewRequests;
-      const mentions = pendingData.githubMentions;
-      if (!reviews || !mentions) return;
+      if (!reviews || pendingNotificationMentions === null) return;
 
+      const merged = [...pendingNotificationMentions, ...pendingPRComments];
       const reviewPRKeys = new Set(reviews.map((r) => `${r.repo_full_name}#${r.number}`));
-      const filtered = mentions.filter(
-        (m) =>
-          m.reason !== "review_requested" ||
-          !reviewPRKeys.has(`${m.repo_full_name}#${m.pr_number}`),
-      );
+      const seen = new Set<number | string>();
+      const filtered = merged.filter((m) => {
+        if (
+          m.reason === "review_requested" &&
+          reviewPRKeys.has(`${m.repo_full_name}#${m.pr_number}`)
+        ) {
+          return false;
+        }
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
       pendingData.githubMentions = filtered;
       setGithubMentions(filtered);
     };
@@ -158,10 +169,12 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       .catch((err) => settle(err?.message || String(err)));
 
     fetchOpenPRs()
-      .then((data) => {
+      .then(({ prs, prComments }) => {
         if (controller.signal.aborted) return;
-        setOpenPRs(data);
-        pendingData.openPRs = data;
+        setOpenPRs(prs);
+        pendingData.openPRs = prs;
+        // Store PR comments; they'll be merged with notification mentions at settle time
+        pendingPRComments = prComments;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));
@@ -178,8 +191,8 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     fetchMentions()
       .then((data) => {
         if (controller.signal.aborted) return;
-        setGithubMentions(data);
-        pendingData.githubMentions = data;
+        // Store notification mentions; they'll be merged with PR comments at settle time
+        pendingNotificationMentions = data;
         settle();
       })
       .catch((err) => settle(err?.message || String(err)));

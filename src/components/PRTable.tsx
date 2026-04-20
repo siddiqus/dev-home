@@ -5,6 +5,12 @@ import { formatRelativeTime } from "../utils/time";
 import { GroupedPRTable } from "./GroupedPRTable";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 
+const REVIEW_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
+  APPROVED: { label: "Approved", badgeClass: "badge-status-green" },
+  CHANGES_REQUESTED: { label: "Changes Requested", badgeClass: "badge-status-red" },
+  REVIEWED: { label: "Reviewed", badgeClass: "badge-status-yellow" },
+};
+
 interface PRTableProps {
   prs: GitHubPR[];
   loading: boolean;
@@ -62,6 +68,11 @@ const MyPRRow: React.FC<{ pr: GitHubPR; onClick: () => void; isGrouped: boolean 
           <span className="badge badge-status-green">Open</span>
         )}
         <ChecksStatusIcon status={pr.checks_status} />
+        {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
+          <span className={`badge ${REVIEW_STATUS_CONFIG[pr.review_status].badgeClass}`}>
+            {REVIEW_STATUS_CONFIG[pr.review_status].label}
+          </span>
+        )}
       </div>
     </td>
     <td>

@@ -63,6 +63,89 @@ const SEARCH_PRS_QUERY = `
 `;
 
 /**
+ * Extended query for user's own PRs. Adds review state and recent comments
+ * so we can show approval status and surface comments without extra REST calls.
+ */
+const SEARCH_MY_PRS_QUERY = `
+  query SearchMyPRs($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
+      nodes {
+        ... on PullRequest {
+          databaseId
+          number
+          title
+          url
+          state
+          isDraft
+          createdAt
+          updatedAt
+          author { login avatarUrl }
+          body
+          headRefName
+          baseRefName
+          repository { nameWithOwner url }
+          commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  state
+                  contexts(first: 50) {
+                    nodes {
+                      ... on CheckRun {
+                        name
+                        conclusion
+                        status
+                        detailsUrl
+                      }
+                      ... on StatusContext {
+                        context
+                        state
+                        targetUrl
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          reviews(last: 20) {
+            nodes {
+              state
+              author { login avatarUrl }
+              submittedAt
+            }
+          }
+          comments(last: 50) {
+            nodes {
+              databaseId
+              url
+              body
+              createdAt
+              updatedAt
+              author { login avatarUrl }
+            }
+          }
+          reviewThreads(last: 50) {
+            nodes {
+              comments(last: 10) {
+                nodes {
+                  databaseId
+                  url
+                  body
+                  createdAt
+                  updatedAt
+                  author { login avatarUrl }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
  * Map a statusCheckRollup context node to a normalized check run shape.
  */
 function mapCheckContext(ctx: any) {
@@ -80,6 +163,30 @@ function mapCheckContext(ctx: any) {
     status: (ctx.state || "PENDING").toUpperCase(),
     url: ctx.targetUrl || null,
   };
+}
+
+/**
+ * Derive an overall review status from a list of review nodes.
+ * Returns "APPROVED", "CHANGES_REQUESTED", "REVIEWED", or null.
+ * Uses the latest review per author to determine the current state.
+ */
+function deriveReviewStatus(reviews: any[] | undefined): string | null {
+  if (!reviews || reviews.length === 0) return null;
+
+  // Keep only the latest review per author
+  const latestByAuthor = new Map<string, string>();
+  for (const r of reviews) {
+    const login = r.author?.login || "";
+    if (!login) continue;
+    // reviews are ordered oldest-first from the API; later entries overwrite
+    latestByAuthor.set(login, r.state);
+  }
+
+  const states = [...latestByAuthor.values()];
+  if (states.some((s) => s === "CHANGES_REQUESTED")) return "CHANGES_REQUESTED";
+  if (states.some((s) => s === "APPROVED")) return "APPROVED";
+  if (states.length > 0) return "REVIEWED";
+  return null;
 }
 
 /**
@@ -112,27 +219,31 @@ function mapGraphQLPr(node: any) {
     repo_full_name: node.repository?.nameWithOwner || "",
     checks_status: rollup?.state || null,
     checks: contextNodes.map(mapCheckContext),
+    review_status: deriveReviewStatus(node.reviews?.nodes),
   };
 }
 
 /**
  * GET /api/github/prs
  * Fetch open pull requests authored by the configured user.
+ * Uses the extended query to include review/approval status and comments.
+ * Also returns pr_comments: comments on the user's PRs by other people (non-bot),
+ * so the frontend can merge them into mentions without a second GraphQL call.
  */
 router.get("/prs", async (_req: Request, res: Response) => {
   const config = getConfig();
   const q = `author:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
-  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
+  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_MY_PRS_QUERY, {
     query: q,
     first: 50,
   });
 
-  const prs = (result.search.nodes || [])
-    .map(mapGraphQLPr)
-    .filter((pr: any) => pr.state === "open");
+  const nodes = result.search.nodes || [];
+  const prs = nodes.map(mapGraphQLPr).filter((pr: any) => pr.state === "open");
+  const prComments = extractOwnPRComments(nodes, config.githubUsername);
 
-  res.json({ prs });
+  res.json({ prs, pr_comments: prComments });
 });
 
 /**
@@ -182,7 +293,17 @@ function subjectUrlToHtml(apiUrl: string | undefined, repoFullName: string): str
 }
 
 /** Bot usernames to filter out from mention notifications. */
-const IGNORED_BOTS = ["github-actions", "datadog-official"];
+const IGNORED_BOTS = [
+  "github-actions",
+  "datadog-official",
+  "copilot",
+  "dependabot",
+  "renovate",
+  "codecov",
+  "sonarcloud",
+  "netlify",
+  "vercel",
+];
 
 const ALLOWED_REASONS = new Set([
   "approval_requested",
@@ -318,8 +439,80 @@ async function fetchCommentsInBatches(
 }
 
 /**
+ * Check if a username looks like a bot account.
+ */
+function isBot(login: string): boolean {
+  if (!login) return true;
+  const lower = login.toLowerCase();
+  if (IGNORED_BOTS.some((bot) => lower.includes(bot))) return true;
+  // GitHub bot accounts typically end with [bot]
+  if (lower.endsWith("[bot]")) return true;
+  return false;
+}
+
+/**
+ * Extract comments from GraphQL PR nodes (issue comments + review thread comments).
+ * Returns flattened GitHubComment-shaped objects for the user's own open PRs,
+ * excluding the user's own comments and bot comments.
+ */
+function extractOwnPRComments(prNodes: any[], username: string): any[] {
+  const comments: any[] = [];
+
+  for (const pr of prNodes) {
+    if (pr.state?.toLowerCase() !== "open") continue;
+    const repoFullName = pr.repository?.nameWithOwner || "";
+
+    // Issue-level comments (general PR comments)
+    for (const c of pr.comments?.nodes || []) {
+      const login = c.author?.login || "";
+      if (login === username) continue;
+      if (isBot(login)) continue;
+      comments.push({
+        id: c.databaseId,
+        html_url: c.url,
+        body: c.body || "",
+        created_at: c.createdAt,
+        updated_at: c.updatedAt,
+        user: { login, avatar_url: c.author?.avatarUrl || "" },
+        issue_url: "",
+        pr_number: pr.number,
+        repo_full_name: repoFullName,
+        context_title: pr.title || "",
+        reason: "comment",
+      });
+    }
+
+    // Review thread comments (inline code comments)
+    for (const thread of pr.reviewThreads?.nodes || []) {
+      for (const c of thread.comments?.nodes || []) {
+        const login = c.author?.login || "";
+        if (login === username) continue;
+        if (isBot(login)) continue;
+        comments.push({
+          id: c.databaseId,
+          html_url: c.url,
+          body: c.body || "",
+          created_at: c.createdAt,
+          updated_at: c.updatedAt,
+          user: { login, avatar_url: c.author?.avatarUrl || "" },
+          issue_url: "",
+          pr_number: pr.number,
+          repo_full_name: repoFullName,
+          context_title: pr.title || "",
+          reason: "comment",
+        });
+      }
+    }
+  }
+
+  return comments;
+}
+
+/**
  * GET /api/github/mentions
  * Fetch GitHub mentions from the notifications API (participating, all, 2-month window).
+ * Note: comments on the user's own PRs are returned by GET /api/github/prs as pr_comments
+ * and merged on the frontend, avoiding a duplicate GraphQL call.
  */
 router.get("/mentions", async (_req: Request, res: Response) => {
   const github = createGitHubClient();
@@ -333,7 +526,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   const seen = new Set<number | string>();
   const deduplicated = mentions.filter((m) => {
     if (!m.user?.login) return false;
-    if (IGNORED_BOTS.some((bot) => m.user?.login.includes(bot))) return false;
+    if (isBot(m.user.login)) return false;
     if (seen.has(m.id)) return false;
     seen.add(m.id);
     return true;

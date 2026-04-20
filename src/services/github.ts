@@ -1,9 +1,9 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
 import { apiClient } from "./config";
 
-export async function fetchOpenPRs(): Promise<GitHubPR[]> {
+export async function fetchOpenPRs(): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
   const { data } = await apiClient.get("/github/prs");
-  return data.prs;
+  return { prs: data.prs, prComments: data.pr_comments || [] };
 }
 
 export async function fetchReviewRequests(): Promise<GitHubReviewRequest[]> {
