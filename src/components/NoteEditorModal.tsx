@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
@@ -304,7 +304,21 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     }
   };
 
-  const referenceUrl = note ? getReferenceUrl(note, jiraBaseUrl) : null;
+  // Compute reference URL: from existing note when editing, or live-detected from editor content
+  const referenceUrl = useMemo(() => {
+    if (note) return getReferenceUrl(note, jiraBaseUrl);
+    if (!editorContent.trim()) return null;
+    const detected = detectNote(editorContent);
+    if (detected.type === "jira_ticket" && detected.referenceId) {
+      const base = jiraBaseUrl.replace(/\/+$/, "");
+      return base ? `${base}/browse/${detected.referenceId}` : null;
+    }
+    if (detected.type === "github_pr" && detected.referenceId) {
+      return detected.referenceId;
+    }
+    return null;
+  }, [note, editorContent, jiraBaseUrl]);
+
   const hasContent = editorContent.trim().length > 0;
   const canSave = isEditing ? isDirty : hasContent;
 
@@ -343,10 +357,16 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
             href={referenceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: "0.8125rem" }}
-            className="me-auto"
+            style={{
+              fontSize: "0.8125rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            className="me-auto text-truncate-custom"
+            title={referenceUrl}
           >
-            Open in browser
+            {referenceUrl}
           </a>
         )}
         <Button variant="outline-secondary" size="sm" onClick={handleClose}>

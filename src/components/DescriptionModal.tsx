@@ -129,8 +129,20 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       </Modal.Body>
       {url && (
         <Modal.Footer>
-          <a href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.8125rem" }}>
-            Open in browser
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: "0.8125rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            className="text-truncate-custom"
+            title={url}
+          >
+            {url}
           </a>
         </Modal.Footer>
       )}
