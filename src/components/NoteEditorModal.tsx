@@ -205,6 +205,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorContent, setEditorContent] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -225,17 +226,14 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     ],
     content: "",
     onUpdate: ({ editor: e }) => {
-      const currentMarkdown = getMarkdown(e);
-      setIsDirty(currentMarkdown.trim() !== initialContent.trim() || titleText !== initialTitle);
+      setEditorContent(getMarkdown(e));
     },
   });
 
-  // Track title changes for dirty detection
+  // Track dirty state from title and editor content changes
   useEffect(() => {
-    if (!editor) return;
-    const currentMarkdown = getMarkdown(editor);
-    setIsDirty(currentMarkdown.trim() !== initialContent.trim() || titleText !== initialTitle);
-  }, [titleText, initialTitle, initialContent, editor]);
+    setIsDirty(editorContent.trim() !== initialContent.trim() || titleText !== initialTitle);
+  }, [titleText, initialTitle, initialContent, editorContent]);
 
   // Load note content when modal opens
   useEffect(() => {
@@ -247,12 +245,14 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       setTitleText(title);
       setInitialTitle(title);
       editor.commands.setContent(rawText);
+      setEditorContent(rawText);
       setInitialContent(rawText);
       setIsDirty(false);
     } else {
       setTitleText("");
       setInitialTitle("");
       editor.commands.setContent("");
+      setEditorContent("");
       setInitialContent("");
       setIsDirty(false);
     }
@@ -263,6 +263,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     setTitleText("");
     setInitialTitle("");
     setInitialContent("");
+    setEditorContent("");
     setIsDirty(false);
     setError(null);
     editor?.commands.setContent("");
@@ -304,7 +305,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   };
 
   const referenceUrl = note ? getReferenceUrl(note, jiraBaseUrl) : null;
-  const hasContent = editor ? getMarkdown(editor).trim().length > 0 : false;
+  const hasContent = editorContent.trim().length > 0;
   const canSave = isEditing ? isDirty : hasContent;
 
   return (

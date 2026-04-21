@@ -222,7 +222,9 @@ function NoteRow({
           title="Delete"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(note.id);
+            if (window.confirm("Are you sure you want to delete this note?")) {
+              onDelete(note.id);
+            }
           }}
         >
           <IconTrash size={12} />
