@@ -3,7 +3,7 @@ import { getDb } from "../db";
 
 const router = Router();
 
-const VALID_TYPES = ["free_text", "jira_ticket", "github_pr"];
+const VALID_TYPES = ["free_text", "jira_ticket", "github_pr", "link"];
 
 /**
  * GET /api/notes
@@ -40,7 +40,7 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
-  if ((type === "jira_ticket" || type === "github_pr") && !reference_id) {
+  if ((type === "jira_ticket" || type === "github_pr" || type === "link") && !reference_id) {
     res.status(400).json({ error: `reference_id is required for type '${type}'` });
     return;
   }

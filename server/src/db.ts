@@ -21,9 +21,124 @@ export function getDbPath(): string {
   return path.join(dataDir, "notes.db");
 }
 
+// ---------------------------------------------------------------------------
+// Migrations
+// ---------------------------------------------------------------------------
+// Append-only list of migration functions. Each runs once, in order, inside a
+// transaction. Never reorder or remove existing entries — only append new ones.
+// ---------------------------------------------------------------------------
+
+type Migration = (d: Database.Database) => void;
+
+const MIGRATIONS: Migration[] = [
+  // 1 – create notes table (original schema)
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL CHECK(type IN ('free_text', 'jira_ticket', 'github_pr')),
+        content TEXT NOT NULL DEFAULT '',
+        reference_id TEXT DEFAULT NULL,
+        resolved INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  },
+
+  // 2 – create kanban_items table (original schema)
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS kanban_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_type TEXT NOT NULL CHECK(item_type IN ('note', 'pr', 'review')),
+        item_id TEXT NOT NULL,
+        column_name TEXT NOT NULL CHECK(column_name IN ('todo', 'in_progress', 'on_hold', 'in_review', 'done')),
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(item_type, item_id)
+      );
+    `);
+  },
+
+  // 3 – add title column to notes
+  (d) => {
+    const columns = d.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "title")) {
+      d.exec("ALTER TABLE notes ADD COLUMN title TEXT NOT NULL DEFAULT ''");
+    }
+  },
+
+  // 4 – drop CHECK constraint on notes.type (allow new types via app-level validation)
+  (d) => {
+    d.exec(`
+      DROP TABLE IF EXISTS _notes_tmp;
+      CREATE TABLE _notes_tmp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        reference_id TEXT DEFAULT NULL,
+        resolved INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        title TEXT NOT NULL DEFAULT ''
+      );
+      INSERT INTO _notes_tmp (id, type, content, reference_id, resolved, created_at, updated_at, title)
+        SELECT id, type, COALESCE(content, ''), reference_id, resolved, created_at, updated_at, COALESCE(title, '') FROM notes;
+      DROP TABLE notes;
+      ALTER TABLE _notes_tmp RENAME TO notes;
+    `);
+  },
+
+  // 5 – drop CHECK constraints on kanban_items (allow new values via app-level validation)
+  (d) => {
+    d.exec(`
+      DROP TABLE IF EXISTS _kanban_tmp;
+      CREATE TABLE _kanban_tmp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_type TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        column_name TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(item_type, item_id)
+      );
+      INSERT INTO _kanban_tmp (id, item_type, item_id, column_name, position, created_at, updated_at)
+        SELECT id, item_type, item_id, column_name, position, created_at, updated_at FROM kanban_items;
+      DROP TABLE kanban_items;
+      ALTER TABLE _kanban_tmp RENAME TO kanban_items;
+    `);
+  },
+];
+
+function runMigrations(d: Database.Database): void {
+  d.exec("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)");
+
+  const row = d.prepare("SELECT version FROM schema_version LIMIT 1").get() as
+    | { version: number }
+    | undefined;
+  const current = row?.version ?? 0;
+
+  if (current >= MIGRATIONS.length) return;
+
+  for (let i = current; i < MIGRATIONS.length; i++) {
+    d.transaction(() => {
+      MIGRATIONS[i](d);
+      d.exec("DELETE FROM schema_version");
+      d.prepare("INSERT INTO schema_version (version) VALUES (?)").run(i + 1);
+    })();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
  * Get (or lazily initialize) the SQLite database connection.
- * Enables WAL mode and creates the schema on first call.
+ * Enables WAL mode and runs pending migrations.
  */
 export function getDb(): Database.Database {
   if (db) return db;
@@ -31,37 +146,7 @@ export function getDb(): Database.Database {
   db = new Database(getDbPath());
   db.pragma("journal_mode = WAL");
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS notes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL CHECK(type IN ('free_text', 'jira_ticket', 'github_pr')),
-      title TEXT NOT NULL DEFAULT '',
-      content TEXT NOT NULL DEFAULT '',
-      reference_id TEXT DEFAULT NULL,
-      resolved INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS kanban_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      item_type TEXT NOT NULL CHECK(item_type IN ('note', 'pr', 'review')),
-      item_id TEXT NOT NULL,
-      column_name TEXT NOT NULL CHECK(column_name IN ('todo', 'in_progress', 'on_hold', 'in_review', 'done')),
-      position INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(item_type, item_id)
-    );
-  `);
-
-  // Migration: add title column if missing (existing databases)
-  const columns = db.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
-  if (!columns.some((c) => c.name === "title")) {
-    db.exec("ALTER TABLE notes ADD COLUMN title TEXT NOT NULL DEFAULT ''");
-  }
+  runMigrations(db);
 
   return db;
 }

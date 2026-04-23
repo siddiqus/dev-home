@@ -178,10 +178,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
 }
 
 function reconstructRawText(note: Note): string {
-  if (note.type === "free_text") {
-    return note.content || "";
-  }
-  return [note.reference_id || "", note.content || ""].filter(Boolean).join("\n");
+  return note.content || "";
 }
 
 function getDefaultTitle(note: Note): string {
@@ -282,7 +279,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       if (isEditing && onEdit) {
         const updates: { title?: string; content?: string; reference_id?: string } = {
           title: titleText.trim(),
-          content: detected.content,
+          content: markdown,
         };
         if (detected.type !== "free_text") {
           updates.reference_id = detected.referenceId;
@@ -291,7 +288,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       } else {
         await onSave(
           detected.type,
-          detected.content,
+          markdown,
           detected.type !== "free_text" ? detected.referenceId : undefined,
           titleText.trim() || undefined,
         );
@@ -309,14 +306,12 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     if (note) return getReferenceUrl(note, jiraBaseUrl);
     if (!editorContent.trim()) return null;
     const detected = detectNote(editorContent);
-    if (detected.type === "jira_ticket" && detected.referenceId) {
-      const base = jiraBaseUrl.replace(/\/+$/, "");
-      return base ? `${base}/browse/${detected.referenceId}` : null;
-    }
-    if (detected.type === "github_pr" && detected.referenceId) {
-      return detected.referenceId;
-    }
-    return null;
+    if (detected.type === "free_text" || !detected.referenceId) return null;
+    // Build a synthetic note to reuse getReferenceUrl logic
+    return getReferenceUrl(
+      { reference_id: detected.referenceId, type: detected.type } as Note,
+      jiraBaseUrl,
+    );
   }, [note, editorContent, jiraBaseUrl]);
 
   const hasContent = editorContent.trim().length > 0;

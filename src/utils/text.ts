@@ -16,24 +16,38 @@ export function formatGitHubTitle(url: string): string {
 }
 
 export function getReferenceUrl(note: Note, jiraBaseUrl: string): string | null {
-  if (note.type === "jira_ticket" && note.reference_id) {
+  if (!note.reference_id) return null;
+
+  if (note.type === "jira_ticket") {
+    // reference_id is either a full URL or a bare key like PROJ-123
+    if (/^https?:\/\//.test(note.reference_id)) {
+      return note.reference_id;
+    }
     const base = jiraBaseUrl.replace(/\/+$/, "");
     return base ? `${base}/browse/${note.reference_id}` : null;
   }
-  if (note.type === "github_pr" && note.reference_id) {
+
+  if (note.type === "github_pr" || note.type === "link") {
     return note.reference_id;
   }
+
   return null;
 }
 
 export function getNoteDisplayTitle(note: Note): string {
-  return (
-    note.title ||
-    (note.type === "github_pr"
-      ? formatGitHubTitle(note.reference_id || "")
-      : note.type === "jira_ticket"
-        ? note.reference_id || ""
-        : "") ||
-    "Untitled note"
-  );
+  if (note.title) return note.title;
+
+  if (note.type === "github_pr") {
+    return formatGitHubTitle(note.reference_id || "") || "Untitled note";
+  }
+  if (note.type === "jira_ticket") {
+    // Extract the JIRA key whether reference_id is a full URL or bare key
+    const keyMatch = note.reference_id?.match(/([A-Z][A-Z0-9]+-\d+)/);
+    return keyMatch ? keyMatch[1] : note.reference_id || "Untitled note";
+  }
+  if (note.type === "link") {
+    return note.reference_id || "Untitled note";
+  }
+
+  return "Untitled note";
 }

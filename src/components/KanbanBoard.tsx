@@ -361,7 +361,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     if (kanbanItem.item_type === "note" && note) {
       return {
         title: selectedTile.title,
-        subtitle: note.type === "jira_ticket" ? "JIRA Ticket" : "GitHub PR",
+        subtitle:
+          note.type === "jira_ticket"
+            ? "JIRA Ticket"
+            : note.type === "github_pr"
+              ? "GitHub PR"
+              : "Link",
         description: note.content || "",
         url: getReferenceUrl(note, jiraBase) || undefined,
       };

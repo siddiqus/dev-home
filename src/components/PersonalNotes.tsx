@@ -7,6 +7,7 @@ import {
   IconNote,
   IconBrandJira,
   IconGitPullRequest,
+  IconLink,
   IconCheck,
   IconTrash,
   IconPlus,
@@ -30,12 +31,14 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   free_text: <IconNote size={14} stroke={1.8} />,
   jira_ticket: <IconBrandJira size={14} stroke={1.8} />,
   github_pr: <IconGitPullRequest size={14} stroke={1.8} />,
+  link: <IconLink size={14} stroke={1.8} />,
 };
 
 const TYPE_LABEL: Record<string, string> = {
   free_text: "Note",
   jira_ticket: "JIRA",
   github_pr: "PR",
+  link: "Link",
 };
 
 export const PersonalNotes: React.FC<PersonalNotesProps> = ({
