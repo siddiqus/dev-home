@@ -11,10 +11,12 @@ let httpServer: http.Server | null = null;
 let resolvedPort: number = parseInt(__API_PORT__, 10);
 
 async function startBackendServer() {
-  // In dev mode, the server is started separately via concurrently.
+  // In dev mode, load .env so the server has access to JIRA/GitHub credentials etc.
   if (process.env.VITE_DEV_SERVER_URL) {
-    resolvedPort = parseInt(process.env.VITE_API_PORT || __API_PORT__, 10);
-    return;
+    const dotenv = (await import("dotenv")).default;
+    dotenv.config({ path: path.resolve(__dirname, "../.env") });
+  } else {
+    process.env.DEV_HOME_DB_PATH = path.join(app.getPath("userData"), "notes.db");
   }
 
   const defaultPort = parseInt(__API_PORT__, 10);
@@ -23,7 +25,6 @@ async function startBackendServer() {
 
   // Set env vars the server needs before creating it
   process.env.VITE_API_PORT = String(resolvedPort);
-  process.env.DEV_HOME_DB_PATH = path.join(app.getPath("userData"), "notes.db");
 
   const expressApp = createServer();
 

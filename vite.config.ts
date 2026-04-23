@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
           build: {
             outDir: "dist-electron",
             rollupOptions: {
-              external: ["electron", "better-sqlite3", "get-port"],
+              external: ["electron", "better-sqlite3", "get-port", "dotenv"],
             },
           },
         },

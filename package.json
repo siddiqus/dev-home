@@ -5,9 +5,7 @@
   "description": "Developer Home Dashboard - JIRA & GitHub integration",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently -n server,app -c blue,green \"yarn dev:server\" \"yarn dev:app\"",
-    "dev:server": "cd server && npx tsx watch src/standalone.ts",
-    "dev:app": "vite",
+    "dev": "vite",
     "build": "tsc && vite build",
     "build:server": "cd server && yarn build",
     "preview": "vite preview",
