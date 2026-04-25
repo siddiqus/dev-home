@@ -57,6 +57,11 @@ export default function App() {
     openPRs,
     reviewRequests,
     loading,
+    jiraIssuesLoading,
+    jiraCommentsLoading,
+    githubMentionsLoading,
+    openPRsLoading,
+    reviewRequestsLoading,
     error,
     refresh,
   } = useDashboard(configured);
@@ -227,6 +232,12 @@ export default function App() {
                     openPRs={openPRs}
                     reviewRequests={reviewRequests}
                     loading={loading}
+                    jiraIssuesLoading={jiraIssuesLoading}
+                    jiraCommentsLoading={jiraCommentsLoading}
+                    githubMentionsLoading={githubMentionsLoading}
+                    openPRsLoading={openPRsLoading}
+                    reviewRequestsLoading={reviewRequestsLoading}
+                    notesLoading={notesLoading}
                     jiraBaseUrl={jiraBaseUrl}
                     onNavigate={setActiveTab}
                     notes={unresolvedNotes}

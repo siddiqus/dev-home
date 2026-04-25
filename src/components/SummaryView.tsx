@@ -28,6 +28,12 @@ interface SummaryViewProps {
   openPRs: GitHubPR[];
   reviewRequests: GitHubPR[];
   loading: boolean;
+  jiraIssuesLoading?: boolean;
+  jiraCommentsLoading?: boolean;
+  githubMentionsLoading?: boolean;
+  openPRsLoading?: boolean;
+  reviewRequestsLoading?: boolean;
+  notesLoading?: boolean;
   jiraBaseUrl: string;
   onNavigate: (tab: string) => void;
   notes: Note[];
@@ -45,6 +51,7 @@ interface SectionProps {
   children: React.ReactNode;
   onSeeMore?: () => void;
   headerAction?: React.ReactNode;
+  loading?: boolean;
 }
 
 function Section({
@@ -55,6 +62,7 @@ function Section({
   children,
   onSeeMore,
   headerAction,
+  loading,
 }: SectionProps) {
   return (
     <Card className="h-100">
@@ -67,7 +75,17 @@ function Section({
               {count}
             </Badge>
           )}
-          {headerAction && <span style={{ marginLeft: "auto" }}>{headerAction}</span>}
+          <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+            {loading && (
+              <Spinner
+                animation="border"
+                size="sm"
+                variant="secondary"
+                style={{ width: 12, height: 12, borderWidth: 1.5 }}
+              />
+            )}
+            {headerAction}
+          </span>
         </div>
         <div style={{ marginTop: 8 }}>{children}</div>
         {onSeeMore && (
@@ -159,6 +177,12 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   openPRs,
   reviewRequests,
   loading,
+  jiraIssuesLoading,
+  jiraCommentsLoading,
+  githubMentionsLoading,
+  openPRsLoading,
+  reviewRequestsLoading,
+  notesLoading,
   jiraBaseUrl,
   onNavigate,
   notes,
@@ -236,6 +260,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 badgeClass="badge-status-yellow"
                 count={visibleReviews.length}
                 onSeeMore={visibleReviews.length > 5 ? () => onNavigate("reviews") : undefined}
+                loading={reviewRequestsLoading}
               >
                 {topReviews.length > 0 ? (
                   topReviews.map((r) => (
@@ -262,6 +287,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 badgeClass="badge-status-green"
                 count={visiblePRs.length}
                 onSeeMore={visiblePRs.length > 5 ? () => onNavigate("prs") : undefined}
+                loading={openPRsLoading}
               >
                 {topPRs.length > 0 ? (
                   topPRs.map((pr) => (
@@ -295,6 +321,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     ? () => onNavigate("mentions")
                     : undefined
                 }
+                loading={jiraCommentsLoading || githubMentionsLoading}
               >
                 {allMentions.length > 0 ? (
                   allMentions.map((m) => (
@@ -318,6 +345,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 badgeClass="badge-status-blue"
                 count={jiraIssues.length}
                 onSeeMore={jiraIssues.length > 5 ? () => onNavigate("jira") : undefined}
+                loading={jiraIssuesLoading}
               >
                 {topIssues.length > 0 ? (
                   topIssues.map((issue) => (
@@ -346,6 +374,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             badgeClass="badge-status-purple"
             count={visibleNotes.length}
             onSeeMore={visibleNotes.length > 10 ? () => onNavigate("notes") : undefined}
+            loading={notesLoading}
             headerAction={
               <Button
                 variant="outline-secondary"

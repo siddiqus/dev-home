@@ -60,6 +60,11 @@ interface UseDashboardReturn {
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
   loading: boolean;
+  jiraIssuesLoading: boolean;
+  jiraCommentsLoading: boolean;
+  githubMentionsLoading: boolean;
+  openPRsLoading: boolean;
+  reviewRequestsLoading: boolean;
   error: string | null;
   refresh: () => void;
 }
@@ -78,6 +83,11 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     cachedRef.current?.reviewRequests ?? [],
   );
   const [loading, setLoading] = useState<boolean>(false);
+  const [jiraIssuesLoading, setJiraIssuesLoading] = useState<boolean>(false);
+  const [jiraCommentsLoading, setJiraCommentsLoading] = useState<boolean>(false);
+  const [githubMentionsLoading, setGithubMentionsLoading] = useState<boolean>(false);
+  const [openPRsLoading, setOpenPRsLoading] = useState<boolean>(false);
+  const [reviewRequestsLoading, setReviewRequestsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -92,6 +102,11 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     abortRef.current = controller;
 
     setLoading(true);
+    setJiraIssuesLoading(true);
+    setJiraCommentsLoading(true);
+    setGithubMentionsLoading(true);
+    setOpenPRsLoading(true);
+    setReviewRequestsLoading(true);
     setError(null);
 
     // Accumulate results to avoid repeated localStorage reads/writes
@@ -155,18 +170,26 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         if (controller.signal.aborted) return;
         setJiraIssues(data);
         pendingData.jiraIssues = data;
+        setJiraIssuesLoading(false);
         settle();
       })
-      .catch((err) => settle(err?.message || String(err)));
+      .catch((err) => {
+        setJiraIssuesLoading(false);
+        settle(err?.message || String(err));
+      });
 
     fetchRecentMentions()
       .then((data) => {
         if (controller.signal.aborted) return;
         setJiraComments(data);
         pendingData.jiraComments = data;
+        setJiraCommentsLoading(false);
         settle();
       })
-      .catch((err) => settle(err?.message || String(err)));
+      .catch((err) => {
+        setJiraCommentsLoading(false);
+        settle(err?.message || String(err));
+      });
 
     fetchOpenPRs()
       .then(({ prs, prComments }) => {
@@ -175,27 +198,39 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         pendingData.openPRs = prs;
         // Store PR comments; they'll be merged with notification mentions at settle time
         pendingPRComments = prComments;
+        setOpenPRsLoading(false);
         settle();
       })
-      .catch((err) => settle(err?.message || String(err)));
+      .catch((err) => {
+        setOpenPRsLoading(false);
+        settle(err?.message || String(err));
+      });
 
     fetchReviewRequests()
       .then((data) => {
         if (controller.signal.aborted) return;
         setReviewRequests(data);
         pendingData.reviewRequests = data;
+        setReviewRequestsLoading(false);
         settle();
       })
-      .catch((err) => settle(err?.message || String(err)));
+      .catch((err) => {
+        setReviewRequestsLoading(false);
+        settle(err?.message || String(err));
+      });
 
     fetchMentions()
       .then((data) => {
         if (controller.signal.aborted) return;
         // Store notification mentions; they'll be merged with PR comments at settle time
         pendingNotificationMentions = data;
+        setGithubMentionsLoading(false);
         settle();
       })
-      .catch((err) => settle(err?.message || String(err)));
+      .catch((err) => {
+        setGithubMentionsLoading(false);
+        settle(err?.message || String(err));
+      });
   }, [active]);
 
   // Fetch data when active changes to true, with visibility-based polling
@@ -245,6 +280,11 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     openPRs,
     reviewRequests,
     loading,
+    jiraIssuesLoading,
+    jiraCommentsLoading,
+    githubMentionsLoading,
+    openPRsLoading,
+    reviewRequestsLoading,
     error,
     refresh,
   };
