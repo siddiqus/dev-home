@@ -72,6 +72,7 @@ export default function App() {
     addNote,
     editNote,
     resolveNote,
+    unresolveNote,
     removeNote,
     refresh: refreshNotes,
   } = useNotes(configured);
@@ -87,6 +88,8 @@ export default function App() {
     reviewRequests,
     notes: unresolvedNotes,
     jiraBaseUrl,
+    onResolveNote: resolveNote,
+    onUnresolveNote: unresolveNote,
   });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
   const [showNoteEditor, setShowNoteEditor] = useState(false);

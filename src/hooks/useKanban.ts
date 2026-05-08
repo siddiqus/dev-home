@@ -25,13 +25,23 @@ interface UseKanbanProps {
   reviewRequests: GitHubReviewRequest[];
   notes: Note[];
   jiraBaseUrl: string;
+  onResolveNote?: (id: number) => Promise<void>;
+  onUnresolveNote?: (id: number) => Promise<void>;
 }
 
 function makePrItemId(pr: GitHubPR): string {
   return `${pr.repo_full_name}#${pr.number}`;
 }
 
-export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl }: UseKanbanProps) {
+export function useKanban({
+  active,
+  openPRs,
+  reviewRequests,
+  notes,
+  jiraBaseUrl,
+  onResolveNote,
+  onUnresolveNote,
+}: UseKanbanProps) {
   const [kanbanItems, setKanbanItems] = useState<KanbanItem[]>([]);
   const [loading, setLoading] = useState(false);
   const initialLoadDone = useRef(false);
@@ -285,6 +295,13 @@ export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl 
         position: number;
       }[],
     ) => {
+      // Capture which notes are currently in "done" before the update
+      const prevDoneNoteIds = new Set(
+        kanbanItems
+          .filter((ki) => ki.item_type === "note" && ki.column_name === "done")
+          .map((ki) => ki.item_id),
+      );
+
       // Optimistic update
       setKanbanItems((prev) => {
         return prev.map((ki) => {
@@ -310,8 +327,22 @@ export function useKanban({ active, openPRs, reviewRequests, notes, jiraBaseUrl 
         const items = await fetchKanbanItems();
         setKanbanItems(items);
       }
+
+      // Auto-resolve/unresolve notes moved to/from the done column
+      for (const item of affectedItems) {
+        if (item.item_type !== "note") continue;
+        if (item.column_name === "done" && onResolveNote) {
+          onResolveNote(Number(item.item_id)).catch(() => {});
+        } else if (
+          item.column_name !== "done" &&
+          prevDoneNoteIds.has(item.item_id) &&
+          onUnresolveNote
+        ) {
+          onUnresolveNote(Number(item.item_id)).catch(() => {});
+        }
+      }
     },
-    [],
+    [kanbanItems, onResolveNote, onUnresolveNote],
   );
 
   // Set of done item IDs for Summary filtering

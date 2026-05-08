@@ -50,6 +50,16 @@ export function useNotes(active: boolean) {
     }
   }, []);
 
+  const unresolveNote = useCallback(async (id: number) => {
+    try {
+      const updated = await updateNote(id, { resolved: false });
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    } catch (err: any) {
+      setError(err?.message || "Failed to unresolve note");
+      throw err;
+    }
+  }, []);
+
   const editNote = useCallback(
     async (id: number, updates: { title?: string; content?: string; reference_id?: string }) => {
       try {
@@ -81,6 +91,7 @@ export function useNotes(active: boolean) {
     addNote,
     editNote,
     resolveNote,
+    unresolveNote,
     removeNote,
     refresh: loadNotes,
   };
