@@ -1,12 +1,25 @@
 import { useState, useEffect } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
-import Nav from "react-bootstrap/Nav";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import Spinner from "react-bootstrap/Spinner";
-import { IconCode, IconRefresh, IconSettings, IconPlus } from "@tabler/icons-react";
+import {
+  IconCode,
+  IconRefresh,
+  IconSettings,
+  IconPlus,
+  IconLayoutDashboard,
+  IconColumns3,
+  IconNotes,
+  IconSubtask,
+  IconAt,
+  IconGitPullRequest,
+  IconEye,
+  IconChevronsLeft,
+  IconChevronsRight,
+} from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
@@ -27,6 +40,16 @@ import { FindInPage } from "./components/FindInPage";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("summary");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("dev-home-sidebar-collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    localStorage.setItem("dev-home-sidebar-collapsed", String(next));
+  };
+
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "light";
   });
@@ -146,87 +169,95 @@ export default function App() {
       </Navbar>
 
       <ErrorBoundary>
-        <Container
-          fluid
-          className="px-3 pt-2 mb-4"
-          style={{ height: "calc(100vh - 38px)", overflow: "auto" }}
-        >
-          {/* Update banner */}
-          {updateInfo && (
-            <UpdateBanner
-              latestVersion={updateInfo.latestVersion}
-              currentVersion={updateInfo.currentVersion}
-              downloadUrl={updateInfo.downloadUrl}
-              onDismiss={dismissUpdate}
-            />
-          )}
+        <div className="app-body">
+          {/* Sidebar navigation */}
+          <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
+            {[
+              { key: "summary", label: "Summary", icon: IconLayoutDashboard, count: undefined },
+              { key: "board", label: "Board", icon: IconColumns3, count: undefined },
+              {
+                key: "notes",
+                label: "Notes",
+                icon: IconNotes,
+                count: unresolvedNotes.length,
+              },
+              { key: "jira", label: "JIRA Tasks", icon: IconSubtask, count: jiraIssues.length },
+              {
+                key: "mentions",
+                label: "Mentions",
+                icon: IconAt,
+                count: jiraComments.length + githubMentions.length,
+              },
+              {
+                key: "prs",
+                label: "Pull Requests",
+                icon: IconGitPullRequest,
+                count: openPRs.length,
+              },
+              {
+                key: "reviews",
+                label: "Reviews",
+                icon: IconEye,
+                count: reviewRequests.length,
+              },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+                title={tab.label}
+              >
+                <tab.icon size={18} />
+                <span className="sidebar-tab-label">{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <Badge bg="secondary" pill className="sidebar-badge">
+                    {tab.count}
+                  </Badge>
+                )}
+              </button>
+            ))}
+            <button
+              className="sidebar-toggle"
+              onClick={toggleSidebar}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? <IconChevronsRight size={16} /> : <IconChevronsLeft size={16} />}
+            </button>
+          </nav>
 
-          {/* Error alert */}
-          {error && (
-            <Alert variant="danger" className="small" dismissible>
-              {error}
-            </Alert>
-          )}
+          {/* Main content panel */}
+          <main className="main-content">
+            {/* Update banner */}
+            {updateInfo && (
+              <UpdateBanner
+                latestVersion={updateInfo.latestVersion}
+                currentVersion={updateInfo.currentVersion}
+                downloadUrl={updateInfo.downloadUrl}
+                onDismiss={dismissUpdate}
+              />
+            )}
 
-          {/* Show settings or dashboard */}
-          {effectiveTab === "settings" ? (
-            <SettingsView
-              backendOnline={backendOnline}
-              configured={configured}
-              jiraBaseUrl={jiraBaseUrl}
-              githubUsername={githubUsername}
-              onBack={() => setActiveTab("summary")}
-              saveSettings={saveSettings}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-            />
-          ) : (
-            <>
-              {/* Tab navigation -- pill/segmented style */}
-              <Nav variant="tabs" className="mb-3 dev-tabs">
-                {[
-                  { key: "summary", label: "Summary" },
-                  { key: "board", label: "Board" },
-                  {
-                    key: "notes",
-                    label: "Notes",
-                    count: unresolvedNotes.length,
-                  },
-                  { key: "jira", label: "JIRA Tasks", count: jiraIssues.length },
-                  {
-                    key: "mentions",
-                    label: "Mentions",
-                    count: jiraComments.length + githubMentions.length,
-                  },
-                  {
-                    key: "prs",
-                    label: "Pull Requests",
-                    count: openPRs.length,
-                  },
-                  {
-                    key: "reviews",
-                    label: "Reviews Requested",
-                    count: reviewRequests.length,
-                  },
-                ].map((tab) => (
-                  <Nav.Item key={tab.key}>
-                    <Nav.Link
-                      active={effectiveTab === tab.key}
-                      onClick={() => setActiveTab(tab.key)}
-                    >
-                      {tab.label}
-                      {tab.count !== undefined && tab.count > 0 && (
-                        <Badge bg="secondary" pill className="ms-2">
-                          {tab.count}
-                        </Badge>
-                      )}
-                    </Nav.Link>
-                  </Nav.Item>
-                ))}
-              </Nav>
+            {/* Error alert */}
+            {error && (
+              <Alert variant="danger" className="small" dismissible>
+                {error}
+              </Alert>
+            )}
 
-              {/* Tab content */}
-              <div className="tab-content-area mb-4" key={effectiveTab}>
+            {/* Show settings or dashboard */}
+            {effectiveTab === "settings" ? (
+              <SettingsView
+                backendOnline={backendOnline}
+                configured={configured}
+                jiraBaseUrl={jiraBaseUrl}
+                githubUsername={githubUsername}
+                onBack={() => setActiveTab("summary")}
+                saveSettings={saveSettings}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+              />
+            ) : (
+              <div className="tab-content-area" key={effectiveTab}>
                 {effectiveTab === "summary" && (
                   <SummaryView
                     jiraIssues={jiraIssues}
@@ -303,9 +334,9 @@ export default function App() {
                   />
                 )}
               </div>
-            </>
-          )}
-        </Container>
+            )}
+          </main>
+        </div>
       </ErrorBoundary>
 
       <NoteEditorModal

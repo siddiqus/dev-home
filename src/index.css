@@ -96,48 +96,133 @@ a:hover {
   background-color: transparent;
 }
 
-/* --- Nav Tabs (Pill / Segmented Control Style) --- */
-.dev-tabs.nav-tabs {
-  border-bottom: none;
-  gap: 4px;
-  background-color: #161b22;
-  border-radius: 8px;
-  padding: 4px;
-  display: inline-flex;
-  width: auto;
+/* --- App Body Layout --- */
+.app-body {
+  display: flex;
+  height: calc(100vh - 38px);
+  overflow: hidden;
 }
 
-.dev-tabs.nav-tabs .nav-link {
+/* --- Sidebar --- */
+.sidebar {
+  width: 180px;
+  min-width: 180px;
+  background-color: #161b22;
+  border-right: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   border: none;
   border-radius: 6px;
+  background: transparent;
   color: #8b949e;
   font-size: 0.8125rem;
   font-weight: 500;
-  padding: 6px 14px;
+  cursor: pointer;
   transition:
     background-color 150ms ease,
     color 150ms ease;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  text-align: left;
+  width: 100%;
 }
 
-.dev-tabs.nav-tabs .nav-link:hover {
+.sidebar-tab:hover {
   color: #c9d1d9;
   background-color: #1c2128;
 }
 
-.dev-tabs.nav-tabs .nav-link.active {
+.sidebar-tab.active {
   color: #58a6ff;
   background-color: rgba(31, 111, 235, 0.133);
-  border: none;
   font-weight: 600;
 }
 
-.dev-tabs.nav-tabs .nav-link:focus-visible {
+.sidebar-tab:focus-visible {
   box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.4);
   outline: none;
+}
+
+.sidebar-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sidebar-badge {
+  font-size: 0.625rem;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+/* --- Sidebar Toggle Button --- */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.sidebar-toggle:hover {
+  color: #c9d1d9;
+  background-color: #1c2128;
+}
+
+.sidebar-toggle:focus-visible {
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.4);
+  outline: none;
+}
+
+/* --- Sidebar Collapsed State --- */
+.sidebar.collapsed {
+  width: 48px;
+  min-width: 48px;
+  padding: 8px 6px;
+  align-items: center;
+}
+
+.sidebar.collapsed .sidebar-tab {
+  justify-content: center;
+  padding: 8px;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-tab-label,
+.sidebar.collapsed .sidebar-badge {
+  display: none;
+}
+
+/* --- Sidebar Transition --- */
+.sidebar {
+  transition: width 200ms ease, min-width 200ms ease, padding 200ms ease;
+}
+
+/* --- Main Content Panel --- */
+.main-content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px 24px;
+  min-width: 0;
 }
 
 /* --- Tab Content Area --- */
@@ -652,22 +737,32 @@ a,
   border-bottom-color: #d1d9e0;
 }
 
-[data-theme="light"] .dev-tabs.nav-tabs {
+[data-theme="light"] .sidebar {
   background-color: #f6f8fa;
+  border-right-color: #d1d9e0;
 }
 
-[data-theme="light"] .dev-tabs.nav-tabs .nav-link {
+[data-theme="light"] .sidebar-tab {
   color: #656d76;
 }
 
-[data-theme="light"] .dev-tabs.nav-tabs .nav-link:hover {
+[data-theme="light"] .sidebar-tab:hover {
   color: #1f2328;
   background-color: #eaeef2;
 }
 
-[data-theme="light"] .dev-tabs.nav-tabs .nav-link.active {
+[data-theme="light"] .sidebar-tab.active {
   color: #0969da;
   background-color: rgba(9, 105, 218, 0.1);
+}
+
+[data-theme="light"] .sidebar-toggle {
+  color: #656d76;
+}
+
+[data-theme="light"] .sidebar-toggle:hover {
+  color: #1f2328;
+  background-color: #eaeef2;
 }
 
 [data-theme="light"] .table {
@@ -1618,7 +1713,7 @@ a,
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 16px;
-  height: calc(100vh - 190px);
+  height: calc(100vh - 110px);
 }
 
 .kanban-column {
