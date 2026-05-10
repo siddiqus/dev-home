@@ -3,6 +3,7 @@
   "version": "1.7.0",
   "private": true,
   "description": "Developer Home Dashboard - JIRA & GitHub integration",
+  "repository": "https://github.com/siddiqus/dev-home",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",

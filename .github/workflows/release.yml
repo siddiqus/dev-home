@@ -22,10 +22,9 @@ jobs:
           node-version: 20
 
       - run: yarn install
-      - run: yarn build
       - run: yarn dist
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.dmg
+          files: release/*.dmg
