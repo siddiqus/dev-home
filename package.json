@@ -20,6 +20,7 @@
     "pack": "yarn icons && yarn build && electron-builder --dir",
     "dist": "yarn icons && yarn build && electron-builder",
     "dist:mac": "yarn icons && yarn build && electron-builder --mac",
+    "dist:win": "yarn build && electron-builder --win",
     "ghtag": "sh ./scripts/release-tag.sh",
     "tag:push": "sh ./scripts/push-tag.sh",
     "prepare": "husky"
@@ -51,6 +52,22 @@
       "electronLanguages": [
         "en"
       ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     },
     "dmg": {
       "title": "Dev Home",

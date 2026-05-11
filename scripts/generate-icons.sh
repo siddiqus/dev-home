@@ -31,9 +31,14 @@ sips -z 1024 1024 "$SOURCE" --out "$ICONSET/icon_512x512@2x.png" > /dev/null
 iconutil -c icns "$ICONSET" -o "$ICNS"
 rm -rf "$ICONSET"
 
+# Generate 256x256 PNG for Windows (electron-builder converts to .ico automatically)
+ICON_PNG="$PROJECT_ROOT/build/icon.png"
+sips -z 256 256 "$SOURCE" --out "$ICON_PNG" > /dev/null
+
 # Copy favicon
 mkdir -p "$PROJECT_ROOT/public"
 cp "$SOURCE" "$FAVICON"
 
 echo "Generated: $ICNS"
+echo "Generated: $ICON_PNG"
 echo "Generated: $FAVICON"

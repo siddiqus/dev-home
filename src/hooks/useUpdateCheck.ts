@@ -6,6 +6,7 @@ const GITHUB_RELEASES_URL = "https://api.github.com/repos/siddiqus/dev-home/rele
 
 interface UpdateCheckCache {
   latestVersion: string;
+  downloadUrl: string;
   timestamp: number;
 }
 
@@ -25,8 +26,8 @@ function loadCache(): UpdateCheckCache | null {
   }
 }
 
-function saveCache(latestVersion: string): void {
-  const entry: UpdateCheckCache = { latestVersion, timestamp: Date.now() };
+function saveCache(latestVersion: string, downloadUrl: string): void {
+  const entry: UpdateCheckCache = { latestVersion, downloadUrl, timestamp: Date.now() };
   localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
 }
 
@@ -34,8 +35,14 @@ function isCacheFresh(cache: UpdateCheckCache): boolean {
   return Date.now() - cache.timestamp < UPDATE_CHECK_INTERVAL_MS;
 }
 
-function buildDownloadUrl(version: string): string {
-  return `https://github.com/siddiqus/dev-home/releases/download/v${version}/Dev-Home-${version}-arm64.dmg`;
+function isWindows(): boolean {
+  return navigator.userAgent.includes("Windows");
+}
+
+function findDownloadUrl(assets: { name: string; browser_download_url: string }[]): string | null {
+  const ext = isWindows() ? ".exe" : ".dmg";
+  const asset = assets.find((a) => a.name.endsWith(ext));
+  return asset?.browser_download_url ?? null;
 }
 
 function isNewerVersion(latest: string, current: string): boolean {
@@ -63,7 +70,7 @@ export function useUpdateCheck() {
       if (isNewerVersion(cached.latestVersion, currentVersion)) {
         setUpdateInfo({
           latestVersion: cached.latestVersion,
-          downloadUrl: buildDownloadUrl(cached.latestVersion),
+          downloadUrl: cached.downloadUrl,
           currentVersion,
         });
       }
@@ -77,13 +84,14 @@ export function useUpdateCheck() {
       const data = await response.json();
       const tagName: string = data.tag_name;
       const latestVersion = tagName.replace(/^v/, "");
+      const downloadUrl = findDownloadUrl(data.assets ?? []);
 
-      saveCache(latestVersion);
+      saveCache(latestVersion, downloadUrl ?? "");
 
-      if (isNewerVersion(latestVersion, currentVersion)) {
+      if (isNewerVersion(latestVersion, currentVersion) && downloadUrl) {
         setUpdateInfo({
           latestVersion,
-          downloadUrl: buildDownloadUrl(latestVersion),
+          downloadUrl,
           currentVersion,
         });
       } else {
