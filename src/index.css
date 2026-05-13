@@ -295,32 +295,32 @@ a:hover {
 /* Status badge colors */
 .badge-status-blue {
   background-color: rgba(56, 139, 253, 0.15);
-  color: #58a6ff;
+  color: #ffffff;
 }
 
 .badge-status-green {
   background-color: rgba(63, 185, 80, 0.15);
-  color: #3fb950;
+  color: #ffffff;
 }
 
 .badge-status-yellow {
   background-color: rgba(210, 153, 34, 0.15);
-  color: #d29922;
+  color: #ffffff;
 }
 
 .badge-status-red {
   background-color: rgba(248, 81, 73, 0.15);
-  color: #f85149;
+  color: #ffffff;
 }
 
 .badge-status-purple {
   background-color: rgba(163, 113, 247, 0.15);
-  color: #a371f7;
+  color: #ffffff;
 }
 
 .badge-status-neutral {
   background-color: rgba(139, 148, 158, 0.15);
-  color: #8b949e;
+  color: #ffffff;
 }
 
 /* --- Alerts --- */
