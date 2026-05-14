@@ -1,9 +1,19 @@
-import React from "react";
-import { IconGitPullRequest, IconEye } from "@tabler/icons-react";
+import React, { useState } from "react";
+import Table from "react-bootstrap/Table";
+import Spinner from "react-bootstrap/Spinner";
+import {
+  IconGitPullRequest,
+  IconEye,
+  IconBuilding,
+  IconChevronRight,
+  IconChevronDown,
+} from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
-import { GroupedPRTable } from "./GroupedPRTable";
+import { extractTicket, groupByTicket } from "../utils/tickets";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { DescriptionModal } from "./DescriptionModal";
+import { EmptyState } from "./EmptyState";
 
 const REVIEW_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   APPROVED: { label: "Approved", badgeClass: "badge-status-green" },
@@ -11,161 +21,292 @@ const REVIEW_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }
   REVIEWED: { label: "Reviewed", badgeClass: "badge-status-yellow" },
 };
 
+type PRTableVariant = "my-prs" | "review-requests" | "org-prs";
+
 interface PRTableProps {
   prs: GitHubPR[];
   loading: boolean;
   jiraIssues?: JiraIssue[];
-  variant: "my-prs" | "review-requests";
+  jiraBaseUrl?: string;
+  variant: PRTableVariant;
 }
 
-const MyPRRow: React.FC<{ pr: GitHubPR; onClick: () => void; isGrouped: boolean }> = ({
-  pr,
-  onClick,
-  isGrouped,
-}) => (
-  <tr key={pr.id} onClick={onClick} style={{ cursor: "pointer" }}>
-    <td style={isGrouped ? { paddingLeft: 30 } : undefined}>
-      <a
-        href={pr.html_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-secondary-custom"
-        style={{ fontWeight: 500, whiteSpace: "nowrap" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        #{pr.number}
-      </a>
-    </td>
-    <td>
-      <a
-        href={pr.html_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-truncate-custom d-block"
-        style={{ fontWeight: 500, maxWidth: 360 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {pr.title}
-      </a>
-    </td>
-    <td>
-      <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
-    </td>
-    <td>
-      <div className="d-flex align-items-center gap-1">
-        <span className="branch-tag">{pr.head.ref}</span>
-        <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-          {"\u2192"}
-        </span>
-        <span className="branch-tag">{pr.base.ref}</span>
-      </div>
-    </td>
-    <td>
-      <div className="d-flex align-items-center gap-2">
-        {pr.draft ? (
-          <span className="badge badge-status-neutral">Draft</span>
-        ) : (
-          <span className="badge badge-status-green">Open</span>
-        )}
-        <ChecksStatusIcon status={pr.checks_status} />
-        {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
-          <span className={`badge ${REVIEW_STATUS_CONFIG[pr.review_status].badgeClass}`}>
-            {REVIEW_STATUS_CONFIG[pr.review_status].label}
+/** Column definitions per variant. */
+const VARIANT_CONFIG: Record<
+  PRTableVariant,
+  {
+    columns: string[];
+    emptyIcon: React.ReactNode;
+    emptyTitle: string;
+    emptyDescription: string;
+    grouped: boolean;
+  }
+> = {
+  "my-prs": {
+    columns: ["pr", "title", "repo", "branch", "status", "updated"],
+    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
+    emptyTitle: "No open pull requests",
+    emptyDescription: "You don't have any open pull requests at the moment.",
+    grouped: true,
+  },
+  "review-requests": {
+    columns: ["title", "repo", "author", "checks", "updated"],
+    emptyIcon: <IconEye size={40} stroke={1.5} />,
+    emptyTitle: "No review requests",
+    emptyDescription: "No one has requested your review on any pull requests.",
+    grouped: true,
+  },
+  "org-prs": {
+    columns: ["ticket", "title", "repo", "author", "status", "updated"],
+    emptyIcon: <IconBuilding size={40} stroke={1.5} />,
+    emptyTitle: "No org pull requests",
+    emptyDescription: "No open, non-draft pull requests found for this org.",
+    grouped: false,
+  },
+};
+
+const HEADER_LABELS: Record<string, string> = {
+  pr: "PR",
+  ticket: "Ticket",
+  title: "Title",
+  repo: "Repository",
+  branch: "Branch",
+  author: "Author",
+  checks: "Checks",
+  status: "Status",
+  updated: "Updated",
+};
+
+/** Render a single cell by column key. */
+function renderCell(
+  col: string,
+  pr: GitHubPR,
+  opts: { isGrouped: boolean; jiraBaseUrl: string },
+): React.ReactNode {
+  switch (col) {
+    case "pr":
+      return (
+        <td key={col} style={opts.isGrouped ? { paddingLeft: 30 } : undefined}>
+          <a
+            href={pr.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-secondary-custom"
+            style={{ fontWeight: 500, whiteSpace: "nowrap" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            #{pr.number}
+          </a>
+        </td>
+      );
+    case "ticket": {
+      const ticket = extractTicket(pr.title);
+      const base = opts.jiraBaseUrl.replace(/\/+$/, "");
+      return (
+        <td key={col}>
+          {ticket ? (
+            <a
+              href={`${base}/browse/${ticket}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-secondary-custom"
+              style={{ fontWeight: 500, whiteSpace: "nowrap" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {ticket}
+            </a>
+          ) : (
+            <span className="text-secondary-custom">-</span>
+          )}
+        </td>
+      );
+    }
+    case "title":
+      return (
+        <td key={col}>
+          <a
+            href={pr.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-truncate-custom d-block"
+            style={{ fontWeight: 500, maxWidth: 360 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {pr.title}
+          </a>
+        </td>
+      );
+    case "repo":
+      return (
+        <td key={col}>
+          <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
+        </td>
+      );
+    case "branch":
+      return (
+        <td key={col}>
+          <div className="d-flex align-items-center gap-1">
+            <span className="branch-tag">{pr.head.ref}</span>
+            <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+              {"\u2192"}
+            </span>
+            <span className="branch-tag">{pr.base.ref}</span>
+          </div>
+        </td>
+      );
+    case "author":
+      return (
+        <td key={col}>
+          <div className="d-flex align-items-center gap-2">
+            <img src={pr.user.avatar_url} alt={pr.user.login} className="avatar-sm" />
+            <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
+          </div>
+        </td>
+      );
+    case "checks":
+      return (
+        <td key={col}>
+          <ChecksStatusIcon status={pr.checks_status} />
+        </td>
+      );
+    case "status":
+      return (
+        <td key={col}>
+          <div className="d-flex align-items-center gap-2">
+            {pr.draft ? (
+              <span className="badge badge-status-neutral">Draft</span>
+            ) : (
+              <span className="badge badge-status-green">Open</span>
+            )}
+            <ChecksStatusIcon status={pr.checks_status} />
+            {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
+              <span className={`badge ${REVIEW_STATUS_CONFIG[pr.review_status].badgeClass}`}>
+                {REVIEW_STATUS_CONFIG[pr.review_status].label}
+              </span>
+            )}
+          </div>
+        </td>
+      );
+    case "updated":
+      return (
+        <td key={col}>
+          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
+            {formatRelativeTime(pr.updated_at)}
           </span>
-        )}
-      </div>
-    </td>
-    <td>
-      <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-        {formatRelativeTime(pr.updated_at)}
-      </span>
-    </td>
-  </tr>
-);
+        </td>
+      );
+    default:
+      return <td key={col} />;
+  }
+}
 
-const ReviewRequestRow: React.FC<{ pr: GitHubPR; onClick: () => void; isGrouped: boolean }> = ({
-  pr,
-  onClick,
-  isGrouped,
-}) => (
-  <tr key={pr.id} onClick={onClick} style={{ cursor: "pointer" }}>
-    <td style={isGrouped ? { paddingLeft: 30 } : undefined}>
-      <a
-        href={pr.html_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-truncate-custom d-block"
-        style={{ fontWeight: 500, maxWidth: 360 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {pr.title}
-      </a>
-    </td>
-    <td>
-      <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
-    </td>
-    <td>
-      <div className="d-flex align-items-center gap-2">
-        <img src={pr.user.avatar_url} alt={pr.user.login} className="avatar-sm" />
-        <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
-      </div>
-    </td>
-    <td>
-      <ChecksStatusIcon status={pr.checks_status} />
-    </td>
-    <td>
-      <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-        {formatRelativeTime(pr.updated_at)}
-      </span>
-    </td>
-  </tr>
-);
+export const PRTable: React.FC<PRTableProps> = ({
+  prs,
+  loading,
+  jiraIssues = [],
+  jiraBaseUrl = "",
+  variant,
+}) => {
+  const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-export const PRTable: React.FC<PRTableProps> = ({ prs, loading, jiraIssues = [], variant }) => {
-  const isMyPRs = variant === "my-prs";
+  const config = VARIANT_CONFIG[variant];
+  const { columns } = config;
+
+  if (loading && prs.length === 0) {
+    return (
+      <div className="d-flex justify-content-center align-items-center py-5">
+        <Spinner animation="border" variant="secondary" />
+      </div>
+    );
+  }
+
+  if (prs.length === 0) {
+    return (
+      <EmptyState
+        icon={config.emptyIcon}
+        title={config.emptyTitle}
+        description={config.emptyDescription}
+      />
+    );
+  }
+
+  const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
+
+  const toggleGroup = (ticket: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticket)) {
+        next.delete(ticket);
+      } else {
+        next.add(ticket);
+      }
+      return next;
+    });
+  };
+
+  // For grouped variants, group by ticket; otherwise flat list
+  const groups = config.grouped ? groupByTicket(prs) : [{ ticket: null, prs }];
 
   return (
-    <GroupedPRTable
-      prs={prs}
-      loading={loading}
-      jiraIssues={jiraIssues}
-      columnCount={isMyPRs ? 6 : 5}
-      headers={
-        isMyPRs ? (
-          <>
-            <th>PR</th>
-            <th>Title</th>
-            <th>Repository</th>
-            <th>Branch</th>
-            <th>Status</th>
-            <th>Updated</th>
-          </>
-        ) : (
-          <>
-            <th>Title</th>
-            <th>Repository</th>
-            <th>Author</th>
-            <th>Checks</th>
-            <th>Updated</th>
-          </>
-        )
-      }
-      renderRow={(pr, onClick, isGrouped) =>
-        isMyPRs ? (
-          <MyPRRow pr={pr} onClick={onClick} isGrouped={isGrouped} />
-        ) : (
-          <ReviewRequestRow pr={pr} onClick={onClick} isGrouped={isGrouped} />
-        )
-      }
-      emptyIcon={
-        isMyPRs ? <IconGitPullRequest size={40} stroke={1.5} /> : <IconEye size={40} stroke={1.5} />
-      }
-      emptyTitle={isMyPRs ? "No open pull requests" : "No review requests"}
-      emptyDescription={
-        isMyPRs
-          ? "You don't have any open pull requests at the moment."
-          : "No one has requested your review on any pull requests."
-      }
-    />
+    <>
+      <Table hover>
+        <thead>
+          <tr>
+            {columns.map((col) => (
+              <th key={col}>{HEADER_LABELS[col] || col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((group) => {
+            const isGroup = config.grouped && group.ticket !== null && group.prs.length > 1;
+            const isCollapsed = isGroup && collapsed.has(group.ticket!);
+            return (
+              <React.Fragment key={group.ticket ?? "ungrouped"}>
+                {isGroup && (
+                  <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
+                    <td colSpan={columns.length}>
+                      <span className="ticket-group-chevron">
+                        {isCollapsed ? (
+                          <IconChevronRight size={14} stroke={2} />
+                        ) : (
+                          <IconChevronDown size={14} stroke={2} />
+                        )}
+                      </span>
+                      <span className="ticket-group-label">{group.ticket}</span>
+                      {ticketTitles.get(group.ticket!.toUpperCase()) && (
+                        <span className="ticket-group-title">
+                          {ticketTitles.get(group.ticket!.toUpperCase())}
+                        </span>
+                      )}
+                      <span className="ticket-group-count">{group.prs.length} PRs</span>
+                    </td>
+                  </tr>
+                )}
+                {!isCollapsed &&
+                  group.prs.map((pr) => (
+                    <tr key={pr.id} onClick={() => setSelectedPR(pr)} style={{ cursor: "pointer" }}>
+                      {columns.map((col) =>
+                        renderCell(col, pr, { isGrouped: !!isGroup, jiraBaseUrl }),
+                      )}
+                    </tr>
+                  ))}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </Table>
+
+      <DescriptionModal
+        show={!!selectedPR}
+        onHide={() => setSelectedPR(null)}
+        title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
+        subtitle={selectedPR?.repo_full_name}
+        description={selectedPR?.body || ""}
+        url={selectedPR?.html_url}
+        checks={selectedPR?.checks}
+      />
+    </>
   );
 };

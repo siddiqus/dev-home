@@ -1,22 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-import { IconBuilding, IconSearch, IconX } from "@tabler/icons-react";
+import { IconSearch, IconX } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { fetchOrgPRs, fetchOrgMembers, OrgMember } from "../services/github";
-import { formatRelativeTime } from "../utils/time";
-import { extractTicket } from "../utils/tickets";
-import { ChecksStatusIcon } from "./ChecksStatusIcon";
-import { DescriptionModal } from "./DescriptionModal";
-import { EmptyState } from "./EmptyState";
-
-const REVIEW_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
-  APPROVED: { label: "Approved", badgeClass: "badge-status-green" },
-  CHANGES_REQUESTED: { label: "Changes Requested", badgeClass: "badge-status-red" },
-  REVIEWED: { label: "Reviewed", badgeClass: "badge-status-yellow" },
-};
+import { PRTable } from "./PRTable";
 
 interface SearchableAuthorSelectProps {
   members: OrgMember[];
@@ -181,7 +170,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   const [endCursor, setEndCursor] = useState<string | null>(null);
   const [author, setAuthor] = useState("");
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
 
   // Load org members for filter dropdown
   useEffect(() => {
@@ -242,89 +230,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
         <SearchableAuthorSelect members={members} value={author} onChange={setAuthor} />
       </div>
 
-      {prs.length === 0 && !loading ? (
-        <EmptyState
-          icon={<IconBuilding size={40} stroke={1.5} />}
-          title="No org pull requests"
-          description="No open, non-draft pull requests found for this org."
-        />
-      ) : (
-        <Table hover>
-          <thead>
-            <tr>
-              <th>Ticket</th>
-              <th>Title</th>
-              <th>Repository</th>
-              <th>Author</th>
-              <th>Status</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {prs.map((pr) => (
-              <tr key={pr.id} onClick={() => setSelectedPR(pr)} style={{ cursor: "pointer" }}>
-                <td>
-                  {(() => {
-                    const ticket = extractTicket(pr.title);
-                    if (!ticket) return <span className="text-secondary-custom">-</span>;
-                    const base = jiraBaseUrl.replace(/\/+$/, "");
-                    return (
-                      <a
-                        href={`${base}/browse/${ticket}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-secondary-custom"
-                        style={{ fontWeight: 500, whiteSpace: "nowrap" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {ticket}
-                      </a>
-                    );
-                  })()}
-                </td>
-                <td>
-                  <a
-                    href={pr.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-truncate-custom d-block"
-                    style={{ fontWeight: 500, maxWidth: 360 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {pr.title}
-                  </a>
-                </td>
-                <td>
-                  <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
-                </td>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
-                    <img src={pr.user.avatar_url} alt={pr.user.login} className="avatar-sm" />
-                    <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
-                  </div>
-                </td>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
-                    <ChecksStatusIcon status={pr.checks_status} />
-                    {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
-                      <span
-                        className={`badge ${REVIEW_STATUS_CONFIG[pr.review_status].badgeClass}`}
-                      >
-                        {REVIEW_STATUS_CONFIG[pr.review_status].label}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-                    {formatRelativeTime(pr.updated_at)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
+      <PRTable prs={prs} loading={loading} jiraBaseUrl={jiraBaseUrl} variant="org-prs" />
 
       {/* Load more button */}
       {hasNextPage && (
@@ -346,16 +252,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
           </Button>
         </div>
       )}
-
-      <DescriptionModal
-        show={!!selectedPR}
-        onHide={() => setSelectedPR(null)}
-        title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
-        subtitle={selectedPR?.repo_full_name}
-        description={selectedPR?.body || ""}
-        url={selectedPR?.html_url}
-        checks={selectedPR?.checks}
-      />
     </>
   );
 };
