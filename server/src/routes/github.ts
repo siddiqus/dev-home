@@ -573,7 +573,7 @@ const SEARCH_ORG_PRS_QUERY = `
 /**
  * GET /api/github/org-prs
  * Fetch open, non-draft PRs for the configured org, sorted by most recent.
- * Supports cursor-based pagination via ?cursor= and optional ?author= filter.
+ * Supports cursor-based pagination via ?cursor= and optional ?author= and ?repo= filters.
  */
 router.get("/org-prs", async (req: Request, res: Response) => {
   const config = getConfig();
@@ -585,9 +585,14 @@ router.get("/org-prs", async (req: Request, res: Response) => {
   }
 
   const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
+  const repo = typeof req.query.repo === "string" ? req.query.repo.trim() : "";
   const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
 
-  let q = `org:${org} type:pr state:open draft:false sort:updated-desc`;
+  // repo: and org: are mutually exclusive in GitHub search;
+  // when a specific repo is selected, scope to that repo instead of the whole org.
+  let q = repo
+    ? `repo:${repo} type:pr state:open draft:false sort:updated-desc`
+    : `org:${org} type:pr state:open draft:false sort:updated-desc`;
   if (author) {
     q += ` author:${author}`;
   }
@@ -601,9 +606,7 @@ router.get("/org-prs", async (req: Request, res: Response) => {
   });
 
   const nodes = result.search.nodes || [];
-  const prs = nodes
-    .map(mapGraphQLPr)
-    .filter((pr: any) => pr.state === "open" && !pr.draft);
+  const prs = nodes.map(mapGraphQLPr).filter((pr: any) => pr.state === "open" && !pr.draft);
 
   res.json({ prs, pageInfo: result.search.pageInfo });
 });
@@ -639,6 +642,28 @@ router.get("/org-members", async (_req: Request, res: Response) => {
 
   members.sort((a, b) => a.login.localeCompare(b.login));
   res.json({ members });
+});
+
+/**
+ * GET /api/github/org-repos
+ * Fetch the 40 most recently pushed repositories in the configured org.
+ */
+router.get("/org-repos", async (_req: Request, res: Response) => {
+  const config = getConfig();
+  const org = config.githubOrg;
+
+  if (!org) {
+    res.json({ repos: [] });
+    return;
+  }
+
+  const github = createGitHubClient();
+  const { data } = await github.get(`/orgs/${org}/repos`, {
+    params: { per_page: 40, page: 1, sort: "pushed", direction: "desc" },
+  });
+
+  const repos = data.map((r: any) => ({ full_name: r.full_name, name: r.name }));
+  res.json({ repos });
 });
 
 /**

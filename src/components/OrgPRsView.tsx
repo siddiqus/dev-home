@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Spinner from "react-bootstrap/Spinner";
-import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-import { IconSearch, IconX, IconRefresh } from "@tabler/icons-react";
+import Dropdown from "react-bootstrap/Dropdown";
+import { IconRefresh } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
-import { fetchOrgPRs, fetchOrgMembers, OrgMember } from "../services/github";
+import {
+  fetchOrgPRs,
+  fetchOrgMembers,
+  fetchOrgRepos,
+  OrgMember,
+  OrgRepo,
+} from "../services/github";
 import { PRTable } from "./PRTable";
+import { SearchableDropdown, DropdownItem } from "./SearchableDropdown";
 
 // --- localStorage caching ---
 
 const MEMBERS_CACHE_KEY = "dev-home-org-members-cache";
+const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
 const PRS_CACHE_KEY = "dev-home-org-prs-cache";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -44,158 +52,8 @@ interface PRsCacheData {
   hasNextPage: boolean;
   endCursor: string | null;
   author: string;
+  repo: string;
 }
-
-// --- SearchableAuthorSelect ---
-
-interface SearchableAuthorSelectProps {
-  members: OrgMember[];
-  value: string;
-  onChange: (login: string) => void;
-}
-
-const SearchableAuthorSelect: React.FC<SearchableAuthorSelectProps> = ({
-  members,
-  value,
-  onChange,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const filtered = useMemo(() => {
-    if (!search) return members;
-    const lower = search.toLowerCase();
-    return members.filter((m) => m.login.toLowerCase().includes(lower));
-  }, [members, search]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleSelect = (login: string) => {
-    onChange(login);
-    setSearch("");
-    setOpen(false);
-  };
-
-  const handleClear = () => {
-    onChange("");
-    setSearch("");
-    setOpen(false);
-  };
-
-  return (
-    <div ref={containerRef} style={{ position: "relative", width: 240 }}>
-      <div
-        className="d-flex align-items-center"
-        style={{
-          border: "1px solid var(--border-color, #d0d7de)",
-          borderRadius: 6,
-          padding: "2px 8px",
-          fontSize: "0.8125rem",
-          cursor: "pointer",
-          background: "var(--input-bg, #fff)",
-        }}
-        onClick={() => {
-          setOpen(!open);
-          if (!open) {
-            setTimeout(() => inputRef.current?.focus(), 0);
-          }
-        }}
-      >
-        <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
-        {open ? (
-          <Form.Control
-            ref={inputRef}
-            type="text"
-            size="sm"
-            placeholder="Search authors..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              border: "none",
-              boxShadow: "none",
-              padding: "2px 6px",
-              fontSize: "0.8125rem",
-              background: "transparent",
-            }}
-          />
-        ) : (
-          <span className="text-truncate" style={{ padding: "3px 6px", flex: 1 }}>
-            {value || "All authors"}
-          </span>
-        )}
-        {value && (
-          <IconX
-            size={14}
-            style={{ opacity: 0.5, flexShrink: 0, cursor: "pointer" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClear();
-            }}
-          />
-        )}
-      </div>
-
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            marginTop: 4,
-            border: "1px solid var(--border-color, #d0d7de)",
-            borderRadius: 6,
-            background: "var(--card-bg, #fff)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            maxHeight: 240,
-            overflowY: "auto",
-          }}
-        >
-          <div
-            className={`d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
-            style={{ cursor: "pointer", fontSize: "0.8125rem" }}
-            onMouseDown={() => handleSelect("")}
-          >
-            All authors
-          </div>
-          {filtered.map((m) => (
-            <div
-              key={m.login}
-              className={`d-flex align-items-center gap-2 px-3 py-2 ${value === m.login ? "fw-bold" : ""}`}
-              style={{ cursor: "pointer", fontSize: "0.8125rem" }}
-              onMouseDown={() => handleSelect(m.login)}
-            >
-              <img
-                src={m.avatar_url}
-                alt={m.login}
-                className="avatar-sm"
-                style={{ width: 18, height: 18 }}
-              />
-              {m.login}
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>
-              No matches
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // --- OrgPRsView ---
 
@@ -207,6 +65,7 @@ interface OrgPRsViewProps {
 export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl }) => {
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
+  const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
 
   const [prs, setPrs] = useState<GitHubPR[]>(cachedPRs.current?.prs ?? []);
   const [loading, setLoading] = useState(false);
@@ -214,9 +73,11 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   const [hasNextPage, setHasNextPage] = useState(cachedPRs.current?.hasNextPage ?? false);
   const [endCursor, setEndCursor] = useState<string | null>(cachedPRs.current?.endCursor ?? null);
   const [author, setAuthor] = useState(cachedPRs.current?.author ?? "");
+  const [repo, setRepo] = useState(cachedPRs.current?.repo ?? "");
   const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
+  const [repos, setRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
 
-  // Load org members (from cache or network)
+  // Load org members
   const loadMembers = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
@@ -232,25 +93,45 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
     [configured, members.length],
   );
 
+  // Load org repos
+  const loadRepos = useCallback(
+    async (skipCache = false) => {
+      if (!configured) return;
+      if (!skipCache && repos.length > 0) return;
+      try {
+        const data = await fetchOrgRepos();
+        setRepos(data);
+        saveCache(REPOS_CACHE_KEY, data);
+      } catch (err) {
+        console.error("Failed to fetch org repos:", err);
+      }
+    },
+    [configured, repos.length],
+  );
+
   useEffect(() => {
     loadMembers();
-  }, [loadMembers]);
+    loadRepos();
+  }, [loadMembers, loadRepos]);
 
-  // Fetch first page when author filter changes
+  // Fetch first page when filters change
   const fetchFirstPage = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
 
-      // Use cache if available and author matches
-      if (!skipCache && cachedPRs.current && cachedPRs.current.author === author) {
-        // Already initialized from cache in useState
-        cachedPRs.current = null; // consume cache so subsequent calls fetch fresh
+      if (
+        !skipCache &&
+        cachedPRs.current &&
+        cachedPRs.current.author === author &&
+        cachedPRs.current.repo === repo
+      ) {
+        cachedPRs.current = null;
         return;
       }
 
       setLoading(true);
       try {
-        const result = await fetchOrgPRs(undefined, author);
+        const result = await fetchOrgPRs(undefined, author, repo);
         setPrs(result.prs);
         setHasNextPage(result.pageInfo.hasNextPage);
         setEndCursor(result.pageInfo.endCursor);
@@ -259,6 +140,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
           hasNextPage: result.pageInfo.hasNextPage,
           endCursor: result.pageInfo.endCursor,
           author,
+          repo,
         });
       } catch (err) {
         console.error("Failed to fetch org PRs:", err);
@@ -266,7 +148,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
         setLoading(false);
       }
     },
-    [configured, author],
+    [configured, author, repo],
   );
 
   useEffect(() => {
@@ -278,7 +160,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
     if (!hasNextPage || !endCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const result = await fetchOrgPRs(endCursor, author);
+      const result = await fetchOrgPRs(endCursor, author, repo);
       const merged = [...prs, ...result.prs];
       setPrs(merged);
       setHasNextPage(result.pageInfo.hasNextPage);
@@ -288,22 +170,52 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
         hasNextPage: result.pageInfo.hasNextPage,
         endCursor: result.pageInfo.endCursor,
         author,
+        repo,
       });
     } catch (err) {
       console.error("Failed to fetch more org PRs:", err);
     } finally {
       setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, author, loadingMore, prs]);
+  }, [hasNextPage, endCursor, author, repo, loadingMore, prs]);
 
-  // Refresh: clear cache and re-fetch everything
-  const handleRefresh = useCallback(() => {
+  // Refresh handlers
+  const refreshPRs = useCallback(() => {
+    cachedPRs.current = null;
+    localStorage.removeItem(PRS_CACHE_KEY);
+    fetchFirstPage(true);
+  }, [fetchFirstPage]);
+
+  const refreshMembers = useCallback(() => {
+    localStorage.removeItem(MEMBERS_CACHE_KEY);
+    loadMembers(true);
+  }, [loadMembers]);
+
+  const refreshRepos = useCallback(() => {
+    localStorage.removeItem(REPOS_CACHE_KEY);
+    loadRepos(true);
+  }, [loadRepos]);
+
+  const refreshAll = useCallback(() => {
     cachedPRs.current = null;
     localStorage.removeItem(PRS_CACHE_KEY);
     localStorage.removeItem(MEMBERS_CACHE_KEY);
+    localStorage.removeItem(REPOS_CACHE_KEY);
     loadMembers(true);
+    loadRepos(true);
     fetchFirstPage(true);
-  }, [loadMembers, fetchFirstPage]);
+  }, [loadMembers, loadRepos, fetchFirstPage]);
+
+  // Dropdown items
+  const authorItems = useMemo<DropdownItem[]>(
+    () => members.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),
+    [members],
+  );
+
+  const repoItems = useMemo<DropdownItem[]>(
+    () => repos.map((r) => ({ value: r.full_name, label: r.name })),
+    [repos],
+  );
 
   if (loading && prs.length === 0) {
     return (
@@ -315,24 +227,56 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
 
   return (
     <>
-      {/* Toolbar: author filter (left) + refresh (right) */}
+      {/* Toolbar: filters (left) + refresh (right) */}
       <div className="d-flex align-items-center justify-content-between mb-3">
-        <SearchableAuthorSelect members={members} value={author} onChange={setAuthor} />
+        <div className="d-flex align-items-center gap-2">
+          <SearchableDropdown
+            items={authorItems}
+            value={author}
+            onChange={setAuthor}
+            placeholder="Search authors..."
+            allLabel="All authors"
+          />
+          <SearchableDropdown
+            items={repoItems}
+            value={repo}
+            onChange={setRepo}
+            placeholder="Search repos..."
+            allLabel="All repos"
+          />
+        </div>
         <div className="d-flex align-items-center gap-2">
           {loading && <Spinner animation="border" size="sm" variant="secondary" />}
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading}
-            title="Refresh"
-          >
-            <IconRefresh size={14} />
-          </Button>
+          <Dropdown align="end">
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              size="sm"
+              id="org-prs-refresh"
+              disabled={loading}
+              title="Refresh"
+            >
+              <IconRefresh size={14} />
+            </Dropdown.Toggle>
+            <Dropdown.Menu style={{ fontSize: "0.8125rem" }}>
+              <Dropdown.Item onClick={refreshAll}>Refresh all</Dropdown.Item>
+              <Dropdown.Divider />
+              <Dropdown.Item onClick={refreshPRs}>Refresh PRs</Dropdown.Item>
+              <Dropdown.Item onClick={refreshMembers}>Refresh members</Dropdown.Item>
+              <Dropdown.Item onClick={refreshRepos}>Refresh repos</Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
         </div>
       </div>
 
-      <PRTable prs={prs} loading={loading} jiraBaseUrl={jiraBaseUrl} variant="org-prs" />
+      <div
+        style={{
+          opacity: loading && prs.length > 0 ? 0.45 : 1,
+          pointerEvents: loading && prs.length > 0 ? "none" : "auto",
+          transition: "opacity 0.15s ease",
+        }}
+      >
+        <PRTable prs={prs} loading={loading} jiraBaseUrl={jiraBaseUrl} variant="org-prs" />
+      </div>
 
       {/* Load more button */}
       {hasNextPage && (

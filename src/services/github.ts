@@ -21,10 +21,15 @@ export interface OrgPRsPage {
   pageInfo: { hasNextPage: boolean; endCursor: string | null };
 }
 
-export async function fetchOrgPRs(cursor?: string, author?: string): Promise<OrgPRsPage> {
+export async function fetchOrgPRs(
+  cursor?: string,
+  author?: string,
+  repo?: string,
+): Promise<OrgPRsPage> {
   const params: Record<string, string> = {};
   if (cursor) params.cursor = cursor;
   if (author) params.author = author;
+  if (repo) params.repo = repo;
   const { data } = await apiClient.get("/github/org-prs", { params });
   return data;
 }
@@ -37,4 +42,14 @@ export interface OrgMember {
 export async function fetchOrgMembers(): Promise<OrgMember[]> {
   const { data } = await apiClient.get("/github/org-members");
   return data.members;
+}
+
+export interface OrgRepo {
+  full_name: string;
+  name: string;
+}
+
+export async function fetchOrgRepos(): Promise<OrgRepo[]> {
+  const { data } = await apiClient.get("/github/org-repos");
+  return data.repos;
 }
