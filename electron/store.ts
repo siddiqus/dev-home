@@ -6,6 +6,7 @@ interface Settings {
   jiraApiToken: string;
   githubToken: string;
   githubUsername: string;
+  githubOrg: string;
 }
 
 const store = new Store<Settings>({
@@ -31,6 +32,10 @@ const store = new Store<Settings>({
       type: "string",
       default: "",
     },
+    githubOrg: {
+      type: "string",
+      default: "",
+    },
   },
 });
 
@@ -41,6 +46,7 @@ export function getSettings(): Settings {
     jiraApiToken: store.get("jiraApiToken"),
     githubToken: store.get("githubToken"),
     githubUsername: store.get("githubUsername"),
+    githubOrg: store.get("githubOrg"),
   };
 }
 
@@ -50,6 +56,7 @@ export function setSettings(settings: Partial<Settings>): void {
   if (settings.jiraApiToken !== undefined) store.set("jiraApiToken", settings.jiraApiToken);
   if (settings.githubToken !== undefined) store.set("githubToken", settings.githubToken);
   if (settings.githubUsername !== undefined) store.set("githubUsername", settings.githubUsername);
+  if (settings.githubOrg !== undefined) store.set("githubOrg", settings.githubOrg);
 }
 
 export function isConfigured(): boolean {

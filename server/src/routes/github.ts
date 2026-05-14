@@ -509,6 +509,139 @@ function extractOwnPRComments(prNodes: any[], username: string): any[] {
 }
 
 /**
+ * GraphQL query for org PRs with cursor-based pagination.
+ */
+const SEARCH_ORG_PRS_QUERY = `
+  query SearchOrgPRs($query: String!, $first: Int!, $after: String) {
+    search(query: $query, type: ISSUE, first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ... on PullRequest {
+          databaseId
+          number
+          title
+          url
+          state
+          isDraft
+          createdAt
+          updatedAt
+          author { login avatarUrl }
+          body
+          headRefName
+          baseRefName
+          repository { nameWithOwner url }
+          commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  state
+                  contexts(first: 50) {
+                    nodes {
+                      ... on CheckRun {
+                        name
+                        conclusion
+                        status
+                        detailsUrl
+                      }
+                      ... on StatusContext {
+                        context
+                        state
+                        targetUrl
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          reviews(last: 20) {
+            nodes {
+              state
+              author { login avatarUrl }
+              submittedAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * GET /api/github/org-prs
+ * Fetch open, non-draft PRs for the configured org, sorted by most recent.
+ * Supports cursor-based pagination via ?cursor= and optional ?author= filter.
+ */
+router.get("/org-prs", async (req: Request, res: Response) => {
+  const config = getConfig();
+  const org = config.githubOrg;
+
+  if (!org) {
+    res.json({ prs: [], pageInfo: { hasNextPage: false, endCursor: null } });
+    return;
+  }
+
+  const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
+  const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+
+  let q = `org:${org} type:pr state:open draft:false sort:updated-desc`;
+  if (author) {
+    q += ` author:${author}`;
+  }
+
+  const result = await graphql<{
+    search: { nodes: any[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+  }>(SEARCH_ORG_PRS_QUERY, {
+    query: q,
+    first: 10,
+    after: cursor || null,
+  });
+
+  const nodes = result.search.nodes || [];
+  const prs = nodes
+    .map(mapGraphQLPr)
+    .filter((pr: any) => pr.state === "open" && !pr.draft);
+
+  res.json({ prs, pageInfo: result.search.pageInfo });
+});
+
+/**
+ * GET /api/github/org-members
+ * Fetch members of the configured org for the author filter dropdown.
+ */
+router.get("/org-members", async (_req: Request, res: Response) => {
+  const config = getConfig();
+  const org = config.githubOrg;
+
+  if (!org) {
+    res.json({ members: [] });
+    return;
+  }
+
+  const github = createGitHubClient();
+  const members: Array<{ login: string; avatar_url: string }> = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    const { data } = await github.get(`/orgs/${org}/members`, {
+      params: { per_page: perPage, page },
+    });
+    for (const m of data) {
+      members.push({ login: m.login, avatar_url: m.avatar_url });
+    }
+    if (data.length < perPage) break;
+    page++;
+  }
+
+  members.sort((a, b) => a.login.localeCompare(b.login));
+  res.json({ members });
+});
+
+/**
  * GET /api/github/mentions
  * Fetch GitHub mentions from the notifications API (participating, all, 2-month window).
  * Note: comments on the user's own PRs are returned by GET /api/github/prs as pr_comments

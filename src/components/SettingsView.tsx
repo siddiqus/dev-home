@@ -24,6 +24,7 @@ const EMPTY_SETTINGS: AppSettings = {
   jiraApiToken: "",
   githubToken: "",
   githubUsername: "",
+  githubOrg: "",
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -217,7 +218,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             />
           </Form.Group>
 
-          <Form.Group className="mb-0">
+          <Form.Group className="mb-3">
             <Form.Label className="text-secondary-custom" style={labelStyle}>
               GitHub Username
             </Form.Label>
@@ -228,6 +229,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onChange={handleChange("githubUsername")}
               size="sm"
             />
+          </Form.Group>
+
+          <Form.Group className="mb-0">
+            <Form.Label className="text-secondary-custom" style={labelStyle}>
+              GitHub Org
+            </Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="your-github-org"
+              value={formState.githubOrg}
+              onChange={handleChange("githubOrg")}
+              size="sm"
+            />
+            <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+              Optional. Used to browse all open PRs across the org.
+            </Form.Text>
           </Form.Group>
         </Card.Body>
       </Card>

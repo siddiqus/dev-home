@@ -31,7 +31,8 @@ router.get("/", (_req: Request, res: Response) => {
  * Accepts runtime configuration from the frontend.
  */
 router.post("/", (req: Request, res: Response) => {
-  const { jiraBaseUrl, jiraEmail, jiraApiToken, githubToken, githubUsername } = req.body || {};
+  const { jiraBaseUrl, jiraEmail, jiraApiToken, githubToken, githubUsername, githubOrg } =
+    req.body || {};
 
   const fields: Record<string, unknown> = {
     jiraBaseUrl,
@@ -61,6 +62,7 @@ router.post("/", (req: Request, res: Response) => {
     jiraApiToken: jiraApiToken as string,
     githubToken: githubToken as string,
     githubUsername: githubUsername as string,
+    githubOrg: typeof githubOrg === "string" ? githubOrg.trim() : "",
   });
 
   res.json({ success: true });

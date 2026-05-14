@@ -17,6 +17,7 @@ import {
   IconAt,
   IconGitPullRequest,
   IconEye,
+  IconBuilding,
   IconChevronsLeft,
   IconChevronsRight,
 } from "@tabler/icons-react";
@@ -36,6 +37,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./components/KanbanBoard";
+import { OrgPRsView } from "./components/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
 
 export default function App() {
@@ -200,6 +202,12 @@ export default function App() {
                 icon: IconEye,
                 count: reviewRequests.length,
               },
+              {
+                key: "org-prs",
+                label: "Org PRs",
+                icon: IconBuilding,
+                count: undefined,
+              },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -325,6 +333,9 @@ export default function App() {
                     jiraIssues={jiraIssues}
                     variant="review-requests"
                   />
+                )}
+                {effectiveTab === "org-prs" && (
+                  <OrgPRsView configured={configured} jiraBaseUrl={jiraBaseUrl} />
                 )}
                 {effectiveTab === "notes" && (
                   <PersonalNotes

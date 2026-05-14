@@ -4,6 +4,7 @@ export interface ServerConfig {
   jiraApiToken: string;
   githubToken: string;
   githubUsername: string;
+  githubOrg: string;
   port: number;
 }
 
@@ -52,6 +53,7 @@ export function getConfig(): ServerConfig {
     jiraApiToken: process.env.JIRA_API_TOKEN!,
     githubToken: process.env.GITHUB_TOKEN!,
     githubUsername: process.env.GITHUB_USERNAME!,
+    githubOrg: process.env.GITHUB_ORG || "",
     port: parseInt(process.env.VITE_API_PORT || "3571", 10),
   };
 }
