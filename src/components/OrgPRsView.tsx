@@ -2,10 +2,51 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Spinner from "react-bootstrap/Spinner";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { IconSearch, IconX, IconRefresh } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { fetchOrgPRs, fetchOrgMembers, OrgMember } from "../services/github";
 import { PRTable } from "./PRTable";
+
+// --- localStorage caching ---
+
+const MEMBERS_CACHE_KEY = "dev-home-org-members-cache";
+const PRS_CACHE_KEY = "dev-home-org-prs-cache";
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+function loadCache<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const entry: CacheEntry<T> = JSON.parse(raw);
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) return null;
+    return entry.data;
+  } catch {
+    return null;
+  }
+}
+
+function saveCache<T>(key: string, data: T): void {
+  try {
+    const entry: CacheEntry<T> = { data, timestamp: Date.now() };
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+interface PRsCacheData {
+  prs: GitHubPR[];
+  hasNextPage: boolean;
+  endCursor: string | null;
+  author: string;
+}
+
+// --- SearchableAuthorSelect ---
 
 interface SearchableAuthorSelectProps {
   members: OrgMember[];
@@ -29,7 +70,6 @@ const SearchableAuthorSelect: React.FC<SearchableAuthorSelectProps> = ({
     return members.filter((m) => m.login.toLowerCase().includes(lower));
   }, [members, search]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -157,43 +197,77 @@ const SearchableAuthorSelect: React.FC<SearchableAuthorSelectProps> = ({
   );
 };
 
+// --- OrgPRsView ---
+
 interface OrgPRsViewProps {
   configured: boolean;
   jiraBaseUrl: string;
 }
 
 export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl }) => {
-  const [prs, setPrs] = useState<GitHubPR[]>([]);
+  const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
+  const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
+
+  const [prs, setPrs] = useState<GitHubPR[]>(cachedPRs.current?.prs ?? []);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [endCursor, setEndCursor] = useState<string | null>(null);
-  const [author, setAuthor] = useState("");
-  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [hasNextPage, setHasNextPage] = useState(cachedPRs.current?.hasNextPage ?? false);
+  const [endCursor, setEndCursor] = useState<string | null>(cachedPRs.current?.endCursor ?? null);
+  const [author, setAuthor] = useState(cachedPRs.current?.author ?? "");
+  const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
 
-  // Load org members for filter dropdown
+  // Load org members (from cache or network)
+  const loadMembers = useCallback(
+    async (skipCache = false) => {
+      if (!configured) return;
+      if (!skipCache && members.length > 0) return;
+      try {
+        const data = await fetchOrgMembers();
+        setMembers(data);
+        saveCache(MEMBERS_CACHE_KEY, data);
+      } catch (err) {
+        console.error("Failed to fetch org members:", err);
+      }
+    },
+    [configured, members.length],
+  );
+
   useEffect(() => {
-    if (!configured) return;
-    fetchOrgMembers()
-      .then(setMembers)
-      .catch((err) => console.error("Failed to fetch org members:", err));
-  }, [configured]);
+    loadMembers();
+  }, [loadMembers]);
 
   // Fetch first page when author filter changes
-  const fetchFirstPage = useCallback(async () => {
-    if (!configured) return;
-    setLoading(true);
-    try {
-      const result = await fetchOrgPRs(undefined, author);
-      setPrs(result.prs);
-      setHasNextPage(result.pageInfo.hasNextPage);
-      setEndCursor(result.pageInfo.endCursor);
-    } catch (err) {
-      console.error("Failed to fetch org PRs:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [configured, author]);
+  const fetchFirstPage = useCallback(
+    async (skipCache = false) => {
+      if (!configured) return;
+
+      // Use cache if available and author matches
+      if (!skipCache && cachedPRs.current && cachedPRs.current.author === author) {
+        // Already initialized from cache in useState
+        cachedPRs.current = null; // consume cache so subsequent calls fetch fresh
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await fetchOrgPRs(undefined, author);
+        setPrs(result.prs);
+        setHasNextPage(result.pageInfo.hasNextPage);
+        setEndCursor(result.pageInfo.endCursor);
+        saveCache(PRS_CACHE_KEY, {
+          prs: result.prs,
+          hasNextPage: result.pageInfo.hasNextPage,
+          endCursor: result.pageInfo.endCursor,
+          author,
+        });
+      } catch (err) {
+        console.error("Failed to fetch org PRs:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [configured, author],
+  );
 
   useEffect(() => {
     fetchFirstPage();
@@ -205,15 +279,31 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
     setLoadingMore(true);
     try {
       const result = await fetchOrgPRs(endCursor, author);
-      setPrs((prev) => [...prev, ...result.prs]);
+      const merged = [...prs, ...result.prs];
+      setPrs(merged);
       setHasNextPage(result.pageInfo.hasNextPage);
       setEndCursor(result.pageInfo.endCursor);
+      saveCache(PRS_CACHE_KEY, {
+        prs: merged,
+        hasNextPage: result.pageInfo.hasNextPage,
+        endCursor: result.pageInfo.endCursor,
+        author,
+      });
     } catch (err) {
       console.error("Failed to fetch more org PRs:", err);
     } finally {
       setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, author, loadingMore]);
+  }, [hasNextPage, endCursor, author, loadingMore, prs]);
+
+  // Refresh: clear cache and re-fetch everything
+  const handleRefresh = useCallback(() => {
+    cachedPRs.current = null;
+    localStorage.removeItem(PRS_CACHE_KEY);
+    localStorage.removeItem(MEMBERS_CACHE_KEY);
+    loadMembers(true);
+    fetchFirstPage(true);
+  }, [loadMembers, fetchFirstPage]);
 
   if (loading && prs.length === 0) {
     return (
@@ -225,9 +315,21 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
 
   return (
     <>
-      {/* Author filter */}
-      <div className="d-flex align-items-center gap-2 mb-3">
+      {/* Toolbar: author filter (left) + refresh (right) */}
+      <div className="d-flex align-items-center justify-content-between mb-3">
         <SearchableAuthorSelect members={members} value={author} onChange={setAuthor} />
+        <div className="d-flex align-items-center gap-2">
+          {loading && <Spinner animation="border" size="sm" variant="secondary" />}
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            title="Refresh"
+          >
+            <IconRefresh size={14} />
+          </Button>
+        </div>
       </div>
 
       <PRTable prs={prs} loading={loading} jiraBaseUrl={jiraBaseUrl} variant="org-prs" />
