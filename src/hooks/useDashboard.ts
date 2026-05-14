@@ -175,7 +175,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       })
       .catch((err) => {
         setJiraIssuesLoading(false);
-        settle(err?.message || String(err));
+        settle(`JIRA Issues: ${err?.message || String(err)}`);
       });
 
     fetchRecentMentions()
@@ -188,7 +188,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       })
       .catch((err) => {
         setJiraCommentsLoading(false);
-        settle(err?.message || String(err));
+        settle(`JIRA Mentions: ${err?.message || String(err)}`);
       });
 
     fetchOpenPRs()
@@ -203,7 +203,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       })
       .catch((err) => {
         setOpenPRsLoading(false);
-        settle(err?.message || String(err));
+        settle(`GitHub PRs: ${err?.message || String(err)}`);
       });
 
     fetchReviewRequests()
@@ -216,7 +216,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       })
       .catch((err) => {
         setReviewRequestsLoading(false);
-        settle(err?.message || String(err));
+        settle(`GitHub Reviews: ${err?.message || String(err)}`);
       });
 
     fetchMentions()
@@ -229,7 +229,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       })
       .catch((err) => {
         setGithubMentionsLoading(false);
-        settle(err?.message || String(err));
+        settle(`GitHub Mentions: ${err?.message || String(err)}`);
       });
   }, [active]);
 

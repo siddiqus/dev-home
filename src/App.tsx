@@ -240,7 +240,14 @@ export default function App() {
             {/* Error alert */}
             {error && (
               <Alert variant="danger" className="small" dismissible>
-                {error}
+                <Alert.Heading className="h6 mb-1" style={{ fontSize: "0.8125rem" }}>
+                  Some data failed to load
+                </Alert.Heading>
+                <ul className="mb-0 ps-3">
+                  {error.split("; ").map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
               </Alert>
             )}
 
