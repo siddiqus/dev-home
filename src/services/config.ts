@@ -60,12 +60,14 @@ export async function fetchBackendConfig(): Promise<{
   configured: boolean;
   jiraBaseUrl: string;
   githubUsername: string;
+  githubOrg: string;
 }> {
   const { data } = await apiClient.get("/config");
   return {
     configured: data.configured,
     jiraBaseUrl: data.jiraBaseUrl,
     githubUsername: data.githubUsername,
+    githubOrg: data.githubOrg || "",
   };
 }
 

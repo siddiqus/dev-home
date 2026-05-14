@@ -73,6 +73,7 @@ export default function App() {
     backendOnline,
     jiraBaseUrl,
     githubUsername,
+    githubOrg,
     saveSettings,
   } = useConfig();
   const {
@@ -202,12 +203,16 @@ export default function App() {
                 icon: IconEye,
                 count: reviewRequests.length,
               },
-              {
-                key: "org-prs",
-                label: "Org PRs",
-                icon: IconBuilding,
-                count: undefined,
-              },
+              ...(githubOrg
+                ? [
+                    {
+                      key: "org-prs",
+                      label: "Org PRs",
+                      icon: IconBuilding,
+                      count: undefined,
+                    },
+                  ]
+                : []),
             ].map((tab) => (
               <button
                 key={tab.key}

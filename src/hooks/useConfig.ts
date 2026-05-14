@@ -15,6 +15,7 @@ interface UseConfigReturn {
   backendOnline: boolean;
   jiraBaseUrl: string;
   githubUsername: string;
+  githubOrg: string;
   saveSettings: (settings: AppSettings) => Promise<void>;
   refreshConfig: () => void;
 }
@@ -25,6 +26,7 @@ export function useConfig(): UseConfigReturn {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
   const [githubUsername, setGithubUsername] = useState<string>("");
+  const [githubOrg, setGithubOrg] = useState<string>("");
 
   const init = useCallback(async () => {
     try {
@@ -60,6 +62,7 @@ export function useConfig(): UseConfigReturn {
         setConfigured(config.configured);
         setJiraBaseUrl(config.jiraBaseUrl);
         setGithubUsername(config.githubUsername);
+        setGithubOrg(config.githubOrg);
       }
     } catch (err) {
       console.error("Failed to initialize config:", err);
@@ -91,6 +94,7 @@ export function useConfig(): UseConfigReturn {
     backendOnline,
     jiraBaseUrl,
     githubUsername,
+    githubOrg,
     saveSettings,
     refreshConfig,
   };

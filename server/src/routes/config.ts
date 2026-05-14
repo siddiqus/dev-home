@@ -10,11 +10,13 @@ const router = Router();
 router.get("/", (_req: Request, res: Response) => {
   let jiraBaseUrl = "";
   let githubUsername = "";
+  let githubOrg = "";
 
   try {
     const config = getConfig();
     jiraBaseUrl = config.jiraBaseUrl;
     githubUsername = config.githubUsername;
+    githubOrg = config.githubOrg;
   } catch {
     // Config not available yet — fall back to empty strings
   }
@@ -23,6 +25,7 @@ router.get("/", (_req: Request, res: Response) => {
     configured: isConfigured(),
     jiraBaseUrl: jiraBaseUrl.replace(/\/+$/, ""),
     githubUsername,
+    githubOrg,
   });
 });
 
