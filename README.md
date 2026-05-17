@@ -20,6 +20,41 @@ cd server && yarn install && cd ..
 
 JIRA and GitHub credentials can be configured from the in-app settings.
 
+## Required Token Permissions
+
+### GitHub Personal Access Token
+
+Create a **fine-grained** or **classic** personal access token at https://github.com/settings/tokens with the following scopes:
+
+| Scope (Classic Token) | Why it's needed |
+|---|---|
+| `repo` | Read PR details, commits, check statuses, and review threads across public and private repos |
+| `read:org` | List organization members and repositories |
+| `notifications` | Read your GitHub notifications (mentions, review requests, etc.) |
+
+If using a **fine-grained token**, grant these repository permissions:
+
+| Permission | Access | Why it's needed |
+|---|---|---|
+| Pull requests | Read | Search and read PRs you authored or are asked to review |
+| Checks | Read | Read CI/check-suite status on PRs |
+| Contents | Read | Access repository metadata and release info |
+| Metadata | Read | Required for all fine-grained tokens |
+| Members | Read (org-level) | List organization members |
+| Notifications | Read (account-level) | Read your notifications |
+
+### Jira API Token
+
+Create an API token at https://id.atlassian.com/manage-profile/security/api-tokens. The token inherits the permissions of the Atlassian account it belongs to. The app needs:
+
+| Capability | Why it's needed |
+|---|---|
+| Browse projects | Search for issues assigned to you |
+| Browse issues | Read issue details (summary, status, priority, etc.) |
+| Read comments | Fetch comments on issues to find mentions of your name/email |
+
+No write permissions are required — the app only reads data from both GitHub and Jira.
+
 ## Development
 
 Run the frontend and backend concurrently:
