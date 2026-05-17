@@ -34,6 +34,54 @@ export async function fetchOrgPRs(
   return data;
 }
 
+/**
+ * Fetch PRs across multiple repos in a single GraphQL query using aliased repository() calls.
+ * Optionally filter by a single author on the backend.
+ */
+async function fetchOrgPRsMultiRepo(repos: string[], author?: string): Promise<GitHubPR[]> {
+  const params: Record<string, string> = { repos: repos.join(",") };
+  if (author) params.author = author;
+  const { data } = await apiClient.get("/github/org-prs-multi-repo", { params });
+  return data.prs;
+}
+
+function dedupeAndSort(prs: GitHubPR[]): GitHubPR[] {
+  const seen = new Set<number>();
+  const unique: GitHubPR[] = [];
+  for (const pr of prs) {
+    if (!seen.has(pr.id)) {
+      seen.add(pr.id);
+      unique.push(pr);
+    }
+  }
+  unique.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  return unique;
+}
+
+/**
+ * Fetch org PRs for multiple authors and/or repos using AND semantics:
+ * a PR is included if it matches ANY selected author AND is in ANY selected repo.
+ * Fans out per-author calls, each scoped to the selected repos.
+ */
+export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Promise<GitHubPR[]> {
+  const hasMultiRepos = repos.length > 1;
+  const authorCombos = authors.length > 0 ? authors : [""];
+
+  const calls: Promise<GitHubPR[]>[] = [];
+  for (const author of authorCombos) {
+    if (hasMultiRepos) {
+      calls.push(fetchOrgPRsMultiRepo(repos, author || undefined));
+    } else {
+      calls.push(
+        fetchOrgPRs(undefined, author || undefined, repos[0] || undefined).then((r) => r.prs),
+      );
+    }
+  }
+
+  const results = await Promise.all(calls);
+  return dedupeAndSort(results.flat());
+}
+
 export interface OrgMember {
   login: string;
   avatar_url: string;

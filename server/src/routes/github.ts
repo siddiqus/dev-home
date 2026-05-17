@@ -612,6 +612,116 @@ router.get("/org-prs", async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/github/org-prs-multi-repo
+ * Fetch open, non-draft PRs across multiple repos using aliased repository() GraphQL queries.
+ * Accepts ?repos=owner/repo1,owner/repo2 and optional ?author=login (single).
+ */
+router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
+  const repoParam = typeof req.query.repos === "string" ? req.query.repos.trim() : "";
+  const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
+
+  const repoList = repoParam
+    ? repoParam
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean)
+    : [];
+  if (repoList.length === 0) {
+    res.json({ prs: [] });
+    return;
+  }
+
+  // Build PR fragment for each repo
+  const prFragment = `
+    fragment PRFields on PullRequest {
+      databaseId
+      number
+      title
+      url
+      state
+      isDraft
+      createdAt
+      updatedAt
+      author { login avatarUrl }
+      body
+      headRefName
+      baseRefName
+      repository { nameWithOwner url }
+      commits(last: 1) {
+        nodes {
+          commit {
+            statusCheckRollup {
+              state
+              contexts(first: 50) {
+                nodes {
+                  ... on CheckRun {
+                    name
+                    conclusion
+                    status
+                    detailsUrl
+                  }
+                  ... on StatusContext {
+                    context
+                    state
+                    targetUrl
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      reviews(last: 20) {
+        nodes {
+          state
+          author { login avatarUrl }
+          submittedAt
+        }
+      }
+    }
+  `;
+
+  // Build aliased repository queries
+  const repoQueries = repoList.map((fullName, i) => {
+    const [owner, name] = fullName.split("/");
+    return `repo${i}: repository(owner: "${owner}", name: "${name}") {
+      pullRequests(states: OPEN, first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        nodes { ...PRFields }
+      }
+    }`;
+  });
+
+  const query = `
+    ${prFragment}
+    query MultiRepoPRs {
+      ${repoQueries.join("\n      ")}
+    }
+  `;
+
+  const result = await graphql<Record<string, any>>(query);
+
+  // Collect all PRs from all repos
+  const allPrs: any[] = [];
+  for (const key of Object.keys(result)) {
+    const nodes = result[key]?.pullRequests?.nodes || [];
+    allPrs.push(...nodes);
+  }
+
+  let prs = allPrs.map(mapGraphQLPr).filter((pr: any) => pr.state === "open" && !pr.draft);
+
+  // Filter by author if specified
+  if (author) {
+    const authorLower = author.toLowerCase();
+    prs = prs.filter((pr: any) => pr.user.login.toLowerCase() === authorLower);
+  }
+
+  // Sort by updated_at descending
+  prs.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  res.json({ prs });
+});
+
+/**
  * GET /api/github/org-members
  * Fetch members of the configured org for the author filter dropdown.
  */

@@ -1,0 +1,73 @@
+.saved-filter-item {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.saved-filter-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.saved-filter-meta {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.saved-filter-delete {
+  opacity: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.saved-filter-item:hover .saved-filter-delete {
+  opacity: 1;
+}
+
+.saved-filter-delete:hover {
+  color: #f85149;
+}
+
+[data-theme="light"] .saved-filter-delete:hover {
+  color: #cf222e;
+}
+
+.save-filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.save-filter-inline input {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 28px;
+  font-size: 0.8125rem;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  width: 140px;
+}
+
+.save-filter-inline input:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+[data-theme="light"] .save-filter-inline input:focus {
+  border-color: #0969da;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
+}

@@ -6,19 +6,23 @@ import { IconRefresh } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import {
   fetchOrgPRs,
+  fetchOrgPRsMulti,
   fetchOrgMembers,
   fetchOrgRepos,
   OrgMember,
   OrgRepo,
 } from "../services/github";
 import { PRTable } from "./PRTable";
-import { SearchableDropdown, DropdownItem } from "./SearchableDropdown";
+import { DropdownItem } from "./SearchableDropdown";
+import { MultiSelectDropdown } from "./MultiSelectDropdown";
+import { SavedFiltersDropdown, SavedFilter } from "./SavedFiltersDropdown";
+import { fetchSavedFilters, createSavedFilter, deleteSavedFilter } from "../services/filters";
 
 // --- localStorage caching ---
 
 const MEMBERS_CACHE_KEY = "dev-home-org-members-cache";
 const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
-const PRS_CACHE_KEY = "dev-home-org-prs-cache";
+const PRS_CACHE_KEY = "dev-home-org-prs-cache-v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface CacheEntry<T> {
@@ -51,8 +55,15 @@ interface PRsCacheData {
   prs: GitHubPR[];
   hasNextPage: boolean;
   endCursor: string | null;
-  author: string;
-  repo: string;
+  authors: string[];
+  repos: string[];
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
 }
 
 // --- OrgPRsView ---
@@ -72,10 +83,29 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(cachedPRs.current?.hasNextPage ?? false);
   const [endCursor, setEndCursor] = useState<string | null>(cachedPRs.current?.endCursor ?? null);
-  const [author, setAuthor] = useState(cachedPRs.current?.author ?? "");
-  const [repo, setRepo] = useState(cachedPRs.current?.repo ?? "");
+  const [authors, setAuthors] = useState<string[]>(cachedPRs.current?.authors ?? []);
+  const [selectedRepos, setSelectedRepos] = useState<string[]>(cachedPRs.current?.repos ?? []);
   const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
-  const [repos, setRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
+  const [orgRepos, setOrgRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
+
+  // Saved filters
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+
+  // Load saved filters from API
+  useEffect(() => {
+    fetchSavedFilters()
+      .then((filters) => {
+        setSavedFilters(
+          filters.map((f) => ({
+            id: f.id,
+            name: f.name,
+            authors: f.filter_config.authors ?? [],
+            repos: f.filter_config.repos ?? [],
+          })),
+        );
+      })
+      .catch((err) => console.error("Failed to load saved filters:", err));
+  }, []);
 
   // Load org members
   const loadMembers = useCallback(
@@ -97,22 +127,30 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   const loadRepos = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
-      if (!skipCache && repos.length > 0) return;
+      if (!skipCache && orgRepos.length > 0) return;
       try {
         const data = await fetchOrgRepos();
-        setRepos(data);
+        setOrgRepos(data);
         saveCache(REPOS_CACHE_KEY, data);
       } catch (err) {
         console.error("Failed to fetch org repos:", err);
       }
     },
-    [configured, repos.length],
+    [configured, orgRepos.length],
   );
 
   useEffect(() => {
     loadMembers();
     loadRepos();
   }, [loadMembers, loadRepos]);
+
+  // Stabilize array dependencies for useCallback
+  const authorsKey = JSON.stringify(authors);
+  const reposKey = JSON.stringify(selectedRepos);
+
+  // Whether we're in multi-filter mode (multiple authors or repos selected).
+  // In multi mode we fan out individual API calls and merge, so cursor pagination is unavailable.
+  const isMultiMode = authors.length > 1 || selectedRepos.length > 1;
 
   // Fetch first page when filters change
   const fetchFirstPage = useCallback(
@@ -122,8 +160,8 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
       if (
         !skipCache &&
         cachedPRs.current &&
-        cachedPRs.current.author === author &&
-        cachedPRs.current.repo === repo
+        arraysEqual(cachedPRs.current.authors, authors) &&
+        arraysEqual(cachedPRs.current.repos, selectedRepos)
       ) {
         cachedPRs.current = null;
         return;
@@ -131,35 +169,56 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
 
       setLoading(true);
       try {
-        const result = await fetchOrgPRs(undefined, author, repo);
-        setPrs(result.prs);
-        setHasNextPage(result.pageInfo.hasNextPage);
-        setEndCursor(result.pageInfo.endCursor);
-        saveCache(PRS_CACHE_KEY, {
-          prs: result.prs,
-          hasNextPage: result.pageInfo.hasNextPage,
-          endCursor: result.pageInfo.endCursor,
-          author,
-          repo,
-        });
+        if (isMultiMode) {
+          // Fan out per-author (x per-repo) calls and merge results
+          const merged = await fetchOrgPRsMulti(authors, selectedRepos);
+          setPrs(merged);
+          setHasNextPage(false);
+          setEndCursor(null);
+          saveCache(PRS_CACHE_KEY, {
+            prs: merged,
+            hasNextPage: false,
+            endCursor: null,
+            authors,
+            repos: selectedRepos,
+          });
+        } else {
+          // Single author / single repo -- use the paginated endpoint directly
+          const author = authors[0] || undefined;
+          const repo = selectedRepos[0] || undefined;
+          const result = await fetchOrgPRs(undefined, author, repo);
+          setPrs(result.prs);
+          setHasNextPage(result.pageInfo.hasNextPage);
+          setEndCursor(result.pageInfo.endCursor);
+          saveCache(PRS_CACHE_KEY, {
+            prs: result.prs,
+            hasNextPage: result.pageInfo.hasNextPage,
+            endCursor: result.pageInfo.endCursor,
+            authors,
+            repos: selectedRepos,
+          });
+        }
       } catch (err) {
         console.error("Failed to fetch org PRs:", err);
       } finally {
         setLoading(false);
       }
     },
-    [configured, author, repo],
+
+    [configured, authorsKey, reposKey, isMultiMode],
   );
 
   useEffect(() => {
     fetchFirstPage();
   }, [fetchFirstPage]);
 
-  // Fetch next page
+  // Fetch next page (only available in single-filter mode)
   const fetchNextPage = useCallback(async () => {
-    if (!hasNextPage || !endCursor || loadingMore) return;
+    if (!hasNextPage || !endCursor || loadingMore || isMultiMode) return;
     setLoadingMore(true);
     try {
+      const author = authors[0] || undefined;
+      const repo = selectedRepos[0] || undefined;
       const result = await fetchOrgPRs(endCursor, author, repo);
       const merged = [...prs, ...result.prs];
       setPrs(merged);
@@ -169,15 +228,15 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
         prs: merged,
         hasNextPage: result.pageInfo.hasNextPage,
         endCursor: result.pageInfo.endCursor,
-        author,
-        repo,
+        authors,
+        repos: selectedRepos,
       });
     } catch (err) {
       console.error("Failed to fetch more org PRs:", err);
     } finally {
       setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, author, repo, loadingMore, prs]);
+  }, [hasNextPage, endCursor, authors, selectedRepos, loadingMore, prs, isMultiMode]);
 
   // Refresh handlers
   const refreshPRs = useCallback(() => {
@@ -206,6 +265,44 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
     fetchFirstPage(true);
   }, [loadMembers, loadRepos, fetchFirstPage]);
 
+  // Saved filter handlers
+  const handleSaveFilter = useCallback(
+    async (name: string) => {
+      try {
+        const created = await createSavedFilter(name, {
+          authors: [...authors],
+          repos: [...selectedRepos],
+        });
+        setSavedFilters((prev) => [
+          ...prev,
+          {
+            id: created.id,
+            name: created.name,
+            authors: created.filter_config.authors ?? [],
+            repos: created.filter_config.repos ?? [],
+          },
+        ]);
+      } catch (err) {
+        console.error("Failed to save filter:", err);
+      }
+    },
+    [authors, selectedRepos],
+  );
+
+  const handleDeleteFilter = useCallback(async (id: number) => {
+    try {
+      await deleteSavedFilter(id);
+      setSavedFilters((prev) => prev.filter((f) => f.id !== id));
+    } catch (err) {
+      console.error("Failed to delete filter:", err);
+    }
+  }, []);
+
+  const handleApplyFilter = useCallback((filter: SavedFilter) => {
+    setAuthors(filter.authors);
+    setSelectedRepos(filter.repos);
+  }, []);
+
   // Dropdown items
   const authorItems = useMemo<DropdownItem[]>(
     () => members.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),
@@ -213,8 +310,8 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   );
 
   const repoItems = useMemo<DropdownItem[]>(
-    () => repos.map((r) => ({ value: r.full_name, label: r.name })),
-    [repos],
+    () => orgRepos.map((r) => ({ value: r.full_name, label: r.name })),
+    [orgRepos],
   );
 
   if (loading && prs.length === 0) {
@@ -230,19 +327,27 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
       {/* Toolbar: filters (left) + refresh (right) */}
       <div className="d-flex align-items-center justify-content-between mb-3">
         <div className="d-flex align-items-center gap-2">
-          <SearchableDropdown
+          <MultiSelectDropdown
             items={authorItems}
-            value={author}
-            onChange={setAuthor}
+            values={authors}
+            onChange={setAuthors}
             placeholder="Search authors..."
             allLabel="All authors"
           />
-          <SearchableDropdown
+          <MultiSelectDropdown
             items={repoItems}
-            value={repo}
-            onChange={setRepo}
+            values={selectedRepos}
+            onChange={setSelectedRepos}
             placeholder="Search repos..."
             allLabel="All repos"
+          />
+          <div className="toolbar-divider" />
+          <SavedFiltersDropdown
+            filters={savedFilters}
+            onApply={handleApplyFilter}
+            onDelete={handleDeleteFilter}
+            canSave={authors.length > 0 || selectedRepos.length > 0}
+            onSave={handleSaveFilter}
           />
         </div>
         <div className="d-flex align-items-center gap-2">
@@ -254,6 +359,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
               id="org-prs-refresh"
               disabled={loading}
               title="Refresh"
+              style={{ height: 28, padding: "0 8px" }}
             >
               <IconRefresh size={14} />
             </Dropdown.Toggle>
@@ -279,7 +385,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
       </div>
 
       {/* Load more button */}
-      {hasNextPage && (
+      {hasNextPage && !isMultiMode && (
         <div className="d-flex justify-content-center py-3">
           <Button
             variant="outline-secondary"

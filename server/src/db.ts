@@ -111,6 +111,19 @@ const MIGRATIONS: Migration[] = [
       ALTER TABLE _kanban_tmp RENAME TO kanban_items;
     `);
   },
+
+  // 6 – create saved_filters table
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS saved_filters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        filter_config TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {
