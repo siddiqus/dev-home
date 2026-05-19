@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import Alert from "react-bootstrap/Alert";
@@ -80,22 +82,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const labelStyle: React.CSSProperties = { fontSize: "0.8125rem" };
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 16 }}>
-      {/* Back button */}
-      <Button
-        variant="outline-secondary"
-        size="sm"
-        className="mb-3 d-flex align-items-center gap-2"
-        onClick={onBack}
-      >
-        <IconArrowLeft size={14} />
-        Back
-      </Button>
-
-      <h5 style={{ marginBottom: 4 }}>Settings</h5>
-      <p className="text-secondary-custom" style={{ fontSize: "0.8125rem", marginBottom: 24 }}>
-        Configure your JIRA and GitHub integrations.
-      </p>
+    <div>
+      {/* Header */}
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <div className="d-flex align-items-center gap-3">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="d-flex align-items-center gap-2"
+            onClick={onBack}
+          >
+            <IconArrowLeft size={14} />
+            Back
+          </Button>
+          <div>
+            <h5 className="mb-0">Settings</h5>
+            <p className="text-secondary-custom mb-0" style={{ fontSize: "0.8125rem" }}>
+              Configure your JIRA and GitHub integrations.
+            </p>
+          </div>
+        </div>
+        <Button variant="primary" onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <>
+              <Spinner animation="border" size="sm" className="me-2" />
+              Saving...
+            </>
+          ) : (
+            "Save Settings"
+          )}
+        </Button>
+      </div>
 
       {/* Backend Server Status */}
       <Card className="mb-3">
@@ -154,100 +171,106 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Alert>
       )}
 
-      {/* JIRA Configuration */}
-      <Card className="mb-3">
-        <Card.Body>
-          <h6 style={{ marginBottom: 12 }}>JIRA Configuration</h6>
+      <Row>
+        {/* GitHub Configuration */}
+        <Col lg={6}>
+          <Card className="mb-3">
+            <Card.Body>
+              <h6 style={{ marginBottom: 12 }}>GitHub Configuration</h6>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              JIRA Base URL
-            </Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="https://your-org.atlassian.net"
-              value={formState.jiraBaseUrl}
-              onChange={handleChange("jiraBaseUrl")}
-              size="sm"
-            />
-          </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  GitHub Token
+                </Form.Label>
+                <Form.Control
+                  type="password"
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  value={formState.githubToken}
+                  onChange={handleChange("githubToken")}
+                  size="sm"
+                />
+              </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              JIRA Email
-            </Form.Label>
-            <Form.Control
-              type="email"
-              placeholder="you@company.com"
-              value={formState.jiraEmail}
-              onChange={handleChange("jiraEmail")}
-              size="sm"
-            />
-          </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  GitHub Username
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="your-github-username"
+                  value={formState.githubUsername}
+                  onChange={handleChange("githubUsername")}
+                  size="sm"
+                />
+              </Form.Group>
 
-          <Form.Group className="mb-0">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              JIRA API Token
-            </Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="your-jira-api-token"
-              value={formState.jiraApiToken}
-              onChange={handleChange("jiraApiToken")}
-              size="sm"
-            />
-          </Form.Group>
-        </Card.Body>
-      </Card>
+              <Form.Group className="mb-0">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  GitHub Org
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="your-github-org"
+                  value={formState.githubOrg}
+                  onChange={handleChange("githubOrg")}
+                  size="sm"
+                />
+                <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                  Optional. Used to browse all open PRs across the org.
+                </Form.Text>
+              </Form.Group>
+            </Card.Body>
+          </Card>
+        </Col>
 
-      {/* GitHub Configuration */}
-      <Card className="mb-3">
-        <Card.Body>
-          <h6 style={{ marginBottom: 12 }}>GitHub Configuration</h6>
+        {/* JIRA Configuration */}
+        <Col lg={6}>
+          <Card className="mb-3">
+            <Card.Body>
+              <h6 style={{ marginBottom: 12 }}>JIRA Configuration</h6>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              GitHub Token
-            </Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              value={formState.githubToken}
-              onChange={handleChange("githubToken")}
-              size="sm"
-            />
-          </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  JIRA Base URL
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="https://your-org.atlassian.net"
+                  value={formState.jiraBaseUrl}
+                  onChange={handleChange("jiraBaseUrl")}
+                  size="sm"
+                />
+              </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              GitHub Username
-            </Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="your-github-username"
-              value={formState.githubUsername}
-              onChange={handleChange("githubUsername")}
-              size="sm"
-            />
-          </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  JIRA Email
+                </Form.Label>
+                <Form.Control
+                  type="email"
+                  placeholder="you@company.com"
+                  value={formState.jiraEmail}
+                  onChange={handleChange("jiraEmail")}
+                  size="sm"
+                />
+              </Form.Group>
 
-          <Form.Group className="mb-0">
-            <Form.Label className="text-secondary-custom" style={labelStyle}>
-              GitHub Org
-            </Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="your-github-org"
-              value={formState.githubOrg}
-              onChange={handleChange("githubOrg")}
-              size="sm"
-            />
-            <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-              Optional. Used to browse all open PRs across the org.
-            </Form.Text>
-          </Form.Group>
-        </Card.Body>
-      </Card>
+              <Form.Group className="mb-0">
+                <Form.Label className="text-secondary-custom" style={labelStyle}>
+                  JIRA API Token
+                </Form.Label>
+                <Form.Control
+                  type="password"
+                  placeholder="your-jira-api-token"
+                  value={formState.jiraApiToken}
+                  onChange={handleChange("jiraApiToken")}
+                  size="sm"
+                />
+              </Form.Group>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
       {/* Appearance */}
       <Card className="mb-3">
@@ -282,20 +305,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </Card.Body>
       </Card>
-
-      {/* Save button */}
-      <div className="d-flex justify-content-end mb-4">
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-2" />
-              Saving...
-            </>
-          ) : (
-            "Save Settings"
-          )}
-        </Button>
-      </div>
     </div>
   );
 };
