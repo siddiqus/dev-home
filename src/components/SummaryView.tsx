@@ -239,7 +239,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     })),
     ...githubMentions.map((m) => ({
       id: `gm-${m.id}`,
-      title: `${m.user.login} ${REASON_SUMMARY[m.reason] || "mentioned you"}`,
+      title: `${m.user.login} ${REASON_SUMMARY[m.reason] || "mentioned you"} (${m.repo_full_name.split("/").pop()}/${m.pr_number})`,
       subtitle: m.context_title || m.repo_full_name,
       url: m.html_url,
       time: m.created_at,
