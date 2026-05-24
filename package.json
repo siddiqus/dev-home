@@ -28,6 +28,7 @@
   "build": {
     "appId": "com.devhome.app",
     "productName": "Dev Home",
+    "artifactName": "Dev-Home-${version}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
