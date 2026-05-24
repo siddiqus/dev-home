@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -210,6 +210,15 @@ export const PRTable: React.FC<PRTableProps> = ({
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
+  // Reset collapse state when the PR data changes (e.g. after refresh)
+  const prevPrsRef = useRef(prs);
+  useEffect(() => {
+    if (prevPrsRef.current !== prs) {
+      prevPrsRef.current = prs;
+      setCollapsed(new Set());
+    }
+  }, [prs]);
+
   const config = VARIANT_CONFIG[variant];
   const { columns } = config;
 
@@ -259,11 +268,12 @@ export const PRTable: React.FC<PRTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {groups.map((group) => {
+          {groups.map((group, groupIdx) => {
             const isGroup = config.grouped && group.ticket !== null && group.prs.length > 1;
             const isCollapsed = isGroup && collapsed.has(group.ticket!);
+            const groupKey = group.ticket ?? `ungrouped-${groupIdx}`;
             return (
-              <React.Fragment key={group.ticket ?? "ungrouped"}>
+              <React.Fragment key={groupKey}>
                 {isGroup && (
                   <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
                     <td colSpan={columns.length}>
