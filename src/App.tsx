@@ -41,7 +41,12 @@ import { OrgPRsView } from "./components/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("summary");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("dev-home-active-tab") || "summary";
+  });
+  useEffect(() => {
+    localStorage.setItem("dev-home-active-tab", activeTab);
+  }, [activeTab]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("dev-home-sidebar-collapsed") === "true";
   });
