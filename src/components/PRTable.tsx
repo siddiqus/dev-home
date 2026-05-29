@@ -139,7 +139,7 @@ function renderCell(
     case "repo":
       return (
         <td key={col}>
-          <span className="badge badge-status-neutral">{pr.repo_full_name}</span>
+          <span className="badge badge-status-neutral fw-bold">{pr.repo_full_name}</span>
         </td>
       );
     case "branch":
