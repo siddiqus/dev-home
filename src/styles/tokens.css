@@ -11,6 +11,7 @@
   --color-bg-elevated: #161b22;
   --color-bg-hover: #1c2128;
   --color-bg-input: #0d1117;
+  --color-bg-titlebar: #010409;
 
   /* Borders */
   --color-border-subtle: #21262d;
@@ -30,6 +31,7 @@
   --color-focus-ring: rgba(88, 166, 255, 0.4);
 
   /* Status — foreground */
+  --color-status-info: #58a6ff;
   --color-status-success: #3fb950;
   --color-status-warning: #d29922;
   --color-status-danger: #f85149;
@@ -88,6 +90,7 @@
   --color-bg-elevated: #f6f8fa;
   --color-bg-hover: #f6f8fa;
   --color-bg-input: #ffffff;
+  --color-bg-titlebar: #f6f8fa;
 
   /* Borders */
   --color-border-subtle: #eaeef2;
@@ -107,6 +110,7 @@
   --color-focus-ring: rgba(9, 105, 218, 0.4);
 
   /* Status — foreground */
+  --color-status-info: #0969da;
   --color-status-success: #1a7f37;
   --color-status-warning: #9a6700;
   --color-status-danger: #cf222e;

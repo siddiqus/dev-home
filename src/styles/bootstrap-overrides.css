@@ -70,7 +70,7 @@ a:hover {
 
 .table > tbody > tr > td {
   border-bottom: 1px solid var(--color-border-subtle);
-  padding: 10px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   vertical-align: middle;
 }
 
@@ -118,7 +118,7 @@ a:hover {
 .alert-info {
   background-color: var(--color-alert-info-bg);
   border-color: var(--color-alert-info-border);
-  color: var(--color-accent);
+  color: var(--color-status-info);
 }
 
 .alert-info a,
