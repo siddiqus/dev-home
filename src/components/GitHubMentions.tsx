@@ -6,6 +6,9 @@ import { formatRelativeTime } from "../utils/time";
 import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
 import { REASON_LABELS } from "../utils/github";
+import { Badge } from "./primitives/Badge";
+import { Avatar } from "./primitives/Avatar";
+import { CommentCard } from "./primitives/CommentCard";
 
 interface GitHubMentionsProps {
   mentions: GitHubComment[];
@@ -34,9 +37,9 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
   return (
     <div className="d-flex flex-column gap-2">
       {mentions.map((mention) => (
-        <div key={mention.id} className="comment-card">
+        <CommentCard key={mention.id}>
           <div className="d-flex gap-3 align-items-start">
-            <img src={mention.user.avatar_url} alt={mention.user.login} className="avatar-md" />
+            <Avatar src={mention.user.avatar_url} alt={mention.user.login} size="md" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="d-flex justify-content-between align-items-center gap-2">
                 <div className="d-flex align-items-center gap-2">
@@ -49,11 +52,11 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
                 </div>
                 <div className="d-flex align-items-center gap-2">
                   {mention.reason && (
-                    <span className="badge badge-status-purple">
+                    <Badge variant="purple">
                       {REASON_LABELS[mention.reason] || mention.reason}
-                    </span>
+                    </Badge>
                   )}
-                  <span className="badge badge-status-neutral">{mention.repo_full_name}</span>
+                  <Badge variant="neutral">{mention.repo_full_name}</Badge>
                   <span
                     className="text-secondary-custom"
                     style={{ fontSize: "0.75rem", fontWeight: 500 }}
@@ -92,7 +95,7 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
               </div>
             </div>
           </div>
-        </div>
+        </CommentCard>
       ))}
     </div>
   );

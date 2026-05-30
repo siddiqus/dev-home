@@ -14,11 +14,14 @@ import { extractTicket, groupByTicket } from "../utils/tickets";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
+import { Badge, BadgeVariant } from "./primitives/Badge";
+import { BranchTag } from "./primitives/BranchTag";
+import { Avatar } from "./primitives/Avatar";
 
-const REVIEW_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
-  APPROVED: { label: "Approved", badgeClass: "badge-status-green" },
-  CHANGES_REQUESTED: { label: "Changes Requested", badgeClass: "badge-status-red" },
-  REVIEWED: { label: "Reviewed", badgeClass: "badge-status-yellow" },
+const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  APPROVED: { label: "Approved", variant: "success" },
+  CHANGES_REQUESTED: { label: "Changes Requested", variant: "danger" },
+  REVIEWED: { label: "Reviewed", variant: "warning" },
 };
 
 type PRTableVariant = "my-prs" | "review-requests" | "org-prs";
@@ -139,18 +142,20 @@ function renderCell(
     case "repo":
       return (
         <td key={col}>
-          <span className="badge badge-status-neutral fw-bold">{pr.repo_full_name}</span>
+          <Badge variant="neutral" className="fw-bold">
+            {pr.repo_full_name}
+          </Badge>
         </td>
       );
     case "branch":
       return (
         <td key={col}>
           <div className="d-flex align-items-center gap-1">
-            <span className="branch-tag">{pr.head.ref}</span>
+            <BranchTag name={pr.head.ref} />
             <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
               {"\u2192"}
             </span>
-            <span className="branch-tag">{pr.base.ref}</span>
+            <BranchTag name={pr.base.ref} />
           </div>
         </td>
       );
@@ -158,7 +163,7 @@ function renderCell(
       return (
         <td key={col}>
           <div className="d-flex align-items-center gap-2">
-            <img src={pr.user.avatar_url} alt={pr.user.login} className="avatar-sm" />
+            <Avatar src={pr.user.avatar_url} alt={pr.user.login} size="sm" />
             <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
           </div>
         </td>
@@ -174,15 +179,15 @@ function renderCell(
         <td key={col}>
           <div className="d-flex align-items-center gap-2">
             {pr.draft ? (
-              <span className="badge badge-status-neutral">Draft</span>
+              <Badge variant="neutral">Draft</Badge>
             ) : (
-              <span className="badge badge-status-green">Open</span>
+              <Badge variant="success">Open</Badge>
             )}
             <ChecksStatusIcon status={pr.checks_status} />
             {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
-              <span className={`badge ${REVIEW_STATUS_CONFIG[pr.review_status].badgeClass}`}>
+              <Badge variant={REVIEW_STATUS_CONFIG[pr.review_status].variant}>
                 {REVIEW_STATUS_CONFIG[pr.review_status].label}
-              </span>
+              </Badge>
             )}
           </div>
         </td>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import { IconSearch, IconX } from "@tabler/icons-react";
+import { Avatar } from "./primitives/Avatar";
 
 export interface DropdownItem {
   value: string;
@@ -144,10 +145,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               onMouseDown={() => handleSelect(item.value)}
             >
               {item.icon && (
-                <img
+                <Avatar
                   src={item.icon}
                   alt={item.label}
-                  className="avatar-sm"
+                  size="sm"
                   style={{ width: 18, height: 18 }}
                 />
               )}

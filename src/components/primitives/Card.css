@@ -1,0 +1,9 @@
+.card--interactive {
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.card--interactive:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}

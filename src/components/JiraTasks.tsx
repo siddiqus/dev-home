@@ -7,6 +7,7 @@ import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { StatusBadge } from "./StatusBadge";
 import { EmptyState } from "./EmptyState";
 import { DescriptionModal } from "./DescriptionModal";
+import { Badge } from "./primitives/Badge";
 
 interface JiraTasksProps {
   issues: JiraIssue[];
@@ -95,7 +96,7 @@ export const JiraTasks: React.FC<JiraTasksProps> = ({ issues: rawIssues, loading
                   />
                 </td>
                 <td>
-                  <span className="badge badge-status-neutral">{issue.project.key}</span>
+                  <Badge variant="neutral">{issue.project.key}</Badge>
                 </td>
                 <td>
                   <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>

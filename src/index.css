@@ -120,139 +120,6 @@
   transition: width 200ms ease, min-width 200ms ease, padding 200ms ease;
 }
 
-/* Status badge colors */
-.badge-status-blue {
-  background-color: var(--color-status-info-bg);
-  color: #ffffff;
-}
-
-.badge-status-green {
-  background-color: var(--color-status-success-bg);
-  color: #ffffff;
-}
-
-.badge-status-yellow {
-  background-color: var(--color-status-warning-bg);
-  color: #ffffff;
-}
-
-.badge-status-red {
-  background-color: var(--color-status-danger-bg);
-  color: #ffffff;
-}
-
-.badge-status-purple {
-  background-color: var(--color-status-purple-bg);
-  color: #ffffff;
-}
-
-.badge-status-neutral {
-  background-color: var(--color-status-neutral-bg);
-  color: #ffffff;
-}
-
-/* --- Branch tag --- */
-.branch-tag {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  background-color: var(--color-alert-info-bg);
-  color: var(--color-accent);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-/* --- Status indicator dot --- */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.status-dot.online {
-  background-color: var(--color-status-success);
-  box-shadow: 0 0 6px var(--color-status-success-bg);
-}
-
-.status-dot.offline {
-  background-color: var(--color-status-danger);
-  box-shadow: 0 0 6px var(--color-status-danger-bg);
-}
-
-/* --- Type indicator dots (for summary view) --- */
-.type-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-
-.type-indicator.jira-issue {
-  background-color: var(--color-status-info-bg);
-  color: var(--color-accent);
-}
-
-.type-indicator.jira-comment {
-  background-color: var(--color-status-purple-bg);
-  color: var(--color-status-purple);
-}
-
-.type-indicator.github-mention {
-  background-color: var(--color-status-neutral-bg);
-  color: var(--color-text-secondary);
-}
-
-.type-indicator.github-pr {
-  background-color: var(--color-status-success-bg);
-  color: var(--color-status-success);
-}
-
-.type-indicator.github-review {
-  background-color: var(--color-status-warning-bg);
-  color: var(--color-status-warning);
-}
-
-/* --- Empty state --- */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px var(--space-6);
-  gap: var(--space-2);
-  text-align: center;
-}
-
-.empty-state .empty-icon {
-  color: var(--color-text-muted);
-  opacity: 0.5;
-}
-
-/* --- Avatar --- */
-.avatar-sm {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.avatar-md {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
 /* --- Priority icon --- */
 .priority-icon {
   width: 16px;
@@ -311,22 +178,6 @@
   vertical-align: middle;
 }
 
-/* --- Comment card --- */
-.comment-card {
-  background-color: var(--color-bg-panel);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 14px var(--space-4);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease;
-}
-
-.comment-card:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border);
-}
-
 /* --- Summary item rows --- */
 .summary-item {
   border-bottom: 1px solid var(--color-border-subtle);
@@ -336,42 +187,6 @@
 
 .summary-item:hover {
   background-color: var(--color-bg-hover);
-}
-
-/* --- See more button --- */
-.see-more-row {
-  border-top: 1px solid var(--color-border-subtle);
-  text-align: center;
-}
-
-.see-more-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  transition: color 150ms ease, background-color 150ms ease;
-}
-
-.see-more-btn:hover {
-  color: var(--color-accent);
-  background-color: var(--color-accent-bg-subtle);
-}
-
-/* --- Section headers --- */
-.section-header {
-  color: var(--color-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* --- Dropdown menu (Bootstrap override) --- */

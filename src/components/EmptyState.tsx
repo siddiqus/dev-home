@@ -1,4 +1,5 @@
 import React from "react";
+import "./EmptyState.css";
 
 interface EmptyStateProps {
   icon: React.ReactNode;

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import { IconSearch, IconX, IconCheck } from "@tabler/icons-react";
 import { DropdownItem } from "./SearchableDropdown";
+import { Avatar } from "./primitives/Avatar";
 import "./MultiSelectDropdown.css";
 
 interface MultiSelectDropdownProps {
@@ -192,10 +193,10 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 {selectedSet.has(item.value) && <IconCheck size={14} />}
               </span>
               {item.icon && (
-                <img
+                <Avatar
                   src={item.icon}
                   alt={item.label}
-                  className="avatar-sm"
+                  size="sm"
                   style={{ width: 18, height: 18 }}
                 />
               )}

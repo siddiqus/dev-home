@@ -1,0 +1,20 @@
+.section-header {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.section-header-title {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.section-header-action { display: inline-flex; }

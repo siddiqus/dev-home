@@ -8,6 +8,7 @@ import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
 import { IconArrowLeft, IconSun, IconMoon } from "@tabler/icons-react";
 import { AppSettings, loadSettingsFromStore } from "../services/config";
+import { StatusDot } from "./primitives/StatusDot";
 
 interface SettingsViewProps {
   backendOnline: boolean;
@@ -119,7 +120,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <Card.Body>
           <div className="d-flex align-items-center gap-2 mb-3">
             <h6 className="mb-0">Backend Server</h6>
-            <span className={`status-dot ${backendOnline ? "online" : "offline"}`} />
+            <StatusDot variant={backendOnline ? "online" : "offline"} />
             <span
               style={{
                 fontSize: "0.75rem",

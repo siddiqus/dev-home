@@ -1,11 +1,12 @@
 import React from "react";
+import { Badge, BadgeVariant } from "./primitives/Badge";
 
 interface StatusBadgeProps {
   statusName: string;
   colorName: string;
 }
 
-function getBadgeClass(colorName: string): string {
+function getBadgeVariant(colorName: string): BadgeVariant {
   const normalized = colorName.toLowerCase();
 
   switch (normalized) {
@@ -13,21 +14,21 @@ function getBadgeClass(colorName: string): string {
     case "new":
     case "blue":
     case "indigo":
-      return "badge-status-blue";
+      return "info";
     case "yellow":
-      return "badge-status-yellow";
+      return "warning";
     case "green":
     case "done":
-      return "badge-status-green";
+      return "success";
     case "red":
-      return "badge-status-red";
+      return "danger";
     default:
-      return "badge-status-neutral";
+      return "neutral";
   }
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ statusName, colorName }) => {
-  const badgeClass = getBadgeClass(colorName);
+  const variant = getBadgeVariant(colorName);
 
-  return <span className={`badge ${badgeClass}`}>{statusName}</span>;
+  return <Badge variant={variant}>{statusName}</Badge>;
 };

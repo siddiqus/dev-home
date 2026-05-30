@@ -1,8 +1,9 @@
 import React from "react";
 import Card from "react-bootstrap/Card";
-import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
+import { Badge } from "./primitives/Badge";
+import { SectionHeader } from "./primitives/SectionHeader";
 import {
   IconNote,
   IconBrandJira,
@@ -88,13 +89,11 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
       {unresolved.length > 0 && (
         <Card className="mb-3">
           <Card.Body className="p-0">
-            <div className="section-header px-3 pt-3 mb-0">
+            <SectionHeader className="px-3 pt-3 mb-0">
               <IconNote size={13} stroke={1.8} />
               <span>Unresolved</span>
-              <Badge className="badge-status-yellow" style={{ fontSize: "0.625rem" }}>
-                {unresolved.length}
-              </Badge>
-            </div>
+              <Badge variant="warning">{unresolved.length}</Badge>
+            </SectionHeader>
             <div style={{ marginTop: 8 }}>
               {unresolved.map((note) => (
                 <NoteRow
@@ -114,13 +113,11 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
       {resolved.length > 0 && (
         <Card>
           <Card.Body className="p-0">
-            <div className="section-header px-3 pt-3 mb-0">
+            <SectionHeader className="px-3 pt-3 mb-0">
               <IconCheck size={13} stroke={1.8} />
               <span>Resolved</span>
-              <Badge className="badge-status-green" style={{ fontSize: "0.625rem" }}>
-                {resolved.length}
-              </Badge>
-            </div>
+              <Badge variant="success">{resolved.length}</Badge>
+            </SectionHeader>
             <div style={{ marginTop: 8 }}>
               {resolved.map((note) => (
                 <NoteRow
@@ -203,7 +200,7 @@ function NoteRow({
         )}
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-        <Badge className="badge-status-neutral">{TYPE_LABEL[note.type]}</Badge>
+        <Badge variant="neutral">{TYPE_LABEL[note.type]}</Badge>
         {note.resolved === 0 && (
           <Button
             variant="outline-secondary"

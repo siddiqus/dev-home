@@ -5,6 +5,8 @@ import { JiraComment } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
+import { Avatar } from "./primitives/Avatar";
+import { CommentCard } from "./primitives/CommentCard";
 
 interface JiraCommentsProps {
   comments: JiraComment[];
@@ -39,12 +41,12 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
           : `#${comment.issueKey}`;
 
         return (
-          <div key={comment.id} className="comment-card">
+          <CommentCard key={comment.id}>
             <div className="d-flex gap-3 align-items-start">
-              <img
+              <Avatar
                 src={comment.author.avatarUrls["48x48"]}
                 alt={comment.author.displayName}
-                className="avatar-md"
+                size="md"
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="d-flex justify-content-between align-items-center gap-2">
@@ -87,7 +89,7 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
                 </div>
               </div>
             </div>
-          </div>
+          </CommentCard>
         );
       })}
     </div>

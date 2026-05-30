@@ -1,0 +1,14 @@
+.branch-tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: var(--color-status-info-bg);
+  color: var(--color-accent);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
