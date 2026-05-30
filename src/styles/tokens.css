@@ -25,6 +25,7 @@
   /* Accent */
   --color-accent: #58a6ff;
   --color-accent-hover: #1f6feb;
+  --color-accent-link-hover: #79b8ff;
   --color-accent-bg-subtle: rgba(88, 166, 255, 0.08);
   --color-focus-ring: rgba(88, 166, 255, 0.4);
 
@@ -101,6 +102,7 @@
   /* Accent */
   --color-accent: #0969da;
   --color-accent-hover: #0550ae;
+  --color-accent-link-hover: #0550ae;
   --color-accent-bg-subtle: rgba(9, 105, 218, 0.08);
   --color-focus-ring: rgba(9, 105, 218, 0.4);
 
