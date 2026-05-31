@@ -162,3 +162,26 @@ export interface KanbanTile {
   checksStatus?: string | null;
   timestamp: string;
 }
+
+// ---------------- Pomodoro ----------------
+
+export type PomodoroPhase = "idle" | "work" | "shortBreak" | "longBreak";
+export type PomodoroWorkMinutes = 15 | 20 | 30 | 45;
+
+export interface PomodoroTaskSnapshot {
+  itemId: string;
+  title: string;
+  sourceBadge: string;
+  sourceBadgeVariant: "info" | "success" | "warning" | "danger" | "purple" | "neutral";
+  url: string;
+}
+
+export interface PomodoroPersistedState {
+  phase: PomodoroPhase;
+  cycleCount: number;
+  endsAt: number | null;
+  remainingMs: number;
+  isRunning: boolean;
+  workMinutes: PomodoroWorkMinutes;
+  selectedTaskSnapshot: PomodoroTaskSnapshot | null;
+}
