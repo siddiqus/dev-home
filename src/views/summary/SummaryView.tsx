@@ -4,9 +4,9 @@ import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
-import { Badge, BadgeVariant } from "./primitives/Badge";
-import { SectionHeader } from "./primitives/SectionHeader";
-import { SeeMoreButton } from "./primitives/SeeMoreButton";
+import { Badge, BadgeVariant } from "../../components/primitives/Badge";
+import { SectionHeader } from "../../components/primitives/SectionHeader";
+import { SeeMoreButton } from "../../components/primitives/SeeMoreButton";
 import {
   IconSubtask,
   IconAt,
@@ -16,12 +16,13 @@ import {
   IconCheck,
   IconPlus,
 } from "@tabler/icons-react";
-import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
-import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
-import { REASON_SUMMARY } from "../utils/github";
-import { formatRelativeTime } from "../utils/time";
-import { DescriptionModal } from "./DescriptionModal";
-import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../types";
+import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
+import { REASON_SUMMARY } from "../../utils/github";
+import { formatRelativeTime } from "../../utils/time";
+import { DescriptionModal } from "../../components/DescriptionModal";
+import { SummaryItem } from "./SummaryItem";
+import "./summary.css";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -93,58 +94,6 @@ function Section({
         )}
       </Card.Body>
     </Card>
-  );
-}
-
-interface ItemRowProps {
-  url: string;
-  title: string;
-  subtitle: string;
-  time: string;
-  badge?: string;
-  badgeVariant?: BadgeVariant;
-  checksStatus?: string | null;
-  onClick?: () => void;
-}
-
-function ItemRow({
-  url,
-  title,
-  subtitle,
-  time,
-  badge,
-  badgeVariant,
-  checksStatus,
-  onClick,
-}: ItemRowProps) {
-  return (
-    <div className="summary-item d-flex align-items-center gap-3 px-3 py-2" onClick={onClick}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-truncate-custom d-block"
-          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {title}
-        </a>
-        <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1 }}>
-          {subtitle}
-        </div>
-      </div>
-      <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-        {badge && <Badge variant={badgeVariant || "neutral"}>{badge}</Badge>}
-        <ChecksStatusIcon status={checksStatus ?? null} />
-        <span
-          className="text-secondary-custom"
-          style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
-        >
-          {formatRelativeTime(time)}
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -260,7 +209,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               >
                 {topReviews.length > 0 ? (
                   topReviews.map((r) => (
-                    <ItemRow
+                    <SummaryItem
                       key={r.id}
                       url={r.html_url}
                       title={`#${r.number} ${r.title}`}
@@ -287,7 +236,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               >
                 {topPRs.length > 0 ? (
                   topPRs.map((pr) => (
-                    <ItemRow
+                    <SummaryItem
                       key={pr.id}
                       url={pr.html_url}
                       title={`#${pr.number} ${pr.title}`}
@@ -321,7 +270,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               >
                 {allMentions.length > 0 ? (
                   allMentions.map((m) => (
-                    <ItemRow
+                    <SummaryItem
                       key={m.id}
                       url={m.url}
                       title={m.title}
@@ -345,7 +294,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               >
                 {topIssues.length > 0 ? (
                   topIssues.map((issue) => (
-                    <ItemRow
+                    <SummaryItem
                       key={issue.key}
                       url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
                       title={`${issue.key}: ${issue.summary}`}
