@@ -22,10 +22,7 @@ function isWorkMinutes(n: unknown): n is PomodoroWorkMinutes {
   return typeof n === "number" && (WORK_MINUTES_OPTIONS as number[]).includes(n);
 }
 
-function phaseDurationMs(
-  phase: PomodoroPhase,
-  workMinutes: PomodoroWorkMinutes,
-): number {
+function phaseDurationMs(phase: PomodoroPhase, workMinutes: PomodoroWorkMinutes): number {
   switch (phase) {
     case "work":
       return workMinutes * 60_000;
@@ -136,14 +133,24 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
 
   // Lazily create audio element
   useEffect(() => {
-    bellRef.current = new Audio("/pomodoro-bell.mp3");
-    bellRef.current.preload = "auto";
+    const audio = new Audio("/pomodoro-bell.mp3");
+    audio.preload = "auto";
+    bellRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.src = "";
+      bellRef.current = null;
+    };
   }, []);
 
   // Persist state changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(state));
-    localStorage.setItem(STORAGE_WORK_KEY, String(state.workMinutes));
+    try {
+      localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_WORK_KEY, String(state.workMinutes));
+    } catch {
+      /* swallow storage errors (quota exceeded, blocked, etc.) */
+    }
   }, [state]);
 
   // Refresh selected task snapshot if the underlying tile data changes
@@ -192,10 +199,8 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
 
     setState((s) => {
       const next = advancePhase(s.phase, s.cycleCount);
-      const phaseLabel =
-        s.phase === "work" ? "Work session complete" : "Break complete";
-      const bodyLabel =
-        next.phase === "work" ? "Time to focus" : "Time for a break";
+      const phaseLabel = s.phase === "work" ? "Work session complete" : "Break complete";
+      const bodyLabel = next.phase === "work" ? "Time to focus" : "Time for a break";
 
       // Notification — swallow errors / permission denied
       try {
@@ -254,10 +259,7 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
   const start = useCallback(() => {
     setState((s) => {
       // Request notification permission on first user-initiated start
-      if (
-        typeof Notification !== "undefined" &&
-        Notification.permission === "default"
-      ) {
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
         Notification.requestPermission().catch(() => {});
       }
 
