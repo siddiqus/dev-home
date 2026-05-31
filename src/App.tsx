@@ -36,7 +36,7 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
-import { KanbanBoard } from "./components/KanbanBoard";
+import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./components/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
 
