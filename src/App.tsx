@@ -21,10 +21,13 @@ import {
   IconChevronsLeft,
   IconChevronsRight,
   IconClock,
+  IconTarget,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
+import { useFocus } from "./hooks/useFocus";
+import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { MentionsView } from "./components/MentionsView";
@@ -127,6 +130,21 @@ export default function App() {
     jiraBaseUrl,
     onResolveNote: resolveNote,
     onUnresolveNote: unresolveNote,
+  });
+  const {
+    groups: focusGroups,
+    loading: focusLoading,
+    offline: focusOffline,
+    pin: pinFocusItem,
+    snooze: snoozeFocusItem,
+  } = useFocus({
+    active: configured,
+    openPRs,
+    reviewRequests,
+    jiraIssues,
+    jiraComments,
+    githubMentions,
+    notes: unresolvedNotes,
   });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
 
@@ -288,6 +306,12 @@ export default function App() {
           <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
             {[
               { key: "summary", label: "Summary", icon: IconLayoutDashboard, count: undefined },
+              {
+                key: "focus",
+                label: "Focus",
+                icon: IconTarget,
+                count: focusGroups.pinned.length + focusGroups.topPriority.length,
+              },
               { key: "board", label: "Board", icon: IconColumns3, count: undefined },
               {
                 key: "notes",
@@ -414,6 +438,15 @@ export default function App() {
                       setShowNoteEditor(true);
                     }}
                     doneItemIds={doneItemIds}
+                  />
+                )}
+                {effectiveTab === "focus" && (
+                  <FocusView
+                    groups={focusGroups}
+                    loading={focusLoading}
+                    offline={focusOffline}
+                    onPin={pinFocusItem}
+                    onSnooze={snoozeFocusItem}
                   />
                 )}
                 {effectiveTab === "board" && (
