@@ -133,7 +133,7 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
 
   // Lazily create audio element
   useEffect(() => {
-    const audio = new Audio("/pomodoro-bell.mp3");
+    const audio = new Audio("/pomodoro-bell.m4a");
     audio.preload = "auto";
     bellRef.current = audio;
     return () => {
