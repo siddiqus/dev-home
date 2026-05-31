@@ -1,10 +1,6 @@
 .badge-status {
-  font-weight: 500;
-  font-size: 0.6875rem;
-  letter-spacing: 0.02em;
-  padding: 3px var(--space-2);
-  border-radius: var(--radius-pill);
   color: #ffffff;
+  border-radius: var(--radius-pill);
 }
 
 .badge-status--info     { background-color: var(--color-status-info-bg); }

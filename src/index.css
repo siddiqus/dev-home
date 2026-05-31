@@ -6,6 +6,52 @@
    broken up by Phase B of the CSS refactor.)
    ============================================ */
 
+/* --- Legacy kanban badge classes ---
+   TODO(B3): delete when kanban migrates to use the Badge primitive's `variant` prop directly. */
+.badge-status-blue {
+  background-color: var(--color-status-info-bg);
+  color: #ffffff;
+}
+
+.badge-status-green {
+  background-color: var(--color-status-success-bg);
+  color: #ffffff;
+}
+
+.badge-status-yellow {
+  background-color: var(--color-status-warning-bg);
+  color: #ffffff;
+}
+
+.badge-status-red {
+  background-color: var(--color-status-danger-bg);
+  color: #ffffff;
+}
+
+.badge-status-purple {
+  background-color: var(--color-status-purple-bg);
+  color: #ffffff;
+}
+
+.badge-status-neutral {
+  background-color: var(--color-status-neutral-bg);
+  color: #ffffff;
+}
+
+[data-theme="light"] .badge-status-blue    { color: var(--color-status-info); }
+[data-theme="light"] .badge-status-green   { color: var(--color-status-success); }
+[data-theme="light"] .badge-status-yellow  { color: var(--color-status-warning); }
+[data-theme="light"] .badge-status-red     { color: var(--color-status-danger); }
+[data-theme="light"] .badge-status-purple  { color: var(--color-status-purple); }
+[data-theme="light"] .badge-status-neutral { color: var(--color-text-secondary); }
+
+/* Summary view */
+/* TODO(B2): move to views/summary/summary.css */
+.see-more-row {
+  border-top: 1px solid var(--color-border-subtle);
+  text-align: center;
+}
+
 /* --- Sidebar --- */
 .sidebar {
   width: 200px;

@@ -33,19 +33,3 @@
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
 }
-
-.type-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-
-.type-indicator--jira-issue     { background-color: var(--color-status-info-bg);    color: var(--color-accent); }
-.type-indicator--jira-comment   { background-color: var(--color-status-purple-bg);  color: var(--color-status-purple); }
-.type-indicator--github-mention { background-color: var(--color-status-neutral-bg); color: var(--color-text-secondary); }
-.type-indicator--github-pr      { background-color: var(--color-status-success-bg); color: var(--color-status-success); }
-.type-indicator--github-review  { background-color: var(--color-status-warning-bg); color: var(--color-status-warning); }
