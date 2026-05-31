@@ -137,6 +137,14 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_focus_state_snoozed ON focus_state(snoozed_until);
     `);
   },
+
+  // 8 – add dismissed_at column to focus_state
+  (d) => {
+    const columns = d.prepare("PRAGMA table_info(focus_state)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "dismissed_at")) {
+      d.exec("ALTER TABLE focus_state ADD COLUMN dismissed_at INTEGER NULL");
+    }
+  },
 ];
 
 function runMigrations(d: Database.Database): void {

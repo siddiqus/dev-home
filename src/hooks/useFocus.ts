@@ -3,6 +3,7 @@ import {
   fetchFocusState,
   setPin as apiSetPin,
   setSnooze as apiSetSnooze,
+  setDismiss as apiSetDismiss,
   type FocusStateItem,
 } from "../services/focusApi";
 import { mergeSources, scoreItems, type FocusItem, type RankedFocusItem } from "../services/focus";
@@ -16,17 +17,20 @@ interface UseFocusArgs {
   jiraComments: JiraComment[];
   githubMentions: GitHubComment[];
   notes: Note[]; // pass unresolvedNotes
+  jiraBaseUrl?: string;
 }
 
 type PendingMutation =
   | { kind: "pin"; itemId: string; pinned: boolean }
-  | { kind: "snooze"; itemId: string; until: number | null };
+  | { kind: "snooze"; itemId: string; until: number | null }
+  | { kind: "dismiss"; itemId: string; dismissed: boolean };
 
 export interface FocusGroups {
   pinned: RankedFocusItem[];
   topPriority: RankedFocusItem[];
   rest: RankedFocusItem[];
   snoozed: FocusItem[];
+  dismissed: FocusItem[];
 }
 
 const TOP_N = 5;
@@ -51,7 +55,8 @@ export function useFocus(args: UseFocusArgs) {
       const queued = pending.current.splice(0);
       for (const m of queued) {
         if (m.kind === "pin") await apiSetPin(m.itemId, m.pinned);
-        else await apiSetSnooze(m.itemId, m.until);
+        else if (m.kind === "snooze") await apiSetSnooze(m.itemId, m.until);
+        else await apiSetDismiss(m.itemId, m.dismissed);
       }
     } catch {
       setOffline(true);
@@ -73,6 +78,7 @@ export function useFocus(args: UseFocusArgs) {
         jiraComments: args.jiraComments,
         githubMentions: args.githubMentions,
         notes: args.notes,
+        jiraBaseUrl: args.jiraBaseUrl,
       }),
     [
       args.openPRs,
@@ -81,6 +87,7 @@ export function useFocus(args: UseFocusArgs) {
       args.jiraComments,
       args.githubMentions,
       args.notes,
+      args.jiraBaseUrl,
     ],
   );
 
@@ -94,6 +101,7 @@ export function useFocus(args: UseFocusArgs) {
           ...i.signals,
           isPinned: s.pinnedAt != null,
           snoozedUntil: s.snoozedUntil ?? undefined,
+          isDismissed: s.dismissedAt != null,
         },
       };
     });
@@ -101,15 +109,15 @@ export function useFocus(args: UseFocusArgs) {
 
   const groups = useMemo<FocusGroups>(() => {
     const now = Date.now();
-    const ranked = scoreItems(itemsWithState, now);
+    const active = itemsWithState.filter((i) => !i.signals.isDismissed);
+    const ranked = scoreItems(active, now);
     const pinned = ranked.filter((i) => i.signals.isPinned);
     const unpinned = ranked.filter((i) => !i.signals.isPinned);
     const topPriority = unpinned.slice(0, TOP_N);
     const rest = unpinned.slice(TOP_N);
-    const snoozed = itemsWithState.filter(
-      (i) => i.signals.snoozedUntil && i.signals.snoozedUntil > now,
-    );
-    return { pinned, topPriority, rest, snoozed };
+    const snoozed = active.filter((i) => i.signals.snoozedUntil && i.signals.snoozedUntil > now);
+    const dismissed = itemsWithState.filter((i) => i.signals.isDismissed);
+    return { pinned, topPriority, rest, snoozed, dismissed };
   }, [itemsWithState]);
 
   const optimisticPatch = useCallback((itemId: string, patch: Partial<FocusStateItem>) => {
@@ -119,6 +127,7 @@ export function useFocus(args: UseFocusArgs) {
         itemId,
         pinnedAt: prev[itemId]?.pinnedAt ?? null,
         snoozedUntil: prev[itemId]?.snoozedUntil ?? null,
+        dismissedAt: prev[itemId]?.dismissedAt ?? null,
         ...patch,
       },
     }));
@@ -152,12 +161,27 @@ export function useFocus(args: UseFocusArgs) {
     [optimisticPatch],
   );
 
+  const dismiss = useCallback(
+    async (itemId: string, dismissed: boolean) => {
+      optimisticPatch(itemId, { dismissedAt: dismissed ? Date.now() : null });
+      try {
+        await apiSetDismiss(itemId, dismissed);
+        setOffline(false);
+      } catch {
+        setOffline(true);
+        pending.current.push({ kind: "dismiss", itemId, dismissed });
+      }
+    },
+    [optimisticPatch],
+  );
+
   return {
     groups,
     loading,
     offline,
     pin,
     snooze,
+    dismiss,
     refresh: load,
   };
 }

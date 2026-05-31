@@ -34,6 +34,26 @@
   color: var(--color-status-danger);
 }
 
+.saved-filter-active-btn {
+  font-weight: 600;
+}
+
+.saved-filter-item-active {
+  background-color: rgba(56, 139, 253, 0.08);
+  position: relative;
+}
+
+.saved-filter-item-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--color-accent);
+  border-radius: 0 2px 2px 0;
+}
+
 .save-filter-inline {
   display: flex;
   align-items: center;

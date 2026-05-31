@@ -1,4 +1,5 @@
 import type { GitHubPR, JiraIssue, JiraComment, GitHubComment, Note } from "../types";
+import { getReferenceUrl } from "../utils/text";
 
 export type FocusKind = "pr-mine" | "pr-review" | "jira" | "mention" | "note";
 
@@ -16,6 +17,7 @@ export interface FocusItem {
     isMention?: boolean;
     isPinned: boolean;
     snoozedUntil?: number;
+    isDismissed?: boolean;
   };
 }
 
@@ -26,6 +28,13 @@ export interface MergeInput {
   jiraComments: JiraComment[];
   githubMentions: GitHubComment[];
   notes: Note[];
+  jiraBaseUrl?: string;
+}
+
+function jiraBrowseUrl(base: string | undefined, key: string): string | undefined {
+  if (!base) return undefined;
+  const trimmed = base.replace(/\/+$/, "");
+  return trimmed ? `${trimmed}/browse/${key}` : undefined;
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -52,11 +61,12 @@ function prItem(pr: GitHubPR, kind: "pr-mine" | "pr-review", now: number): Focus
   };
 }
 
-function jiraItem(j: JiraIssue, now: number): FocusItem {
+function jiraItem(j: JiraIssue, now: number, jiraBaseUrl?: string): FocusItem {
   return {
     id: `jira:${j.key}`,
     kind: "jira",
     title: `${j.key} — ${j.summary}`,
+    url: jiraBrowseUrl(jiraBaseUrl, j.key),
     updatedAt: new Date(j.updated).getTime(),
     signals: {
       ageDays: ageDays(j.updated, now),
@@ -66,11 +76,12 @@ function jiraItem(j: JiraIssue, now: number): FocusItem {
   };
 }
 
-function jiraMentionItem(c: JiraComment, now: number): FocusItem {
+function jiraMentionItem(c: JiraComment, now: number, jiraBaseUrl?: string): FocusItem {
   return {
     id: `mention:jira:${c.id}`,
     kind: "mention",
     title: `${c.issueKey}: ${c.body.text.slice(0, 80)}`,
+    url: jiraBrowseUrl(jiraBaseUrl, c.issueKey),
     updatedAt: new Date(c.updated).getTime(),
     signals: {
       ageDays: ageDays(c.updated, now),
@@ -95,11 +106,12 @@ function ghMentionItem(c: GitHubComment, now: number): FocusItem {
   };
 }
 
-function noteItem(n: Note, now: number): FocusItem {
+function noteItem(n: Note, now: number, jiraBaseUrl?: string): FocusItem {
   return {
     id: `note:${n.id}`,
     kind: "note",
     title: n.title || n.content.slice(0, 80),
+    url: getReferenceUrl(n, jiraBaseUrl ?? "") ?? undefined,
     updatedAt: new Date(n.updated_at).getTime(),
     signals: {
       ageDays: ageDays(n.updated_at, now),
@@ -112,10 +124,10 @@ export function mergeSources(input: MergeInput, now: number = Date.now()): Focus
   return [
     ...input.openPRs.map((p) => prItem(p, "pr-mine", now)),
     ...input.reviewRequests.map((p) => prItem(p, "pr-review", now)),
-    ...input.jiraIssues.map((j) => jiraItem(j, now)),
-    ...input.jiraComments.map((c) => jiraMentionItem(c, now)),
+    ...input.jiraIssues.map((j) => jiraItem(j, now, input.jiraBaseUrl)),
+    ...input.jiraComments.map((c) => jiraMentionItem(c, now, input.jiraBaseUrl)),
     ...input.githubMentions.map((c) => ghMentionItem(c, now)),
-    ...input.notes.map((n) => noteItem(n, now)),
+    ...input.notes.map((n) => noteItem(n, now, input.jiraBaseUrl)),
   ];
 }
 

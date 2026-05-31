@@ -11,6 +11,8 @@ import {
   IconSubtask,
   IconNotes,
   IconEye,
+  IconX,
+  IconArrowBackUp,
 } from "@tabler/icons-react";
 import Alert from "react-bootstrap/Alert";
 import Button from "react-bootstrap/Button";
@@ -33,6 +35,7 @@ interface Props {
   offline: boolean;
   onPin: (itemId: string, pinned: boolean) => void;
   onSnooze: (itemId: string, until: number | null) => void;
+  onDismiss: (itemId: string, dismissed: boolean) => void;
 }
 
 const KIND_ICON: Record<FocusKind, typeof IconTarget> = {
@@ -47,14 +50,17 @@ function FocusRow({
   item,
   onPin,
   onSnooze,
+  onDismiss,
 }: {
   item: RankedFocusItem | FocusItem;
   onPin: Props["onPin"];
   onSnooze: Props["onSnooze"];
+  onDismiss: Props["onDismiss"];
 }) {
   const Icon = KIND_ICON[item.kind];
   const presets = snoozePresets();
   const isPinned = item.signals.isPinned;
+  const isDismissed = item.signals.isDismissed;
   return (
     <div className="d-flex align-items-center gap-2 py-2 border-bottom small">
       <Icon size={16} className="flex-shrink-0 text-muted" />
@@ -146,6 +152,13 @@ function FocusRow({
             <IconExternalLink size={12} />
           </Button>
         )}
+        <Button
+          variant="outline-secondary"
+          onClick={() => onDismiss(item.id, !isDismissed)}
+          title={isDismissed ? "Restore" : "Dismiss"}
+        >
+          {isDismissed ? <IconArrowBackUp size={12} /> : <IconX size={12} />}
+        </Button>
       </ButtonGroup>
     </div>
   );
@@ -164,8 +177,9 @@ const whyPopover = (
   </Popover>
 );
 
-export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) {
+export function FocusView({ groups, loading, offline, onPin, onSnooze, onDismiss }: Props) {
   const [snoozedOpen, setSnoozedOpen] = useState(false);
+  const [dismissedOpen, setDismissedOpen] = useState(false);
 
   const totalActive = groups.pinned.length + groups.topPriority.length + groups.rest.length;
 
@@ -173,7 +187,7 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
     return <div className="text-muted small p-3">Loading…</div>;
   }
 
-  if (totalActive === 0 && groups.snoozed.length === 0) {
+  if (totalActive === 0 && groups.snoozed.length === 0 && groups.dismissed.length === 0) {
     return (
       <div className="text-center text-muted p-5">
         <IconTarget size={48} className="mb-2" />
@@ -187,7 +201,6 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
       <div className="d-flex align-items-center gap-2 mb-3">
         <IconTarget size={20} />
         <h5 className="mb-0">Focus</h5>
-        <span className="text-muted small">({totalActive})</span>
         <OverlayTrigger trigger="click" placement="bottom" overlay={whyPopover} rootClose>
           <Button variant="link" size="sm" className="text-muted ms-auto">
             Why these?
@@ -207,7 +220,7 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
           <div className="text-muted small py-2">Pin items you want to focus on today.</div>
         ) : (
           groups.pinned.map((i) => (
-            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} />
+            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} onDismiss={onDismiss} />
           ))
         )}
       </section>
@@ -216,7 +229,7 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
         <section className="mt-3">
           <h6 className="text-uppercase text-muted small">🔥 Top priority</h6>
           {groups.topPriority.map((i) => (
-            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} />
+            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} onDismiss={onDismiss} />
           ))}
         </section>
       )}
@@ -225,7 +238,7 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
         <section className="mt-3">
           <h6 className="text-uppercase text-muted small">Everything else</h6>
           {groups.rest.map((i) => (
-            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} />
+            <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} onDismiss={onDismiss} />
           ))}
         </section>
       )}
@@ -242,7 +255,36 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze }: Props) 
           </Button>
           {snoozedOpen &&
             groups.snoozed.map((i) => (
-              <FocusRow key={i.id} item={i} onPin={onPin} onSnooze={onSnooze} />
+              <FocusRow
+                key={i.id}
+                item={i}
+                onPin={onPin}
+                onSnooze={onSnooze}
+                onDismiss={onDismiss}
+              />
+            ))}
+        </section>
+      )}
+
+      {groups.dismissed.length > 0 && (
+        <section className="mt-3">
+          <Button
+            variant="link"
+            size="sm"
+            className="text-muted ps-0"
+            onClick={() => setDismissedOpen((o) => !o)}
+          >
+            🗑 Dismissed ({groups.dismissed.length}) {dismissedOpen ? "▾" : "▸"}
+          </Button>
+          {dismissedOpen &&
+            groups.dismissed.map((i) => (
+              <FocusRow
+                key={i.id}
+                item={i}
+                onPin={onPin}
+                onSnooze={onSnooze}
+                onDismiss={onDismiss}
+              />
             ))}
         </section>
       )}

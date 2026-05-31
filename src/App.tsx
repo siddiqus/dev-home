@@ -137,6 +137,7 @@ export default function App() {
     offline: focusOffline,
     pin: pinFocusItem,
     snooze: snoozeFocusItem,
+    dismiss: dismissFocusItem,
   } = useFocus({
     active: configured,
     openPRs,
@@ -145,6 +146,7 @@ export default function App() {
     jiraComments,
     githubMentions,
     notes: unresolvedNotes,
+    jiraBaseUrl,
   });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
 
@@ -306,12 +308,7 @@ export default function App() {
           <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
             {[
               { key: "summary", label: "Summary", icon: IconLayoutDashboard, count: undefined },
-              {
-                key: "focus",
-                label: "Focus",
-                icon: IconTarget,
-                count: focusGroups.pinned.length + focusGroups.topPriority.length,
-              },
+              { key: "focus", label: "Focus", icon: IconTarget, count: undefined },
               { key: "board", label: "Board", icon: IconColumns3, count: undefined },
               {
                 key: "notes",
@@ -447,6 +444,7 @@ export default function App() {
                     offline={focusOffline}
                     onPin={pinFocusItem}
                     onSnooze={snoozeFocusItem}
+                    onDismiss={dismissFocusItem}
                   />
                 )}
                 {effectiveTab === "board" && (

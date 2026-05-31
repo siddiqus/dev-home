@@ -4,6 +4,7 @@ export interface FocusStateItem {
   itemId: string;
   pinnedAt: number | null;
   snoozedUntil: number | null;
+  dismissedAt: number | null;
 }
 
 export async function fetchFocusState(): Promise<FocusStateItem[]> {
@@ -17,4 +18,8 @@ export async function setPin(itemId: string, pinned: boolean): Promise<void> {
 
 export async function setSnooze(itemId: string, until: number | null): Promise<void> {
   await apiClient.post("/focus/snooze", { itemId, until });
+}
+
+export async function setDismiss(itemId: string, dismissed: boolean): Promise<void> {
+  await apiClient.post("/focus/dismiss", { itemId, dismissed });
 }

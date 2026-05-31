@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { IconBookmark, IconTrash, IconDeviceFloppy, IconX } from "@tabler/icons-react";
 import "./SavedFiltersDropdown.css";
 
@@ -15,6 +15,8 @@ interface SavedFiltersDropdownProps {
   onDelete: (id: number) => void;
   canSave: boolean;
   onSave: (name: string) => void;
+  activeFilterId?: number | null;
+  onClearActive?: () => void;
 }
 
 export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
@@ -23,6 +25,8 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
   onDelete,
   canSave,
   onSave,
+  activeFilterId,
+  onClearActive,
 }) => {
   const [open, setOpen] = useState(false);
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -64,6 +68,11 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
     }
   };
 
+  const activeFilterName = useMemo(() => {
+    if (activeFilterId == null) return undefined;
+    return filters.find((f) => f.id === activeFilterId)?.name;
+  }, [activeFilterId, filters]);
+
   const formatMeta = (filter: SavedFilter) => {
     const parts: string[] = [];
     if (filter.authors.length > 0) {
@@ -82,7 +91,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
     >
       {/* Saved filters dropdown trigger */}
       <button
-        className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+        className={`btn btn-sm d-flex align-items-center gap-1 ${activeFilterName ? "btn-outline-primary saved-filter-active-btn" : "btn-outline-secondary"}`}
         style={{ fontSize: "0.8125rem", padding: "0 8px", height: 28 }}
         onClick={() => {
           setOpen(!open);
@@ -90,8 +99,8 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
         }}
       >
         <IconBookmark size={14} />
-        Saved
-        {filters.length > 0 && (
+        {activeFilterName || "Saved"}
+        {!activeFilterName && filters.length > 0 && (
           <span
             style={{
               fontSize: "0.6875rem",
@@ -104,6 +113,16 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
           >
             {filters.length}
           </span>
+        )}
+        {activeFilterName && onClearActive && (
+          <IconX
+            size={14}
+            style={{ opacity: 0.7, cursor: "pointer" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearActive();
+            }}
+          />
         )}
       </button>
 
@@ -181,7 +200,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
             filters.map((filter) => (
               <div
                 key={filter.id}
-                className="saved-filter-item"
+                className={`saved-filter-item ${filter.id === activeFilterId ? "saved-filter-item-active" : ""}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onApply(filter);

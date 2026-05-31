@@ -9,13 +9,14 @@ interface FocusStateRow {
   item_id: string;
   pinned_at: number | null;
   snoozed_until: number | null;
+  dismissed_at: number | null;
   updated_at: number;
 }
 
 /**
  * GET /api/focus/state
- * Returns all pin/snooze rows. Garbage-collects rows older than 90 days with
- * no active pin and no future snooze.
+ * Returns all pin/snooze/dismiss rows. Garbage-collects rows older than 90
+ * days with no active pin, no future snooze, and no dismiss.
  */
 router.get("/state", (_req: Request, res: Response) => {
   const db = getDb();
@@ -26,6 +27,7 @@ router.get("/state", (_req: Request, res: Response) => {
     `DELETE FROM focus_state
      WHERE updated_at < ?
        AND pinned_at IS NULL
+       AND dismissed_at IS NULL
        AND (snoozed_until IS NULL OR snoozed_until <= ?)`,
   ).run(cutoff, now);
 
@@ -35,6 +37,7 @@ router.get("/state", (_req: Request, res: Response) => {
       itemId: r.item_id,
       pinnedAt: r.pinned_at,
       snoozedUntil: r.snoozed_until,
+      dismissedAt: r.dismissed_at,
     })),
   });
 });
@@ -99,6 +102,38 @@ router.post("/snooze", (req: Request, res: Response) => {
   ).run(itemId, until, now);
 
   res.json({ itemId, snoozedUntil: until });
+});
+
+/**
+ * POST /api/focus/dismiss
+ * Body: { itemId: string, dismissed: boolean }
+ * Upserts the row; sets dismissed_at to now (or null to un-dismiss).
+ */
+router.post("/dismiss", (req: Request, res: Response) => {
+  const { itemId, dismissed } = req.body ?? {};
+
+  if (typeof itemId !== "string" || !itemId) {
+    res.status(400).json({ error: "itemId (string) required" });
+    return;
+  }
+  if (typeof dismissed !== "boolean") {
+    res.status(400).json({ error: "dismissed (boolean) required" });
+    return;
+  }
+
+  const db = getDb();
+  const now = Date.now();
+  const dismissedAt = dismissed ? now : null;
+
+  db.prepare(
+    `INSERT INTO focus_state (item_id, pinned_at, snoozed_until, dismissed_at, updated_at)
+       VALUES (?, NULL, NULL, ?, ?)
+     ON CONFLICT(item_id) DO UPDATE SET
+       dismissed_at = excluded.dismissed_at,
+       updated_at = excluded.updated_at`,
+  ).run(itemId, dismissedAt, now);
+
+  res.json({ itemId, dismissedAt });
 });
 
 export default router;
