@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Badge from "react-bootstrap/Badge";
@@ -20,6 +20,7 @@ import {
   IconBuilding,
   IconChevronsLeft,
   IconChevronsRight,
+  IconClock,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
@@ -39,6 +40,9 @@ import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
+import { usePomodoro } from "./hooks/usePomodoro";
+import { PomodoroView } from "./views/pomodoro/PomodoroView";
+import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -123,6 +127,13 @@ export default function App() {
     onUnresolveNote: unresolveNote,
   });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
+
+  // Flatten columnTiles record into array for Pomodoro
+  const allTiles = useMemo(() => {
+    return Object.values(columnTiles).flat();
+  }, [columnTiles]);
+
+  const pomodoro = usePomodoro({ columnTiles: allTiles });
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
@@ -148,6 +159,14 @@ export default function App() {
             Dev Home ({packageJson.version})
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
+            {pomodoro.phase !== "idle" && (
+              <PomodoroBadge
+                phase={pomodoro.phase}
+                remainingMs={pomodoro.remainingMs}
+                taskTitle={pomodoro.selectedTaskSnapshot?.title ?? null}
+                onClick={() => setActiveTab("pomodoro")}
+              />
+            )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
             <Button
               variant="outline-secondary"
@@ -189,6 +208,7 @@ export default function App() {
                 icon: IconNotes,
                 count: unresolvedNotes.length,
               },
+              { key: "pomodoro", label: "Pomodoro", icon: IconClock, count: undefined },
               { key: "jira", label: "JIRA Tasks", icon: IconSubtask, count: jiraIssues.length },
               {
                 key: "mentions",
@@ -360,6 +380,9 @@ export default function App() {
                     onAdd={() => setShowNoteEditor(true)}
                     jiraBaseUrl={jiraBaseUrl}
                   />
+                )}
+                {effectiveTab === "pomodoro" && (
+                  <PomodoroView columnTiles={allTiles} {...pomodoro} />
                 )}
               </div>
             )}
