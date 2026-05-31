@@ -105,7 +105,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </p>
           </div>
         </div>
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
+        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
           {saving ? (
             <>
               <Spinner animation="border" size="sm" className="me-2" />

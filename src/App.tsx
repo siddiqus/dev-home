@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Badge from "react-bootstrap/Badge";
@@ -44,8 +44,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem("dev-home-active-tab") || "summary";
   });
+  const prevTabRef = useRef(activeTab !== "settings" ? activeTab : "summary");
   useEffect(() => {
     localStorage.setItem("dev-home-active-tab", activeTab);
+    if (activeTab !== "settings") {
+      prevTabRef.current = activeTab;
+    }
   }, [activeTab]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("dev-home-sidebar-collapsed") === "true";
@@ -276,7 +280,7 @@ export default function App() {
                 configured={configured}
                 jiraBaseUrl={jiraBaseUrl}
                 githubUsername={githubUsername}
-                onBack={() => setActiveTab("summary")}
+                onBack={() => setActiveTab(prevTabRef.current)}
                 saveSettings={saveSettings}
                 theme={theme}
                 onToggleTheme={toggleTheme}
