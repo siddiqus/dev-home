@@ -3,7 +3,7 @@ import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh } from "@tabler/icons-react";
-import { GitHubPR } from "../types";
+import { GitHubPR } from "../../types";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
@@ -11,12 +11,12 @@ import {
   fetchOrgRepos,
   OrgMember,
   OrgRepo,
-} from "../services/github";
-import { PRTable } from "./PRTable";
-import { DropdownItem } from "./SearchableDropdown";
-import { MultiSelectDropdown } from "./MultiSelectDropdown";
-import { SavedFiltersDropdown, SavedFilter } from "./SavedFiltersDropdown";
-import { fetchSavedFilters, createSavedFilter, deleteSavedFilter } from "../services/filters";
+} from "../../services/github";
+import { PRTable } from "../../components/PRTable";
+import { DropdownItem } from "../../components/SearchableDropdown";
+import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
+import { SavedFiltersDropdown, SavedFilter } from "../../components/SavedFiltersDropdown";
+import { fetchSavedFilters, createSavedFilter, deleteSavedFilter } from "../../services/filters";
 
 // --- localStorage caching ---
 

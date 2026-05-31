@@ -37,7 +37,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
-import { OrgPRsView } from "./components/OrgPRsView";
+import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
 
 export default function App() {

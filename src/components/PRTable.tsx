@@ -17,6 +17,7 @@ import { EmptyState } from "./EmptyState";
 import { Badge, BadgeVariant } from "./primitives/Badge";
 import { BranchTag } from "./primitives/BranchTag";
 import { Avatar } from "./primitives/Avatar";
+import "./PRTable.css";
 
 const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
   APPROVED: { label: "Approved", variant: "success" },
