@@ -1,10 +1,11 @@
 import React from "react";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import Badge from "react-bootstrap/Badge";
 import { JiraComment, GitHubComment } from "../types";
 import { JiraComments } from "./JiraComments";
 import { GitHubMentions } from "./GitHubMentions";
+import { Badge } from "./primitives/Badge";
+import { SectionHeader } from "./primitives/SectionHeader";
 
 interface MentionsViewProps {
   jiraComments: JiraComment[];
@@ -29,25 +30,17 @@ export const MentionsView: React.FC<MentionsViewProps> = ({
   return (
     <Row>
       <Col lg={6} className="mb-3 mb-lg-0">
-        <div className="section-header">
+        <SectionHeader>
           JIRA Comments
-          {jiraComments.length > 0 && (
-            <Badge bg="secondary" pill>
-              {jiraComments.length}
-            </Badge>
-          )}
-        </div>
+          {jiraComments.length > 0 && <Badge variant="neutral">{jiraComments.length}</Badge>}
+        </SectionHeader>
         <JiraComments comments={sortedJiraComments} loading={loading} baseUrl={jiraBaseUrl} />
       </Col>
       <Col lg={6}>
-        <div className="section-header">
+        <SectionHeader>
           GitHub Mentions
-          {githubMentions.length > 0 && (
-            <Badge bg="secondary" pill>
-              {githubMentions.length}
-            </Badge>
-          )}
-        </div>
+          {githubMentions.length > 0 && <Badge variant="neutral">{githubMentions.length}</Badge>}
+        </SectionHeader>
         <GitHubMentions mentions={sortedGithubMentions} loading={loading} />
       </Col>
     </Row>

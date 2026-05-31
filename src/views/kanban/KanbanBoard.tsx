@@ -12,131 +12,15 @@ import {
   pointerWithin,
   rectIntersection,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import Badge from "react-bootstrap/Badge";
 import Spinner from "react-bootstrap/Spinner";
-import { KanbanTile, KanbanColumnId } from "../types";
-import { KANBAN_COLUMNS } from "../hooks/useKanban";
-import { ChecksStatusIcon } from "./ChecksStatusIcon";
-import { DescriptionModal } from "./DescriptionModal";
-import { formatRelativeTime } from "../utils/time";
-import { getReferenceUrl } from "../utils/text";
-import { IconSearch, IconX } from "@tabler/icons-react";
-
-// ─── Tile Card ───────────────────────────────────────────────
-
-interface TileCardProps {
-  tile: KanbanTile;
-  isDragOverlay?: boolean;
-  onClick?: () => void;
-}
-
-function KanbanTileCard({ tile, isDragOverlay, onClick }: TileCardProps) {
-  const tileId = `${tile.kanbanItem.item_type}:${tile.kanbanItem.item_id}`;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tileId,
-    data: { tile },
-  });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (!onClick) return;
-    // Don't open modal if user clicked a link
-    const target = e.target as HTMLElement;
-    if (target.tagName === "A" || target.closest("a")) return;
-    onClick();
-  };
-
-  return (
-    <div
-      ref={!isDragOverlay ? setNodeRef : undefined}
-      style={!isDragOverlay ? style : undefined}
-      className={`kanban-tile ${isDragOverlay ? "kanban-tile-overlay" : ""}`}
-      {...(!isDragOverlay ? { ...attributes, ...listeners } : {})}
-      onClick={!isDragOverlay ? handleClick : undefined}
-    >
-      <div className="d-flex justify-content-between align-items-start mb-1">
-        {tile.url ? (
-          <a
-            href={tile.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="kanban-tile-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {tile.title}
-          </a>
-        ) : (
-          <span className="kanban-tile-title">{tile.title}</span>
-        )}
-        <Badge
-          className={tile.sourceBadgeClass}
-          style={{ fontSize: "0.625rem", flexShrink: 0, marginLeft: 6 }}
-        >
-          {tile.sourceBadge}
-        </Badge>
-      </div>
-      {tile.subtitle && <div className="kanban-tile-subtitle">{tile.subtitle}</div>}
-      <div className="d-flex align-items-center gap-2 mt-1">
-        <ChecksStatusIcon status={tile.checksStatus ?? null} />
-        <span className="text-secondary-custom" style={{ fontSize: "0.6875rem" }}>
-          {formatRelativeTime(tile.timestamp)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Column ──────────────────────────────────────────────────
-
-interface ColumnProps {
-  column: { id: KanbanColumnId; title: string; color: string };
-  tiles: KanbanTile[];
-  onTileClick: (tile: KanbanTile) => void;
-}
-
-function KanbanColumn({ column, tiles, onTileClick }: ColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
-  const sortableIds = useMemo(
-    () => tiles.map((t) => `${t.kanbanItem.item_type}:${t.kanbanItem.item_id}`),
-    [tiles],
-  );
-
-  return (
-    <div ref={setNodeRef} className={`kanban-column ${isOver ? "kanban-column-over" : ""}`}>
-      <div className="kanban-column-header">
-        <span>{column.title}</span>
-        <Badge className={column.color}>{tiles.length}</Badge>
-      </div>
-      <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-        <div className="kanban-column-body">
-          {tiles.map((tile) => (
-            <KanbanTileCard
-              key={`${tile.kanbanItem.item_type}:${tile.kanbanItem.item_id}`}
-              tile={tile}
-              onClick={() => onTileClick(tile)}
-            />
-          ))}
-          {tiles.length === 0 && (
-            <div
-              className="text-secondary-custom"
-              style={{ fontSize: "0.75rem", textAlign: "center", padding: "16px 8px" }}
-            >
-              No items
-            </div>
-          )}
-        </div>
-      </SortableContext>
-    </div>
-  );
-}
+import { KanbanTile, KanbanColumnId } from "../../types";
+import { KANBAN_COLUMNS } from "../../hooks/useKanban";
+import { DescriptionModal } from "../../components/DescriptionModal";
+import { getReferenceUrl } from "../../utils/text";
+import { KanbanCard } from "./KanbanCard";
+import { KanbanColumn } from "./KanbanColumn";
+import { KanbanSearch } from "./KanbanSearch";
+import "./kanban.css";
 
 // ─── Custom collision detection ──────────────────────────────
 // Prefer pointerWithin for tiles, fall back to rectIntersection
@@ -389,22 +273,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <>
-      {/* Search bar */}
-      <div className="kanban-search-wrapper">
-        <IconSearch size={14} className="kanban-search-icon" />
-        <input
-          type="text"
-          className="kanban-search-input"
-          placeholder="Search tiles..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {searchQuery && (
-          <button className="kanban-search-clear" onClick={() => setSearchQuery("")}>
-            <IconX size={14} />
-          </button>
-        )}
-      </div>
+      <KanbanSearch value={searchQuery} onChange={setSearchQuery} />
 
       <DndContext
         sensors={sensors}
@@ -425,7 +294,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         </div>
 
         <DragOverlay>
-          {activeTile ? <KanbanTileCard tile={activeTile} isDragOverlay /> : null}
+          {activeTile ? <KanbanCard tile={activeTile} isDragOverlay /> : null}
         </DragOverlay>
       </DndContext>
 

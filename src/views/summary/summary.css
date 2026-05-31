@@ -1,0 +1,28 @@
+/* ============================================
+   Summary view
+   ============================================ */
+
+.summary-item {
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color 120ms ease;
+  cursor: pointer;
+}
+
+.summary-item:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.see-more-row {
+  border-top: 1px solid var(--color-border-subtle);
+  text-align: center;
+}
+
+/* Shared with notes view */
+/* 3-line truncation for note content preview */
+.note-content-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+}

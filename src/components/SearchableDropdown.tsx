@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import { IconSearch, IconX } from "@tabler/icons-react";
+import { Avatar } from "./primitives/Avatar";
+import "./SearchableDropdown.css";
 
 export interface DropdownItem {
   value: string;
@@ -63,12 +65,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       <div
         className="d-flex align-items-center"
         style={{
-          border: "1px solid var(--border-color, #d0d7de)",
+          border: "1px solid var(--color-border)",
           borderRadius: 6,
           padding: "2px 8px",
           fontSize: "0.8125rem",
           cursor: "pointer",
-          background: "var(--input-bg, #fff)",
+          background: "var(--color-bg-input)",
         }}
         onClick={() => {
           setOpen(!open);
@@ -123,9 +125,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             right: 0,
             zIndex: 1000,
             marginTop: 4,
-            border: "1px solid var(--border-color, #d0d7de)",
+            border: "1px solid var(--color-border)",
             borderRadius: 6,
-            background: "var(--card-bg, #fff)",
+            background: "var(--color-bg-panel)",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             maxHeight: 240,
             overflowY: "auto",
@@ -144,10 +146,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               onMouseDown={() => handleSelect(item.value)}
             >
               {item.icon && (
-                <img
+                <Avatar
                   src={item.icon}
                   alt={item.label}
-                  className="avatar-sm"
+                  size="sm"
                   style={{ width: 18, height: 18 }}
                 />
               )}

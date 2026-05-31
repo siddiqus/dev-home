@@ -3,8 +3,10 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
-import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
+import { Badge, BadgeVariant } from "../../components/primitives/Badge";
+import { SectionHeader } from "../../components/primitives/SectionHeader";
+import { SeeMoreButton } from "../../components/primitives/SeeMoreButton";
 import {
   IconSubtask,
   IconAt,
@@ -14,12 +16,13 @@ import {
   IconCheck,
   IconPlus,
 } from "@tabler/icons-react";
-import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../types";
-import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
-import { REASON_SUMMARY } from "../utils/github";
-import { formatRelativeTime } from "../utils/time";
-import { DescriptionModal } from "./DescriptionModal";
-import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../types";
+import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
+import { REASON_SUMMARY } from "../../utils/github";
+import { formatRelativeTime } from "../../utils/time";
+import { DescriptionModal } from "../../components/DescriptionModal";
+import { SummaryItem } from "./SummaryItem";
+import "./summary.css";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -46,7 +49,7 @@ interface SummaryViewProps {
 interface SectionProps {
   icon: React.ReactNode;
   title: string;
-  badgeClass: string;
+  badgeVariant: BadgeVariant;
   count: number;
   children: React.ReactNode;
   onSeeMore?: () => void;
@@ -57,7 +60,7 @@ interface SectionProps {
 function Section({
   icon,
   title,
-  badgeClass,
+  badgeVariant,
   count,
   children,
   onSeeMore,
@@ -67,14 +70,10 @@ function Section({
   return (
     <Card className="h-100">
       <Card.Body className="p-0">
-        <div className="section-header px-3 pt-3 mb-0">
+        <SectionHeader className="px-3 pt-3 mb-0">
           {icon}
           <span>{title}</span>
-          {count > 0 && (
-            <Badge className={badgeClass} style={{ fontSize: "0.625rem" }}>
-              {count}
-            </Badge>
-          )}
+          {count > 0 && <Badge variant={badgeVariant}>{count}</Badge>}
           <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
             {loading && (
               <Spinner
@@ -86,69 +85,15 @@ function Section({
             )}
             {headerAction}
           </span>
-        </div>
+        </SectionHeader>
         <div style={{ marginTop: 8 }}>{children}</div>
         {onSeeMore && (
           <div className="see-more-row px-3 py-2">
-            <button className="see-more-btn" onClick={onSeeMore}>
-              See more
-            </button>
+            <SeeMoreButton onClick={onSeeMore}>See more</SeeMoreButton>
           </div>
         )}
       </Card.Body>
     </Card>
-  );
-}
-
-interface ItemRowProps {
-  url: string;
-  title: string;
-  subtitle: string;
-  time: string;
-  badge?: string;
-  badgeClass?: string;
-  checksStatus?: string | null;
-  onClick?: () => void;
-}
-
-function ItemRow({
-  url,
-  title,
-  subtitle,
-  time,
-  badge,
-  badgeClass,
-  checksStatus,
-  onClick,
-}: ItemRowProps) {
-  return (
-    <div className="summary-item d-flex align-items-center gap-3 px-3 py-2" onClick={onClick}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-truncate-custom d-block"
-          style={{ fontWeight: 500, fontSize: "0.8125rem" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {title}
-        </a>
-        <div className="text-secondary-custom" style={{ fontSize: "0.75rem", marginTop: 1 }}>
-          {subtitle}
-        </div>
-      </div>
-      <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
-        {badge && <Badge className={badgeClass || "badge-status-neutral"}>{badge}</Badge>}
-        <ChecksStatusIcon status={checksStatus ?? null} />
-        <span
-          className="text-secondary-custom"
-          style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}
-        >
-          {formatRelativeTime(time)}
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -160,14 +105,14 @@ function EmptyRow({ text }: { text: string }) {
   );
 }
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  green: "badge-status-green",
-  yellow: "badge-status-yellow",
-  blue: "badge-status-blue",
+const STATUS_BADGE_VARIANTS: Record<string, BadgeVariant> = {
+  green: "success",
+  yellow: "warning",
+  blue: "info",
 };
 
-function statusBadgeClass(colorName: string): string {
-  return STATUS_BADGE_CLASSES[colorName] || "badge-status-neutral";
+function statusBadgeVariant(colorName: string): BadgeVariant {
+  return STATUS_BADGE_VARIANTS[colorName] || "neutral";
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -257,20 +202,20 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               <Section
                 icon={<IconEye size={13} stroke={1.8} />}
                 title="Review Requests"
-                badgeClass="badge-status-yellow"
+                badgeVariant="warning"
                 count={visibleReviews.length}
                 onSeeMore={visibleReviews.length > 5 ? () => onNavigate("reviews") : undefined}
                 loading={reviewRequestsLoading}
               >
                 {topReviews.length > 0 ? (
                   topReviews.map((r) => (
-                    <ItemRow
+                    <SummaryItem
                       key={r.id}
                       url={r.html_url}
                       title={`#${r.number} ${r.title}`}
                       subtitle={`${r.repo_full_name} · ${r.user.login}`}
                       time={r.updated_at}
-                      badgeClass="badge-status-yellow"
+                      badgeVariant="warning"
                       checksStatus={r.checks_status}
                       onClick={() => setSelectedPR(r)}
                     />
@@ -284,21 +229,21 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               <Section
                 icon={<IconGitPullRequest size={13} stroke={1.8} />}
                 title="Open Pull Requests"
-                badgeClass="badge-status-green"
+                badgeVariant="success"
                 count={visiblePRs.length}
                 onSeeMore={visiblePRs.length > 5 ? () => onNavigate("prs") : undefined}
                 loading={openPRsLoading}
               >
                 {topPRs.length > 0 ? (
                   topPRs.map((pr) => (
-                    <ItemRow
+                    <SummaryItem
                       key={pr.id}
                       url={pr.html_url}
                       title={`#${pr.number} ${pr.title}`}
                       subtitle={pr.repo_full_name}
                       time={pr.updated_at}
                       badge={pr.draft ? "Draft" : "Open"}
-                      badgeClass={pr.draft ? "badge-status-neutral" : "badge-status-green"}
+                      badgeVariant={pr.draft ? "neutral" : "success"}
                       checksStatus={pr.checks_status}
                       onClick={() => setSelectedPR(pr)}
                     />
@@ -314,7 +259,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               <Section
                 icon={<IconAt size={13} stroke={1.8} />}
                 title="Mentions"
-                badgeClass="badge-status-purple"
+                badgeVariant="purple"
                 count={jiraComments.length + githubMentions.length}
                 onSeeMore={
                   jiraComments.length + githubMentions.length > 5
@@ -325,7 +270,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               >
                 {allMentions.length > 0 ? (
                   allMentions.map((m) => (
-                    <ItemRow
+                    <SummaryItem
                       key={m.id}
                       url={m.url}
                       title={m.title}
@@ -342,21 +287,21 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               <Section
                 icon={<IconSubtask size={13} stroke={1.8} />}
                 title="JIRA Tasks"
-                badgeClass="badge-status-blue"
+                badgeVariant="info"
                 count={jiraIssues.length}
                 onSeeMore={jiraIssues.length > 5 ? () => onNavigate("jira") : undefined}
                 loading={jiraIssuesLoading}
               >
                 {topIssues.length > 0 ? (
                   topIssues.map((issue) => (
-                    <ItemRow
+                    <SummaryItem
                       key={issue.key}
                       url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
                       title={`${issue.key}: ${issue.summary}`}
                       subtitle={issue.project.name}
                       time={issue.updated}
                       badge={issue.status.name}
-                      badgeClass={statusBadgeClass(issue.status.statusCategory.colorName)}
+                      badgeVariant={statusBadgeVariant(issue.status.statusCategory.colorName)}
                       onClick={() => setSelectedIssue(issue)}
                     />
                   ))
@@ -371,7 +316,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           <Section
             icon={<IconNote size={13} stroke={1.8} />}
             title="Notes"
-            badgeClass="badge-status-purple"
+            badgeVariant="purple"
             count={visibleNotes.length}
             onSeeMore={visibleNotes.length > 10 ? () => onNavigate("notes") : undefined}
             loading={notesLoading}

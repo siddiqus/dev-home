@@ -6,8 +6,11 @@ import Card from "react-bootstrap/Card";
 import Alert from "react-bootstrap/Alert";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
-import { IconArrowLeft, IconSun, IconMoon } from "@tabler/icons-react";
-import { AppSettings, loadSettingsFromStore } from "../services/config";
+import { IconArrowLeft } from "@tabler/icons-react";
+import { AppSettings, loadSettingsFromStore } from "../../services/config";
+import { BackendStatusCard } from "./BackendStatusCard";
+import { ThemePicker } from "./ThemePicker";
+import "./settings.css";
 
 interface SettingsViewProps {
   backendOnline: boolean;
@@ -114,45 +117,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Button>
       </div>
 
-      {/* Backend Server Status */}
-      <Card className="mb-3">
-        <Card.Body>
-          <div className="d-flex align-items-center gap-2 mb-3">
-            <h6 className="mb-0">Backend Server</h6>
-            <span className={`status-dot ${backendOnline ? "online" : "offline"}`} />
-            <span
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                color: backendOnline ? "#3fb950" : "#f85149",
-              }}
-            >
-              {backendOnline ? "Online" : "Offline"}
-            </span>
-          </div>
-
-          {!backendOnline && (
-            <Alert variant="danger" className="py-2 mb-0">
-              The backend server is not reachable. Start it by running:{" "}
-              <code>cd server && yarn dev</code>
-            </Alert>
-          )}
-
-          {backendOnline && !configured && (
-            <Alert variant="warning" className="py-2 mb-0">
-              The backend server is running but not configured. Fill in your credentials below and
-              save to configure the server.
-            </Alert>
-          )}
-
-          {backendOnline && configured && (
-            <Alert variant="success" className="py-2 mb-0">
-              Connected. JIRA: <strong>{jiraBaseUrl}</strong> | GitHub:{" "}
-              <strong>{githubUsername}</strong>
-            </Alert>
-          )}
-        </Card.Body>
-      </Card>
+      <BackendStatusCard
+        backendOnline={backendOnline}
+        configured={configured}
+        jiraBaseUrl={jiraBaseUrl}
+        githubUsername={githubUsername}
+      />
 
       {/* Success / Error alerts */}
       {successMessage && (
@@ -272,39 +242,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Col>
       </Row>
 
-      {/* Appearance */}
-      <Card className="mb-3">
-        <Card.Body>
-          <h6 style={{ marginBottom: 12 }}>Appearance</h6>
-          <div className="d-flex gap-3">
-            {(["light", "dark"] as const).map((mode) => {
-              const isSelected = theme === mode;
-              return (
-                <button
-                  key={mode}
-                  className={`theme-option${isSelected ? " theme-option-selected" : ""}`}
-                  onClick={() => {
-                    if (!isSelected) onToggleTheme();
-                  }}
-                  type="button"
-                >
-                  <div className="theme-option-preview" data-preview={mode}>
-                    <div className="theme-preview-bar" />
-                    <div className="theme-preview-body">
-                      <div className="theme-preview-line" />
-                      <div className="theme-preview-line short" />
-                    </div>
-                  </div>
-                  <div className="theme-option-label">
-                    {mode === "light" ? <IconSun size={14} /> : <IconMoon size={14} />}
-                    <span>{mode === "light" ? "Light" : "Dark"}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </Card.Body>
-      </Card>
+      <ThemePicker theme={theme} onToggleTheme={onToggleTheme} />
     </div>
   );
 };

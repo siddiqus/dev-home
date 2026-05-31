@@ -1,0 +1,7 @@
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar--sm { width: 24px; height: 24px; }
+.avatar--md { width: 32px; height: 32px; }

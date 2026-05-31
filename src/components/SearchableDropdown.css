@@ -1,0 +1,12 @@
+/* ============================================
+   SearchableDropdown
+   ============================================ */
+.searchable-dropdown-item {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.searchable-dropdown-item:hover {
+  background-color: var(--color-bg-hover);
+}

@@ -8,15 +8,16 @@ import {
   GitHubReviewRequest,
   Note,
 } from "../types";
+import type { BadgeVariant } from "../components/primitives/Badge";
 import { fetchKanbanItems, upsertKanbanItem, batchUpdateKanbanItems } from "../services/kanban";
 import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
 
-export const KANBAN_COLUMNS: { id: KanbanColumnId; title: string; color: string }[] = [
-  { id: "todo", title: "Todo", color: "badge-status-neutral" },
-  { id: "in_progress", title: "In Progress", color: "badge-status-blue" },
-  { id: "on_hold", title: "On Hold", color: "badge-status-yellow" },
-  { id: "in_review", title: "In Review", color: "badge-status-purple" },
-  { id: "done", title: "Done", color: "badge-status-green" },
+export const KANBAN_COLUMNS: { id: KanbanColumnId; title: string; variant: BadgeVariant }[] = [
+  { id: "todo", title: "Todo", variant: "neutral" },
+  { id: "in_progress", title: "In Progress", variant: "info" },
+  { id: "on_hold", title: "On Hold", variant: "warning" },
+  { id: "in_review", title: "In Review", variant: "purple" },
+  { id: "done", title: "Done", variant: "success" },
 ];
 
 interface UseKanbanProps {
@@ -217,7 +218,7 @@ export function useKanban({
           subtitle: pr?.repo_full_name ?? "",
           url: pr?.html_url ?? "",
           sourceBadge: "PR",
-          sourceBadgeClass: "badge-status-green",
+          sourceBadgeVariant: "success",
           checksStatus: pr?.checks_status,
           timestamp: pr?.updated_at ?? ki.updated_at,
         };
@@ -232,7 +233,7 @@ export function useKanban({
           subtitle: review ? `${review.repo_full_name} · ${review.user.login}` : "",
           url: review?.html_url ?? "",
           sourceBadge: "Review",
-          sourceBadgeClass: "badge-status-yellow",
+          sourceBadgeVariant: "warning",
           checksStatus: review?.checks_status,
           timestamp: review?.updated_at ?? ki.updated_at,
         };
@@ -251,12 +252,12 @@ export function useKanban({
           url: noteUrl || "",
           sourceBadge:
             note.type === "jira_ticket" ? "JIRA" : note.type === "github_pr" ? "PR" : "Link",
-          sourceBadgeClass:
+          sourceBadgeVariant:
             note.type === "jira_ticket"
-              ? "badge-status-blue"
+              ? "info"
               : note.type === "github_pr"
-                ? "badge-status-green"
-                : "badge-status-neutral",
+                ? "success"
+                : "neutral",
           timestamp: note.updated_at,
         };
       }

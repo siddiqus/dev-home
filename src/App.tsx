@@ -24,20 +24,20 @@ import {
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
-import { SummaryView } from "./components/SummaryView";
+import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { MentionsView } from "./components/MentionsView";
 import { PRTable } from "./components/PRTable";
-import { PersonalNotes } from "./components/PersonalNotes";
-import { NoteEditorModal } from "./components/NoteEditorModal";
-import { SettingsView } from "./components/SettingsView";
+import { PersonalNotes } from "./views/notes/PersonalNotes";
+import { NoteEditorModal } from "./views/notes/NoteEditorModal";
+import { SettingsView } from "./views/settings/SettingsView";
 import packageJson from "../package.json";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
-import { KanbanBoard } from "./components/KanbanBoard";
-import { OrgPRsView } from "./components/OrgPRsView";
+import { KanbanBoard } from "./views/kanban/KanbanBoard";
+import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
 
 export default function App() {

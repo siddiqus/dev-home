@@ -1,0 +1,18 @@
+.badge-status {
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+}
+
+.badge-status--info     { background-color: var(--color-status-info-bg); }
+.badge-status--success  { background-color: var(--color-status-success-bg); }
+.badge-status--warning  { background-color: var(--color-status-warning-bg); }
+.badge-status--danger   { background-color: var(--color-status-danger-bg); }
+.badge-status--purple   { background-color: var(--color-status-purple-bg); }
+.badge-status--neutral  { background-color: var(--color-status-neutral-bg); }
+
+[data-theme="light"] .badge-status--info     { color: var(--color-accent); }
+[data-theme="light"] .badge-status--success  { color: var(--color-status-success); }
+[data-theme="light"] .badge-status--warning  { color: var(--color-status-warning); }
+[data-theme="light"] .badge-status--danger   { color: var(--color-status-danger); }
+[data-theme="light"] .badge-status--purple   { color: var(--color-status-purple); }
+[data-theme="light"] .badge-status--neutral  { color: var(--color-text-secondary); }

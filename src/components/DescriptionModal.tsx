@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { CheckRunInfo } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
+import "./DescriptionModal.css";
 
 const CHECK_SORT_ORDER: Record<string, number> = {
   FAILURE: 0,

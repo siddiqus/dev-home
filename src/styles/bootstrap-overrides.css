@@ -1,0 +1,278 @@
+/* ============================================
+   Bootstrap class overrides
+   Loaded after Bootstrap so these win the cascade.
+   All colors token-driven.
+   ============================================ */
+
+/* --- Bootstrap CSS Variable Overrides --- */
+:root {
+  --bs-body-bg: var(--color-bg-app);
+  --bs-body-color: var(--color-text-primary);
+  --bs-border-color: var(--color-border);
+  --bs-card-bg: var(--color-bg-panel);
+  --bs-card-border-color: var(--color-border);
+  --bs-card-cap-bg: var(--color-bg-panel);
+  --bs-link-color: var(--color-accent);
+  --bs-link-hover-color: var(--color-accent-link-hover);
+}
+
+/* --- Links --- */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+a:hover {
+  color: var(--color-accent-link-hover);
+  text-decoration: underline;
+}
+
+/* --- Cards --- */
+.card {
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+}
+
+.card-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-body {
+  background-color: transparent;
+}
+
+/* --- Tables --- */
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--color-text-primary);
+  --bs-table-border-color: var(--color-border-subtle);
+  --bs-table-striped-bg: var(--color-bg-elevated);
+  --bs-table-hover-bg: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  margin-bottom: 0;
+}
+
+.table > thead > tr > th {
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+}
+
+.table > tbody > tr > td {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: var(--space-3) var(--space-3);
+  vertical-align: middle;
+}
+
+.table > tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+.table > tbody > tr:hover > td {
+  background-color: var(--color-bg-hover);
+}
+
+/* --- Badges (base only — variants live in primitives/Badge.css) --- */
+.badge {
+  font-weight: 500;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  padding: 3px var(--space-2);
+  border-radius: 10px;
+}
+
+.badge.bg-secondary {
+  background-color: var(--color-border) !important;
+  color: var(--color-text-secondary);
+}
+
+/* --- Alerts --- */
+.alert {
+  border-radius: var(--radius-lg);
+  font-size: 0.8125rem;
+  border: 1px solid;
+}
+
+.alert-danger {
+  background-color: var(--color-alert-danger-bg);
+  border-color: var(--color-alert-danger-border);
+  color: var(--color-status-danger);
+}
+
+.alert-warning {
+  background-color: var(--color-alert-warning-bg);
+  border-color: var(--color-alert-warning-border);
+  color: var(--color-status-warning);
+}
+
+.alert-info {
+  background-color: var(--color-alert-info-bg);
+  border-color: var(--color-alert-info-border);
+  color: var(--color-status-info);
+}
+
+.alert-info a,
+.alert-info .alert-link {
+  color: var(--color-accent-link-hover);
+  font-weight: 600;
+}
+
+/* --- Buttons --- */
+.btn-outline-secondary {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+  background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-border-subtle);
+  border-color: var(--color-text-secondary);
+}
+
+.btn-outline-secondary:disabled {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-subtle);
+}
+
+.btn-outline-primary {
+  color: var(--color-accent);
+  border-color: var(--color-accent-hover);
+}
+
+.btn-outline-primary:hover {
+  color: #fff;
+  background-color: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+/* --- ListGroup --- */
+.list-group {
+  border-radius: var(--radius-lg);
+}
+
+.list-group-item {
+  background-color: var(--color-bg-panel);
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-primary);
+  padding: var(--space-3) var(--space-4);
+  transition: background-color 150ms ease;
+}
+
+.list-group-item:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.list-group-item:first-child {
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+}
+
+.list-group-item:last-child {
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+/* --- Spinner --- */
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+/* --- Dropdown menu --- */
+.dropdown-menu {
+  background-color: var(--color-bg-panel);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dropdown-item {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.dropdown-item:active {
+  background-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dropdown-divider {
+  border-color: var(--color-border);
+}
+
+/* --- Form Controls ---
+   Global Bootstrap form-control / form-select overrides. Used by SettingsView,
+   SearchableDropdown, MultiSelectDropdown, NoteEditorModal, etc. — not
+   settings-specific, so they live here rather than in any single view. */
+.form-control,
+.form-select {
+  background-color: var(--color-bg-input);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--color-bg-input);
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 0.2rem var(--color-focus-ring);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-select option {
+  background-color: var(--color-bg-panel);
+  color: var(--color-text-primary);
+}
+
+/* --- Light-mode safety overrides for Bootstrap dark-variant classes ---
+   These defensively cover `.table-dark` usage in light mode. The values are
+   token-driven so theme switching works automatically. */
+[data-theme="light"] .table-dark,
+[data-theme="light"] .table-dark > thead,
+[data-theme="light"] .table-dark > tbody,
+[data-theme="light"] .table-dark > thead > tr > th,
+[data-theme="light"] .table-dark > tbody > tr > td {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--color-text-primary);
+  background-color: transparent !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+[data-theme="light"] .table-dark > thead > tr > th {
+  color: var(--color-text-secondary) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+[data-theme="light"] .table-dark > tbody > tr:hover > td {
+  background-color: var(--color-bg-hover) !important;
+}
+
+/* Keep .badge.bg-secondary light tinting (other .bg-* badge overrides are now
+   handled by the Badge primitive's token system). */
+[data-theme="light"] .badge.bg-secondary {
+  background-color: var(--color-bg-hover) !important;
+  color: var(--color-text-secondary);
+}

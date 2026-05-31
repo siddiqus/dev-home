@@ -23,7 +23,8 @@
     "dist:win": "yarn build && electron-builder --win",
     "ghtag": "sh ./scripts/release-tag.sh",
     "tag:push": "sh ./scripts/push-tag.sh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "lint-staged": "lint-staged"
   },
   "build": {
     "appId": "com.devhome.app",

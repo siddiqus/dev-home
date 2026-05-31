@@ -158,7 +158,7 @@ export interface KanbanTile {
   subtitle: string;
   url: string;
   sourceBadge: string;
-  sourceBadgeClass: string;
+  sourceBadgeVariant: "info" | "success" | "warning" | "danger" | "purple" | "neutral";
   checksStatus?: string | null;
   timestamp: string;
 }

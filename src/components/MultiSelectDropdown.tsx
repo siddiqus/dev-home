@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import { IconSearch, IconX, IconCheck } from "@tabler/icons-react";
 import { DropdownItem } from "./SearchableDropdown";
+import { Avatar } from "./primitives/Avatar";
 import "./MultiSelectDropdown.css";
 
 interface MultiSelectDropdownProps {
@@ -85,13 +86,13 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       <div
         className="d-flex align-items-center"
         style={{
-          border: "1px solid var(--border-color, #d0d7de)",
+          border: "1px solid var(--color-border)",
           borderRadius: 6,
           padding: "0 8px",
           height: 28,
           fontSize: "0.8125rem",
           cursor: "pointer",
-          background: "var(--input-bg, #fff)",
+          background: "var(--color-bg-input)",
         }}
         onClick={() => {
           setOpen(!open);
@@ -157,9 +158,9 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             right: 0,
             zIndex: 1000,
             marginTop: 4,
-            border: "1px solid var(--border-color, #d0d7de)",
+            border: "1px solid var(--color-border)",
             borderRadius: 6,
-            background: "var(--card-bg, #fff)",
+            background: "var(--color-bg-panel)",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             maxHeight: 240,
             overflowY: "auto",
@@ -192,10 +193,10 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 {selectedSet.has(item.value) && <IconCheck size={14} />}
               </span>
               {item.icon && (
-                <img
+                <Avatar
                   src={item.icon}
                   alt={item.label}
-                  className="avatar-sm"
+                  size="sm"
                   style={{ width: 18, height: 18 }}
                 />
               )}

@@ -1,0 +1,36 @@
+/* ============================================
+   Utility classes
+   ============================================ */
+
+.text-muted-custom {
+  color: var(--color-text-muted) !important;
+}
+
+.text-secondary-custom {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-truncate-custom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-block {
+  background-color: var(--color-bg-app);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.priority-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}

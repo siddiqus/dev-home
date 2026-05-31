@@ -162,9 +162,9 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
             zIndex: 1000,
             marginTop: 4,
             minWidth: 220,
-            border: "1px solid var(--border-color, #d0d7de)",
+            border: "1px solid var(--color-border)",
             borderRadius: 6,
-            background: "var(--card-bg, #fff)",
+            background: "var(--color-bg-panel)",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             maxHeight: 280,
             overflowY: "auto",
@@ -173,7 +173,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
           {filters.length === 0 ? (
             <div
               className="px-3 py-2"
-              style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}
+              style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)" }}
             >
               No saved filters
             </div>

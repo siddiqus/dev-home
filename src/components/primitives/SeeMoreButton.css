@@ -1,0 +1,16 @@
+.see-more-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.see-more-btn:hover {
+  color: var(--color-accent);
+  background-color: var(--color-accent-bg-subtle);
+}
