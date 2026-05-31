@@ -52,6 +52,7 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
       </Dropdown.Toggle>
       <Dropdown.Menu className="pomodoro-task-picker-menu">
         <Dropdown.Item
+          active={selectedItemId === null}
           onClick={() => {
             onSelect(null);
             setOpen(false);
@@ -67,6 +68,7 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
             {tiles.map((tile) => (
               <Dropdown.Item
                 key={tile.kanbanItem.item_id}
+                active={tile.kanbanItem.item_id === selectedItemId}
                 onClick={() => {
                   onSelect(tile);
                   setOpen(false);
