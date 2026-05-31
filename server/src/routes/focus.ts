@@ -39,4 +39,66 @@ router.get("/state", (_req: Request, res: Response) => {
   });
 });
 
+/**
+ * POST /api/focus/pin
+ * Body: { itemId: string, pinned: boolean }
+ * Upserts the row; sets pinned_at to now (or null to unpin).
+ */
+router.post("/pin", (req: Request, res: Response) => {
+  const { itemId, pinned } = req.body ?? {};
+
+  if (typeof itemId !== "string" || !itemId) {
+    res.status(400).json({ error: "itemId (string) required" });
+    return;
+  }
+  if (typeof pinned !== "boolean") {
+    res.status(400).json({ error: "pinned (boolean) required" });
+    return;
+  }
+
+  const db = getDb();
+  const now = Date.now();
+  const pinnedAt = pinned ? now : null;
+
+  db.prepare(
+    `INSERT INTO focus_state (item_id, pinned_at, snoozed_until, updated_at)
+       VALUES (?, ?, NULL, ?)
+     ON CONFLICT(item_id) DO UPDATE SET
+       pinned_at = excluded.pinned_at,
+       updated_at = excluded.updated_at`,
+  ).run(itemId, pinnedAt, now);
+
+  res.json({ itemId, pinnedAt });
+});
+
+/**
+ * POST /api/focus/snooze
+ * Body: { itemId: string, until: number | null }   (epoch ms; null = clear)
+ */
+router.post("/snooze", (req: Request, res: Response) => {
+  const { itemId, until } = req.body ?? {};
+
+  if (typeof itemId !== "string" || !itemId) {
+    res.status(400).json({ error: "itemId (string) required" });
+    return;
+  }
+  if (until !== null && (typeof until !== "number" || !Number.isFinite(until))) {
+    res.status(400).json({ error: "until must be a finite number or null" });
+    return;
+  }
+
+  const db = getDb();
+  const now = Date.now();
+
+  db.prepare(
+    `INSERT INTO focus_state (item_id, pinned_at, snoozed_until, updated_at)
+       VALUES (?, NULL, ?, ?)
+     ON CONFLICT(item_id) DO UPDATE SET
+       snoozed_until = excluded.snoozed_until,
+       updated_at = excluded.updated_at`,
+  ).run(itemId, until, now);
+
+  res.json({ itemId, snoozedUntil: until });
+});
+
 export default router;
