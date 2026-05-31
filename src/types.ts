@@ -170,6 +170,18 @@ export type PomodoroWorkMinutes = 15 | 20 | 30 | 45;
 
 export interface PomodoroTaskSnapshot {
   itemId: string;
+  group?: FocusableGroup;
+  title: string;
+  sourceBadge: string;
+  sourceBadgeVariant: "info" | "success" | "warning" | "danger" | "purple" | "neutral";
+  url: string;
+}
+
+export type FocusableGroup = "prs" | "reviews" | "jira" | "mentions" | "notes";
+
+export interface FocusableItem {
+  id: string;
+  group: FocusableGroup;
   title: string;
   sourceBadge: string;
   sourceBadgeVariant: "info" | "success" | "warning" | "danger" | "purple" | "neutral";

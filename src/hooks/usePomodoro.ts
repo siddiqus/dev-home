@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  KanbanTile,
+  FocusableItem,
   PomodoroPhase,
   PomodoroTaskSnapshot,
   PomodoroWorkMinutes,
@@ -105,7 +105,7 @@ function advancePhase(
 }
 
 interface UsePomodoroProps {
-  columnTiles: KanbanTile[];
+  focusableItems: FocusableItem[];
 }
 
 export interface UsePomodoroReturn {
@@ -115,7 +115,7 @@ export interface UsePomodoroReturn {
   remainingMs: number;
   isRunning: boolean;
   selectedTaskSnapshot: PomodoroTaskSnapshot | null;
-  selectedTaskOnBoard: boolean;
+  selectedTaskAvailable: boolean;
   workMinutesOptions: PomodoroWorkMinutes[];
   cyclesBeforeLongBreak: number;
   start: () => void;
@@ -123,10 +123,10 @@ export interface UsePomodoroReturn {
   reset: () => void;
   skip: () => void;
   setWorkMinutes: (m: PomodoroWorkMinutes) => void;
-  selectTask: (tile: KanbanTile | null) => void;
+  selectTask: (item: FocusableItem | null) => void;
 }
 
-export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroReturn {
+export function usePomodoro({ focusableItems }: UsePomodoroProps): UsePomodoroReturn {
   const [state, setState] = useState<PomodoroPersistedState>(loadInitialState);
   const intervalRef = useRef<number | null>(null);
   const bellRef = useRef<HTMLAudioElement | null>(null);
@@ -153,40 +153,41 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
     }
   }, [state]);
 
-  // Refresh selected task snapshot if the underlying tile data changes
-  // (e.g. title edit). Don't auto-clear if tile disappears.
+  // Refresh selected task snapshot if the underlying source data changes
+  // (e.g. title edit). Don't auto-clear if the item disappears.
   useEffect(() => {
-    if (!state.selectedTaskSnapshot) return;
-    const tile = columnTiles.find(
-      (t) => t.kanbanItem.item_id === state.selectedTaskSnapshot!.itemId,
+    const snap = state.selectedTaskSnapshot;
+    if (!snap) return;
+    const item = focusableItems.find(
+      (i) => i.id === snap.itemId && (snap.group ? i.group === snap.group : true),
     );
-    if (!tile) return;
+    if (!item) return;
     const fresh: PomodoroTaskSnapshot = {
-      itemId: tile.kanbanItem.item_id,
-      title: tile.title,
-      sourceBadge: tile.sourceBadge,
-      sourceBadgeVariant: tile.sourceBadgeVariant,
-      url: tile.url,
+      itemId: item.id,
+      group: item.group,
+      title: item.title,
+      sourceBadge: item.sourceBadge,
+      sourceBadgeVariant: item.sourceBadgeVariant,
+      url: item.url,
     };
-    const prev = state.selectedTaskSnapshot;
     if (
-      prev.title !== fresh.title ||
-      prev.sourceBadge !== fresh.sourceBadge ||
-      prev.sourceBadgeVariant !== fresh.sourceBadgeVariant ||
-      prev.url !== fresh.url
+      snap.title !== fresh.title ||
+      snap.group !== fresh.group ||
+      snap.sourceBadge !== fresh.sourceBadge ||
+      snap.sourceBadgeVariant !== fresh.sourceBadgeVariant ||
+      snap.url !== fresh.url
     ) {
       setState((s) => ({ ...s, selectedTaskSnapshot: fresh }));
     }
-  }, [columnTiles, state.selectedTaskSnapshot]);
+  }, [focusableItems, state.selectedTaskSnapshot]);
 
-  const selectedTaskOnBoard = useMemo(() => {
-    if (!state.selectedTaskSnapshot) return false;
-    return columnTiles.some(
-      (t) =>
-        t.kanbanItem.item_id === state.selectedTaskSnapshot!.itemId &&
-        t.kanbanItem.column_name !== "done",
+  const selectedTaskAvailable = useMemo(() => {
+    const snap = state.selectedTaskSnapshot;
+    if (!snap) return false;
+    return focusableItems.some(
+      (i) => i.id === snap.itemId && (snap.group ? i.group === snap.group : true),
     );
-  }, [columnTiles, state.selectedTaskSnapshot]);
+  }, [focusableItems, state.selectedTaskSnapshot]);
 
   // End-of-phase handler
   const handlePhaseEnd = useCallback(() => {
@@ -323,15 +324,16 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
     });
   }, []);
 
-  const selectTask = useCallback((tile: KanbanTile | null) => {
+  const selectTask = useCallback((item: FocusableItem | null) => {
     setState((s) => {
-      if (!tile) return { ...s, selectedTaskSnapshot: null };
+      if (!item) return { ...s, selectedTaskSnapshot: null };
       const snap: PomodoroTaskSnapshot = {
-        itemId: tile.kanbanItem.item_id,
-        title: tile.title,
-        sourceBadge: tile.sourceBadge,
-        sourceBadgeVariant: tile.sourceBadgeVariant,
-        url: tile.url,
+        itemId: item.id,
+        group: item.group,
+        title: item.title,
+        sourceBadge: item.sourceBadge,
+        sourceBadgeVariant: item.sourceBadgeVariant,
+        url: item.url,
       };
       return { ...s, selectedTaskSnapshot: snap };
     });
@@ -344,7 +346,7 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
     remainingMs: state.remainingMs,
     isRunning: state.isRunning,
     selectedTaskSnapshot: state.selectedTaskSnapshot,
-    selectedTaskOnBoard,
+    selectedTaskAvailable,
     workMinutesOptions: WORK_MINUTES_OPTIONS,
     cyclesBeforeLongBreak: CYCLES_BEFORE_LONG_BREAK,
     start,

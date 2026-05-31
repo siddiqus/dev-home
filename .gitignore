@@ -9,3 +9,5 @@ build
 server/data/
 
 notes.db*
+
+.superpowers/

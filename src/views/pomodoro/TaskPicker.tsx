@@ -1,89 +1,140 @@
-import React, { useMemo, useState } from "react";
-import { Dropdown } from "react-bootstrap";
-import type { KanbanTile, KanbanColumnId } from "../../types";
-import { KANBAN_COLUMNS } from "../../hooks/useKanban";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import Modal from "react-bootstrap/Modal";
+import Form from "react-bootstrap/Form";
+import { IconSearch, IconCheck } from "@tabler/icons-react";
+import type { FocusableItem, FocusableGroup } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 
 interface TaskPickerProps {
-  columnTiles: KanbanTile[];
+  items: FocusableItem[];
   selectedItemId: string | null;
-  onSelect: (tile: KanbanTile | null) => void;
+  onSelect: (item: FocusableItem | null) => void;
+  renderTrigger: (props: { open: () => void }) => React.ReactNode;
 }
 
-const COLUMN_TITLE: Record<KanbanColumnId, string> = KANBAN_COLUMNS.reduce(
-  (acc, c) => {
-    acc[c.id] = c.title;
-    return acc;
-  },
-  {} as Record<KanbanColumnId, string>,
-);
+const GROUP_ORDER: FocusableGroup[] = ["prs", "reviews", "jira", "mentions", "notes"];
+
+const GROUP_TITLE: Record<FocusableGroup, string> = {
+  prs: "My Pull Requests",
+  reviews: "Review Requests",
+  jira: "JIRA Tasks",
+  mentions: "Mentions",
+  notes: "Notes",
+};
 
 export const TaskPicker: React.FC<TaskPickerProps> = ({
-  columnTiles,
+  items,
   selectedItemId,
   onSelect,
+  renderTrigger,
 }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
 
   const grouped = useMemo(() => {
-    const byCol = new Map<KanbanColumnId, KanbanTile[]>();
-    for (const tile of columnTiles) {
-      const col = tile.kanbanItem.column_name;
-      if (col === "done") continue;
-      if (!byCol.has(col)) byCol.set(col, []);
-      byCol.get(col)!.push(tile);
+    const q = query.trim().toLowerCase();
+    const byGroup = new Map<FocusableGroup, FocusableItem[]>();
+    for (const item of items) {
+      if (q && !item.title.toLowerCase().includes(q)) continue;
+      if (!byGroup.has(item.group)) byGroup.set(item.group, []);
+      byGroup.get(item.group)!.push(item);
     }
-    return KANBAN_COLUMNS.filter((c) => c.id !== "done")
-      .map((c) => ({ column: c, tiles: byCol.get(c.id) ?? [] }))
-      .filter((g) => g.tiles.length > 0);
-  }, [columnTiles]);
+    return GROUP_ORDER.map((g) => ({ group: g, items: byGroup.get(g) ?? [] })).filter(
+      (g) => g.items.length > 0,
+    );
+  }, [items, query]);
 
-  const selected = useMemo(
-    () => columnTiles.find((t) => t.kanbanItem.item_id === selectedItemId) ?? null,
-    [columnTiles, selectedItemId],
-  );
-
-  const triggerLabel = selected ? `Focus on: ${selected.title}` : "Focus on: (no specific task)";
+  const handlePick = (item: FocusableItem | null) => {
+    onSelect(item);
+    setOpen(false);
+  };
 
   return (
-    <Dropdown show={open} onToggle={(next) => setOpen(next)} className="pomodoro-task-picker">
-      <Dropdown.Toggle variant="outline-secondary" size="sm" id="pomodoro-task-picker-toggle">
-        {triggerLabel}
-      </Dropdown.Toggle>
-      <Dropdown.Menu className="pomodoro-task-picker-menu">
-        <Dropdown.Item
-          active={selectedItemId === null}
-          onClick={() => {
-            onSelect(null);
-            setOpen(false);
-          }}
-        >
-          (No specific task)
-        </Dropdown.Item>
-        {grouped.length === 0 && <Dropdown.Header>No tasks on board</Dropdown.Header>}
-        {grouped.map(({ column, tiles }) => (
-          <React.Fragment key={column.id}>
-            <Dropdown.Divider />
-            <Dropdown.Header>{COLUMN_TITLE[column.id]}</Dropdown.Header>
-            {tiles.map((tile) => (
-              <Dropdown.Item
-                key={tile.kanbanItem.item_id}
-                active={tile.kanbanItem.item_id === selectedItemId}
-                onClick={() => {
-                  onSelect(tile);
-                  setOpen(false);
-                }}
-                className="pomodoro-task-picker-item"
-              >
-                <Badge variant={tile.sourceBadgeVariant} className="me-2">
-                  {tile.sourceBadge}
-                </Badge>
-                <span>{tile.title}</span>
-              </Dropdown.Item>
-            ))}
-          </React.Fragment>
-        ))}
-      </Dropdown.Menu>
-    </Dropdown>
+    <>
+      {renderTrigger({ open: () => setOpen(true) })}
+
+      <Modal
+        show={open}
+        onHide={() => setOpen(false)}
+        centered
+        size="lg"
+        onEntered={() => searchInputRef.current?.focus()}
+        dialogClassName="pomodoro-task-picker-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title as="h5">Focus on a task</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pomodoro-task-picker-body">
+          <div className="pomodoro-task-picker-search">
+            <IconSearch size={16} className="pomodoro-task-picker-search-icon" />
+            <Form.Control
+              ref={searchInputRef}
+              type="search"
+              placeholder="Search tasks…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <button
+            type="button"
+            className={
+              "pomodoro-task-option pomodoro-task-option--none" +
+              (selectedItemId === null ? " is-selected" : "")
+            }
+            onClick={() => handlePick(null)}
+          >
+            <span className="pomodoro-task-option-title">No specific task</span>
+            {selectedItemId === null && <IconCheck size={16} />}
+          </button>
+
+          {grouped.length === 0 && (
+            <div className="pomodoro-task-picker-empty">
+              {query ? "No matching tasks" : "Nothing to focus on yet"}
+            </div>
+          )}
+
+          {grouped.map(({ group, items: groupItems }) => (
+            <section key={group} className="pomodoro-task-group">
+              <header className="pomodoro-task-group-header">
+                <span>{GROUP_TITLE[group]}</span>
+                <span className="pomodoro-task-group-count">{groupItems.length}</span>
+              </header>
+              <ul className="pomodoro-task-list">
+                {groupItems.map((item) => {
+                  const isSelected = item.id === selectedItemId;
+                  return (
+                    <li key={`${item.group}:${item.id}`}>
+                      <button
+                        type="button"
+                        className={"pomodoro-task-option" + (isSelected ? " is-selected" : "")}
+                        onClick={() => handlePick(item)}
+                      >
+                        <Badge
+                          variant={item.sourceBadgeVariant}
+                          className="pomodoro-task-option-badge"
+                        >
+                          {item.sourceBadge}
+                        </Badge>
+                        <span className="pomodoro-task-option-title">{item.title}</span>
+                        {isSelected && (
+                          <IconCheck size={16} className="pomodoro-task-option-check" />
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </Modal.Body>
+      </Modal>
+    </>
   );
 };

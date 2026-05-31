@@ -6,9 +6,11 @@ import {
   IconRotateClockwise,
   IconPlayerTrackNextFilled,
   IconX,
+  IconPlus,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import type {
-  KanbanTile,
+  FocusableItem,
   PomodoroPhase,
   PomodoroWorkMinutes,
   PomodoroTaskSnapshot,
@@ -18,14 +20,14 @@ import { TaskPicker } from "./TaskPicker";
 import "./pomodoro.css";
 
 interface PomodoroViewProps {
-  columnTiles: KanbanTile[];
+  focusableItems: FocusableItem[];
   phase: PomodoroPhase;
   workMinutes: PomodoroWorkMinutes;
   cycleCount: number;
   remainingMs: number;
   isRunning: boolean;
   selectedTaskSnapshot: PomodoroTaskSnapshot | null;
-  selectedTaskOnBoard: boolean;
+  selectedTaskAvailable: boolean;
   workMinutesOptions: PomodoroWorkMinutes[];
   cyclesBeforeLongBreak: number;
   start: () => void;
@@ -33,7 +35,7 @@ interface PomodoroViewProps {
   reset: () => void;
   skip: () => void;
   setWorkMinutes: (m: PomodoroWorkMinutes) => void;
-  selectTask: (tile: KanbanTile | null) => void;
+  selectTask: (item: FocusableItem | null) => void;
 }
 
 function formatMmSs(ms: number): string {
@@ -57,14 +59,14 @@ function phaseLabel(phase: PomodoroPhase): string {
 }
 
 export const PomodoroView: React.FC<PomodoroViewProps> = ({
-  columnTiles,
+  focusableItems,
   phase,
   workMinutes,
   cycleCount,
   remainingMs,
   isRunning,
   selectedTaskSnapshot,
-  selectedTaskOnBoard,
+  selectedTaskAvailable,
   workMinutesOptions,
   cyclesBeforeLongBreak,
   start,
@@ -86,34 +88,63 @@ export const PomodoroView: React.FC<PomodoroViewProps> = ({
 
   return (
     <div className="pomodoro-view">
-      {/* Active task */}
+      {/* Active task / picker trigger */}
       <div className="pomodoro-task-row">
-        {selectedTaskSnapshot && (
-          <div
-            className={
-              "pomodoro-active-task" + (selectedTaskOnBoard ? "" : " pomodoro-active-task--missing")
-            }
-          >
-            <Badge variant={selectedTaskSnapshot.sourceBadgeVariant}>
-              {selectedTaskSnapshot.sourceBadge}
-            </Badge>
-            <span>{selectedTaskSnapshot.title}</span>
-            {!selectedTaskOnBoard && <span>(no longer on board)</span>}
-            <button
-              type="button"
-              className="pomodoro-active-task-clear"
-              onClick={() => selectTask(null)}
-              title="Clear selected task"
-              aria-label="Clear selected task"
-            >
-              <IconX size={14} />
-            </button>
-          </div>
-        )}
         <TaskPicker
-          columnTiles={columnTiles}
+          items={focusableItems}
           selectedItemId={selectedTaskSnapshot?.itemId ?? null}
           onSelect={selectTask}
+          renderTrigger={({ open }) =>
+            selectedTaskSnapshot ? (
+              <div
+                className={
+                  "pomodoro-active-task" +
+                  (selectedTaskAvailable ? "" : " pomodoro-active-task--missing")
+                }
+              >
+                <button
+                  type="button"
+                  className="pomodoro-active-task-main"
+                  onClick={open}
+                  title="Change focus task"
+                >
+                  <Badge variant={selectedTaskSnapshot.sourceBadgeVariant}>
+                    {selectedTaskSnapshot.sourceBadge}
+                  </Badge>
+                  <span className="pomodoro-active-task-title">{selectedTaskSnapshot.title}</span>
+                  {!selectedTaskAvailable && (
+                    <span className="pomodoro-active-task-hint">(no longer available)</span>
+                  )}
+                </button>
+                {selectedTaskSnapshot.url && (
+                  <a
+                    href={selectedTaskSnapshot.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pomodoro-active-task-link"
+                    title="Open in browser"
+                    aria-label="Open task in browser"
+                  >
+                    <IconExternalLink size={14} />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="pomodoro-active-task-clear"
+                  onClick={() => selectTask(null)}
+                  title="Clear selected task"
+                  aria-label="Clear selected task"
+                >
+                  <IconX size={14} />
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="pomodoro-task-picker-empty-trigger" onClick={open}>
+                <IconPlus size={14} />
+                <span>Focus on a task</span>
+              </button>
+            )
+          }
         />
       </div>
 
