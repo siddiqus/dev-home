@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Badge from "react-bootstrap/Badge";
@@ -20,10 +20,14 @@ import {
   IconBuilding,
   IconChevronsLeft,
   IconChevronsRight,
+  IconClock,
+  IconTarget,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
+import { useFocus } from "./hooks/useFocus";
+import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { MentionsView } from "./components/MentionsView";
@@ -39,6 +43,11 @@ import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
 import { FindInPage } from "./components/FindInPage";
+import { usePomodoro } from "./hooks/usePomodoro";
+import { PomodoroView } from "./views/pomodoro/PomodoroView";
+import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
+import type { FocusableItem } from "./types";
+import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -126,7 +135,116 @@ export default function App() {
     onResolveNote: resolveNote,
     onUnresolveNote: unresolveNote,
   });
+  const {
+    groups: focusGroups,
+    loading: focusLoading,
+    offline: focusOffline,
+    pin: pinFocusItem,
+    snooze: snoozeFocusItem,
+    dismiss: dismissFocusItem,
+  } = useFocus({
+    active: configured,
+    openPRs,
+    reviewRequests,
+    jiraIssues,
+    jiraComments,
+    githubMentions,
+    notes: unresolvedNotes,
+    jiraBaseUrl,
+  });
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
+
+  // Build focusable items for the Pomodoro picker from every loaded source.
+  const focusableItems = useMemo<FocusableItem[]>(() => {
+    const items: FocusableItem[] = [];
+    const seen = new Set<string>();
+    const push = (item: FocusableItem) => {
+      const key = `${item.group}:${item.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push(item);
+    };
+
+    for (const pr of openPRs) {
+      push({
+        id: `${pr.repo_full_name}#${pr.number}`,
+        group: "prs",
+        title: `#${pr.number} ${pr.title}`,
+        sourceBadge: "PR",
+        sourceBadgeVariant: "success",
+        url: pr.html_url,
+      });
+    }
+
+    for (const r of reviewRequests) {
+      push({
+        id: `${r.repo_full_name}#${r.number}`,
+        group: "reviews",
+        title: `#${r.number} ${r.title}`,
+        sourceBadge: "Review",
+        sourceBadgeVariant: "warning",
+        url: r.html_url,
+      });
+    }
+
+    const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
+    for (const issue of jiraIssues) {
+      push({
+        id: issue.key,
+        group: "jira",
+        title: `${issue.key} ${issue.fields?.summary || issue.summary || ""}`.trim(),
+        sourceBadge: "JIRA",
+        sourceBadgeVariant: "info",
+        url: jiraBase ? `${jiraBase}/browse/${issue.key}` : "",
+      });
+    }
+
+    for (const m of githubMentions) {
+      push({
+        id: String(m.id),
+        group: "mentions",
+        title: m.context_title || m.body.slice(0, 80),
+        sourceBadge: "Mention",
+        sourceBadgeVariant: "purple",
+        url: m.html_url,
+      });
+    }
+    for (const c of jiraComments) {
+      push({
+        id: c.id,
+        group: "mentions",
+        title: `${c.issueKey} ${c.issueSummary}`,
+        sourceBadge: "Mention",
+        sourceBadgeVariant: "purple",
+        url: jiraBase ? `${jiraBase}/browse/${c.issueKey}` : "",
+      });
+    }
+
+    for (const n of unresolvedNotes) {
+      if (n.type === "free_text") continue;
+      push({
+        id: String(n.id),
+        group: "notes",
+        title: getNoteDisplayTitle(n),
+        sourceBadge: n.type === "jira_ticket" ? "JIRA" : n.type === "github_pr" ? "PR" : "Link",
+        sourceBadgeVariant:
+          n.type === "jira_ticket" ? "info" : n.type === "github_pr" ? "success" : "neutral",
+        url: getReferenceUrl(n, jiraBaseUrl) || "",
+      });
+    }
+
+    return items;
+  }, [
+    openPRs,
+    reviewRequests,
+    jiraIssues,
+    githubMentions,
+    jiraComments,
+    unresolvedNotes,
+    jiraBaseUrl,
+  ]);
+
+  const pomodoro = usePomodoro({ focusableItems });
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
@@ -152,6 +270,14 @@ export default function App() {
             Dev Home ({packageJson.version})
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
+            {pomodoro.phase !== "idle" && (
+              <PomodoroBadge
+                phase={pomodoro.phase}
+                remainingMs={pomodoro.remainingMs}
+                taskTitle={pomodoro.selectedTaskSnapshot?.title ?? null}
+                onClick={() => setActiveTab("pomodoro")}
+              />
+            )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
             <Button
               variant="outline-secondary"
@@ -186,6 +312,7 @@ export default function App() {
           <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
             {[
               { key: "summary", label: "Summary", icon: IconLayoutDashboard, count: undefined },
+              { key: "focus", label: "Focus", icon: IconTarget, count: undefined },
               { key: "board", label: "Board", icon: IconColumns3, count: undefined },
               {
                 key: "notes",
@@ -222,6 +349,7 @@ export default function App() {
                     },
                   ]
                 : []),
+              { key: "pomodoro", label: "Pomodoro", icon: IconClock, count: undefined },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -313,6 +441,16 @@ export default function App() {
                     doneItemIds={doneItemIds}
                   />
                 )}
+                {effectiveTab === "focus" && (
+                  <FocusView
+                    groups={focusGroups}
+                    loading={focusLoading}
+                    offline={focusOffline}
+                    onPin={pinFocusItem}
+                    onSnooze={snoozeFocusItem}
+                    onDismiss={dismissFocusItem}
+                  />
+                )}
                 {effectiveTab === "board" && (
                   <KanbanBoard
                     columnTiles={columnTiles}
@@ -364,6 +502,9 @@ export default function App() {
                     onAdd={() => setShowNoteEditor(true)}
                     jiraBaseUrl={jiraBaseUrl}
                   />
+                )}
+                {effectiveTab === "pomodoro" && (
+                  <PomodoroView focusableItems={focusableItems} {...pomodoro} />
                 )}
               </div>
             )}

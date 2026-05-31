@@ -90,6 +90,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
 
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
 
   // Load saved filters from API
   useEffect(() => {
@@ -301,7 +302,23 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
   const handleApplyFilter = useCallback((filter: SavedFilter) => {
     setAuthors(filter.authors);
     setSelectedRepos(filter.repos);
+    setActiveFilterId(filter.id);
   }, []);
+
+  const handleAuthorsChange = useCallback((vals: string[]) => {
+    setAuthors(vals);
+    setActiveFilterId(null);
+  }, []);
+
+  const handleReposChange = useCallback((vals: string[]) => {
+    setSelectedRepos(vals);
+    setActiveFilterId(null);
+  }, []);
+
+  const activeFilterName = useMemo(() => {
+    if (activeFilterId === null) return undefined;
+    return savedFilters.find((f) => f.id === activeFilterId)?.name;
+  }, [activeFilterId, savedFilters]);
 
   // Dropdown items
   const authorItems = useMemo<DropdownItem[]>(
@@ -330,14 +347,14 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
           <MultiSelectDropdown
             items={authorItems}
             values={authors}
-            onChange={setAuthors}
+            onChange={handleAuthorsChange}
             placeholder="Search authors..."
             allLabel="All authors"
           />
           <MultiSelectDropdown
             items={repoItems}
             values={selectedRepos}
-            onChange={setSelectedRepos}
+            onChange={handleReposChange}
             placeholder="Search repos..."
             allLabel="All repos"
           />
@@ -348,6 +365,12 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
             onDelete={handleDeleteFilter}
             canSave={authors.length > 0 || selectedRepos.length > 0}
             onSave={handleSaveFilter}
+            activeFilterId={activeFilterId}
+            onClearActive={() => {
+              setActiveFilterId(null);
+              setAuthors([]);
+              setSelectedRepos([]);
+            }}
           />
         </div>
         <div className="d-flex align-items-center gap-2">

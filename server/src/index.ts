@@ -4,6 +4,7 @@ import "express-async-errors";
 import { validateEnv } from "./config";
 import { closeDb } from "./db";
 import configRoutes from "./routes/config";
+import focusRoutes from "./routes/focus";
 import githubRoutes from "./routes/github";
 import jiraRoutes from "./routes/jira";
 import kanbanRoutes from "./routes/kanban";
@@ -43,6 +44,7 @@ export function createServer() {
   app.use("/api/jira", jiraRoutes);
   app.use("/api/github", githubRoutes);
   app.use("/api/config", configRoutes);
+  app.use("/api/focus", focusRoutes);
   app.use("/api/notes", notesRoutes);
   app.use("/api/kanban", kanbanRoutes);
   app.use("/api/filters", filtersRoutes);

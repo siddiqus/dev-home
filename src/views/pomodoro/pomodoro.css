@@ -1,0 +1,305 @@
+/* Pomodoro view styles */
+
+.pomodoro-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem 1rem;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.pomodoro-task-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.pomodoro-active-task {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.25rem 0.25rem 0.625rem;
+  max-width: 100%;
+}
+
+.pomodoro-active-task--missing {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.pomodoro-active-task-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.125rem 0.25rem;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+}
+
+.pomodoro-active-task-main:hover {
+  background: var(--color-bg-hover);
+}
+
+.pomodoro-active-task-main:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.pomodoro-active-task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.pomodoro-active-task-hint {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.pomodoro-active-task-link,
+.pomodoro-active-task-clear {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 0;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.pomodoro-active-task-link:hover,
+.pomodoro-active-task-clear:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.pomodoro-active-task-link:focus-visible,
+.pomodoro-active-task-clear:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.pomodoro-task-picker-empty-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.375rem 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.pomodoro-task-picker-empty-trigger:hover {
+  color: var(--color-text-primary);
+  border-style: solid;
+  background: var(--color-bg-hover);
+}
+
+.pomodoro-task-picker-empty-trigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.pomodoro-timer-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(3rem, 12vw, 6rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.pomodoro-phase-label {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pomodoro-cycle-indicator {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.pomodoro-presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pomodoro-preset-btn {
+  min-width: 3rem;
+}
+
+.pomodoro-controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Task picker modal */
+
+.pomodoro-task-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.pomodoro-task-picker-search {
+  position: relative;
+}
+
+.pomodoro-task-picker-search .form-control {
+  padding-left: 2.25rem;
+}
+
+.pomodoro-task-picker-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.pomodoro-task-picker-empty {
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.pomodoro-task-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.pomodoro-task-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0.25rem;
+}
+
+.pomodoro-task-group-count {
+  font-weight: 500;
+}
+
+.pomodoro-task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pomodoro-task-option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 0.75rem;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.pomodoro-task-option:hover {
+  background: var(--color-bg-hover);
+}
+
+.pomodoro-task-option:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.pomodoro-task-option.is-selected {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+
+.pomodoro-task-option-badge {
+  flex-shrink: 0;
+}
+
+.pomodoro-task-option-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pomodoro-task-option-check {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.pomodoro-task-option--none {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+/* Top bar badge */
+
+.pomodoro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.pomodoro-badge:hover {
+  background: var(--color-bg-hover);
+}
+
+.pomodoro-badge:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
