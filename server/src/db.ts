@@ -124,6 +124,19 @@ const MIGRATIONS: Migration[] = [
       );
     `);
   },
+
+  // 7 – create focus_state table
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS focus_state (
+        item_id TEXT PRIMARY KEY,
+        pinned_at INTEGER NULL,
+        snoozed_until INTEGER NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_focus_state_snoozed ON focus_state(snoozed_until);
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {
