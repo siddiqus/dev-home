@@ -190,6 +190,34 @@ a:hover {
   border-width: 0.15em;
 }
 
+/* --- Form Controls ---
+   Global Bootstrap form-control / form-select overrides. Used by SettingsView,
+   SearchableDropdown, MultiSelectDropdown, NoteEditorModal, etc. — not
+   settings-specific, so they live here rather than in any single view. */
+.form-control,
+.form-select {
+  background-color: var(--color-bg-input);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--color-bg-input);
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 0.2rem var(--color-focus-ring);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-select option {
+  background-color: var(--color-bg-panel);
+  color: var(--color-text-primary);
+}
+
 /* --- Light-mode safety overrides for Bootstrap dark-variant classes ---
    These defensively cover `.table-dark` usage in light mode. The values are
    token-driven so theme switching works automatically. */

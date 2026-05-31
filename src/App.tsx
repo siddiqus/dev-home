@@ -30,7 +30,7 @@ import { MentionsView } from "./components/MentionsView";
 import { PRTable } from "./components/PRTable";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
-import { SettingsView } from "./components/SettingsView";
+import { SettingsView } from "./views/settings/SettingsView";
 import packageJson from "../package.json";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
