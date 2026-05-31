@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { IconSearch, IconX, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
+import "./FindInPage.css";
 
 export function FindInPage() {
   const [visible, setVisible] = useState(false);

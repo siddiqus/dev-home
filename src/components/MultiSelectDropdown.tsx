@@ -86,13 +86,13 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       <div
         className="d-flex align-items-center"
         style={{
-          border: "1px solid var(--border-color, #d0d7de)",
+          border: "1px solid var(--color-border)",
           borderRadius: 6,
           padding: "0 8px",
           height: 28,
           fontSize: "0.8125rem",
           cursor: "pointer",
-          background: "var(--input-bg, #fff)",
+          background: "var(--color-bg-input)",
         }}
         onClick={() => {
           setOpen(!open);
@@ -158,9 +158,9 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             right: 0,
             zIndex: 1000,
             marginTop: 4,
-            border: "1px solid var(--border-color, #d0d7de)",
+            border: "1px solid var(--color-border)",
             borderRadius: 6,
-            background: "var(--card-bg, #fff)",
+            background: "var(--color-bg-panel)",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             maxHeight: 240,
             overflowY: "auto",

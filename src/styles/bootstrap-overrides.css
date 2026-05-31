@@ -190,6 +190,34 @@ a:hover {
   border-width: 0.15em;
 }
 
+/* --- Dropdown menu --- */
+.dropdown-menu {
+  background-color: var(--color-bg-panel);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dropdown-item {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.dropdown-item:active {
+  background-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dropdown-divider {
+  border-color: var(--color-border);
+}
+
 /* --- Form Controls ---
    Global Bootstrap form-control / form-select overrides. Used by SettingsView,
    SearchableDropdown, MultiSelectDropdown, NoteEditorModal, etc. — not

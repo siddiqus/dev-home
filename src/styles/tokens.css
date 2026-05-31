@@ -84,15 +84,6 @@
 
   /* Misc — Bootstrap close-button needs to be inverted on dark surfaces */
   --btn-close-filter: invert(1) grayscale(100%) brightness(200%);
-
-  /* --- Legacy aliases (consumed by SearchableDropdown, MultiSelect, SavedFilters) --- */
-  /* TODO(refactor): remove once Phase B7 migrates these consumers to --color-* tokens */
-  --text-primary: var(--color-text-primary);
-  --text-secondary: var(--color-text-secondary);
-  --card-bg: var(--color-bg-panel);
-  --hover-bg: var(--color-bg-hover);
-  --border-color: var(--color-border);
-  --input-bg: var(--color-bg-input);
 }
 
 [data-theme="light"] {
