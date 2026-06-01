@@ -11,7 +11,7 @@ import {
 } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
-import { extractTicket, groupByTicket } from "../utils/tickets";
+import { groupByTicket } from "../utils/tickets";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
@@ -44,7 +44,6 @@ const VARIANT_CONFIG: Record<
     emptyIcon: React.ReactNode;
     emptyTitle: string;
     emptyDescription: string;
-    grouped: boolean;
   }
 > = {
   "my-prs": {
@@ -52,27 +51,23 @@ const VARIANT_CONFIG: Record<
     emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
     emptyTitle: "No open pull requests",
     emptyDescription: "You don't have any open pull requests at the moment.",
-    grouped: true,
   },
   "review-requests": {
     columns: ["title", "repo", "author", "checks", "updated"],
     emptyIcon: <IconEye size={40} stroke={1.5} />,
     emptyTitle: "No review requests",
     emptyDescription: "No one has requested your review on any pull requests.",
-    grouped: true,
   },
   "org-prs": {
-    columns: ["ticket", "title", "repo", "author", "status", "updated"],
+    columns: ["title", "repo", "author", "status", "updated"],
     emptyIcon: <IconBuilding size={40} stroke={1.5} />,
     emptyTitle: "No org pull requests",
     emptyDescription: "No open, non-draft pull requests found for this org.",
-    grouped: false,
   },
 };
 
 const HEADER_LABELS: Record<string, string> = {
   pr: "PR",
-  ticket: "Ticket",
   title: "Title",
   repo: "Repository",
   branch: "Branch",
@@ -82,16 +77,42 @@ const HEADER_LABELS: Record<string, string> = {
   updated: "Updated",
 };
 
+const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
+  "my-prs": {
+    pr: "6%",
+    title: "30%",
+    repo: "18%",
+    branch: "20%",
+    status: "16%",
+    updated: "10%",
+  },
+  "review-requests": {
+    title: "34%",
+    repo: "22%",
+    author: "18%",
+    checks: "12%",
+    updated: "14%",
+  },
+  "org-prs": {
+    title: "30%",
+    repo: "22%",
+    author: "18%",
+    status: "18%",
+    updated: "12%",
+  },
+};
+
 /** Render a single cell by column key. */
 function renderCell(
   col: string,
   pr: GitHubPR,
-  opts: { isGrouped: boolean; jiraBaseUrl: string },
+  opts: { isGrouped: boolean; isFirstColumn: boolean },
 ): React.ReactNode {
+  const indentStyle = opts.isGrouped && opts.isFirstColumn ? { paddingLeft: 30 } : undefined;
   switch (col) {
     case "pr":
       return (
-        <td key={col} style={opts.isGrouped ? { paddingLeft: 30 } : undefined}>
+        <td key={col} style={indentStyle}>
           <a
             href={pr.html_url}
             target="_blank"
@@ -104,31 +125,9 @@ function renderCell(
           </a>
         </td>
       );
-    case "ticket": {
-      const ticket = extractTicket(pr.title);
-      const base = opts.jiraBaseUrl.replace(/\/+$/, "");
-      return (
-        <td key={col}>
-          {ticket ? (
-            <a
-              href={`${base}/browse/${ticket}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-secondary-custom"
-              style={{ fontWeight: 500, whiteSpace: "nowrap" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {ticket}
-            </a>
-          ) : (
-            <span className="text-secondary-custom">-</span>
-          )}
-        </td>
-      );
-    }
     case "title":
       return (
-        <td key={col}>
+        <td key={col} style={indentStyle}>
           <a
             href={pr.html_url}
             target="_blank"
@@ -261,12 +260,16 @@ export const PRTable: React.FC<PRTableProps> = ({
     });
   };
 
-  // For grouped variants, group by ticket; otherwise flat list
-  const groups = config.grouped ? groupByTicket(prs) : [{ ticket: null, prs }];
+  const groups = groupByTicket(prs);
 
   return (
     <>
-      <Table hover>
+      <Table hover style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          {columns.map((col) => (
+            <col key={col} style={{ width: COLUMN_WIDTHS[variant]?.[col] }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {columns.map((col) => (
@@ -276,7 +279,7 @@ export const PRTable: React.FC<PRTableProps> = ({
         </thead>
         <tbody>
           {groups.map((group, groupIdx) => {
-            const isGroup = config.grouped && group.ticket !== null && group.prs.length > 1;
+            const isGroup = group.ticket !== null && group.prs.length > 1;
             const isCollapsed = isGroup && collapsed.has(group.ticket!);
             const groupKey = group.ticket ?? `ungrouped-${groupIdx}`;
             return (
@@ -318,8 +321,8 @@ export const PRTable: React.FC<PRTableProps> = ({
                 {!isCollapsed &&
                   group.prs.map((pr) => (
                     <tr key={pr.id} onClick={() => setSelectedPR(pr)} style={{ cursor: "pointer" }}>
-                      {columns.map((col) =>
-                        renderCell(col, pr, { isGrouped: !!isGroup, jiraBaseUrl }),
+                      {columns.map((col, colIdx) =>
+                        renderCell(col, pr, { isGrouped: !!isGroup, isFirstColumn: colIdx === 0 }),
                       )}
                     </tr>
                   ))}

@@ -485,10 +485,15 @@ export default function App() {
                     loading={loading}
                     jiraIssues={jiraIssues}
                     variant="review-requests"
+                    jiraBaseUrl={jiraBaseUrl}
                   />
                 )}
                 {effectiveTab === "org-prs" && (
-                  <OrgPRsView configured={configured} jiraBaseUrl={jiraBaseUrl} />
+                  <OrgPRsView
+                    configured={configured}
+                    jiraBaseUrl={jiraBaseUrl}
+                    jiraIssues={jiraIssues}
+                  />
                 )}
                 {effectiveTab === "notes" && (
                   <PersonalNotes

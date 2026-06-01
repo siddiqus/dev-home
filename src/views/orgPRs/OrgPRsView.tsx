@@ -3,7 +3,7 @@ import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh } from "@tabler/icons-react";
-import { GitHubPR } from "../../types";
+import { GitHubPR, JiraIssue } from "../../types";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
@@ -71,9 +71,10 @@ function arraysEqual(a: string[], b: string[]): boolean {
 interface OrgPRsViewProps {
   configured: boolean;
   jiraBaseUrl: string;
+  jiraIssues?: JiraIssue[];
 }
 
-export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl }) => {
+export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl, jiraIssues }) => {
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
   const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
@@ -404,7 +405,13 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl 
           transition: "opacity 0.15s ease",
         }}
       >
-        <PRTable prs={prs} loading={loading} jiraBaseUrl={jiraBaseUrl} variant="org-prs" />
+        <PRTable
+          prs={prs}
+          loading={loading}
+          jiraBaseUrl={jiraBaseUrl}
+          jiraIssues={jiraIssues}
+          variant="org-prs"
+        />
       </div>
 
       {/* Load more button */}
