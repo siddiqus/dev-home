@@ -162,7 +162,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
         }}
       >
         <IconBookmark size={14} />
-        {activeFilterName || "Saved"}
+        {activeFilterName || "Saved Filters"}
         {!activeFilterName && filters.length > 0 && (
           <span
             style={{
@@ -213,7 +213,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
           title={hasFilterDiverged ? "Save as a new filter" : "Save current filter"}
         >
           <IconDeviceFloppy size={14} />
-          {hasFilterDiverged ? "Save as new" : "Save"}
+          {hasFilterDiverged ? "Save as new" : "Save Filter"}
         </button>
       )}
 
