@@ -248,6 +248,19 @@ export default function App() {
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
+  // Cmd+Shift+N to open a new note
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setOpenNote(null);
+        setShowNoteEditor(true);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   // If config is not yet loaded, show settings first
   const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
 

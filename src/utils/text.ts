@@ -38,16 +38,28 @@ export function getNoteDisplayTitle(note: Note): string {
   if (note.title) return note.title;
 
   if (note.type === "github_pr") {
-    return formatGitHubTitle(note.reference_id || "") || "Untitled note";
+    return formatGitHubTitle(note.reference_id || "") || deriveTitleFromContent(note.content);
   }
   if (note.type === "jira_ticket") {
-    // Extract the JIRA key whether reference_id is a full URL or bare key
     const keyMatch = note.reference_id?.match(/([A-Z][A-Z0-9]+-\d+)/);
-    return keyMatch ? keyMatch[1] : note.reference_id || "Untitled note";
+    return keyMatch ? keyMatch[1] : note.reference_id || deriveTitleFromContent(note.content);
   }
   if (note.type === "link") {
-    return note.reference_id || "Untitled note";
+    return note.reference_id || deriveTitleFromContent(note.content);
   }
 
-  return "Untitled note";
+  return deriveTitleFromContent(note.content);
+}
+
+export function deriveTitleFromContent(content: string | undefined, maxLength = 80): string {
+  if (!content) return "Untitled note";
+  const plain = content
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_~`]/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\n+/g, " ")
+    .trim();
+  if (!plain) return "Untitled note";
+  if (plain.length <= maxLength) return plain;
+  return plain.slice(0, maxLength).trimEnd() + "...";
 }
