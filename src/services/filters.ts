@@ -21,6 +21,14 @@ export async function createSavedFilter(
   return data.filter;
 }
 
+export async function updateSavedFilter(
+  id: number,
+  data: { name?: string; filter_config?: { authors: string[]; repos: string[] } },
+): Promise<SavedFilterData> {
+  const { data: resp } = await apiClient.put(`/filters/${id}`, data);
+  return resp.filter;
+}
+
 export async function deleteSavedFilter(id: number): Promise<void> {
   await apiClient.delete(`/filters/${id}`);
 }

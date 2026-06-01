@@ -27,11 +27,16 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const selectedSet = useMemo(() => new Set(values), [values]);
+
   const filtered = useMemo(() => {
-    if (!search) return items;
-    const lower = search.toLowerCase();
-    return items.filter((item) => item.label.toLowerCase().includes(lower));
-  }, [items, search]);
+    const base = search
+      ? items.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
+      : items;
+    const selected = base.filter((item) => selectedSet.has(item.value));
+    const unselected = base.filter((item) => !selectedSet.has(item.value));
+    return [...selected, ...unselected];
+  }, [items, search, selectedSet]);
 
   // Derive a noun from allLabel for count display (e.g., "All authors" -> "authors")
   const noun = useMemo(() => {
@@ -47,8 +52,6 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     }
     return `${values.length} ${noun}`;
   }, [items, values, allLabel, noun]);
-
-  const selectedSet = useMemo(() => new Set(values), [values]);
 
   // Build tooltip lines listing all selected item labels
   const selectedLabels = useMemo(() => {

@@ -16,7 +16,12 @@ import { PRTable } from "../../components/PRTable";
 import { DropdownItem } from "../../components/SearchableDropdown";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { SavedFiltersDropdown, SavedFilter } from "../../components/SavedFiltersDropdown";
-import { fetchSavedFilters, createSavedFilter, deleteSavedFilter } from "../../services/filters";
+import {
+  fetchSavedFilters,
+  createSavedFilter,
+  updateSavedFilter,
+  deleteSavedFilter,
+} from "../../services/filters";
 
 // --- localStorage caching ---
 
@@ -92,6 +97,13 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
+
+  // Clear active filter when all selections are removed
+  useEffect(() => {
+    if (authors.length === 0 && selectedRepos.length === 0) {
+      setActiveFilterId(null);
+    }
+  }, [authors, selectedRepos]);
 
   // Load saved filters from API
   useEffect(() => {
@@ -291,6 +303,32 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
     [authors, selectedRepos],
   );
 
+  const handleUpdateFilter = useCallback(
+    async (
+      id: number,
+      data: { name?: string; filter_config?: { authors: string[]; repos: string[] } },
+    ) => {
+      try {
+        const updated = await updateSavedFilter(id, data);
+        setSavedFilters((prev) =>
+          prev.map((f) =>
+            f.id === id
+              ? {
+                  id: updated.id,
+                  name: updated.name,
+                  authors: updated.filter_config.authors ?? [],
+                  repos: updated.filter_config.repos ?? [],
+                }
+              : f,
+          ),
+        );
+      } catch (err) {
+        console.error("Failed to update filter:", err);
+      }
+    },
+    [],
+  );
+
   const handleDeleteFilter = useCallback(async (id: number) => {
     try {
       await deleteSavedFilter(id);
@@ -308,12 +346,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
 
   const handleAuthorsChange = useCallback((vals: string[]) => {
     setAuthors(vals);
-    setActiveFilterId(null);
   }, []);
 
   const handleReposChange = useCallback((vals: string[]) => {
     setSelectedRepos(vals);
-    setActiveFilterId(null);
   }, []);
 
   const activeFilterName = useMemo(() => {
@@ -366,12 +402,15 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
             onDelete={handleDeleteFilter}
             canSave={authors.length > 0 || selectedRepos.length > 0}
             onSave={handleSaveFilter}
+            onUpdate={handleUpdateFilter}
             activeFilterId={activeFilterId}
             onClearActive={() => {
               setActiveFilterId(null);
               setAuthors([]);
               setSelectedRepos([]);
             }}
+            currentAuthors={authors}
+            currentRepos={selectedRepos}
           />
         </div>
         <div className="d-flex align-items-center gap-2">
