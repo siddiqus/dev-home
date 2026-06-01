@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
-import { fetchAssignedIssues, fetchRecentMentions } from "../services/jira";
+import { fetchAssignedIssues, fetchIssuesByKeys, fetchRecentMentions } from "../services/jira";
 import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
+import { extractTicket } from "../utils/tickets";
 
 const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
@@ -114,6 +115,28 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     let pendingCount = 5;
     const errors: string[] = [];
 
+    const fetchMissingJiraIssues = () => {
+      if (!pendingData.openPRs || !pendingData.jiraIssues) return;
+      const knownKeys = new Set(pendingData.jiraIssues.map((i) => i.key.toUpperCase()));
+      const allPRs = [...pendingData.openPRs, ...(pendingData.reviewRequests ?? [])];
+      const missingKeys = [
+        ...new Set(
+          allPRs
+            .map((pr) => extractTicket(pr.title))
+            .filter((k): k is string => k !== null && !knownKeys.has(k.toUpperCase())),
+        ),
+      ];
+      if (missingKeys.length === 0) return;
+      fetchIssuesByKeys(missingKeys)
+        .then((extra) => {
+          if (controller.signal.aborted) return;
+          const merged = [...pendingData.jiraIssues!, ...extra];
+          pendingData.jiraIssues = merged;
+          setJiraIssues(merged);
+        })
+        .catch(() => {});
+    };
+
     // PR comments and notification mentions arrive independently; accumulated here
     // and merged at settle time to avoid race-condition overwrites.
     let pendingPRComments: GitHubComment[] = [];
@@ -171,6 +194,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         setJiraIssues(data);
         pendingData.jiraIssues = data;
         setJiraIssuesLoading(false);
+        fetchMissingJiraIssues();
         settle();
       })
       .catch((err) => {
@@ -199,6 +223,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
         // Store PR comments; they'll be merged with notification mentions at settle time
         pendingPRComments = prComments;
         setOpenPRsLoading(false);
+        fetchMissingJiraIssues();
         settle();
       })
       .catch((err) => {

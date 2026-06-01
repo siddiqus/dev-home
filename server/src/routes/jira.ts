@@ -160,6 +160,52 @@ router.get("/issues", async (_req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/jira/issues/bulk
+ * Fetch issues by their keys (e.g. ["CCP-123", "CCP-456"]).
+ */
+router.post("/issues/bulk", async (req: Request, res: Response) => {
+  const { keys } = req.body;
+  if (!Array.isArray(keys) || keys.length === 0) {
+    res.json({ issues: [] });
+    return;
+  }
+
+  const jira = createJiraClient();
+  const keyList = keys.map((k: string) => `"${k}"`).join(", ");
+  const jql = `key IN (${keyList}) ORDER BY updated DESC`;
+  const fields = ["summary", "status", "priority", "assignee", "project", "updated"];
+
+  const { data } = await jira.post("/search/jql", { jql, fields });
+
+  const issues = (data.issues || data || []).map((issue: any) => ({
+    key: issue.key,
+    summary: issue.fields?.summary,
+    status: {
+      name: issue.fields?.status?.name,
+      statusCategory: {
+        colorName: issue.fields?.status?.statusCategory?.colorName,
+      },
+    },
+    priority: {
+      name: issue.fields?.priority?.name,
+      iconUrl: issue.fields?.priority?.iconUrl,
+    },
+    assignee: {
+      displayName: issue.fields?.assignee?.displayName,
+      avatarUrls: issue.fields?.assignee?.avatarUrls,
+    },
+    project: {
+      key: issue.fields?.project?.key,
+      name: issue.fields?.project?.name,
+    },
+    updated: issue.fields?.updated,
+    self: issue.self,
+  }));
+
+  res.json({ issues });
+});
+
+/**
  * GET /api/jira/mentions
  * Fetch recent comments that mention the current user.
  */

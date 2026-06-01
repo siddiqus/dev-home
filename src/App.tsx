@@ -476,6 +476,7 @@ export default function App() {
                     loading={loading}
                     jiraIssues={jiraIssues}
                     variant="my-prs"
+                    jiraBaseUrl={jiraBaseUrl}
                   />
                 )}
                 {effectiveTab === "reviews" && (

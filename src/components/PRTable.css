@@ -36,6 +36,19 @@
   vertical-align: middle;
 }
 
+.ticket-group-link {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--color-text-muted);
+  vertical-align: middle;
+  transition: color 0.15s;
+}
+
+.ticket-group-link:hover {
+  color: var(--color-accent);
+}
+
 .ticket-group-count {
   font-size: 0.6875rem;
   color: var(--color-text-muted);

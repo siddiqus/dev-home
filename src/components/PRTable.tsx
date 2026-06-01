@@ -7,6 +7,7 @@ import {
   IconBuilding,
   IconChevronRight,
   IconChevronDown,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
@@ -291,12 +292,26 @@ export const PRTable: React.FC<PRTableProps> = ({
                         )}
                       </span>
                       <span className="ticket-group-label">{group.ticket}</span>
+
                       {ticketTitles.get(group.ticket!.toUpperCase()) && (
                         <span className="ticket-group-title">
                           {ticketTitles.get(group.ticket!.toUpperCase())}
                         </span>
                       )}
+
                       <span className="ticket-group-count">{group.prs.length} PRs</span>
+
+                      {jiraBaseUrl && (
+                        <a
+                          href={`${jiraBaseUrl.replace(/\/+$/, "")}/browse/${group.ticket}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ticket-group-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <IconExternalLink size={14} stroke={1.5} />
+                        </a>
+                      )}
                     </td>
                   </tr>
                 )}
