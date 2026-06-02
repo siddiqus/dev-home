@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
+import Spinner from "react-bootstrap/Spinner";
 import { IconSearch, IconX, IconTrash } from "@tabler/icons-react";
 import { Avatar } from "./primitives/Avatar";
 import "./SearchableDropdown.css";
@@ -19,6 +20,7 @@ interface SearchableDropdownProps {
   width?: number;
   triggerIcon?: React.ReactNode;
   onDeleteItem?: (value: string) => void;
+  loading?: boolean;
 }
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -30,6 +32,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   width = 240,
   triggerIcon,
   onDeleteItem,
+  loading = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -138,46 +141,54 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             overflowY: "auto",
           }}
         >
-          <div
-            className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
-            onMouseDown={() => handleSelect("")}
-          >
-            {allLabel}
-          </div>
-          {filtered.map((item) => (
-            <div
-              key={item.value}
-              className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${value === item.value ? "fw-bold" : ""}`}
-              onMouseDown={() => handleSelect(item.value)}
-            >
-              {item.icon && (
-                <Avatar
-                  src={item.icon}
-                  alt={item.label}
-                  size="sm"
-                  style={{ width: 18, height: 18 }}
-                />
-              )}
-              <span className="text-truncate" style={{ flex: 1 }}>
-                {item.label}
-              </span>
-              {onDeleteItem && (
-                <IconTrash
-                  size={13}
-                  className="searchable-dropdown-delete"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteItem(item.value);
-                  }}
-                />
-              )}
+          {loading ? (
+            <div className="d-flex justify-content-center align-items-center py-3">
+              <Spinner animation="border" size="sm" variant="secondary" />
             </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>
-              No matches
-            </div>
+          ) : (
+            <>
+              <div
+                className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
+                onMouseDown={() => handleSelect("")}
+              >
+                {allLabel}
+              </div>
+              {filtered.map((item) => (
+                <div
+                  key={item.value}
+                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${value === item.value ? "fw-bold" : ""}`}
+                  onMouseDown={() => handleSelect(item.value)}
+                >
+                  {item.icon && (
+                    <Avatar
+                      src={item.icon}
+                      alt={item.label}
+                      size="sm"
+                      style={{ width: 18, height: 18 }}
+                    />
+                  )}
+                  <span className="text-truncate" style={{ flex: 1 }}>
+                    {item.label}
+                  </span>
+                  {onDeleteItem && (
+                    <IconTrash
+                      size={13}
+                      className="searchable-dropdown-delete"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDeleteItem(item.value);
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>
+                  No matches
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

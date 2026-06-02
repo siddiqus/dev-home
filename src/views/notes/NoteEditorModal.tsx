@@ -49,6 +49,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState("");
+  const [showDismissConfirm, setShowDismissConfirm] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -108,13 +109,15 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     setEditorContent("");
     setIsDirty(false);
     setError(null);
+    setShowDismissConfirm(false);
     editor?.commands.setContent("");
     onHide();
   }, [editor, onHide]);
 
   const handleDismiss = useCallback(() => {
     if (isDirty) {
-      if (!window.confirm("You have unsaved changes. Discard this note?")) return;
+      setShowDismissConfirm(true);
+      return;
     }
     handleClose();
   }, [isDirty, handleClose]);
@@ -263,6 +266,48 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           </Button>
         )}
       </Modal.Footer>
+
+      <Modal
+        show={showDismissConfirm}
+        onHide={() => setShowDismissConfirm(false)}
+        size="sm"
+        centered
+        backdrop="static"
+        className="dismiss-confirm-modal"
+      >
+        <Modal.Body style={{ padding: "1rem", fontSize: "0.8125rem" }}>
+          <p style={{ marginBottom: "0.75rem" }}>You have unsaved changes. Save this note?</p>
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setShowDismissConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => {
+                setShowDismissConfirm(false);
+                handleClose();
+              }}
+            >
+              Discard
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                setShowDismissConfirm(false);
+                await handleSave();
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
     </Modal>
   );
 };

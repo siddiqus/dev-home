@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
+import Spinner from "react-bootstrap/Spinner";
 import { IconSearch, IconX, IconCheck } from "@tabler/icons-react";
 import { DropdownItem } from "./SearchableDropdown";
 import { Avatar } from "./primitives/Avatar";
@@ -12,6 +13,7 @@ interface MultiSelectDropdownProps {
   placeholder: string;
   allLabel: string;
   width?: number;
+  loading?: boolean;
 }
 
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -21,6 +23,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   placeholder,
   allLabel,
   width = 240,
+  loading = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -169,47 +172,55 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             overflowY: "auto",
           }}
         >
-          {/* "All" option -- clears selection */}
-          <div
-            className={`multi-select-item ${values.length === 0 ? "fw-bold" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleClearAll();
-            }}
-          >
-            <span className="multi-select-check">
-              {values.length === 0 && <IconCheck size={14} />}
-            </span>
-            {allLabel}
-          </div>
+          {loading ? (
+            <div className="d-flex justify-content-center align-items-center py-3">
+              <Spinner animation="border" size="sm" variant="secondary" />
+            </div>
+          ) : (
+            <>
+              {/* "All" option -- clears selection */}
+              <div
+                className={`multi-select-item ${values.length === 0 ? "fw-bold" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleClearAll();
+                }}
+              >
+                <span className="multi-select-check">
+                  {values.length === 0 && <IconCheck size={14} />}
+                </span>
+                {allLabel}
+              </div>
 
-          {filtered.map((item) => (
-            <div
-              key={item.value}
-              className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleToggle(item.value);
-              }}
-            >
-              <span className="multi-select-check">
-                {selectedSet.has(item.value) && <IconCheck size={14} />}
-              </span>
-              {item.icon && (
-                <Avatar
-                  src={item.icon}
-                  alt={item.label}
-                  size="sm"
-                  style={{ width: 18, height: 18 }}
-                />
+              {filtered.map((item) => (
+                <div
+                  key={item.value}
+                  className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleToggle(item.value);
+                  }}
+                >
+                  <span className="multi-select-check">
+                    {selectedSet.has(item.value) && <IconCheck size={14} />}
+                  </span>
+                  {item.icon && (
+                    <Avatar
+                      src={item.icon}
+                      alt={item.label}
+                      size="sm"
+                      style={{ width: 18, height: 18 }}
+                    />
+                  )}
+                  {item.label}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>
+                  No matches
+                </div>
               )}
-              {item.label}
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>
-              No matches
-            </div>
+            </>
           )}
         </div>
       )}
