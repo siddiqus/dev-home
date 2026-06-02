@@ -8,6 +8,9 @@
 :root {
   --bs-body-bg: var(--color-bg-app);
   --bs-body-color: var(--color-text-primary);
+  --bs-secondary-color: var(--color-text-secondary);
+  --bs-emphasis-color: var(--color-text-primary);
+  --bs-heading-color: var(--color-text-primary);
   --bs-border-color: var(--color-border);
   --bs-card-bg: var(--color-bg-panel);
   --bs-card-border-color: var(--color-border);
@@ -275,4 +278,50 @@ a:hover {
 [data-theme="light"] .badge.bg-secondary {
   background-color: var(--color-bg-hover) !important;
   color: var(--color-text-secondary);
+}
+
+/* --- Text helpers --- */
+.text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+/* --- Popovers --- */
+.popover {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.popover-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.popover-body {
+  color: var(--color-text-primary);
+}
+
+.popover .popover-arrow::before {
+  border-color: var(--color-border);
+}
+
+.popover .popover-arrow::after {
+  border-color: var(--color-bg-elevated);
+}
+
+.bs-popover-bottom .popover-arrow::before {
+  border-bottom-color: var(--color-border);
+}
+
+.bs-popover-bottom .popover-arrow::after {
+  border-bottom-color: var(--color-bg-elevated);
+}
+
+.bs-popover-top .popover-arrow::before {
+  border-top-color: var(--color-border);
+}
+
+.bs-popover-top .popover-arrow::after {
+  border-top-color: var(--color-bg-elevated);
 }
