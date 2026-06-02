@@ -126,7 +126,16 @@ router.get("/issues", async (_req: Request, res: Response) => {
   const jira = createJiraClient();
 
   const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
-  const fields = ["summary", "status", "priority", "assignee", "project", "updated", "description"];
+  const fields = [
+    "summary",
+    "status",
+    "priority",
+    "assignee",
+    "project",
+    "created",
+    "updated",
+    "description",
+  ];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
 
@@ -143,14 +152,17 @@ router.get("/issues", async (_req: Request, res: Response) => {
       name: issue.fields?.priority?.name,
       iconUrl: issue.fields?.priority?.iconUrl,
     },
-    assignee: {
-      displayName: issue.fields?.assignee?.displayName,
-      avatarUrls: issue.fields?.assignee?.avatarUrls,
-    },
+    assignee: issue.fields?.assignee
+      ? {
+          displayName: issue.fields.assignee.displayName,
+          avatarUrls: issue.fields.assignee.avatarUrls,
+        }
+      : null,
     project: {
       key: issue.fields?.project?.key,
       name: issue.fields?.project?.name,
     },
+    created: issue.fields?.created,
     updated: issue.fields?.updated,
     self: issue.self,
     description: adfToMarkdown(issue.fields?.description),
@@ -173,7 +185,7 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
   const jira = createJiraClient();
   const keyList = keys.map((k: string) => `"${k}"`).join(", ");
   const jql = `key IN (${keyList}) ORDER BY updated DESC`;
-  const fields = ["summary", "status", "priority", "assignee", "project", "updated"];
+  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
 
@@ -190,14 +202,17 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
       name: issue.fields?.priority?.name,
       iconUrl: issue.fields?.priority?.iconUrl,
     },
-    assignee: {
-      displayName: issue.fields?.assignee?.displayName,
-      avatarUrls: issue.fields?.assignee?.avatarUrls,
-    },
+    assignee: issue.fields?.assignee
+      ? {
+          displayName: issue.fields.assignee.displayName,
+          avatarUrls: issue.fields.assignee.avatarUrls,
+        }
+      : null,
     project: {
       key: issue.fields?.project?.key,
       name: issue.fields?.project?.name,
     },
+    created: issue.fields?.created,
     updated: issue.fields?.updated,
     self: issue.self,
   }));

@@ -1,0 +1,159 @@
+.jira-issue-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── JQL Input ──────────────────────────────────────────────────────── */
+
+.jql-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.jql-input-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.jql-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.jql-input-icon {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.jql-input {
+  width: 100%;
+  padding: 6px 10px 6px 30px;
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 40px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.jql-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 0.2rem var(--color-focus-ring);
+}
+
+.jql-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.jql-actions {
+  display: flex;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+/* ── Save row ───────────────────────────────────────────────────────── */
+
+.jql-save-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.jql-save-input {
+  flex: 1;
+  max-width: 220px;
+  padding: 4px var(--space-2);
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.jql-save-input:focus {
+  border-color: var(--color-accent);
+}
+
+.jql-save-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ── Filter dropdowns row ───────────────────────────────────────────── */
+
+.jql-filter-dropdowns {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Delete icon inside dropdown items */
+.jql-dropdown-delete {
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.jql-dropdown-delete:hover {
+  opacity: 1 !important;
+  color: var(--color-status-danger);
+}
+
+/* ── Results header ─────────────────────────────────────────────────── */
+
+.jql-results-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.jql-results-filter-name {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.jql-results-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────── */
+
+.jql-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.jql-pagination-info {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Search error ───────────────────────────────────────────────────── */
+
+.jql-search-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-alert-danger-bg);
+  color: var(--color-status-danger);
+  border: 1px solid var(--color-alert-danger-border);
+  font-size: 0.8125rem;
+}

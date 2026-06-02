@@ -9,6 +9,7 @@ import githubRoutes from "./routes/github";
 import jiraRoutes from "./routes/jira";
 import kanbanRoutes from "./routes/kanban";
 import filtersRoutes from "./routes/filters";
+import jiraFiltersRoutes from "./routes/jiraFilters";
 import notesRoutes from "./routes/notes";
 import { errorHandler } from "./utils/errors";
 
@@ -48,6 +49,7 @@ export function createServer() {
   app.use("/api/notes", notesRoutes);
   app.use("/api/kanban", kanbanRoutes);
   app.use("/api/filters", filtersRoutes);
+  app.use("/api/jira-filters", jiraFiltersRoutes);
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {

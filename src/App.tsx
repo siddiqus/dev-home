@@ -29,7 +29,7 @@ import { useNotes } from "./hooks/useNotes";
 import { useFocus } from "./hooks/useFocus";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
-import { JiraTasks } from "./components/JiraTasks";
+import { JiraTasksView } from "./views/jira/JiraTasksView";
 import { MentionsView } from "./components/MentionsView";
 import { PRTable } from "./components/PRTable";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
@@ -473,7 +473,7 @@ export default function App() {
                   />
                 )}
                 {effectiveTab === "jira" && (
-                  <JiraTasks issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
+                  <JiraTasksView issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
                 )}
                 {effectiveTab === "mentions" && (
                   <MentionsView

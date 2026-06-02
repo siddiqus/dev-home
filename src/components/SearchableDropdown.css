@@ -10,3 +10,15 @@
 .searchable-dropdown-item:hover {
   background-color: var(--color-bg-hover);
 }
+
+.searchable-dropdown-delete {
+  opacity: 0.4;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.searchable-dropdown-delete:hover {
+  opacity: 1;
+  color: var(--color-status-danger);
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { IconSearch, IconX, IconTrash } from "@tabler/icons-react";
 import { Avatar } from "./primitives/Avatar";
 import "./SearchableDropdown.css";
 
@@ -17,6 +17,8 @@ interface SearchableDropdownProps {
   placeholder: string;
   allLabel: string;
   width?: number;
+  triggerIcon?: React.ReactNode;
+  onDeleteItem?: (value: string) => void;
 }
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -26,6 +28,8 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   placeholder,
   allLabel,
   width = 240,
+  triggerIcon,
+  onDeleteItem,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -71,6 +75,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           fontSize: "0.8125rem",
           cursor: "pointer",
           background: "var(--color-bg-input)",
+          height: 30,
         }}
         onClick={() => {
           setOpen(!open);
@@ -79,7 +84,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           }
         }}
       >
-        <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
+        {triggerIcon || <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
         {open ? (
           <Form.Control
             ref={inputRef}
@@ -153,7 +158,20 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   style={{ width: 18, height: 18 }}
                 />
               )}
-              {item.label}
+              <span className="text-truncate" style={{ flex: 1 }}>
+                {item.label}
+              </span>
+              {onDeleteItem && (
+                <IconTrash
+                  size={13}
+                  className="searchable-dropdown-delete"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDeleteItem(item.value);
+                  }}
+                />
+              )}
             </div>
           ))}
           {filtered.length === 0 && (

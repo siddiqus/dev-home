@@ -29,6 +29,7 @@ export interface JiraIssue {
     key: string;
     name: string;
   };
+  created: string;
   updated: string;
   self: string;
   description: string;

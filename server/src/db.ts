@@ -145,6 +145,19 @@ const MIGRATIONS: Migration[] = [
       d.exec("ALTER TABLE focus_state ADD COLUMN dismissed_at INTEGER NULL");
     }
   },
+
+  // 9 – create jira_jql_filters table for saved JQL queries
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS jira_jql_filters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        jql TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {

@@ -47,19 +47,19 @@ const VARIANT_CONFIG: Record<
   }
 > = {
   "my-prs": {
-    columns: ["pr", "title", "repo", "branch", "status", "updated"],
+    columns: ["pr", "title", "repo", "branch", "status", "created", "updated"],
     emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
     emptyTitle: "No open pull requests",
     emptyDescription: "You don't have any open pull requests at the moment.",
   },
   "review-requests": {
-    columns: ["title", "repo", "author", "checks", "updated"],
+    columns: ["title", "repo", "author", "checks", "created", "updated"],
     emptyIcon: <IconEye size={40} stroke={1.5} />,
     emptyTitle: "No review requests",
     emptyDescription: "No one has requested your review on any pull requests.",
   },
   "org-prs": {
-    columns: ["title", "repo", "author", "status", "updated"],
+    columns: ["title", "repo", "branch", "author", "status", "created", "updated"],
     emptyIcon: <IconBuilding size={40} stroke={1.5} />,
     emptyTitle: "No org pull requests",
     emptyDescription: "No open, non-draft pull requests found for this org.",
@@ -74,31 +74,36 @@ const HEADER_LABELS: Record<string, string> = {
   author: "Author",
   checks: "Checks",
   status: "Status",
+  created: "Created",
   updated: "Updated",
 };
 
 const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   "my-prs": {
-    pr: "6%",
-    title: "30%",
-    repo: "18%",
-    branch: "20%",
-    status: "16%",
+    pr: "5%",
+    title: "27%",
+    repo: "16%",
+    branch: "18%",
+    status: "14%",
+    created: "10%",
     updated: "10%",
   },
   "review-requests": {
-    title: "34%",
-    repo: "22%",
-    author: "18%",
-    checks: "12%",
-    updated: "14%",
+    title: "30%",
+    repo: "20%",
+    author: "16%",
+    checks: "10%",
+    created: "12%",
+    updated: "12%",
   },
   "org-prs": {
-    title: "30%",
-    repo: "22%",
-    author: "18%",
-    status: "18%",
-    updated: "12%",
+    title: "22%",
+    repo: "14%",
+    branch: "16%",
+    author: "12%",
+    status: "14%",
+    created: "11%",
+    updated: "11%",
   },
 };
 
@@ -191,6 +196,14 @@ function renderCell(
               </Badge>
             )}
           </div>
+        </td>
+      );
+    case "created":
+      return (
+        <td key={col}>
+          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
+            {formatRelativeTime(pr.created_at)}
+          </span>
         </td>
       );
     case "updated":

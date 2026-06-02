@@ -1,0 +1,44 @@
+.jira-tasks-view {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Sub-tab bar ────────────────────────────────────────────────────── */
+
+.jira-subtab-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.jira-subtab-group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+}
+
+.jira-subtab {
+  padding: 4px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+
+.jira-subtab:hover:not(.active) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.jira-subtab.active {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent);
+}
