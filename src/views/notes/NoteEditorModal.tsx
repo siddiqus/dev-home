@@ -44,6 +44,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   jiraBaseUrl,
 }) => {
   const isEditing = !!note;
+  const [titleText, setTitleText] = useState("");
+  const [initialTitle, setInitialTitle] = useState("");
   const [initialContent, setInitialContent] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,10 +75,12 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     },
   });
 
-  // Track dirty state from editor content changes
+  // Track dirty state from editor content or title changes
   useEffect(() => {
-    setIsDirty(editorContent.trim() !== initialContent.trim());
-  }, [initialContent, editorContent]);
+    const contentChanged = editorContent.trim() !== initialContent.trim();
+    const titleChanged = titleText.trim() !== initialTitle.trim();
+    setIsDirty(contentChanged || titleChanged);
+  }, [initialContent, editorContent, titleText, initialTitle]);
 
   // Load note content when modal opens
   useEffect(() => {
@@ -87,11 +91,15 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       editor.commands.setContent(rawText);
       setEditorContent(rawText);
       setInitialContent(rawText);
+      setTitleText(note.title || "");
+      setInitialTitle(note.title || "");
       setIsDirty(false);
     } else {
       editor.commands.setContent("");
       setEditorContent("");
       setInitialContent("");
+      setTitleText("");
+      setInitialTitle("");
       setIsDirty(false);
     }
     setError(null);
@@ -105,6 +113,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   }, [editor, show]);
 
   const handleClose = useCallback(() => {
+    setTitleText("");
+    setInitialTitle("");
     setInitialContent("");
     setEditorContent("");
     setIsDirty(false);
@@ -146,9 +156,10 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     setSaving(true);
     setError(null);
     try {
+      const title = titleText.trim() || autoTitle;
       if (isEditing && onEdit) {
         const updates: { title?: string; content?: string; reference_id?: string } = {
-          title: note.title || autoTitle,
+          title,
           content: markdown,
         };
         if (detected.type !== "free_text") {
@@ -160,7 +171,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           detected.type,
           markdown,
           detected.type !== "free_text" ? detected.referenceId : undefined,
-          autoTitle,
+          title,
         );
       }
       handleClose();
@@ -186,13 +197,9 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const hasContent = editorContent.trim().length > 0;
   const canSave = isEditing ? isDirty : hasContent;
 
-  const displayTitle = useMemo(() => {
-    if (isEditing) {
-      if (note.title) return note.title;
-      return hasContent ? deriveTitleFromContent(editorContent) : "Note";
-    }
-    return hasContent ? deriveTitleFromContent(editorContent) : "New Note";
-  }, [isEditing, note, hasContent, editorContent]);
+  const titlePlaceholder = useMemo(() => {
+    return hasContent ? deriveTitleFromContent(editorContent) : "Untitled";
+  }, [hasContent, editorContent]);
 
   return (
     <Modal
@@ -204,19 +211,22 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       keyboard={false}
     >
       <Modal.Header closeButton>
-        <Modal.Title
+        <input
+          type="text"
+          value={titleText}
+          onChange={(e) => setTitleText(e.target.value)}
+          placeholder={titlePlaceholder}
           style={{
             fontSize: "0.8125rem",
             fontWeight: 500,
-            color: "var(--color-text-secondary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: "calc(100% - 40px)",
+            color: "var(--color-text-primary)",
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            width: "calc(100% - 40px)",
+            padding: 0,
           }}
-        >
-          {displayTitle}
-        </Modal.Title>
+        />
       </Modal.Header>
       <Modal.Body style={{ padding: 0 }}>
         {error && (
