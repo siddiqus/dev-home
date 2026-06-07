@@ -332,8 +332,14 @@ export const PRTable: React.FC<PRTableProps> = ({
                   </tr>
                 )}
                 {!isCollapsed &&
-                  group.prs.map((pr) => (
-                    <tr key={pr.id} onClick={() => setSelectedPR(pr)} style={{ cursor: "pointer" }}>
+                  group.prs.map((pr, index) => (
+                    <tr
+                      key={pr.id}
+                      onClick={() => setSelectedPR(pr)}
+                      style={{
+                        cursor: "pointer",
+                      }}
+                    >
                       {columns.map((col, colIdx) =>
                         renderCell(col, pr, { isGrouped: !!isGroup, isFirstColumn: colIdx === 0 }),
                       )}
