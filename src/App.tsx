@@ -32,6 +32,7 @@ import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasksView } from "./views/jira/JiraTasksView";
 import { MentionsView } from "./components/MentionsView";
 import { PRTable } from "./components/PRTable";
+import { PRsView } from "./views/prs/PRsView";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
 import { SettingsView } from "./views/settings/SettingsView";
@@ -89,6 +90,7 @@ export default function App() {
     configured,
     loading: configLoading,
     backendOnline,
+    backendVersion,
     jiraBaseUrl,
     githubUsername,
     githubOrg,
@@ -418,6 +420,7 @@ export default function App() {
             {effectiveTab === "settings" ? (
               <SettingsView
                 backendOnline={backendOnline}
+                backendVersion={backendVersion}
                 configured={configured}
                 jiraBaseUrl={jiraBaseUrl}
                 githubUsername={githubUsername}
@@ -484,12 +487,12 @@ export default function App() {
                   />
                 )}
                 {effectiveTab === "prs" && (
-                  <PRTable
-                    prs={openPRs}
+                  <PRsView
+                    openPRs={openPRs}
                     loading={loading}
                     jiraIssues={jiraIssues}
-                    variant="my-prs"
                     jiraBaseUrl={jiraBaseUrl}
+                    configured={configured}
                   />
                 )}
                 {effectiveTab === "reviews" && (

@@ -47,12 +47,12 @@ export async function initApiPort(): Promise<void> {
   }
 }
 
-export async function checkBackendHealth(): Promise<boolean> {
+export async function checkBackendHealth(): Promise<{ online: boolean; version: string }> {
   try {
     const { data } = await apiClient.get("/health");
-    return data.status === "ok";
+    return { online: data.status === "ok", version: data.version || "" };
   } catch {
-    return false;
+    return { online: false, version: "" };
   }
 }
 

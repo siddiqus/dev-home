@@ -14,6 +14,12 @@ function monthsAgo(months: number = 1): string {
   return d.toISOString().slice(0, 10);
 }
 
+function hoursAgo(hours: number): string {
+  const d = new Date();
+  d.setTime(d.getTime() - hours * 60 * 60 * 1000);
+  return d.toISOString();
+}
+
 const SEARCH_PRS_QUERY = `
   query SearchPRs($query: String!, $first: Int!) {
     search(query: $query, type: ISSUE, first: $first) {
@@ -220,6 +226,7 @@ function mapGraphQLPr(node: any) {
     checks_status: rollup?.state || null,
     checks: contextNodes.map(mapCheckContext),
     review_status: deriveReviewStatus(node.reviews?.nodes),
+    merged_at: node.mergedAt || null,
   };
 }
 
@@ -806,6 +813,75 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   });
 
   res.json({ mentions: deduplicated });
+});
+
+/**
+ * Lightweight GraphQL query for recently merged PRs (no checks/reviews needed).
+ */
+const SEARCH_MERGED_PRS_QUERY = `
+  query SearchMergedPRs($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
+      nodes {
+        ... on PullRequest {
+          databaseId
+          number
+          title
+          url
+          state
+          isDraft
+          createdAt
+          updatedAt
+          mergedAt
+          author { login avatarUrl }
+          body
+          headRefName
+          baseRefName
+          repository { nameWithOwner url }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * GET /api/github/merged-prs
+ * Fetch recently merged PRs (last 3 hours).
+ * ?scope=user (default) — user's own merged PRs
+ * ?scope=org — org-wide merged PRs
+ * Optional: ?author=login, ?repo=owner/repo
+ */
+router.get("/merged-prs", async (req: Request, res: Response) => {
+  const config = getConfig();
+  const scope = typeof req.query.scope === "string" ? req.query.scope : "user";
+  const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
+  const repo = typeof req.query.repo === "string" ? req.query.repo.trim() : "";
+  const since = hoursAgo(3);
+
+  let q: string;
+
+  if (scope === "org") {
+    const org = config.githubOrg;
+    if (!org) {
+      res.json({ prs: [] });
+      return;
+    }
+    q = repo
+      ? `repo:${repo} type:pr is:merged merged:>=${since}`
+      : `org:${org} type:pr is:merged merged:>=${since}`;
+    if (author) {
+      q += ` author:${author}`;
+    }
+  } else {
+    q = `author:${config.githubUsername} type:pr is:merged merged:>=${since}`;
+  }
+
+  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_MERGED_PRS_QUERY, {
+    query: q,
+    first: 20,
+  });
+
+  const prs = (result.search.nodes || []).map(mapGraphQLPr);
+  res.json({ prs });
 });
 
 export default router;

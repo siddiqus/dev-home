@@ -13,6 +13,7 @@ interface UseConfigReturn {
   configured: boolean;
   loading: boolean;
   backendOnline: boolean;
+  backendVersion: string;
   jiraBaseUrl: string;
   githubUsername: string;
   githubOrg: string;
@@ -24,6 +25,7 @@ export function useConfig(): UseConfigReturn {
   const [configured, setConfigured] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
+  const [backendVersion, setBackendVersion] = useState<string>("");
   const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
   const [githubUsername, setGithubUsername] = useState<string>("");
   const [githubOrg, setGithubOrg] = useState<string>("");
@@ -54,10 +56,11 @@ export function useConfig(): UseConfigReturn {
       }
 
       // Check backend health and fetch config
-      const healthy = await checkBackendHealth();
-      setBackendOnline(healthy);
+      const health = await checkBackendHealth();
+      setBackendOnline(health.online);
+      setBackendVersion(health.version);
 
-      if (healthy) {
+      if (health.online) {
         const config = await fetchBackendConfig();
         setConfigured(config.configured);
         setJiraBaseUrl(config.jiraBaseUrl);
@@ -92,6 +95,7 @@ export function useConfig(): UseConfigReturn {
     configured,
     loading,
     backendOnline,
+    backendVersion,
     jiraBaseUrl,
     githubUsername,
     githubOrg,

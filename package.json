@@ -21,6 +21,7 @@
     "dist": "yarn icons && yarn build && electron-builder",
     "dist:mac": "yarn icons && yarn build && electron-builder --mac",
     "dist:win": "yarn build && electron-builder --win",
+    "bump": "sh ./scripts/bump-version.sh",
     "ghtag": "sh ./scripts/release-tag.sh",
     "tag:push": "sh ./scripts/push-tag.sh",
     "prepare": "husky",

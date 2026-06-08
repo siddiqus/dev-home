@@ -12,6 +12,7 @@ import filtersRoutes from "./routes/filters";
 import jiraFiltersRoutes from "./routes/jiraFilters";
 import notesRoutes from "./routes/notes";
 import { errorHandler } from "./utils/errors";
+import { version } from "../package.json";
 
 export function createServer() {
   const app = express();
@@ -53,7 +54,7 @@ export function createServer() {
 
   // Health check
   app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", version, timestamp: new Date().toISOString() });
   });
 
   // Error handling middleware — catches thrown errors from async routes

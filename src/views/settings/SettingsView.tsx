@@ -14,6 +14,7 @@ import "./settings.css";
 
 interface SettingsViewProps {
   backendOnline: boolean;
+  backendVersion: string;
   configured: boolean;
   jiraBaseUrl: string;
   githubUsername: string;
@@ -34,6 +35,7 @@ const EMPTY_SETTINGS: AppSettings = {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   backendOnline,
+  backendVersion,
   configured,
   jiraBaseUrl,
   githubUsername,
@@ -119,6 +121,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       <BackendStatusCard
         backendOnline={backendOnline}
+        backendVersion={backendVersion}
         configured={configured}
         jiraBaseUrl={jiraBaseUrl}
         githubUsername={githubUsername}

@@ -3,12 +3,14 @@ import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh } from "@tabler/icons-react";
+import "../prs/PRsView.css";
 import { GitHubPR, JiraIssue } from "../../types";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
   fetchOrgMembers,
   fetchOrgRepos,
+  fetchRecentlyMergedPRs,
   OrgMember,
   OrgRepo,
 } from "../../services/github";
@@ -93,6 +95,33 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
   const [selectedRepos, setSelectedRepos] = useState<string[]>(cachedPRs.current?.repos ?? []);
   const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
   const [orgRepos, setOrgRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
+
+  // Sub-tab state
+  const [orgSubTab, setOrgSubTab] = useState<"open" | "merged">(() => {
+    return (localStorage.getItem("dev-home-org-prs-subtab") as "open" | "merged") || "open";
+  });
+  const handleOrgSubTab = (tab: "open" | "merged") => {
+    setOrgSubTab(tab);
+    localStorage.setItem("dev-home-org-prs-subtab", tab);
+  };
+
+  // Recently merged PRs
+  const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
+  const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
+  const loadMergedPRs = useCallback(async () => {
+    if (!configured) return;
+    setMergedPRsLoading(true);
+    try {
+      setMergedPRs(await fetchRecentlyMergedPRs("org", authors, selectedRepos));
+    } catch (err) {
+      console.error("Failed to fetch recently merged PRs:", err);
+    } finally {
+      setMergedPRsLoading(false);
+    }
+  }, [configured, authors, selectedRepos]);
+  useEffect(() => {
+    loadMergedPRs();
+  }, [loadMergedPRs]);
 
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
@@ -378,7 +407,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
 
   return (
     <>
-      {/* Toolbar: filters (left) + refresh (right) */}
+      {/* Toolbar: filters (left) + subtabs + refresh (right) */}
       <div className="d-flex align-items-center justify-content-between mb-3">
         <div className="d-flex align-items-center gap-2">
           <MultiSelectDropdown
@@ -437,41 +466,70 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
         </div>
       </div>
 
-      <div
-        style={{
-          opacity: loading && prs.length > 0 ? 0.45 : 1,
-          pointerEvents: loading && prs.length > 0 ? "none" : "auto",
-          transition: "opacity 0.15s ease",
-        }}
-      >
-        <PRTable
-          prs={prs}
-          loading={loading}
-          jiraBaseUrl={jiraBaseUrl}
-          jiraIssues={jiraIssues}
-          variant="org-prs"
-        />
+      <div className="prs-subtab-bar">
+        <div className="prs-subtab-group">
+          <button
+            className={`prs-subtab${orgSubTab === "open" ? " active" : ""}`}
+            onClick={() => handleOrgSubTab("open")}
+          >
+            Open PRs{!loading && ` (${prs.length})`}
+          </button>
+          <button
+            className={`prs-subtab${orgSubTab === "merged" ? " active" : ""}`}
+            onClick={() => handleOrgSubTab("merged")}
+          >
+            Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
+          </button>
+        </div>
       </div>
 
-      {/* Load more button */}
-      {hasNextPage && !isMultiMode && (
-        <div className="d-flex justify-content-center py-3">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={fetchNextPage}
-            disabled={loadingMore}
+      {orgSubTab === "open" && (
+        <>
+          <div
+            style={{
+              opacity: loading && prs.length > 0 ? 0.45 : 1,
+              pointerEvents: loading && prs.length > 0 ? "none" : "auto",
+              transition: "opacity 0.15s ease",
+            }}
           >
-            {loadingMore ? (
-              <>
-                <Spinner animation="border" size="sm" className="me-2" />
-                Loading...
-              </>
-            ) : (
-              "Load more"
-            )}
-          </Button>
-        </div>
+            <PRTable
+              prs={prs}
+              loading={loading}
+              jiraBaseUrl={jiraBaseUrl}
+              jiraIssues={jiraIssues}
+              variant="org-prs"
+            />
+          </div>
+
+          {hasNextPage && !isMultiMode && (
+            <div className="d-flex justify-content-center py-3">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={fetchNextPage}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {orgSubTab === "merged" && (
+        <PRTable
+          prs={mergedPRs}
+          loading={mergedPRsLoading}
+          variant="recently-merged-org"
+          jiraBaseUrl={jiraBaseUrl}
+        />
       )}
     </>
   );

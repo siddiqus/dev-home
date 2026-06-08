@@ -5,6 +5,7 @@ import { StatusDot } from "../../components/primitives/StatusDot";
 
 interface BackendStatusCardProps {
   backendOnline: boolean;
+  backendVersion: string;
   configured: boolean;
   jiraBaseUrl: string;
   githubUsername: string;
@@ -12,6 +13,7 @@ interface BackendStatusCardProps {
 
 export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
   backendOnline,
+  backendVersion,
   configured,
   jiraBaseUrl,
   githubUsername,
@@ -31,6 +33,17 @@ export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
           >
             {backendOnline ? "Online" : "Offline"}
           </span>
+          {backendOnline && backendVersion && (
+            <span
+              style={{
+                fontSize: "0.7rem",
+                color: "#8b949e",
+                marginLeft: "auto",
+              }}
+            >
+              v{backendVersion}
+            </span>
+          )}
         </div>
 
         {!backendOnline && (

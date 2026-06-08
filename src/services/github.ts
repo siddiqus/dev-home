@@ -82,6 +82,34 @@ export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Prom
   return dedupeAndSort(results.flat());
 }
 
+export async function fetchRecentlyMergedPRs(
+  scope: "user" | "org",
+  authors?: string[],
+  repos?: string[],
+): Promise<GitHubPR[]> {
+  if (scope === "org" && ((authors && authors.length > 1) || (repos && repos.length > 1))) {
+    const authorCombos = authors && authors.length > 0 ? authors : [""];
+    const repoCombos = repos && repos.length > 0 ? repos : [""];
+    const calls: Promise<GitHubPR[]>[] = [];
+    for (const author of authorCombos) {
+      for (const repo of repoCombos) {
+        const params: Record<string, string> = { scope: "org" };
+        if (author) params.author = author;
+        if (repo) params.repo = repo;
+        calls.push(apiClient.get("/github/merged-prs", { params }).then((r) => r.data.prs));
+      }
+    }
+    const results = await Promise.all(calls);
+    return dedupeAndSort(results.flat());
+  }
+
+  const params: Record<string, string> = { scope };
+  if (authors && authors[0]) params.author = authors[0];
+  if (repos && repos[0]) params.repo = repos[0];
+  const { data } = await apiClient.get("/github/merged-prs", { params });
+  return data.prs;
+}
+
 export interface OrgMember {
   login: string;
   avatar_url: string;

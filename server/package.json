@@ -1,6 +1,6 @@
 {
   "name": "dev-home-server",
-  "version": "1.0.0",
+  "version": "1.12.0",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",

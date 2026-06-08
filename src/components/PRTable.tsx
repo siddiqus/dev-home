@@ -26,7 +26,12 @@ const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVarian
   REVIEWED: { label: "Reviewed", variant: "warning" },
 };
 
-type PRTableVariant = "my-prs" | "review-requests" | "org-prs";
+type PRTableVariant =
+  | "my-prs"
+  | "review-requests"
+  | "org-prs"
+  | "recently-merged"
+  | "recently-merged-org";
 
 interface PRTableProps {
   prs: GitHubPR[];
@@ -64,6 +69,18 @@ const VARIANT_CONFIG: Record<
     emptyTitle: "No org pull requests",
     emptyDescription: "No open, non-draft pull requests found for this org.",
   },
+  "recently-merged": {
+    columns: ["pr", "title", "repo", "branch", "merged"],
+    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
+    emptyTitle: "No recently merged PRs",
+    emptyDescription: "No pull requests have been merged recently.",
+  },
+  "recently-merged-org": {
+    columns: ["title", "repo", "branch", "author", "merged"],
+    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
+    emptyTitle: "No recently merged PRs",
+    emptyDescription: "No pull requests have been merged recently.",
+  },
 };
 
 const HEADER_LABELS: Record<string, string> = {
@@ -76,6 +93,7 @@ const HEADER_LABELS: Record<string, string> = {
   status: "Status",
   created: "Created",
   updated: "Updated",
+  merged: "Merged at",
 };
 
 const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
@@ -104,6 +122,20 @@ const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
     status: "14%",
     created: "11%",
     updated: "11%",
+  },
+  "recently-merged": {
+    pr: "8%",
+    title: "32%",
+    repo: "20%",
+    branch: "25%",
+    merged: "15%",
+  },
+  "recently-merged-org": {
+    title: "25%",
+    repo: "18%",
+    branch: "22%",
+    author: "15%",
+    merged: "20%",
   },
 };
 
@@ -214,6 +246,14 @@ function renderCell(
           </span>
         </td>
       );
+    case "merged":
+      return (
+        <td key={col}>
+          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
+            {pr.merged_at ? formatRelativeTime(pr.merged_at) : "—"}
+          </span>
+        </td>
+      );
     default:
       return <td key={col} />;
   }
@@ -238,10 +278,12 @@ export const PRTable: React.FC<PRTableProps> = ({
     }
   }, [prs]);
 
+  const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
   const config = VARIANT_CONFIG[variant];
   const { columns } = config;
 
   if (loading && prs.length === 0) {
+    if (isMergedVariant) return null;
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
         <Spinner animation="border" variant="secondary" />
@@ -250,6 +292,7 @@ export const PRTable: React.FC<PRTableProps> = ({
   }
 
   if (prs.length === 0) {
+    if (isMergedVariant) return null;
     return (
       <EmptyState
         icon={config.emptyIcon}

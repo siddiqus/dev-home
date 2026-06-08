@@ -86,6 +86,7 @@ export interface GitHubPR {
   checks_status: string | null;
   checks: CheckRunInfo[];
   review_status: string | null;
+  merged_at?: string;
 }
 
 export interface GitHubComment {
