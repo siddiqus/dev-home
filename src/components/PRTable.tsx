@@ -52,7 +52,7 @@ const VARIANT_CONFIG: Record<
   }
 > = {
   "my-prs": {
-    columns: ["pr", "title", "repo", "branch", "status", "created", "updated"],
+    columns: ["title", "repo", "branch", "status", "created", "updated"],
     emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
     emptyTitle: "No open pull requests",
     emptyDescription: "You don't have any open pull requests at the moment.",
@@ -70,7 +70,7 @@ const VARIANT_CONFIG: Record<
     emptyDescription: "No open, non-draft pull requests found for this org.",
   },
   "recently-merged": {
-    columns: ["pr", "title", "repo", "branch", "merged"],
+    columns: ["title", "repo", "branch", "merged"],
     emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
     emptyTitle: "No recently merged PRs",
     emptyDescription: "No pull requests have been merged recently.",
@@ -98,44 +98,42 @@ const HEADER_LABELS: Record<string, string> = {
 
 const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   "my-prs": {
-    pr: "5%",
-    title: "27%",
-    repo: "16%",
-    branch: "18%",
+    title: "30%",
+    repo: "22%",
+    branch: "22%",
     status: "14%",
+    created: "6%",
+    updated: "6%",
+  },
+  "review-requests": {
+    title: "32%",
+    repo: "22%",
+    author: "16%",
+    checks: "10%",
     created: "10%",
     updated: "10%",
   },
-  "review-requests": {
-    title: "30%",
-    repo: "20%",
-    author: "16%",
-    checks: "10%",
-    created: "12%",
-    updated: "12%",
-  },
   "org-prs": {
-    title: "22%",
-    repo: "14%",
-    branch: "16%",
+    title: "24%",
+    repo: "16%",
+    branch: "18%",
     author: "12%",
     status: "14%",
-    created: "11%",
-    updated: "11%",
+    created: "8%",
+    updated: "8%",
   },
   "recently-merged": {
-    pr: "8%",
-    title: "32%",
-    repo: "20%",
-    branch: "25%",
+    title: "35%",
+    repo: "22%",
+    branch: "28%",
     merged: "15%",
   },
   "recently-merged-org": {
-    title: "25%",
+    title: "28%",
     repo: "18%",
     branch: "22%",
     author: "15%",
-    merged: "20%",
+    merged: "17%",
   },
 };
 
@@ -147,30 +145,15 @@ function renderCell(
 ): React.ReactNode {
   const indentStyle = opts.isGrouped && opts.isFirstColumn ? { paddingLeft: 30 } : undefined;
   switch (col) {
-    case "pr":
-      return (
-        <td key={col} style={indentStyle}>
-          <a
-            href={pr.html_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-secondary-custom"
-            style={{ fontWeight: 500, whiteSpace: "nowrap" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            #{pr.number}
-          </a>
-        </td>
-      );
     case "title":
       return (
-        <td key={col} style={indentStyle}>
+        <td key={col} className="cell-truncate" style={indentStyle}>
           <a
             href={pr.html_url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-truncate-custom d-block"
-            style={{ fontWeight: 500, maxWidth: 360 }}
+            style={{ fontWeight: 500 }}
             onClick={(e) => e.stopPropagation()}
           >
             {pr.title}
@@ -179,16 +162,16 @@ function renderCell(
       );
     case "repo":
       return (
-        <td key={col}>
-          <Badge variant="neutral" className="fw-bold">
+        <td key={col} className="cell-truncate">
+          <Badge variant="neutral" className="fw-bold" size="md">
             {pr.repo_full_name}
           </Badge>
         </td>
       );
     case "branch":
       return (
-        <td key={col}>
-          <div className="d-flex align-items-center gap-1">
+        <td key={col} className="cell-truncate">
+          <div className="d-flex align-items-center gap-1" style={{ minWidth: 0 }}>
             <BranchTag name={pr.head.ref} />
             <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
               {"\u2192"}
