@@ -115,12 +115,12 @@ const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   },
   "org-prs": {
     title: "24%",
-    repo: "16%",
+    repo: "20%",
     branch: "18%",
     author: "12%",
     status: "14%",
-    created: "8%",
-    updated: "8%",
+    created: "5%",
+    updated: "5%",
   },
   "recently-merged": {
     title: "35%",
@@ -173,10 +173,14 @@ function renderCell(
         <td key={col} className="cell-truncate">
           <div className="d-flex align-items-center gap-1" style={{ minWidth: 0 }}>
             <BranchTag name={pr.head.ref} />
-            <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-              {"\u2192"}
-            </span>
-            <BranchTag name={pr.base.ref} />
+            {!["master", "main"].includes(pr.base.ref) && (
+              <>
+                <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                  {"\u2192"}
+                </span>
+                <BranchTag name={pr.base.ref} />
+              </>
+            )}
           </div>
         </td>
       );
@@ -381,7 +385,7 @@ export const PRTable: React.FC<PRTableProps> = ({
         show={!!selectedPR}
         onHide={() => setSelectedPR(null)}
         title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
-        subtitle={selectedPR?.repo_full_name}
+        subtitle={`${selectedPR?.user.login} · ${selectedPR?.repo_full_name} · ${selectedPR?.head.ref} · ${formatRelativeTime(selectedPR?.created_at || "")}`}
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
         checks={selectedPR?.checks}

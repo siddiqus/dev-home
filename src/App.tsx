@@ -110,6 +110,7 @@ export default function App() {
     reviewRequestsLoading,
     error,
     refresh,
+    refreshKey,
   } = useDashboard(configured);
   const {
     notes,
@@ -493,6 +494,7 @@ export default function App() {
                     jiraIssues={jiraIssues}
                     jiraBaseUrl={jiraBaseUrl}
                     configured={configured}
+                    refreshKey={refreshKey}
                   />
                 )}
                 {effectiveTab === "reviews" && (
@@ -509,6 +511,7 @@ export default function App() {
                     configured={configured}
                     jiraBaseUrl={jiraBaseUrl}
                     jiraIssues={jiraIssues}
+                    refreshKey={refreshKey}
                   />
                 )}
                 {effectiveTab === "notes" && (

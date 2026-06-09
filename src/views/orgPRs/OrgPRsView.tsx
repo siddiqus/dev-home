@@ -79,9 +79,15 @@ interface OrgPRsViewProps {
   configured: boolean;
   jiraBaseUrl: string;
   jiraIssues?: JiraIssue[];
+  refreshKey?: number;
 }
 
-export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl, jiraIssues }) => {
+export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
+  configured,
+  jiraBaseUrl,
+  jiraIssues,
+  refreshKey,
+}) => {
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
   const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
@@ -121,7 +127,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({ configured, jiraBaseUrl,
   }, [configured, authors, selectedRepos]);
   useEffect(() => {
     loadMergedPRs();
-  }, [loadMergedPRs]);
+  }, [loadMergedPRs, refreshKey]);
 
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);

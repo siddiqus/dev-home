@@ -12,6 +12,7 @@ interface PRsViewProps {
   jiraIssues?: JiraIssue[];
   jiraBaseUrl?: string;
   configured: boolean;
+  refreshKey?: number;
 }
 
 export const PRsView: React.FC<PRsViewProps> = ({
@@ -20,6 +21,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
   jiraIssues,
   jiraBaseUrl,
   configured,
+  refreshKey,
 }) => {
   const [subTab, setSubTab] = useState<PRSubTab>(() => {
     return (localStorage.getItem("dev-home-prs-subtab") as PRSubTab) || "open";
@@ -47,7 +49,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
 
   useEffect(() => {
     loadMergedPRs();
-  }, [loadMergedPRs]);
+  }, [loadMergedPRs, refreshKey]);
 
   return (
     <div className="prs-view">

@@ -68,6 +68,7 @@ interface UseDashboardReturn {
   reviewRequestsLoading: boolean;
   error: string | null;
   refresh: () => void;
+  refreshKey: number;
 }
 
 export function useDashboard(active: boolean): UseDashboardReturn {
@@ -90,6 +91,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   const [openPRsLoading, setOpenPRsLoading] = useState<boolean>(false);
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -296,6 +298,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
   const refresh = useCallback(() => {
     fetchAll();
+    setRefreshKey((k) => k + 1);
   }, [fetchAll]);
 
   return {
@@ -312,5 +315,6 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     reviewRequestsLoading,
     error,
     refresh,
+    refreshKey,
   };
 }

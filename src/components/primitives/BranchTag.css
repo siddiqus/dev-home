@@ -6,7 +6,7 @@
   color: var(--color-accent);
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
-  max-width: 140px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
