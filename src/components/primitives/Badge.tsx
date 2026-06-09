@@ -7,7 +7,7 @@ interface BadgeProps {
   variant?: BadgeVariant;
   className?: string;
   children: React.ReactNode;
-  size: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg";
 }
 
 export const Badge: React.FC<BadgeProps> = ({
