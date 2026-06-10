@@ -7,6 +7,10 @@ interface Settings {
   githubToken: string;
   githubUsername: string;
   githubOrg: string;
+  claudeEnabled: boolean;
+  claudeCliPath: string;
+  claudeWorkingDirectory: string;
+  claudeMaxConcurrentSessions: number;
 }
 
 const store = new Store<Settings>({
@@ -36,6 +40,22 @@ const store = new Store<Settings>({
       type: "string",
       default: "",
     },
+    claudeEnabled: {
+      type: "boolean",
+      default: false,
+    },
+    claudeCliPath: {
+      type: "string",
+      default: "",
+    },
+    claudeWorkingDirectory: {
+      type: "string",
+      default: "",
+    },
+    claudeMaxConcurrentSessions: {
+      type: "number",
+      default: 3,
+    },
   },
 });
 
@@ -47,6 +67,10 @@ export function getSettings(): Settings {
     githubToken: store.get("githubToken"),
     githubUsername: store.get("githubUsername"),
     githubOrg: store.get("githubOrg"),
+    claudeEnabled: store.get("claudeEnabled"),
+    claudeCliPath: store.get("claudeCliPath"),
+    claudeWorkingDirectory: store.get("claudeWorkingDirectory"),
+    claudeMaxConcurrentSessions: store.get("claudeMaxConcurrentSessions"),
   };
 }
 
@@ -57,6 +81,10 @@ export function setSettings(settings: Partial<Settings>): void {
   if (settings.githubToken !== undefined) store.set("githubToken", settings.githubToken);
   if (settings.githubUsername !== undefined) store.set("githubUsername", settings.githubUsername);
   if (settings.githubOrg !== undefined) store.set("githubOrg", settings.githubOrg);
+  if (settings.claudeEnabled !== undefined) store.set("claudeEnabled", settings.claudeEnabled);
+  if (settings.claudeCliPath !== undefined) store.set("claudeCliPath", settings.claudeCliPath);
+  if (settings.claudeWorkingDirectory !== undefined) store.set("claudeWorkingDirectory", settings.claudeWorkingDirectory);
+  if (settings.claudeMaxConcurrentSessions !== undefined) store.set("claudeMaxConcurrentSessions", settings.claudeMaxConcurrentSessions);
 }
 
 export function isConfigured(): boolean {

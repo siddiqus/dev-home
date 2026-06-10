@@ -7,6 +7,10 @@ export interface AppSettings {
   githubToken: string;
   githubUsername: string;
   githubOrg: string;
+  claudeEnabled: boolean;
+  claudeCliPath: string;
+  claudeWorkingDirectory: string;
+  claudeMaxConcurrentSessions: number;
 }
 
 declare global {
