@@ -13,14 +13,22 @@ import {
   rectIntersection,
 } from "@dnd-kit/core";
 import Spinner from "react-bootstrap/Spinner";
-import { KanbanTile, KanbanColumnId } from "../../types";
+import { IconFilter } from "@tabler/icons-react";
+import { KanbanTile, KanbanColumnId, KanbanItemType } from "../../types";
 import { KANBAN_COLUMNS } from "../../hooks/useKanban";
 import { DescriptionModal } from "../../components/DescriptionModal";
+import { SearchableDropdown, DropdownItem } from "../../components/SearchableDropdown";
 import { getReferenceUrl } from "../../utils/text";
 import { KanbanCard } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanSearch } from "./KanbanSearch";
 import "./kanban.css";
+
+const FILTER_ITEMS: DropdownItem[] = [
+  { value: "pr", label: "My PRs" },
+  { value: "review", label: "Reviews" },
+  { value: "note", label: "Notes" },
+];
 
 // ─── Custom collision detection ──────────────────────────────
 // Prefer pointerWithin for tiles, fall back to rectIntersection
@@ -59,6 +67,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [selectedTile, setSelectedTile] = useState<KanbanTile | null>(null);
   // Track which column the dragged item is currently over (for cross-column DnD)
   const [overColumnId, setOverColumnId] = useState<KanbanColumnId | null>(null);
@@ -69,9 +78,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }),
   );
 
-  // Filter tiles by search query
+  // Filter tiles by search query and type
   const filteredColumnTiles = useMemo(() => {
-    if (!searchQuery.trim()) return columnTiles;
+    const hasSearch = searchQuery.trim().length > 0;
+    const hasTypeFilter = typeFilter !== "";
+    if (!hasSearch && !hasTypeFilter) return columnTiles;
     const q = searchQuery.toLowerCase();
     const filtered: Record<KanbanColumnId, KanbanTile[]> = {
       todo: [],
@@ -81,15 +92,20 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       done: [],
     };
     for (const col of Object.keys(columnTiles) as KanbanColumnId[]) {
-      filtered[col] = columnTiles[col].filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.subtitle.toLowerCase().includes(q) ||
-          t.sourceBadge.toLowerCase().includes(q),
-      );
+      filtered[col] = columnTiles[col].filter((t) => {
+        if (hasTypeFilter && t.kanbanItem.item_type !== typeFilter) return false;
+        if (hasSearch) {
+          return (
+            t.title.toLowerCase().includes(q) ||
+            t.subtitle.toLowerCase().includes(q) ||
+            t.sourceBadge.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      });
     }
     return filtered;
-  }, [columnTiles, searchQuery]);
+  }, [columnTiles, searchQuery, typeFilter]);
 
   // Find the currently-dragged tile for the overlay
   const activeTile = useMemo(() => {
@@ -250,7 +266,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             ? "JIRA Ticket"
             : note.type === "github_pr"
               ? "GitHub PR"
-              : "Link",
+              : note.type === "free_text"
+                ? "Note"
+                : "Link",
         description: note.content || "",
         url: getReferenceUrl(note, jiraBase) || undefined,
       };
@@ -273,7 +291,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <>
-      <KanbanSearch value={searchQuery} onChange={setSearchQuery} />
+      <div className="kanban-toolbar">
+        <KanbanSearch value={searchQuery} onChange={setSearchQuery} />
+        <SearchableDropdown
+          items={FILTER_ITEMS}
+          value={typeFilter}
+          onChange={setTypeFilter}
+          placeholder="Filter type..."
+          allLabel="All Types"
+          width={140}
+          triggerIcon={<IconFilter size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+        />
+      </div>
 
       <DndContext
         sensors={sensors}

@@ -64,9 +64,7 @@ export function useKanban({
   const noteMap = useMemo(() => {
     const m = new Map<string, Note>();
     for (const n of notes) {
-      if (n.type !== "free_text") {
-        m.set(String(n.id), n);
-      }
+      m.set(String(n.id), n);
     }
     return m;
   }, [notes]);
@@ -129,13 +127,11 @@ export function useKanban({
       }
     }
 
-    // Notes with JIRA/PR references -> todo
+    // Notes -> todo
     for (const n of notes) {
-      if (n.type !== "free_text") {
-        const key = `note:${String(n.id)}`;
-        if (!existingKeys.has(key)) {
-          toCreate.push({ item_type: "note", item_id: String(n.id), column_name: "todo" });
-        }
+      const key = `note:${String(n.id)}`;
+      if (!existingKeys.has(key)) {
+        toCreate.push({ item_type: "note", item_id: String(n.id), column_name: "todo" });
       }
     }
 
@@ -251,13 +247,21 @@ export function useKanban({
           subtitle: note.content || "",
           url: noteUrl || "",
           sourceBadge:
-            note.type === "jira_ticket" ? "JIRA" : note.type === "github_pr" ? "PR" : "Link",
+            note.type === "jira_ticket"
+              ? "JIRA"
+              : note.type === "github_pr"
+                ? "PR"
+                : note.type === "free_text"
+                  ? "Note"
+                  : "Link",
           sourceBadgeVariant:
             note.type === "jira_ticket"
               ? "info"
               : note.type === "github_pr"
                 ? "success"
-                : "neutral",
+                : note.type === "free_text"
+                  ? "purple"
+                  : "neutral",
           timestamp: note.updated_at,
         };
       }
