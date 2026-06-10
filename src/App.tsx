@@ -22,6 +22,7 @@ import {
   IconChevronsRight,
   IconClock,
   IconTarget,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
@@ -47,7 +48,11 @@ import { FindInPage } from "./components/FindInPage";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
+import { useClaudeSessions } from "./hooks/useClaudeSessions";
+import { ClaudeSessionsView } from "./views/claude/ClaudeSessionsView";
 import type { FocusableItem } from "./types";
+import type { ClaudeAction } from "./types/claude";
+import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 
 export default function App() {
@@ -248,6 +253,36 @@ export default function App() {
   ]);
 
   const pomodoro = usePomodoro({ focusableItems });
+
+  const [claudeEnabled, setClaudeEnabled] = useState(false);
+  useEffect(() => {
+    window.electronAPI?.getSettings().then((s) => {
+      setClaudeEnabled(!!s?.claudeEnabled);
+    });
+  }, [configured]);
+
+  const claudeSessions = useClaudeSessions(claudeEnabled);
+
+  const handleClaudeAction = async (
+    pr: { number: number; repo_full_name: string; title: string },
+    action: ClaudeAction,
+    customPrompt?: string,
+  ) => {
+    const sessionId = await claudeSessions.create({
+      prNumber: pr.number,
+      repoFullName: pr.repo_full_name,
+      prTitle: pr.title,
+      action,
+      customPrompt,
+    });
+    if (sessionId) setActiveTab("claude");
+  };
+
+  const handleSaveSettingsWrapped = async (settings: AppSettings) => {
+    setClaudeEnabled(settings.claudeEnabled);
+    await saveSettings(settings);
+  };
+
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
@@ -366,6 +401,16 @@ export default function App() {
                   ]
                 : []),
               { key: "pomodoro", label: "Pomodoro", icon: IconClock, count: undefined },
+              ...(claudeEnabled
+                ? [
+                    {
+                      key: "claude",
+                      label: "Claude",
+                      icon: IconSparkles,
+                      count: claudeSessions.activeCount || undefined,
+                    },
+                  ]
+                : []),
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -426,7 +471,7 @@ export default function App() {
                 jiraBaseUrl={jiraBaseUrl}
                 githubUsername={githubUsername}
                 onBack={() => setActiveTab(prevTabRef.current)}
-                saveSettings={saveSettings}
+                saveSettings={handleSaveSettingsWrapped}
                 theme={theme}
                 onToggleTheme={toggleTheme}
               />
@@ -495,6 +540,8 @@ export default function App() {
                     jiraBaseUrl={jiraBaseUrl}
                     configured={configured}
                     refreshKey={refreshKey}
+                    claudeEnabled={claudeEnabled}
+                    onClaudeAction={handleClaudeAction}
                   />
                 )}
                 {effectiveTab === "reviews" && (
@@ -504,6 +551,8 @@ export default function App() {
                     jiraIssues={jiraIssues}
                     variant="review-requests"
                     jiraBaseUrl={jiraBaseUrl}
+                    claudeEnabled={claudeEnabled}
+                    onClaudeAction={handleClaudeAction}
                   />
                 )}
                 {effectiveTab === "org-prs" && (
@@ -530,6 +579,14 @@ export default function App() {
                 )}
                 {effectiveTab === "pomodoro" && (
                   <PomodoroView focusableItems={focusableItems} {...pomodoro} />
+                )}
+                {effectiveTab === "claude" && claudeEnabled && (
+                  <ClaudeSessionsView
+                    sessions={claudeSessions.sessions}
+                    loading={claudeSessions.loading}
+                    onCancel={claudeSessions.cancel}
+                    onDelete={claudeSessions.remove}
+                  />
                 )}
               </div>
             )}

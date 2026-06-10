@@ -18,6 +18,8 @@ import { EmptyState } from "./EmptyState";
 import { Badge, BadgeVariant } from "./primitives/Badge";
 import { BranchTag } from "./primitives/BranchTag";
 import { Avatar } from "./primitives/Avatar";
+import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
+import type { ClaudeAction } from "../types/claude";
 import "./PRTable.css";
 
 const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -39,6 +41,12 @@ interface PRTableProps {
   jiraIssues?: JiraIssue[];
   jiraBaseUrl?: string;
   variant: PRTableVariant;
+  claudeEnabled?: boolean;
+  onClaudeAction?: (
+    pr: { number: number; repo_full_name: string; title: string },
+    action: ClaudeAction,
+    customPrompt?: string,
+  ) => void;
 }
 
 /** Column definitions per variant. */
@@ -100,8 +108,8 @@ const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   "my-prs": {
     title: "30%",
     repo: "22%",
-    branch: "22%",
-    status: "14%",
+    branch: "20%",
+    status: "16%",
     created: "6%",
     updated: "6%",
   },
@@ -252,6 +260,8 @@ export const PRTable: React.FC<PRTableProps> = ({
   jiraIssues = [],
   jiraBaseUrl = "",
   variant,
+  claudeEnabled,
+  onClaudeAction,
 }) => {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -312,12 +322,14 @@ export const PRTable: React.FC<PRTableProps> = ({
           {columns.map((col) => (
             <col key={col} style={{ width: COLUMN_WIDTHS[variant]?.[col] }} />
           ))}
+          {claudeEnabled && onClaudeAction && <col style={{ width: "80px" }} />}
         </colgroup>
         <thead>
           <tr>
             {columns.map((col) => (
               <th key={col}>{HEADER_LABELS[col] || col}</th>
             ))}
+            {claudeEnabled && onClaudeAction && <th />}
           </tr>
         </thead>
         <tbody>
@@ -329,7 +341,7 @@ export const PRTable: React.FC<PRTableProps> = ({
               <React.Fragment key={groupKey}>
                 {isGroup && (
                   <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
-                    <td colSpan={columns.length}>
+                    <td colSpan={columns.length + (claudeEnabled && onClaudeAction ? 1 : 0)}>
                       <span className="ticket-group-chevron">
                         {isCollapsed ? (
                           <IconChevronRight size={14} stroke={2} />
@@ -372,6 +384,24 @@ export const PRTable: React.FC<PRTableProps> = ({
                     >
                       {columns.map((col, colIdx) =>
                         renderCell(col, pr, { isGrouped: !!isGroup, isFirstColumn: colIdx === 0 }),
+                      )}
+                      {claudeEnabled && onClaudeAction && (
+                        <td>
+                          <ClaudeActionDropdown
+                            pr={pr}
+                            onAction={(action, customPrompt) =>
+                              onClaudeAction(
+                                {
+                                  number: pr.number,
+                                  repo_full_name: pr.repo_full_name,
+                                  title: pr.title,
+                                },
+                                action,
+                                customPrompt,
+                              )
+                            }
+                          />
+                        </td>
                       )}
                     </tr>
                   ))}

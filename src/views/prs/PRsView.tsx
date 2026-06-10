@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { GitHubPR, JiraIssue } from "../../types";
+import type { ClaudeAction } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { PRTable } from "../../components/PRTable";
 import "./PRsView.css";
@@ -13,6 +14,12 @@ interface PRsViewProps {
   jiraBaseUrl?: string;
   configured: boolean;
   refreshKey?: number;
+  claudeEnabled?: boolean;
+  onClaudeAction?: (
+    pr: { number: number; repo_full_name: string; title: string },
+    action: ClaudeAction,
+    customPrompt?: string,
+  ) => void;
 }
 
 export const PRsView: React.FC<PRsViewProps> = ({
@@ -22,6 +29,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
   jiraBaseUrl,
   configured,
   refreshKey,
+  claudeEnabled,
+  onClaudeAction,
 }) => {
   const [subTab, setSubTab] = useState<PRSubTab>(() => {
     return (localStorage.getItem("dev-home-prs-subtab") as PRSubTab) || "open";
@@ -77,6 +86,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
           jiraIssues={jiraIssues}
           variant="my-prs"
           jiraBaseUrl={jiraBaseUrl}
+          claudeEnabled={claudeEnabled}
+          onClaudeAction={onClaudeAction}
         />
       )}
       {subTab === "merged" && (

@@ -11,3 +11,5 @@ server/data/
 notes.db*
 
 .superpowers/
+
+.playwright-mcp/

@@ -1,0 +1,108 @@
+.claude-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claude-session-card {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+}
+
+.claude-session-card.active {
+  border-left: 3px solid var(--color-accent);
+}
+
+.claude-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.claude-status-dot.running {
+  background: var(--color-status-success);
+  animation: claude-pulse 2s infinite;
+}
+
+.claude-status-dot.completed {
+  background: var(--color-text-muted);
+}
+
+.claude-status-dot.cancelled {
+  background: var(--color-status-warning);
+}
+
+.claude-status-dot.error {
+  background: var(--color-status-danger);
+}
+
+.claude-session-preview {
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-app);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claude-session-detail {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+}
+
+.claude-terminal {
+  flex: 1;
+  background: #0d1117;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.claude-terminal-line.stdout {
+  color: #c9d1d9;
+}
+
+.claude-terminal-line.stderr {
+  color: #f85149;
+}
+
+.claude-terminal-done {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.claude-cursor {
+  color: #f0883e;
+  animation: claude-blink 1s infinite;
+}
+
+.claude-input-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@keyframes claude-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes claude-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

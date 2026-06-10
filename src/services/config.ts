@@ -76,7 +76,15 @@ export async function fetchBackendConfig(): Promise<{
 }
 
 export async function saveSettingsToBackend(settings: AppSettings): Promise<void> {
-  await apiClient.post("/config", settings);
+  const { jiraBaseUrl, jiraEmail, jiraApiToken, githubToken, githubUsername, githubOrg } = settings;
+  await apiClient.post("/config", {
+    jiraBaseUrl,
+    jiraEmail,
+    jiraApiToken,
+    githubToken,
+    githubUsername,
+    githubOrg,
+  });
 }
 
 export async function loadSettingsFromStore(): Promise<AppSettings | null> {

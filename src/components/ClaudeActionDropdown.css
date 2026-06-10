@@ -1,0 +1,50 @@
+.claude-action-toggle {
+  font-size: 0.75rem;
+  padding: 2px 10px;
+  font-weight: 500;
+}
+
+.claude-action-menu {
+  min-width: 260px;
+}
+
+.claude-action-item {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 14px !important;
+}
+
+.claude-action-item.suggested {
+  background: var(--color-status-info-bg);
+}
+
+.claude-action-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.claude-action-item-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.claude-action-item-description {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  margin-top: 1px;
+}
+
+.claude-suggested-badge {
+  font-size: 0.625rem;
+  background: var(--color-accent);
+  color: white;
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}

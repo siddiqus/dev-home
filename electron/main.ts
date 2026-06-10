@@ -1,8 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, clipboard } from "electron";
 import path from "path";
 import http from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { getSettings, setSettings, isConfigured } from "./store";
 import { createServer } from "../server/src/index";
+import { setClaudeSettings } from "../server/src/routes/claude";
+import { subscribe, sendInput } from "../server/src/services/claudeSessionManager";
 
 declare const __API_PORT__: string;
 
@@ -35,6 +38,48 @@ async function startBackendServer() {
   httpServer.on("error", (err) => {
     console.error("[server] Failed to start:", err.message);
   });
+
+  // WebSocket server for Claude CLI streaming
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws/claude" });
+  wss.on("connection", (ws: WebSocket) => {
+    ws.on("message", (raw: Buffer | string) => {
+      try {
+        const msg = JSON.parse(typeof raw === "string" ? raw : raw.toString());
+        if (msg.type === "subscribe" && msg.sessionId) {
+          const buffered = subscribe(msg.sessionId, ws);
+          if (buffered) {
+            for (const entry of buffered) {
+              ws.send(
+                JSON.stringify({
+                  type: "output",
+                  sessionId: msg.sessionId,
+                  data: entry.data,
+                  stream: entry.stream,
+                  timestamp: entry.timestamp,
+                }),
+              );
+            }
+          }
+        }
+        if (msg.type === "input" && msg.sessionId && msg.data) {
+          sendInput(msg.sessionId, msg.data);
+        }
+      } catch {
+        // ignore malformed messages
+      }
+    });
+  });
+
+  // Sync Claude settings from store
+  const settings = getSettings();
+  if (settings.claudeEnabled) {
+    setClaudeSettings({
+      enabled: settings.claudeEnabled,
+      cliPath: settings.claudeCliPath || "",
+      workingDirectory: settings.claudeWorkingDirectory || "",
+      maxConcurrentSessions: settings.claudeMaxConcurrentSessions || 3,
+    });
+  }
 }
 
 function stopBackendServer() {
@@ -145,6 +190,12 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("store:setSettings", (_event, settings) => {
     setSettings(settings);
+    setClaudeSettings({
+      enabled: settings.claudeEnabled ?? false,
+      cliPath: settings.claudeCliPath ?? "",
+      workingDirectory: settings.claudeWorkingDirectory ?? "",
+      maxConcurrentSessions: settings.claudeMaxConcurrentSessions ?? 3,
+    });
     return { success: true };
   });
 

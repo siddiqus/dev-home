@@ -7,7 +7,7 @@ import Alert from "react-bootstrap/Alert";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
 import { IconArrowLeft } from "@tabler/icons-react";
-import { AppSettings, loadSettingsFromStore } from "../../services/config";
+import { AppSettings, loadSettingsFromStore, apiClient } from "../../services/config";
 import { BackendStatusCard } from "./BackendStatusCard";
 import { ThemePicker } from "./ThemePicker";
 import "./settings.css";
@@ -31,6 +31,10 @@ const EMPTY_SETTINGS: AppSettings = {
   githubToken: "",
   githubUsername: "",
   githubOrg: "",
+  claudeEnabled: false,
+  claudeCliPath: "",
+  claudeWorkingDirectory: "",
+  claudeMaxConcurrentSessions: 3,
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -245,7 +249,173 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Col>
       </Row>
 
+      <AiAssistanceSection
+        formState={formState}
+        setFormState={setFormState}
+        labelStyle={labelStyle}
+      />
+
       <ThemePicker theme={theme} onToggleTheme={onToggleTheme} />
     </div>
   );
 };
+
+function AiAssistanceSection({
+  formState,
+  setFormState,
+  labelStyle,
+}: {
+  formState: AppSettings;
+  setFormState: React.Dispatch<React.SetStateAction<AppSettings>>;
+  labelStyle: React.CSSProperties;
+}) {
+  const [detecting, setDetecting] = useState(false);
+  const [cliStatus, setCliStatus] = useState<{ found: boolean; version: string } | null>(null);
+
+  const detectCli = async () => {
+    setDetecting(true);
+    try {
+      const { data } = await apiClient.get("/claude/detect");
+      setCliStatus({ found: data.found, version: data.version });
+      if (data.found && data.path) {
+        setFormState((prev) => ({ ...prev, claudeCliPath: data.path }));
+      }
+    } catch {
+      setCliStatus({ found: false, version: "" });
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (formState.claudeEnabled && !cliStatus) {
+      detectCli();
+    }
+  }, [formState.claudeEnabled]);
+
+  return (
+    <Card className="mb-3">
+      <Card.Body>
+        <h6 style={{ marginBottom: 12 }}>AI Assistance</h6>
+
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>
+              Enable AI assistance through Claude CLI
+            </div>
+            <div className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+              Allow dev-home to run Claude CLI commands to review PRs, fix issues, and more
+            </div>
+          </div>
+          <Form.Check
+            type="switch"
+            id="claude-enabled-toggle"
+            checked={formState.claudeEnabled}
+            onChange={(e) => setFormState((prev) => ({ ...prev, claudeEnabled: e.target.checked }))}
+          />
+        </div>
+
+        {formState.claudeEnabled && (
+          <div style={{ paddingLeft: 8, borderLeft: "2px solid var(--bs-primary)" }}>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-secondary-custom" style={labelStyle}>
+                Claude CLI Path
+              </Form.Label>
+              <div className="d-flex gap-2">
+                <Form.Control
+                  type="text"
+                  placeholder="/usr/local/bin/claude"
+                  value={formState.claudeCliPath}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, claudeCliPath: e.target.value }))
+                  }
+                  size="sm"
+                  style={{ fontFamily: "monospace" }}
+                />
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={detectCli}
+                  disabled={detecting}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {detecting ? <Spinner animation="border" size="sm" /> : "Detect"}
+                </Button>
+              </div>
+              <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                Path to the Claude CLI binary. Click "Detect" to auto-find.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-secondary-custom" style={labelStyle}>
+                Default Working Directory
+              </Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="~/code"
+                value={formState.claudeWorkingDirectory}
+                onChange={(e) =>
+                  setFormState((prev) => ({ ...prev, claudeWorkingDirectory: e.target.value }))
+                }
+                size="sm"
+                style={{ fontFamily: "monospace" }}
+              />
+              <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                Base directory where your repos are cloned. Claude will cd into the matching repo.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="text-secondary-custom" style={labelStyle}>
+                Max Concurrent Sessions
+              </Form.Label>
+              <Form.Control
+                type="number"
+                min={1}
+                max={10}
+                value={formState.claudeMaxConcurrentSessions}
+                onChange={(e) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    claudeMaxConcurrentSessions: parseInt(e.target.value, 10) || 3,
+                  }))
+                }
+                size="sm"
+                style={{ width: 80 }}
+              />
+              <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                Limit parallel Claude sessions to manage resources.
+              </Form.Text>
+            </Form.Group>
+
+            {cliStatus && (
+              <div
+                className="d-flex align-items-center gap-2"
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  fontSize: "0.8rem",
+                  background: "var(--card-bg)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: cliStatus.found ? "#4ade80" : "#f87171",
+                    display: "inline-block",
+                  }}
+                />
+                {cliStatus.found
+                  ? `Claude CLI detected${cliStatus.version ? ` — ${cliStatus.version}` : ""}`
+                  : "Claude CLI not found. Install it or set the path manually."}
+              </div>
+            )}
+          </div>
+        )}
+      </Card.Body>
+    </Card>
+  );
+}

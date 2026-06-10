@@ -1,0 +1,225 @@
+import { spawn, ChildProcess } from "child_process";
+import { randomUUID } from "crypto";
+import { existsSync } from "fs";
+import { WebSocket } from "ws";
+
+export type ClaudeAction = "review" | "address_comments" | "fix_ci" | "summarize" | "custom";
+export type SessionStatus = "running" | "completed" | "cancelled" | "error";
+
+interface OutputEntry {
+  timestamp: string;
+  stream: "stdout" | "stderr";
+  data: string;
+}
+
+interface Session {
+  id: string;
+  prNumber: number;
+  repoFullName: string;
+  prTitle: string;
+  action: ClaudeAction;
+  customPrompt?: string;
+  status: SessionStatus;
+  startedAt: string;
+  completedAt?: string;
+  exitCode?: number;
+  outputBuffer: OutputEntry[];
+  process: ChildProcess | null;
+  subscribers: Set<WebSocket>;
+}
+
+const sessions = new Map<string, Session>();
+
+function buildPrompt(
+  action: ClaudeAction,
+  prNumber: number,
+  repoFullName: string,
+  customPrompt?: string,
+): string {
+  switch (action) {
+    case "review":
+      return `Review the code changes in PR #${prNumber} of ${repoFullName}. Analyze the diff, identify issues, and leave review comments on GitHub.`;
+    case "address_comments":
+      return `Read the review comments on PR #${prNumber} of ${repoFullName} and address each one. Make the necessary code changes.`;
+    case "fix_ci":
+      return `Investigate the CI failures on PR #${prNumber} of ${repoFullName}. Read the failing test output, identify the root cause, and fix it.`;
+    case "summarize":
+      return `Summarize the changes in PR #${prNumber} of ${repoFullName}. Generate a clear, concise PR description.`;
+    case "custom":
+      return `${customPrompt || ""} (Context: PR #${prNumber} in ${repoFullName})`;
+  }
+}
+
+function resolveWorkingDirectory(workingDirectory: string, repoFullName: string): string {
+  const repoName = repoFullName.split("/").pop() || repoFullName;
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const base = workingDirectory.replace(/^~/, home);
+  return `${base}/${repoName}`;
+}
+
+export function createSession(opts: {
+  prNumber: number;
+  repoFullName: string;
+  prTitle: string;
+  action: ClaudeAction;
+  customPrompt?: string;
+  claudeCliPath: string;
+  workingDirectory: string;
+  maxConcurrent: number;
+}): Session {
+  const activeCount = Array.from(sessions.values()).filter((s) => s.status === "running").length;
+  if (activeCount >= opts.maxConcurrent) {
+    throw new Error(
+      `Maximum concurrent sessions (${opts.maxConcurrent}) reached. Cancel an active session first.`,
+    );
+  }
+
+  const cwd = resolveWorkingDirectory(opts.workingDirectory, opts.repoFullName);
+  if (!existsSync(cwd)) {
+    throw new Error(
+      `Repository directory not found: ${cwd}. Check your Claude working directory setting.`,
+    );
+  }
+
+  if (!existsSync(opts.claudeCliPath)) {
+    throw new Error(
+      `Claude CLI not found at: ${opts.claudeCliPath}. Check your Claude CLI path setting.`,
+    );
+  }
+
+  const prompt = buildPrompt(opts.action, opts.prNumber, opts.repoFullName, opts.customPrompt);
+  const id = randomUUID();
+
+  const child = spawn(
+    opts.claudeCliPath,
+    ["--dangerously-skip-permissions", "--verbose", "-p", prompt],
+    {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env },
+    },
+  );
+
+  const session: Session = {
+    id,
+    prNumber: opts.prNumber,
+    repoFullName: opts.repoFullName,
+    prTitle: opts.prTitle,
+    action: opts.action,
+    customPrompt: opts.customPrompt,
+    status: "running",
+    startedAt: new Date().toISOString(),
+    outputBuffer: [],
+    process: child,
+    subscribers: new Set(),
+  };
+
+  sessions.set(id, session);
+
+  const broadcast = (msg: object) => {
+    const data = JSON.stringify(msg);
+    for (const ws of session.subscribers) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    }
+  };
+
+  const onData = (stream: "stdout" | "stderr") => (chunk: Buffer) => {
+    const text = chunk.toString();
+    const entry: OutputEntry = {
+      timestamp: new Date().toISOString(),
+      stream,
+      data: text,
+    };
+    session.outputBuffer.push(entry);
+    broadcast({ type: "output", sessionId: id, data: text, stream, timestamp: entry.timestamp });
+  };
+
+  child.stdout?.on("data", onData("stdout"));
+  child.stderr?.on("data", onData("stderr"));
+
+  child.on("close", (code) => {
+    session.status = code === 0 ? "completed" : "error";
+    session.exitCode = code ?? 1;
+    session.completedAt = new Date().toISOString();
+    session.process = null;
+
+    const duration =
+      new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
+    broadcast({ type: "done", sessionId: id, exitCode: session.exitCode, duration });
+  });
+
+  child.on("error", (err) => {
+    session.status = "error";
+    session.completedAt = new Date().toISOString();
+    session.process = null;
+
+    const entry: OutputEntry = {
+      timestamp: new Date().toISOString(),
+      stream: "stderr",
+      data: `Process error: ${err.message}`,
+    };
+    session.outputBuffer.push(entry);
+    broadcast({
+      type: "output",
+      sessionId: id,
+      data: entry.data,
+      stream: "stderr",
+      timestamp: entry.timestamp,
+    });
+    broadcast({ type: "done", sessionId: id, exitCode: 1, duration: 0 });
+  });
+
+  return session;
+}
+
+export function getSession(id: string): Session | undefined {
+  return sessions.get(id);
+}
+
+export function listSessions(status?: string): Omit<Session, "process" | "subscribers">[] {
+  return Array.from(sessions.values())
+    .filter((s) => !status || status === "all" || s.status === status)
+    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    .map(({ process: _p, subscribers: _s, ...rest }) => rest);
+}
+
+export function cancelSession(id: string): boolean {
+  const session = sessions.get(id);
+  if (!session || session.status !== "running") return false;
+
+  session.process?.kill("SIGTERM");
+  session.status = "cancelled";
+  session.completedAt = new Date().toISOString();
+  session.process = null;
+  return true;
+}
+
+export function deleteSession(id: string): boolean {
+  const session = sessions.get(id);
+  if (!session || session.status === "running") return false;
+  return sessions.delete(id);
+}
+
+export function sendInput(id: string, data: string): boolean {
+  const session = sessions.get(id);
+  if (!session || session.status !== "running" || !session.process?.stdin) return false;
+
+  session.process.stdin.write(data + "\n");
+  return true;
+}
+
+export function subscribe(id: string, ws: WebSocket): OutputEntry[] | null {
+  const session = sessions.get(id);
+  if (!session) return null;
+
+  session.subscribers.add(ws);
+  ws.on("close", () => session.subscribers.delete(ws));
+
+  return session.outputBuffer;
+}
+
+export function getActiveSessionCount(): number {
+  return Array.from(sessions.values()).filter((s) => s.status === "running").length;
+}
