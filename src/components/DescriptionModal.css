@@ -48,6 +48,35 @@
   flex-shrink: 0;
 }
 
+/* --- Tabs --- */
+.description-modal .modal-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.description-modal .modal-tab {
+  padding: 8px 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.description-modal .modal-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.description-modal .modal-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
 /* --- Split layout: description | checks --- */
 .description-modal .modal-split-layout {
   flex: 1;
@@ -340,4 +369,56 @@
 .markdown-body img {
   max-width: 100%;
   border-radius: var(--radius-md);
+}
+
+/* --- Comments pill toggle --- */
+.comments-pill-toggle {
+  display: inline-flex;
+  background: var(--color-bg-app);
+  border-radius: 6px;
+  padding: 3px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+}
+
+.comments-pill-toggle button {
+  padding: 4px 14px;
+  font-size: 0.75rem;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.comments-pill-toggle button.active {
+  background: var(--color-border);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* --- Comment cards --- */
+.comment-card {
+  background: var(--color-bg-app);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.file-badge {
+  background: var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.resolved-badge {
+  background: var(--color-status-success-bg, #1a3a1a);
+  color: var(--color-status-success, #66bb6a);
+  font-size: 0.6875rem;
+  padding: 0 5px;
+  border-radius: 3px;
 }
