@@ -444,8 +444,6 @@ export const PRTable: React.FC<PRTableProps> = ({
             : undefined
         }
         onViewSession={onViewClaudeSession}
-        repoFullName={selectedPR?.repo_full_name}
-        prNumber={selectedPR?.number}
       />
     </>
   );

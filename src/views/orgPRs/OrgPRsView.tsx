@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
-import { IconRefresh } from "@tabler/icons-react";
+import { IconRefresh, IconFilter } from "@tabler/icons-react";
 import "../prs/PRsView.css";
 import { GitHubPR, JiraIssue } from "../../types";
 import {
@@ -116,6 +116,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
   const loadMergedPRs = useCallback(async () => {
     if (!configured) return;
+    if (authors.length === 0 && selectedRepos.length === 0) {
+      setMergedPRs([]);
+      return;
+    }
     setMergedPRsLoading(true);
     try {
       setMergedPRs(await fetchRecentlyMergedPRs("org", authors, selectedRepos));
@@ -205,6 +209,12 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   const fetchFirstPage = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
+      if (authors.length === 0 && selectedRepos.length === 0) {
+        setPrs([]);
+        setHasNextPage(false);
+        setEndCursor(null);
+        return;
+      }
 
       if (
         !skipCache &&
@@ -489,53 +499,70 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
         </div>
       </div>
 
-      {orgSubTab === "open" && (
-        <>
-          <div
-            style={{
-              opacity: loading && prs.length > 0 ? 0.45 : 1,
-              pointerEvents: loading && prs.length > 0 ? "none" : "auto",
-              transition: "opacity 0.15s ease",
-            }}
-          >
-            <PRTable
-              prs={prs}
-              loading={loading}
-              jiraBaseUrl={jiraBaseUrl}
-              jiraIssues={jiraIssues}
-              variant="org-prs"
-            />
+      {authors.length === 0 && selectedRepos.length === 0 ? (
+        <div
+          className="d-flex flex-column align-items-center justify-content-center py-5"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          <IconFilter size={32} stroke={1.2} style={{ marginBottom: 12, opacity: 0.5 }} />
+          <div style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>
+            Select a filter to view PRs
           </div>
-
-          {hasNextPage && !isMultiMode && (
-            <div className="d-flex justify-content-center py-3">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={fetchNextPage}
-                disabled={loadingMore}
+          <div style={{ fontSize: "0.8125rem" }}>
+            Choose at least one author or repository above.
+          </div>
+        </div>
+      ) : (
+        <>
+          {orgSubTab === "open" && (
+            <>
+              <div
+                style={{
+                  opacity: loading && prs.length > 0 ? 0.45 : 1,
+                  pointerEvents: loading && prs.length > 0 ? "none" : "auto",
+                  transition: "opacity 0.15s ease",
+                }}
               >
-                {loadingMore ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load more"
-                )}
-              </Button>
-            </div>
+                <PRTable
+                  prs={prs}
+                  loading={loading}
+                  jiraBaseUrl={jiraBaseUrl}
+                  jiraIssues={jiraIssues}
+                  variant="org-prs"
+                />
+              </div>
+
+              {hasNextPage && !isMultiMode && (
+                <div className="d-flex justify-content-center py-3">
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={fetchNextPage}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load more"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {orgSubTab === "merged" && (
+            <PRTable
+              prs={mergedPRs}
+              loading={mergedPRsLoading}
+              variant="recently-merged-org"
+              jiraBaseUrl={jiraBaseUrl}
+            />
           )}
         </>
-      )}
-
-      {orgSubTab === "merged" && (
-        <PRTable
-          prs={mergedPRs}
-          loading={mergedPRsLoading}
-          variant="recently-merged-org"
-          jiraBaseUrl={jiraBaseUrl}
-        />
       )}
     </>
   );
