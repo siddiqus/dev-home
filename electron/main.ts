@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, clipboard } from "electron";
 import path from "path";
 import http from "http";
+import { execSync } from "child_process";
 import { WebSocketServer, WebSocket } from "ws";
 import { getSettings, setSettings, isConfigured } from "./store";
 import { createServer } from "../server/src/index";
@@ -12,6 +13,27 @@ declare const __API_PORT__: string;
 let mainWindow: BrowserWindow | null = null;
 let httpServer: http.Server | null = null;
 let resolvedPort: number = parseInt(__API_PORT__, 10);
+
+// Packaged Electron apps inherit a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin).
+// Resolve the user's login shell PATH so child processes can find tools like claude, git, etc.
+function fixPath(): void {
+  try {
+    const userShell = process.env.SHELL || "/bin/zsh";
+    const shellPath = execSync(`${userShell} -ilc 'echo -n "$PATH"'`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    if (shellPath) {
+      process.env.PATH = shellPath;
+    }
+  } catch {
+    // Keep the existing PATH if shell detection fails
+  }
+}
+
+if (!process.env.VITE_DEV_SERVER_URL) {
+  fixPath();
+}
 
 async function startBackendServer() {
   // In dev mode, load .env so the server has access to JIRA/GitHub credentials etc.
