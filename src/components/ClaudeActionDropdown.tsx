@@ -5,7 +5,6 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import {
   IconSearch,
-  IconMessageDots,
   IconTool,
   IconFileDescription,
   IconTerminal,
@@ -31,13 +30,16 @@ const ACTION_CONFIG: {
   description: string;
 }[] = [
   { action: "review", icon: IconSearch, description: "Analyze code changes & leave comments" },
-  { action: "address_comments", icon: IconMessageDots, description: "Fix issues raised in review" },
   {
     action: "explain_comments",
     icon: IconInfoCircle,
     description: "Explain what reviewers are asking for",
   },
-  { action: "fix_ci", icon: IconTool, description: "Investigate & fix failing checks" },
+  {
+    action: "investigate_ci",
+    icon: IconTool,
+    description: "Investigate failing checks & suggest fixes",
+  },
   {
     action: "summarize",
     icon: IconFileDescription,
@@ -47,8 +49,7 @@ const ACTION_CONFIG: {
 ];
 
 function getSuggestedAction(pr: GitHubPR): ClaudeAction | null {
-  if (pr.review_status === "CHANGES_REQUESTED") return "address_comments";
-  if (pr.checks_status === "FAILURE") return "fix_ci";
+  if (pr.checks_status === "FAILURE") return "investigate_ci";
   if (!pr.review_status) return "review";
   if (!pr.body || pr.body.trim() === "") return "summarize";
   return null;

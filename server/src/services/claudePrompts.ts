@@ -1,4 +1,4 @@
-type ClaudeAction = "review" | "address_comments" | "explain_comments" | "fix_ci" | "summarize" | "custom";
+type ClaudeAction = "review" | "explain_comments" | "investigate_ci" | "summarize" | "custom";
 
 export interface PromptContext {
   prNumber: number;
@@ -13,12 +13,10 @@ export function buildPrompt(action: ClaudeAction, ctx: PromptContext): string {
   switch (action) {
     case "review":
       return buildReviewPrompt(ctx);
-    case "address_comments":
-      return buildAddressCommentsPrompt(ctx);
     case "explain_comments":
       return buildExplainCommentsPrompt(ctx);
-    case "fix_ci":
-      return buildFixCiPrompt(ctx);
+    case "investigate_ci":
+      return buildInvestigateCiPrompt(ctx);
     case "summarize":
       return buildSummarizePrompt(ctx);
     case "custom":
@@ -71,40 +69,33 @@ git worktree remove .claude/worktrees/review-pr-${ctx.prNumber}
 `.trim();
 }
 
-function buildAddressCommentsPrompt(ctx: PromptContext): string {
+function buildInvestigateCiPrompt(ctx: PromptContext): string {
   return `
-You are addressing review comments on PR #${ctx.prNumber} in ${ctx.repoFullName}.
+You are investigating CI failures on PR #${ctx.prNumber} in ${ctx.repoFullName}.
 
-## Setup
-
-Create an isolated worktree to make changes without affecting the main working directory:
-
-git fetch origin ${ctx.headBranch}
-git worktree add .claude/worktrees/address-pr-${ctx.prNumber} origin/${ctx.headBranch}
-cd .claude/worktrees/address-pr-${ctx.prNumber}
+This is a read-only analysis — do NOT make any code changes, commits, or pushes.
 
 ## Process
 
-1. Fetch all review comments:
-   - \`gh pr view ${ctx.prNumber} --repo ${ctx.repoFullName} --comments\`
-   - \`gh api repos/${ctx.repoFullName}/pulls/${ctx.prNumber}/comments\`
+1. Check CI status: \`gh pr checks ${ctx.prNumber} --repo ${ctx.repoFullName}\`
 
-2. For each unresolved review comment:
-   - Understand the feedback and what change is being requested
-   - Make the code change that addresses the feedback
-   - Reply to the comment confirming the fix or explaining your approach
+2. For each failing check, fetch the logs to understand the failure. Use \`gh run view\` or \`gh api\` to get workflow run logs.
 
-3. If you disagree with a suggestion, reply with a clear, respectful explanation of your reasoning rather than silently ignoring it.
+3. Analyze the root cause systematically. Common causes include:
+   - Test assertion failures
+   - TypeScript/type errors
+   - Linting or formatting violations
+   - Build/compilation errors
+   - Dependency resolution issues
+   - Flaky tests or environment-specific failures
 
-4. Commit changes with descriptive messages that reference the review feedback (e.g., "fix: address review feedback on error handling in UserService").
+4. For each failure, provide:
+   - **What failed** — The specific check, test, or step that failed
+   - **Root cause** — Why it failed based on the logs
+   - **Suggested fix** — What code changes would resolve it, with file paths and code snippets
+   - **Confidence** — How confident you are in the diagnosis (high/medium/low)
 
-5. Push to the ${ctx.headBranch} branch:
-   \`git push origin HEAD:${ctx.headBranch}\`
-
-## Cleanup
-
-cd ${ctx.cwd}
-git worktree remove .claude/worktrees/address-pr-${ctx.prNumber}
+5. At the end, provide a prioritized summary of all failures and suggested fixes.
 `.trim();
 }
 
@@ -129,50 +120,6 @@ This is a read-only analysis — do NOT make any code changes or push anything.
 3. Group explanations by file or topic for readability.
 
 4. At the end, provide a summary of the overall review feedback themes (e.g., "The review mainly focuses on test coverage gaps and inconsistent error handling patterns").
-`.trim();
-}
-
-function buildFixCiPrompt(ctx: PromptContext): string {
-  return `
-You are investigating and fixing CI failures on PR #${ctx.prNumber} in ${ctx.repoFullName}.
-
-## Setup
-
-Create an isolated worktree to fix the issue without affecting the main working directory:
-
-git fetch origin ${ctx.headBranch}
-git worktree add .claude/worktrees/fix-ci-pr-${ctx.prNumber} origin/${ctx.headBranch}
-cd .claude/worktrees/fix-ci-pr-${ctx.prNumber}
-
-## Process
-
-1. Check CI status: \`gh pr checks ${ctx.prNumber} --repo ${ctx.repoFullName}\`
-
-2. For each failing check, fetch the logs to understand the failure. Use \`gh run view\` or \`gh api\` to get workflow run logs.
-
-3. Analyze the root cause systematically. Common causes include:
-   - Test assertion failures
-   - TypeScript/type errors
-   - Linting or formatting violations
-   - Build/compilation errors
-   - Dependency resolution issues
-   - Flaky tests or environment-specific failures
-
-4. Fix the issue in the worktree. Make minimal, targeted changes — do not refactor unrelated code.
-
-5. Run the affected tests locally to verify the fix before pushing.
-
-6. Commit with a clear message explaining what was fixed and why (e.g., "fix: correct assertion in UserService test after API response shape change").
-
-7. Push to the ${ctx.headBranch} branch:
-   \`git push origin HEAD:${ctx.headBranch}\`
-
-8. Add a brief comment on the PR explaining what caused the failure and how it was fixed.
-
-## Cleanup
-
-cd ${ctx.cwd}
-git worktree remove .claude/worktrees/fix-ci-pr-${ctx.prNumber}
 `.trim();
 }
 

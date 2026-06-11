@@ -6,9 +6,8 @@ import { buildPrompt } from "./claudePrompts";
 
 export type ClaudeAction =
   | "review"
-  | "address_comments"
   | "explain_comments"
-  | "fix_ci"
+  | "investigate_ci"
   | "summarize"
   | "custom";
 export type SessionStatus = "running" | "completed" | "cancelled" | "error";
