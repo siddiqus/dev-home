@@ -444,6 +444,24 @@ export const PRTable: React.FC<PRTableProps> = ({
             : undefined
         }
         onViewSession={onViewClaudeSession}
+        pr={selectedPR ?? undefined}
+        claudeEnabled={claudeEnabled}
+        onClaudeAction={
+          selectedPR && onClaudeAction
+            ? (action, customPrompt) =>
+                onClaudeAction(
+                  {
+                    number: selectedPR.number,
+                    repo_full_name: selectedPR.repo_full_name,
+                    title: selectedPR.title,
+                    headBranch: selectedPR.head.ref,
+                    baseBranch: selectedPR.base.ref,
+                  },
+                  action,
+                  customPrompt,
+                )
+            : undefined
+        }
       />
     </>
   );

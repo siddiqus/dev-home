@@ -135,7 +135,7 @@ A WebSocket endpoint on the Express server for streaming session output.
 5. On completion: `{ type: "done", sessionId, exitCode, duration }`
 6. Frontend can subscribe to multiple sessions simultaneously
 
-**Implementation:** Use the `ws` npm package. Attach the WebSocket server to the existing HTTP server in `server/src/index.ts`.
+**Implementation:** Use the `ws` package. Attach the WebSocket server to the existing HTTP server in `server/src/index.ts`.
 
 ### Claude CLI Command Construction
 
@@ -187,8 +187,8 @@ Sessions are not persisted to SQLite. They exist for the lifetime of the app pro
 
 ## New Dependencies
 
-- `ws` (npm) — WebSocket server for Express. Lightweight, no additional framework dependencies.
-- `uuid` (npm) — Session ID generation. (Or use `crypto.randomUUID()` which is available in Node 19+.)
+- `ws` — WebSocket server for Express. Lightweight, no additional framework dependencies.
+- `uuid` — Session ID generation. (Or use `crypto.randomUUID()` which is available in Node 19+.)
 
 ## Files to Create/Modify
 

@@ -429,7 +429,7 @@ export function usePomodoro({ columnTiles }: UsePomodoroProps): UsePomodoroRetur
 - [ ] **Step 3: Type-check**
 
 Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && yarn build`
-Expected: TypeScript compilation succeeds. (Build will run vite afterward but that's fine.) If `yarn build` is too heavy, run `npx tsc --noEmit` instead.
+Expected: TypeScript compilation succeeds. (Build will run vite afterward but that's fine.) If `yarn build` is too heavy, run `yarn tsc --noEmit` instead.
 
 - [ ] **Step 4: Commit**
 
@@ -546,7 +546,7 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
 
 - [ ] **Step 2: Type-check**
 
-Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && npx tsc --noEmit`
+Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && yarn tsc --noEmit`
 Expected: PASS — no TypeScript errors.
 
 Note: this component references `pomodoro-task-picker*` CSS classes that will be defined in Task 3 / 5. Type-check is what matters at this step.
@@ -819,7 +819,7 @@ export const PomodoroBadge: React.FC<PomodoroBadgeProps> = ({
 
 - [ ] **Step 2: Type-check**
 
-Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && npx tsc --noEmit`
+Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && yarn tsc --noEmit`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -1011,7 +1011,7 @@ export const PomodoroView: React.FC<PomodoroViewProps> = ({
 
 - [ ] **Step 2: Type-check**
 
-Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && npx tsc --noEmit`
+Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && yarn tsc --noEmit`
 Expected: PASS.
 
 - [ ] **Step 3: Verify icons exist**
@@ -1126,7 +1126,7 @@ In the tab content switch (the block of `{effectiveTab === "..." && (...)}` cond
 
 - [ ] **Step 6: Type-check**
 
-Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && npx tsc --noEmit`
+Run: `cd /Users/sabbir.siddiqui/Documents/work/cmp/dev-home && yarn tsc --noEmit`
 Expected: PASS.
 
 - [ ] **Step 7: Build & lint**

@@ -8,7 +8,8 @@ if [[ "$BUMP" != "major" && "$BUMP" != "minor" && "$BUMP" != "patch" ]]; then
   exit 1
 fi
 
-NEW_VERSION=$(npm version "$BUMP" --no-git-tag-version)
+yarn version --"$BUMP" --no-git-tag-version
+NEW_VERSION=$(node -p "require('./package.json').version")
 NEW_VERSION="${NEW_VERSION#v}"
 
 node -e "

@@ -510,6 +510,10 @@ export default function App() {
                       setShowNoteEditor(true);
                     }}
                     doneItemIds={doneItemIds}
+                    claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions.sessions}
+                    onClaudeAction={handleClaudeAction}
+                    onViewClaudeSession={handleViewClaudeSession}
                   />
                 )}
                 {effectiveTab === "focus" && (
@@ -528,6 +532,10 @@ export default function App() {
                     loading={kanbanLoading}
                     jiraBaseUrl={jiraBaseUrl}
                     onMoveItem={kanbanMoveItem}
+                    claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions.sessions}
+                    onClaudeAction={handleClaudeAction}
+                    onViewClaudeSession={handleViewClaudeSession}
                   />
                 )}
                 {effectiveTab === "jira" && (

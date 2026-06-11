@@ -451,7 +451,7 @@ git commit -m "feat(claude): add session manager for Claude CLI process lifecycl
 - [ ] **Step 1: Install the `ws` dependency**
 
 ```bash
-npm install ws && npm install -D @types/ws
+yarn add ws && yarn add -D @types/ws
 ```
 
 - [ ] **Step 2: Create Claude routes**
@@ -687,7 +687,7 @@ Update the `store:setSettings` handler to also sync Claude settings:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/src/routes/claude.ts server/src/index.ts electron/main.ts package.json package-lock.json
+git add server/src/routes/claude.ts server/src/index.ts electron/main.ts package.json yarn.lock
 git commit -m "feat(claude): add REST routes, WebSocket streaming, and wire up to Electron"
 ```
 
@@ -2029,7 +2029,7 @@ git commit -m "feat(claude): wire Claude into App, sidebar, PRTable, and PRsView
 - [ ] **Step 1: Start the dev server**
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 - [ ] **Step 2: Test the settings flow**

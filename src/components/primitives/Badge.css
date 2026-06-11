@@ -8,7 +8,7 @@
 .badge-status--warning  { background-color: var(--color-status-warning-bg); }
 .badge-status--danger   { background-color: var(--color-status-danger-bg); }
 .badge-status--purple   { background-color: var(--color-status-purple-bg); }
-.badge-status--neutral  { background-color: var(--color-status-neutral-bg); }
+.badge-status--neutral  { background-color: var(--color-status-neutral-bg); color: var(--color-text-secondary); }
 
 [data-theme="light"] .badge-status--info     { color: var(--color-accent); }
 [data-theme="light"] .badge-status--success  { color: var(--color-status-success); }

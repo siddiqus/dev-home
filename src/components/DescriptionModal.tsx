@@ -8,9 +8,11 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { IconEye, IconExternalLink, IconPlayerPlay } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
-import type { ClaudeSession } from "../types/claude";
+import type { GitHubPR } from "../types";
+import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import { CLAUDE_ACTION_LABELS } from "../types/claude";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
+import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import { fetchJobLogs } from "../services/github";
 import "./DescriptionModal.css";
 
@@ -169,6 +171,9 @@ interface DescriptionModalProps {
   checks?: CheckRunInfo[];
   activeSessions?: ClaudeSession[];
   onViewSession?: (sessionId: string) => void;
+  pr?: GitHubPR;
+  claudeEnabled?: boolean;
+  onClaudeAction?: (action: ClaudeAction, customPrompt?: string) => void;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -181,6 +186,9 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   checks,
   activeSessions,
   onViewSession,
+  pr,
+  claudeEnabled,
+  onClaudeAction,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -209,27 +217,43 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       <Modal.Header closeButton />
 
       <Modal.Body className="modal-tab-content">
-        <div className="modal-title-section">
-          <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
-          {subtitle && (
-            <div
-              className="text-secondary-custom"
-              style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
-            >
-              {subtitle}
-            </div>
-          )}
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
-              className="text-truncate-custom"
-              title={url}
-            >
-              {url}
-            </a>
+        <div
+          className="modal-title-section"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
+            {subtitle && (
+              <div
+                className="text-secondary-custom"
+                style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
+              >
+                {subtitle}
+              </div>
+            )}
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
+                className="text-truncate-custom"
+                title={url}
+              >
+                {url}
+              </a>
+            )}
+          </div>
+          {pr && claudeEnabled && onClaudeAction && (
+            <ClaudeActionDropdown
+              pr={pr}
+              activeSessions={activeSessions}
+              onViewSession={(sessionId) => {
+                onViewSession?.(sessionId);
+                onHide();
+              }}
+              onAction={onClaudeAction}
+            />
           )}
         </div>
 
