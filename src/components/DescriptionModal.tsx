@@ -175,6 +175,7 @@ function CommentsView({
   const [activeView, setActiveView] = useState<"conversation" | "review">("conversation");
 
   useEffect(() => {
+    let cancelled = false;
     const [owner, repo] = repoFullName.split("/");
     if (!owner || !repo) {
       setError("Invalid repository name");
@@ -187,14 +188,22 @@ function CommentsView({
 
     fetchPRComments(owner, repo, prNumber)
       .then((data) => {
+        if (cancelled) return;
         setComments(data);
         onCommentsLoaded?.(data);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err.response?.data?.error || err.message || "Failed to fetch comments");
       })
-      .finally(() => setLoading(false));
-  }, [repoFullName, prNumber, onCommentsLoaded]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [repoFullName, prNumber]);
 
   if (loading) {
     return (
@@ -226,8 +235,13 @@ function CommentsView({
             setError(null);
             const [owner, repo] = repoFullName.split("/");
             fetchPRComments(owner, repo, prNumber)
-              .then((data) => setComments(data))
-              .catch((err) => setError(err.message || "Failed to fetch comments"))
+              .then((data) => {
+                setComments(data);
+                onCommentsLoaded?.(data);
+              })
+              .catch((err) =>
+                setError(err.response?.data?.error || err.message || "Failed to fetch comments"),
+              )
               .finally(() => setLoading(false));
           }}
         >
@@ -270,7 +284,7 @@ function CommentsView({
               No comments on this PR yet.
             </p>
           ) : (
-            comments!.conversation.map((comment) => (
+            comments?.conversation.map((comment) => (
               <div key={comment.id} className="comment-card">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <img
@@ -320,7 +334,7 @@ function CommentsView({
               No review comments on this PR.
             </p>
           ) : (
-            comments!.review.map((comment) => (
+            comments?.review.map((comment) => (
               <div
                 key={comment.id}
                 className="comment-card"
@@ -479,9 +493,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
               onClick={() => setActiveTab("comments")}
             >
               Comments
-              {commentsCache && totalComments > 0 && (
-                <span style={{ marginLeft: 4 }}>({totalComments})</span>
-              )}
+              {commentsCache !== null && <span style={{ marginLeft: 4 }}>({totalComments})</span>}
             </div>
           </div>
         )}
