@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 const tabShortcuts: Record<string, string> = {
   s: "summary",
-  f: "focus",
+  o: "focus",
   b: "board",
   n: "notes",
   j: "jira",
@@ -11,7 +11,7 @@ const tabShortcuts: Record<string, string> = {
   r: "reviews",
   g: "org-prs",
   t: "pomodoro",
-  l: "claude",
+  c: "claude",
   ",": "settings",
 };
 
