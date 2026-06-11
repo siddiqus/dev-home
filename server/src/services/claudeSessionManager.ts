@@ -2,8 +2,15 @@ import { spawn, ChildProcess } from "child_process";
 import { randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { WebSocket } from "ws";
+import { buildPrompt } from "./claudePrompts";
 
-export type ClaudeAction = "review" | "address_comments" | "fix_ci" | "summarize" | "custom";
+export type ClaudeAction =
+  | "review"
+  | "address_comments"
+  | "explain_comments"
+  | "fix_ci"
+  | "summarize"
+  | "custom";
 export type SessionStatus = "running" | "completed" | "cancelled" | "error";
 
 interface OutputEntry {
@@ -19,6 +26,8 @@ interface Session {
   prTitle: string;
   action: ClaudeAction;
   customPrompt?: string;
+  headBranch: string;
+  baseBranch: string;
   status: SessionStatus;
   startedAt: string;
   completedAt?: string;
@@ -29,26 +38,6 @@ interface Session {
 }
 
 const sessions = new Map<string, Session>();
-
-function buildPrompt(
-  action: ClaudeAction,
-  prNumber: number,
-  repoFullName: string,
-  customPrompt?: string,
-): string {
-  switch (action) {
-    case "review":
-      return `Review the code changes in PR #${prNumber} of ${repoFullName}. Analyze the diff, identify issues, and leave review comments on GitHub.`;
-    case "address_comments":
-      return `Read the review comments on PR #${prNumber} of ${repoFullName} and address each one. Make the necessary code changes.`;
-    case "fix_ci":
-      return `Investigate the CI failures on PR #${prNumber} of ${repoFullName}. Read the failing test output, identify the root cause, and fix it.`;
-    case "summarize":
-      return `Summarize the changes in PR #${prNumber} of ${repoFullName}. Generate a clear, concise PR description.`;
-    case "custom":
-      return `${customPrompt || ""} (Context: PR #${prNumber} in ${repoFullName})`;
-  }
-}
 
 function resolveWorkingDirectory(workingDirectory: string, repoFullName: string): string {
   const repoName = repoFullName.split("/").pop() || repoFullName;
@@ -63,6 +52,8 @@ export function createSession(opts: {
   prTitle: string;
   action: ClaudeAction;
   customPrompt?: string;
+  headBranch: string;
+  baseBranch: string;
   claudeCliPath: string;
   workingDirectory: string;
   maxConcurrent: number;
@@ -87,7 +78,14 @@ export function createSession(opts: {
     );
   }
 
-  const prompt = buildPrompt(opts.action, opts.prNumber, opts.repoFullName, opts.customPrompt);
+  const prompt = buildPrompt(opts.action, {
+    prNumber: opts.prNumber,
+    repoFullName: opts.repoFullName,
+    headBranch: opts.headBranch,
+    baseBranch: opts.baseBranch,
+    cwd,
+    customPrompt: opts.customPrompt,
+  });
   const id = randomUUID();
 
   const child = spawn(
@@ -107,6 +105,8 @@ export function createSession(opts: {
     prTitle: opts.prTitle,
     action: opts.action,
     customPrompt: opts.customPrompt,
+    headBranch: opts.headBranch,
+    baseBranch: opts.baseBranch,
     status: "running",
     startedAt: new Date().toISOString(),
     outputBuffer: [],

@@ -50,7 +50,7 @@ router.post("/sessions", (req: Request, res: Response) => {
     return;
   }
 
-  const { prNumber, repoFullName, prTitle, action, customPrompt } = req.body || {};
+  const { prNumber, repoFullName, prTitle, action, customPrompt, headBranch, baseBranch } = req.body || {};
 
   if (!prNumber || !repoFullName || !action) {
     res.status(400).json({ error: "Missing required fields: prNumber, repoFullName, action" });
@@ -64,6 +64,8 @@ router.post("/sessions", (req: Request, res: Response) => {
       prTitle: prTitle || `PR #${prNumber}`,
       action,
       customPrompt,
+      headBranch: headBranch || "main",
+      baseBranch: baseBranch || "main",
       claudeCliPath: claudeSettings.cliPath,
       workingDirectory: claudeSettings.workingDirectory,
       maxConcurrent: claudeSettings.maxConcurrentSessions,
