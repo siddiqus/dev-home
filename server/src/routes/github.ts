@@ -884,4 +884,33 @@ router.get("/merged-prs", async (req: Request, res: Response) => {
   res.json({ prs });
 });
 
+/**
+ * GET /github/job-logs?owner=OWNER&repo=REPO&job_id=JOB_ID
+ * Proxies GitHub Actions job log download through the backend so the
+ * browser doesn't need a token.
+ */
+router.get("/job-logs", async (req: Request, res: Response) => {
+  const owner = typeof req.query.owner === "string" ? req.query.owner.trim() : "";
+  const repo = typeof req.query.repo === "string" ? req.query.repo.trim() : "";
+  const jobId = typeof req.query.job_id === "string" ? req.query.job_id.trim() : "";
+
+  if (!owner || !repo || !jobId) {
+    res.status(400).json({ error: "owner, repo, and job_id are required" });
+    return;
+  }
+
+  try {
+    const gh = createGitHubClient();
+    const response = await gh.get(`/repos/${owner}/${repo}/actions/jobs/${jobId}/logs`, {
+      maxRedirects: 5,
+      responseType: "text",
+    });
+    res.type("text/plain").send(response.data);
+  } catch (err: any) {
+    const status = err.response?.status || 500;
+    const message = err.response?.data?.message || err.message || "Failed to fetch logs";
+    res.status(status).json({ error: message });
+  }
+});
+
 export default router;

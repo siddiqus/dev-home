@@ -129,3 +129,10 @@ export async function fetchOrgRepos(): Promise<OrgRepo[]> {
   const { data } = await apiClient.get("/github/org-repos");
   return data.repos;
 }
+
+export async function fetchJobLogs(owner: string, repo: string, jobId: string): Promise<string> {
+  const { data } = await apiClient.get("/github/job-logs", {
+    params: { owner, repo, job_id: jobId },
+  });
+  return data;
+}
