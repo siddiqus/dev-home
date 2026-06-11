@@ -129,6 +129,14 @@ export default function App() {
     removeNote,
     refresh: refreshNotes,
   } = useNotes(configured);
+  const kanbanNotes = useMemo(
+    () =>
+      unresolvedNotes.filter((n) => {
+        const firstLine = (n.content || "").split("\n")[0].trimStart();
+        return /^#[Tt]odo\b/.test(firstLine);
+      }),
+    [unresolvedNotes],
+  );
   const {
     columnTiles,
     loading: kanbanLoading,
@@ -139,7 +147,7 @@ export default function App() {
     active: configured,
     openPRs,
     reviewRequests,
-    notes: unresolvedNotes,
+    notes: kanbanNotes,
     jiraBaseUrl,
     onResolveNote: resolveNote,
     onUnresolveNote: unresolveNote,
