@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Badge from "react-bootstrap/Badge";
@@ -54,6 +54,7 @@ import type { FocusableItem } from "./types";
 import type { ClaudeAction } from "./types/claude";
 import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
+import { useKeyboardShortcuts, getShortcutTitle } from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -301,18 +302,11 @@ export default function App() {
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
-  // Cmd+Shift+N to open a new note
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        setOpenNote(null);
-        setShowNoteEditor(true);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+  const handleNewNote = useCallback(() => {
+    setOpenNote(null);
+    setShowNoteEditor(true);
   }, []);
+  useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   // If config is not yet loaded, show settings first
   const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
@@ -431,7 +425,7 @@ export default function App() {
                 key={tab.key}
                 className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
                 onClick={() => setActiveTab(tab.key)}
-                title={tab.label}
+                title={getShortcutTitle(tab.key, tab.label)}
               >
                 <tab.icon size={18} />
                 <span className="sidebar-tab-label">{tab.label}</span>
