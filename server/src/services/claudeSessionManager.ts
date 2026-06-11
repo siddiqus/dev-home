@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { WebSocket } from "ws";
 import { buildPrompt } from "./claudePrompts";
+import { getDb } from "../db";
 
 export type ClaudeAction =
   | "review"
@@ -36,7 +37,72 @@ interface Session {
   subscribers: Set<WebSocket>;
 }
 
+type SerializedSession = Omit<Session, "process" | "subscribers">;
+
 const sessions = new Map<string, Session>();
+
+function persistSession(session: Session): void {
+  const lastOutputLine =
+    [...session.outputBuffer]
+      .reverse()
+      .find((e) => e.stream === "stdout")
+      ?.data.slice(0, 200) ?? null;
+
+  const db = getDb();
+  db.prepare(
+    `INSERT OR REPLACE INTO claude_sessions
+       (id, pr_number, repo_full_name, pr_title, action, custom_prompt,
+        head_branch, base_branch, status, started_at, completed_at,
+        exit_code, output_buffer, last_output_line, created_at)
+     VALUES
+       (@id, @prNumber, @repoFullName, @prTitle, @action, @customPrompt,
+        @headBranch, @baseBranch, @status, @startedAt, @completedAt,
+        @exitCode, @outputBuffer, @lastOutputLine, @createdAt)`,
+  ).run({
+    id: session.id,
+    prNumber: session.prNumber,
+    repoFullName: session.repoFullName,
+    prTitle: session.prTitle,
+    action: session.action,
+    customPrompt: session.customPrompt ?? null,
+    headBranch: session.headBranch,
+    baseBranch: session.baseBranch,
+    status: session.status,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt ?? null,
+    exitCode: session.exitCode ?? null,
+    outputBuffer: JSON.stringify(session.outputBuffer),
+    lastOutputLine: lastOutputLine,
+    createdAt: session.startedAt,
+  });
+}
+
+function dbRowToSession(row: Record<string, unknown>): SerializedSession {
+  let outputBuffer: OutputEntry[] = [];
+  if (row.output_buffer && typeof row.output_buffer === "string") {
+    try {
+      outputBuffer = JSON.parse(row.output_buffer);
+    } catch {
+      outputBuffer = [];
+    }
+  }
+
+  return {
+    id: row.id as string,
+    prNumber: row.pr_number as number,
+    repoFullName: row.repo_full_name as string,
+    prTitle: row.pr_title as string,
+    action: row.action as ClaudeAction,
+    customPrompt: (row.custom_prompt as string) ?? undefined,
+    headBranch: row.head_branch as string,
+    baseBranch: row.base_branch as string,
+    status: row.status as SessionStatus,
+    startedAt: row.started_at as string,
+    completedAt: (row.completed_at as string) ?? undefined,
+    exitCode: (row.exit_code as number) ?? undefined,
+    outputBuffer,
+  };
+}
 
 function resolveWorkingDirectory(workingDirectory: string, repoFullName: string): string {
   const repoName = repoFullName.split("/").pop() || repoFullName;
@@ -171,6 +237,8 @@ export function createSession(opts: {
   child.stderr?.on("data", onStderr);
 
   child.on("close", (code) => {
+    if (!sessions.has(id)) return;
+
     session.status = code === 0 ? "completed" : "error";
     session.exitCode = code ?? 1;
     session.completedAt = new Date().toISOString();
@@ -179,6 +247,9 @@ export function createSession(opts: {
     const duration =
       new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
     broadcast({ type: "done", sessionId: id, exitCode: session.exitCode, duration });
+
+    persistSession(session);
+    sessions.delete(id);
   });
 
   child.on("error", (err) => {
@@ -200,20 +271,67 @@ export function createSession(opts: {
       timestamp: entry.timestamp,
     });
     broadcast({ type: "done", sessionId: id, exitCode: 1, duration: 0 });
+
+    persistSession(session);
+    sessions.delete(id);
   });
 
   return session;
 }
 
-export function getSession(id: string): Session | undefined {
-  return sessions.get(id);
+export function getSession(id: string): Session | SerializedSession | undefined {
+  const memSession = sessions.get(id);
+  if (memSession) return memSession;
+
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM claude_sessions WHERE id = ?").get(id) as
+    | Record<string, unknown>
+    | undefined;
+  if (row) return dbRowToSession(row);
+
+  return undefined;
 }
 
-export function listSessions(status?: string): Omit<Session, "process" | "subscribers">[] {
-  return Array.from(sessions.values())
+export function listSessions(status?: string): Omit<SerializedSession, "outputBuffer">[] {
+  const memSessions = Array.from(sessions.values())
     .filter((s) => !status || status === "all" || s.status === status)
-    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-    .map(({ process: _p, subscribers: _s, ...rest }) => rest);
+    .map(({ process: _p, subscribers: _s, outputBuffer, ...rest }) => ({
+      ...rest,
+      lastOutputLine:
+        [...outputBuffer]
+          .reverse()
+          .find((e) => e.stream === "stdout")
+          ?.data.slice(0, 200) ?? undefined,
+    }));
+
+  const shouldQueryDb =
+    !status || status === "all" || ["completed", "cancelled", "error"].includes(status);
+
+  let dbSessions: Omit<SerializedSession, "outputBuffer">[] = [];
+  if (shouldQueryDb) {
+    const db = getDb();
+    let sql =
+      "SELECT id, pr_number, repo_full_name, pr_title, action, custom_prompt, head_branch, base_branch, status, started_at, completed_at, exit_code, last_output_line, created_at FROM claude_sessions";
+    const params: string[] = [];
+
+    if (status && status !== "all") {
+      sql += " WHERE status = ?";
+      params.push(status);
+    }
+
+    const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
+    dbSessions = rows.map((row) => {
+      const { outputBuffer: _ob, ...rest } = dbRowToSession({ ...row, output_buffer: "[]" });
+      return {
+        ...rest,
+        lastOutputLine: (row.last_output_line as string) ?? undefined,
+      };
+    });
+  }
+
+  return [...memSessions, ...dbSessions].sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+  );
 }
 
 export function cancelSession(id: string): boolean {
@@ -224,13 +342,23 @@ export function cancelSession(id: string): boolean {
   session.status = "cancelled";
   session.completedAt = new Date().toISOString();
   session.process = null;
+
+  persistSession(session);
+  sessions.delete(id);
   return true;
 }
 
 export function deleteSession(id: string): boolean {
-  const session = sessions.get(id);
-  if (!session || session.status === "running") return false;
-  return sessions.delete(id);
+  const memSession = sessions.get(id);
+  if (memSession) {
+    if (memSession.status === "running") return false;
+    sessions.delete(id);
+    return true;
+  }
+
+  const db = getDb();
+  const result = db.prepare("DELETE FROM claude_sessions WHERE id = ?").run(id);
+  return result.changes > 0;
 }
 
 export function sendInput(id: string, data: string): boolean {
@@ -242,13 +370,26 @@ export function sendInput(id: string, data: string): boolean {
 }
 
 export function subscribe(id: string, ws: WebSocket): OutputEntry[] | null {
-  const session = sessions.get(id);
-  if (!session) return null;
+  const memSession = sessions.get(id);
+  if (memSession) {
+    memSession.subscribers.add(ws);
+    ws.on("close", () => memSession.subscribers.delete(ws));
+    return memSession.outputBuffer;
+  }
 
-  session.subscribers.add(ws);
-  ws.on("close", () => session.subscribers.delete(ws));
+  const db = getDb();
+  const row = db
+    .prepare("SELECT output_buffer FROM claude_sessions WHERE id = ?")
+    .get(id) as { output_buffer: string } | undefined;
+  if (row) {
+    try {
+      return JSON.parse(row.output_buffer || "[]");
+    } catch {
+      return [];
+    }
+  }
 
-  return session.outputBuffer;
+  return null;
 }
 
 export function getActiveSessionCount(): number {

@@ -7,6 +7,7 @@ import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import type { ClaudeSession } from "../../types/claude";
 import { CLAUDE_ACTION_LABELS } from "../../types/claude";
 import { useClaudeWebSocket } from "../../hooks/useClaudeWebSocket";
+import { fetchClaudeSession } from "../../services/claude";
 import { formatRelativeTime } from "../../utils/time";
 import "./ClaudeSessionsView.css";
 
@@ -203,9 +204,29 @@ interface SessionDetailViewProps {
 }
 
 const SessionDetailView: React.FC<SessionDetailViewProps> = ({ session, onBack, onCancel }) => {
-  const { output, done, exitCode, duration, sendInput } = useClaudeWebSocket(session.id);
+  const isCompleted = session.status !== "running";
+  const {
+    output: wsOutput,
+    done,
+    exitCode: wsExitCode,
+    duration,
+    sendInput,
+  } = useClaudeWebSocket(isCompleted ? null : session.id);
+  const [fullSession, setFullSession] = useState<ClaudeSession | null>(null);
   const [inputValue, setInputValue] = useState("");
   const outputRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isCompleted && !session.outputBuffer) {
+      fetchClaudeSession(session.id)
+        .then(setFullSession)
+        .catch(() => {});
+    }
+  }, [session.id, isCompleted, session.outputBuffer]);
+
+  const outputBuffer = session.outputBuffer || fullSession?.outputBuffer;
+  const output = isCompleted && outputBuffer ? outputBuffer : wsOutput;
+  const effectiveExitCode = isCompleted ? (session.exitCode ?? null) : wsExitCode;
 
   useEffect(() => {
     if (outputRef.current) {
@@ -259,10 +280,16 @@ const SessionDetailView: React.FC<SessionDetailViewProps> = ({ session, onBack, 
           </div>
         ))}
         {isRunning && <span className="claude-cursor">█</span>}
-        {done && (
+        {(done || isCompleted) && (
           <div className="claude-terminal-done">
-            {exitCode === 0 ? "✓ Session completed" : `✗ Session ended with exit code ${exitCode}`}
+            {effectiveExitCode === 0
+              ? "✓ Session completed"
+              : `✗ Session ended with exit code ${effectiveExitCode}`}
             {duration != null && ` (${Math.round(duration / 1000)}s)`}
+            {!duration &&
+              session.completedAt &&
+              session.startedAt &&
+              ` (${Math.round((new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 1000)}s)`}
           </div>
         )}
       </div>

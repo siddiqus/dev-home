@@ -21,6 +21,11 @@ export interface ClaudeSession {
   completedAt?: string;
   exitCode?: number;
   lastOutputLine?: string;
+  outputBuffer?: Array<{
+    timestamp: string;
+    stream: "stdout" | "stderr";
+    data: string;
+  }>;
 }
 
 export interface ClaudeOutputMessage {

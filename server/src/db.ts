@@ -158,6 +158,31 @@ const MIGRATIONS: Migration[] = [
       );
     `);
   },
+
+  // 10 – create claude_sessions table for session history
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS claude_sessions (
+        id TEXT PRIMARY KEY,
+        pr_number INTEGER NOT NULL,
+        repo_full_name TEXT NOT NULL,
+        pr_title TEXT NOT NULL DEFAULT '',
+        action TEXT NOT NULL,
+        custom_prompt TEXT,
+        head_branch TEXT NOT NULL DEFAULT '',
+        base_branch TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        completed_at TEXT,
+        exit_code INTEGER,
+        output_buffer TEXT NOT NULL DEFAULT '[]',
+        last_output_line TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_claude_sessions_status ON claude_sessions(status);
+      CREATE INDEX IF NOT EXISTS idx_claude_sessions_started_at ON claude_sessions(started_at);
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {

@@ -92,7 +92,7 @@ router.get("/sessions/:id", (req: Request, res: Response) => {
     return;
   }
 
-  const { process: _p, subscribers: _s, ...rest } = session;
+  const { process: _p, subscribers: _s, ...rest } = session as Record<string, unknown>;
   res.json(rest);
 });
 
