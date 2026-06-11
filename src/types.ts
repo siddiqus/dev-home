@@ -106,6 +106,32 @@ export interface GitHubComment {
   reason: string;
 }
 
+export interface ConversationComment {
+  id: number;
+  html_url: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user: { login: string; avatar_url: string };
+}
+
+export interface ReviewComment {
+  id: number;
+  html_url: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user: { login: string; avatar_url: string };
+  path: string;
+  line: number | null;
+  is_resolved: boolean;
+}
+
+export interface PRCommentsResponse {
+  conversation: ConversationComment[];
+  review: ReviewComment[];
+}
+
 export type GitHubReviewRequest = GitHubPR;
 
 // Dashboard Data

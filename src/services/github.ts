@@ -1,4 +1,4 @@
-import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
+import { GitHubPR, GitHubComment, GitHubReviewRequest, PRCommentsResponse } from "../types";
 import { apiClient } from "./config";
 
 export async function fetchOpenPRs(): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
@@ -134,5 +134,14 @@ export async function fetchJobLogs(owner: string, repo: string, jobId: string): 
   const { data } = await apiClient.get("/github/job-logs", {
     params: { owner, repo, job_id: jobId },
   });
+  return data;
+}
+
+export async function fetchPRComments(
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<PRCommentsResponse> {
+  const { data } = await apiClient.get(`/github/prs/${owner}/${repo}/${prNumber}/comments`);
   return data;
 }
