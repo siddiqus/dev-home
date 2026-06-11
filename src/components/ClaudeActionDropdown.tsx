@@ -10,15 +10,19 @@ import {
   IconFileDescription,
   IconTerminal,
   IconSparkles,
+  IconInfoCircle,
+  IconPlayerPlay,
 } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
-import type { ClaudeAction } from "../types/claude";
+import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import { CLAUDE_ACTION_LABELS } from "../types/claude";
 import "./ClaudeActionDropdown.css";
 
 interface ClaudeActionDropdownProps {
   pr: GitHubPR;
   onAction: (action: ClaudeAction, customPrompt?: string) => void;
+  activeSessions?: ClaudeSession[];
+  onViewSession?: (sessionId: string) => void;
 }
 
 const ACTION_CONFIG: {
@@ -28,6 +32,11 @@ const ACTION_CONFIG: {
 }[] = [
   { action: "review", icon: IconSearch, description: "Analyze code changes & leave comments" },
   { action: "address_comments", icon: IconMessageDots, description: "Fix issues raised in review" },
+  {
+    action: "explain_comments",
+    icon: IconInfoCircle,
+    description: "Explain what reviewers are asking for",
+  },
   { action: "fix_ci", icon: IconTool, description: "Investigate & fix failing checks" },
   {
     action: "summarize",
@@ -45,10 +54,21 @@ function getSuggestedAction(pr: GitHubPR): ClaudeAction | null {
   return null;
 }
 
-export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({ pr, onAction }) => {
+export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({
+  pr,
+  onAction,
+  activeSessions,
+  onViewSession,
+}) => {
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const suggested = getSuggestedAction(pr);
+
+  const prSessions =
+    activeSessions?.filter(
+      (s) =>
+        s.prNumber === pr.number && s.repoFullName === pr.repo_full_name && s.status === "running",
+    ) || [];
 
   const handleAction = (action: ClaudeAction) => {
     if (action === "custom") {
@@ -69,11 +89,35 @@ export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({ pr, 
   return (
     <>
       <Dropdown onClick={(e) => e.stopPropagation()}>
-        <Dropdown.Toggle size="sm" variant="outline-secondary" className="claude-action-toggle">
+        <Dropdown.Toggle
+          size="sm"
+          variant={prSessions.length > 0 ? "success" : "outline-secondary"}
+          className="claude-action-toggle"
+        >
           <IconSparkles size={"1rem"} />
         </Dropdown.Toggle>
 
         <Dropdown.Menu className="claude-action-menu">
+          {prSessions.length > 0 && onViewSession && (
+            <>
+              {prSessions.map((s) => (
+                <Dropdown.Item
+                  key={s.id}
+                  onClick={() => onViewSession(s.id)}
+                  className="claude-action-item suggested"
+                >
+                  <IconPlayerPlay size={16} />
+                  <div className="claude-action-item-text">
+                    <div className="claude-action-item-label">
+                      {CLAUDE_ACTION_LABELS[s.action]} — Active
+                    </div>
+                    <div className="claude-action-item-description">View running session</div>
+                  </div>
+                </Dropdown.Item>
+              ))}
+              <Dropdown.Divider />
+            </>
+          )}
           <Dropdown.Header>Claude Actions</Dropdown.Header>
           {ACTION_CONFIG.map(({ action, icon: Icon, description }) => (
             <Dropdown.Item

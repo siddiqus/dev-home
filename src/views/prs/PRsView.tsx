@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { GitHubPR, JiraIssue } from "../../types";
-import type { ClaudeAction } from "../../types/claude";
+import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { PRTable } from "../../components/PRTable";
 import "./PRsView.css";
@@ -15,11 +15,19 @@ interface PRsViewProps {
   configured: boolean;
   refreshKey?: number;
   claudeEnabled?: boolean;
+  claudeSessions?: ClaudeSession[];
   onClaudeAction?: (
-    pr: { number: number; repo_full_name: string; title: string },
+    pr: {
+      number: number;
+      repo_full_name: string;
+      title: string;
+      headBranch: string;
+      baseBranch: string;
+    },
     action: ClaudeAction,
     customPrompt?: string,
   ) => void;
+  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 export const PRsView: React.FC<PRsViewProps> = ({
@@ -30,7 +38,9 @@ export const PRsView: React.FC<PRsViewProps> = ({
   configured,
   refreshKey,
   claudeEnabled,
+  claudeSessions,
   onClaudeAction,
+  onViewClaudeSession,
 }) => {
   const [subTab, setSubTab] = useState<PRSubTab>(() => {
     return (localStorage.getItem("dev-home-prs-subtab") as PRSubTab) || "open";
@@ -87,7 +97,9 @@ export const PRsView: React.FC<PRsViewProps> = ({
           variant="my-prs"
           jiraBaseUrl={jiraBaseUrl}
           claudeEnabled={claudeEnabled}
+          claudeSessions={claudeSessions}
           onClaudeAction={onClaudeAction}
+          onViewClaudeSession={onViewClaudeSession}
         />
       )}
       {subTab === "merged" && (

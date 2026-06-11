@@ -18,6 +18,8 @@ interface UseClaudeSessionsReturn {
     prTitle: string;
     action: ClaudeAction;
     customPrompt?: string;
+    headBranch?: string;
+    baseBranch?: string;
   }) => Promise<string | null>;
   cancel: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -62,6 +64,8 @@ export function useClaudeSessions(enabled: boolean): UseClaudeSessionsReturn {
       prTitle: string;
       action: ClaudeAction;
       customPrompt?: string;
+      headBranch?: string;
+      baseBranch?: string;
     }): Promise<string | null> => {
       try {
         const result = await createClaudeSession(opts);

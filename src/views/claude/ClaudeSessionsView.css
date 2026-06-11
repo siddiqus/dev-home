@@ -97,6 +97,11 @@
   margin-top: 8px;
 }
 
+.claude-pr-link:hover {
+  color: var(--color-accent) !important;
+  text-decoration: underline !important;
+}
+
 @keyframes claude-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

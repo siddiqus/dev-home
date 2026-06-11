@@ -6,8 +6,10 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
-import { IconEye, IconExternalLink } from "@tabler/icons-react";
+import { IconEye, IconExternalLink, IconPlayerPlay } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
+import type { ClaudeSession } from "../types/claude";
+import { CLAUDE_ACTION_LABELS } from "../types/claude";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { fetchJobLogs } from "../services/github";
 import "./DescriptionModal.css";
@@ -165,6 +167,8 @@ interface DescriptionModalProps {
   description: string;
   url?: string;
   checks?: CheckRunInfo[];
+  activeSessions?: ClaudeSession[];
+  onViewSession?: (sessionId: string) => void;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -175,6 +179,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   description,
   url,
   checks,
+  activeSessions,
+  onViewSession,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -184,6 +190,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       : null;
 
   const hasChecks = !!sortedChecks;
+  const hasActiveSessions = !!activeSessions && activeSessions.length > 0;
   const [selectedCheck, setSelectedCheck] = useState<CheckRunInfo | null>(null);
 
   useEffect(() => {
@@ -227,7 +234,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         </div>
 
         <Row className="g-0 modal-split-layout">
-          <Col md={hasChecks ? 6 : 12} className="modal-description-col">
+          <Col md={hasActiveSessions ? 8 : 12} className="modal-description-col">
             <div className="modal-body-section-header">Description</div>
             {description ? (
               <div className="markdown-body">
@@ -238,48 +245,94 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                 No description provided.
               </p>
             )}
-          </Col>
-          {hasChecks && (
-            <Col md={6} className="modal-checks-col">
-              {selectedCheck ? (
-                <div className="checks-log-view">
-                  <div className="checks-log-view-header">
-                    <span className="modal-body-section-header">
-                      Check: {selectedCheck.name}
-                      {selectedCheck.url && (
-                        <>
-                          &nbsp;&nbsp; | &nbsp;&nbsp;
-                          <a
-                            href={selectedCheck.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="checks-back-btn"
-                          >
-                            Open in GitHub <IconExternalLink size={12} stroke={1.5} />
-                          </a>
-                        </>
-                      )}
-                    </span>
 
-                    <button className="checks-back-btn" onClick={() => setSelectedCheck(null)}>
-                      Back to checks
-                    </button>
-                  </div>
-                  <LogViewer key={selectedCheck.url || selectedCheck.name} check={selectedCheck} />
-                </div>
-              ) : (
-                <div className="checks-list-view">
-                  <div className="modal-body-section-header">Checks</div>
-                  {sortedChecks!.map((check, i) => (
-                    <CheckRunRow
-                      key={`${check.name}-${i}`}
-                      check={check}
-                      isSelected={false}
-                      onView={() => setSelectedCheck(check)}
+            {hasChecks && (
+              <div
+                className="modal-checks-col"
+                style={{
+                  marginTop: 16,
+                  borderTop: "1px solid var(--border-color)",
+                  paddingTop: 16,
+                }}
+              >
+                {selectedCheck ? (
+                  <div className="checks-log-view">
+                    <div className="checks-log-view-header">
+                      <span className="modal-body-section-header">
+                        Check: {selectedCheck.name}
+                        {selectedCheck.url && (
+                          <>
+                            &nbsp;&nbsp; | &nbsp;&nbsp;
+                            <a
+                              href={selectedCheck.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="checks-back-btn"
+                            >
+                              Open in GitHub <IconExternalLink size={12} stroke={1.5} />
+                            </a>
+                          </>
+                        )}
+                      </span>
+
+                      <button className="checks-back-btn" onClick={() => setSelectedCheck(null)}>
+                        Back to checks
+                      </button>
+                    </div>
+                    <LogViewer
+                      key={selectedCheck.url || selectedCheck.name}
+                      check={selectedCheck}
                     />
-                  ))}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="checks-list-view">
+                    <div className="modal-body-section-header">Checks</div>
+                    {sortedChecks!.map((check, i) => (
+                      <CheckRunRow
+                        key={`${check.name}-${i}`}
+                        check={check}
+                        isSelected={false}
+                        onView={() => setSelectedCheck(check)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Col>
+          {hasActiveSessions && (
+            <Col md={4} className="modal-checks-col">
+              <div className="modal-body-section-header">Active Claude Sessions</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {activeSessions!.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      onViewSession?.(s.id);
+                      onHide();
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      borderRadius: 6,
+                      background: "var(--card-bg)",
+                      cursor: "pointer",
+                      fontSize: "0.8125rem",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <IconPlayerPlay size={14} color="var(--bs-success)" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{CLAUDE_ACTION_LABELS[s.action]}</div>
+                      <div className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                        Running
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Col>
           )}
         </Row>

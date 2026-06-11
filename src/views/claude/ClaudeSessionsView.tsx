@@ -3,7 +3,7 @@ import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import type { ClaudeSession } from "../../types/claude";
 import { CLAUDE_ACTION_LABELS } from "../../types/claude";
 import { useClaudeWebSocket } from "../../hooks/useClaudeWebSocket";
@@ -15,6 +15,7 @@ interface ClaudeSessionsViewProps {
   loading: boolean;
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
+  initialSessionId?: string | null;
 }
 
 type FilterTab = "active" | "completed" | "all";
@@ -24,9 +25,16 @@ export const ClaudeSessionsView: React.FC<ClaudeSessionsViewProps> = ({
   loading,
   onCancel,
   onDelete,
+  initialSessionId,
 }) => {
   const [filter, setFilter] = useState<FilterTab>("active");
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    initialSessionId || null,
+  );
+
+  useEffect(() => {
+    if (initialSessionId) setSelectedSessionId(initialSessionId);
+  }, [initialSessionId]);
 
   const filteredSessions = sessions.filter((s) => {
     if (filter === "active") return s.status === "running";
@@ -161,7 +169,17 @@ export const ClaudeSessionsView: React.FC<ClaudeSessionsViewProps> = ({
               </div>
             </div>
             <div className="text-secondary-custom" style={{ fontSize: "0.8rem" }}>
-              PR #{session.prNumber}: {session.prTitle}
+              <a
+                href={`https://github.com/${session.repoFullName}/pull/${session.prNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: "inherit", textDecoration: "none" }}
+                className="claude-pr-link"
+              >
+                PR #{session.prNumber}: {session.prTitle}{" "}
+                <IconExternalLink size={11} stroke={1.5} style={{ opacity: 0.6 }} />
+              </a>
             </div>
             {session.lastOutputLine && (
               <div className="claude-session-preview">▶ {session.lastOutputLine}</div>
@@ -212,9 +230,20 @@ const SessionDetailView: React.FC<SessionDetailViewProps> = ({ session, onBack, 
             <IconArrowLeft size={14} />
           </Button>
           <span style={{ fontWeight: 600 }}>{CLAUDE_ACTION_LABELS[session.action]}</span>
-          <Badge bg="secondary" className="fw-normal" style={{ fontSize: "0.75rem" }}>
-            PR #{session.prNumber} · {session.prTitle}
-          </Badge>
+          <a
+            href={`https://github.com/${session.repoFullName}/pull/${session.prNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="claude-pr-link"
+            style={{
+              color: "var(--color-text-secondary)",
+              textDecoration: "none",
+              fontSize: "0.8rem",
+            }}
+          >
+            PR #{session.prNumber} · {session.prTitle}{" "}
+            <IconExternalLink size={11} stroke={1.5} style={{ opacity: 0.6 }} />
+          </a>
         </div>
         {isRunning && (
           <Button variant="outline-danger" size="sm" onClick={onCancel}>

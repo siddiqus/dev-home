@@ -264,7 +264,13 @@ export default function App() {
   const claudeSessions = useClaudeSessions(claudeEnabled);
 
   const handleClaudeAction = async (
-    pr: { number: number; repo_full_name: string; title: string },
+    pr: {
+      number: number;
+      repo_full_name: string;
+      title: string;
+      headBranch: string;
+      baseBranch: string;
+    },
     action: ClaudeAction,
     customPrompt?: string,
   ) => {
@@ -274,8 +280,17 @@ export default function App() {
       prTitle: pr.title,
       action,
       customPrompt,
+      headBranch: pr.headBranch,
+      baseBranch: pr.baseBranch,
     });
     if (sessionId) setActiveTab("claude");
+  };
+
+  const [viewClaudeSessionId, setViewClaudeSessionId] = useState<string | null>(null);
+
+  const handleViewClaudeSession = (sessionId: string) => {
+    setViewClaudeSessionId(sessionId);
+    setActiveTab("claude");
   };
 
   const handleSaveSettingsWrapped = async (settings: AppSettings) => {
@@ -541,7 +556,9 @@ export default function App() {
                     configured={configured}
                     refreshKey={refreshKey}
                     claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions.sessions}
                     onClaudeAction={handleClaudeAction}
+                    onViewClaudeSession={handleViewClaudeSession}
                   />
                 )}
                 {effectiveTab === "reviews" && (
@@ -552,7 +569,9 @@ export default function App() {
                     variant="review-requests"
                     jiraBaseUrl={jiraBaseUrl}
                     claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions.sessions}
                     onClaudeAction={handleClaudeAction}
+                    onViewClaudeSession={handleViewClaudeSession}
                   />
                 )}
                 {effectiveTab === "org-prs" && (
@@ -586,6 +605,7 @@ export default function App() {
                     loading={claudeSessions.loading}
                     onCancel={claudeSessions.cancel}
                     onDelete={claudeSessions.remove}
+                    initialSessionId={viewClaudeSessionId}
                   />
                 )}
               </div>

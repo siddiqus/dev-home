@@ -19,7 +19,7 @@ import { Badge, BadgeVariant } from "./primitives/Badge";
 import { BranchTag } from "./primitives/BranchTag";
 import { Avatar } from "./primitives/Avatar";
 import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
-import type { ClaudeAction } from "../types/claude";
+import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import "./PRTable.css";
 
 const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
@@ -42,11 +42,19 @@ interface PRTableProps {
   jiraBaseUrl?: string;
   variant: PRTableVariant;
   claudeEnabled?: boolean;
+  claudeSessions?: ClaudeSession[];
   onClaudeAction?: (
-    pr: { number: number; repo_full_name: string; title: string },
+    pr: {
+      number: number;
+      repo_full_name: string;
+      title: string;
+      headBranch: string;
+      baseBranch: string;
+    },
     action: ClaudeAction,
     customPrompt?: string,
   ) => void;
+  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 /** Column definitions per variant. */
@@ -261,7 +269,9 @@ export const PRTable: React.FC<PRTableProps> = ({
   jiraBaseUrl = "",
   variant,
   claudeEnabled,
+  claudeSessions,
   onClaudeAction,
+  onViewClaudeSession,
 }) => {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -389,12 +399,16 @@ export const PRTable: React.FC<PRTableProps> = ({
                         <td>
                           <ClaudeActionDropdown
                             pr={pr}
+                            activeSessions={claudeSessions}
+                            onViewSession={onViewClaudeSession}
                             onAction={(action, customPrompt) =>
                               onClaudeAction(
                                 {
                                   number: pr.number,
                                   repo_full_name: pr.repo_full_name,
                                   title: pr.title,
+                                  headBranch: pr.head.ref,
+                                  baseBranch: pr.base.ref,
                                 },
                                 action,
                                 customPrompt,
@@ -419,6 +433,17 @@ export const PRTable: React.FC<PRTableProps> = ({
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
         checks={selectedPR?.checks}
+        activeSessions={
+          selectedPR
+            ? claudeSessions?.filter(
+                (s) =>
+                  s.prNumber === selectedPR.number &&
+                  s.repoFullName === selectedPR.repo_full_name &&
+                  s.status === "running",
+              )
+            : undefined
+        }
+        onViewSession={onViewClaudeSession}
       />
     </>
   );

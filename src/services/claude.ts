@@ -7,6 +7,8 @@ export async function createClaudeSession(opts: {
   prTitle: string;
   action: ClaudeAction;
   customPrompt?: string;
+  headBranch?: string;
+  baseBranch?: string;
 }): Promise<{ sessionId: string; status: string }> {
   const { data } = await apiClient.post("/claude/sessions", opts);
   return data;

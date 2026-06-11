@@ -90,7 +90,7 @@ export function createSession(opts: {
 
   const child = spawn(
     opts.claudeCliPath,
-    ["--dangerously-skip-permissions", "--verbose", "-p", prompt],
+    ["--dangerously-skip-permissions", "--verbose", "--output-format", "stream-json", "-p", prompt],
     {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
@@ -125,8 +125,8 @@ export function createSession(opts: {
     }
   };
 
-  const onData = (stream: "stdout" | "stderr") => (chunk: Buffer) => {
-    const text = chunk.toString();
+  const broadcastLine = (stream: "stdout" | "stderr", text: string) => {
+    if (!text) return;
     const entry: OutputEntry = {
       timestamp: new Date().toISOString(),
       stream,
@@ -136,8 +136,40 @@ export function createSession(opts: {
     broadcast({ type: "output", sessionId: id, data: text, stream, timestamp: entry.timestamp });
   };
 
-  child.stdout?.on("data", onData("stdout"));
-  child.stderr?.on("data", onData("stderr"));
+  let stdoutBuffer = "";
+
+  const onStdout = (chunk: Buffer) => {
+    stdoutBuffer += chunk.toString();
+    const lines = stdoutBuffer.split("\n");
+    stdoutBuffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.type === "assistant" && event.message?.content) {
+          for (const block of event.message.content) {
+            if (block.type === "text" && block.text) {
+              broadcastLine("stdout", block.text);
+            } else if (block.type === "tool_use") {
+              broadcastLine("stdout", `[Tool: ${block.name}] ${JSON.stringify(block.input).slice(0, 200)}`);
+            }
+          }
+        } else if (event.type === "result" && event.result) {
+          broadcastLine("stdout", event.result);
+        }
+      } catch {
+        broadcastLine("stdout", line);
+      }
+    }
+  };
+
+  const onStderr = (chunk: Buffer) => {
+    broadcastLine("stderr", chunk.toString());
+  };
+
+  child.stdout?.on("data", onStdout);
+  child.stderr?.on("data", onStderr);
 
   child.on("close", (code) => {
     session.status = code === 0 ? "completed" : "error";
