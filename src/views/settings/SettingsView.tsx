@@ -317,6 +317,13 @@ function AiAssistanceSection({
 
         {formState.claudeEnabled && (
           <div style={{ paddingLeft: 8, borderLeft: "2px solid var(--bs-primary)" }}>
+            <Alert variant="warning" className="py-2" style={{ fontSize: "0.75rem" }}>
+              <strong>Heads up:</strong> Claude sessions run with{" "}
+              <code>--dangerously-skip-permissions</code>, which bypasses all permission prompts.
+              Claude can read, write, and run commands in your repos without asking. Built-in
+              actions are scoped to reviewing and summarizing only, but custom prompts can do
+              anything. Only enable this if you trust the environment.
+            </Alert>
             <Form.Group className="mb-3">
               <Form.Label className="text-secondary-custom" style={labelStyle}>
                 Claude CLI Path

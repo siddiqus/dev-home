@@ -28,6 +28,8 @@ function buildReviewPrompt(ctx: PromptContext): string {
   return `
 You are a senior software engineer conducting a thorough code review of PR #${ctx.prNumber} in ${ctx.repoFullName}.
 
+This is a read-only review. Do NOT modify, fix, or refactor any code. Do NOT commit or push. Your only output is review comments — describe issues and suggested changes in comments, but never edit the source files yourself.
+
 ## Setup
 
 First, create an isolated worktree to review the changes without affecting the main working directory:
@@ -126,6 +128,8 @@ This is a read-only analysis — do NOT make any code changes or push anything.
 function buildSummarizePrompt(ctx: PromptContext): string {
   return `
 You are generating a clear, structured PR description for PR #${ctx.prNumber} in ${ctx.repoFullName}.
+
+This is a read-only task — do NOT make any code changes, commits, or pushes. The only write you perform is updating the PR description text on GitHub.
 
 ## Process
 
