@@ -22,7 +22,6 @@
 
 .tiptap-editor-wrapper:focus-within {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 0.2rem var(--color-focus-ring);
 }
 
 .tiptap-editor-wrapper .ProseMirror p { margin-bottom: 0.75em; }
