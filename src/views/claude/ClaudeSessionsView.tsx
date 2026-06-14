@@ -9,6 +9,7 @@ import { CLAUDE_ACTION_LABELS } from "../../types/claude";
 import { useClaudeWebSocket } from "../../hooks/useClaudeWebSocket";
 import { fetchClaudeSession } from "../../services/claude";
 import { formatRelativeTime } from "../../utils/time";
+import { SegmentedTabs } from "../../components/SegmentedTabs";
 import "./ClaudeSessionsView.css";
 
 interface ClaudeSessionsViewProps {
@@ -69,32 +70,16 @@ export const ClaudeSessionsView: React.FC<ClaudeSessionsViewProps> = ({
         </h5>
       </div>
 
-      <div className="d-flex gap-2 mb-3">
-        <Button
-          size="sm"
-          variant={filter === "active" ? "primary" : "outline-secondary"}
-          onClick={() => setFilter("active")}
-          className="rounded-pill"
-        >
-          Active ({activeSessions.length})
-        </Button>
-        <Button
-          size="sm"
-          variant={filter === "completed" ? "primary" : "outline-secondary"}
-          onClick={() => setFilter("completed")}
-          className="rounded-pill"
-        >
-          Completed ({completedSessions.length})
-        </Button>
-        <Button
-          size="sm"
-          variant={filter === "all" ? "primary" : "outline-secondary"}
-          onClick={() => setFilter("all")}
-          className="rounded-pill"
-        >
-          All
-        </Button>
-      </div>
+      <SegmentedTabs
+        className="mb-3"
+        tabs={[
+          { key: "all", label: "All" },
+          { key: "active", label: `Active (${activeSessions.length})` },
+          { key: "completed", label: `Completed (${completedSessions.length})` },
+        ]}
+        activeKey={filter}
+        onChange={(key) => setFilter(key as FilterTab)}
+      />
 
       {loading && sessions.length === 0 && (
         <div className="d-flex justify-content-center py-5">
