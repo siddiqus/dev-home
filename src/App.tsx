@@ -264,9 +264,11 @@ export default function App() {
   const pomodoro = usePomodoro({ focusableItems });
 
   const [claudeEnabled, setClaudeEnabled] = useState(false);
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
   useEffect(() => {
     window.electronAPI?.getSettings().then((s) => {
       setClaudeEnabled(!!s?.claudeEnabled);
+      setHiddenTabs(s?.hiddenTabs ?? []);
     });
   }, [configured]);
 
@@ -304,6 +306,7 @@ export default function App() {
 
   const handleSaveSettingsWrapped = async (settings: AppSettings) => {
     setClaudeEnabled(settings.claudeEnabled);
+    setHiddenTabs(settings.hiddenTabs ?? []);
     await saveSettings(settings);
   };
 
@@ -317,7 +320,13 @@ export default function App() {
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   // If config is not yet loaded, show settings first
-  const effectiveTab = !configured && !configLoading ? "settings" : activeTab;
+  // If the active tab has been hidden via settings, fall back to summary
+  const effectiveTab =
+    !configured && !configLoading
+      ? "settings"
+      : activeTab !== "settings" && hiddenTabs.includes(activeTab)
+        ? "summary"
+        : activeTab;
 
   return (
     <>
@@ -428,22 +437,24 @@ export default function App() {
                     },
                   ]
                 : []),
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
-                title={getShortcutTitle(tab.key, tab.label)}
-              >
-                <tab.icon size={18} />
-                <span className="sidebar-tab-label">{tab.label}</span>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <Badge bg="secondary" pill className="sidebar-badge">
-                    {tab.count}
-                  </Badge>
-                )}
-              </button>
-            ))}
+            ]
+              .filter((tab) => !hiddenTabs.includes(tab.key))
+              .map((tab) => (
+                <button
+                  key={tab.key}
+                  className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
+                  onClick={() => setActiveTab(tab.key)}
+                  title={getShortcutTitle(tab.key, tab.label)}
+                >
+                  <tab.icon size={18} />
+                  <span className="sidebar-tab-label">{tab.label}</span>
+                  {tab.count !== undefined && tab.count > 0 && (
+                    <Badge bg="secondary" pill className="sidebar-badge">
+                      {tab.count}
+                    </Badge>
+                  )}
+                </button>
+              ))}
             <button
               className="sidebar-toggle"
               onClick={toggleSidebar}

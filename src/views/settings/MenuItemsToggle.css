@@ -1,0 +1,18 @@
+.menu-toggle-list {
+  max-width: 320px;
+}
+
+.menu-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.menu-toggle-row:hover {
+  background-color: var(--color-bg-hover);
+}

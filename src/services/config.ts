@@ -11,6 +11,8 @@ export interface AppSettings {
   claudeCliPath: string;
   claudeWorkingDirectory: string;
   claudeMaxConcurrentSessions: number;
+  /** Sidebar tab keys the user has hidden. Summary is never included. */
+  hiddenTabs: string[];
 }
 
 declare global {

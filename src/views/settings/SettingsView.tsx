@@ -10,6 +10,8 @@ import { IconArrowLeft } from "@tabler/icons-react";
 import { AppSettings, loadSettingsFromStore, apiClient } from "../../services/config";
 import { BackendStatusCard } from "./BackendStatusCard";
 import { ThemePicker } from "./ThemePicker";
+import { MenuItemsToggle } from "./MenuItemsToggle";
+import { SegmentedTabs } from "../../components/SegmentedTabs";
 import "./settings.css";
 
 interface SettingsViewProps {
@@ -35,6 +37,7 @@ const EMPTY_SETTINGS: AppSettings = {
   claudeCliPath: "",
   claudeWorkingDirectory: "",
   claudeMaxConcurrentSessions: 3,
+  hiddenTabs: [],
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -52,13 +55,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string>("integrations");
 
   useEffect(() => {
     async function loadSettings() {
       try {
         const stored = await loadSettingsFromStore();
         if (stored) {
-          setFormState(stored);
+          // Normalize fields that may be missing from older stored settings.
+          setFormState({ ...stored, hiddenTabs: stored.hiddenTabs ?? [] });
         }
       } catch (err) {
         console.error("Failed to load settings from store:", err);
@@ -107,7 +112,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div>
             <h5 className="mb-0">Settings</h5>
             <p className="text-secondary-custom mb-0" style={{ fontSize: "0.8125rem" }}>
-              Configure your JIRA and GitHub integrations.
+              Configure your integrations and appearance.
             </p>
           </div>
         </div>
@@ -148,114 +153,132 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </Alert>
       )}
 
-      <Row>
-        {/* GitHub Configuration */}
-        <Col lg={6}>
-          <Card className="mb-3">
-            <Card.Body>
-              <h6 style={{ marginBottom: 12 }}>GitHub Configuration</h6>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  GitHub Token
-                </Form.Label>
-                <Form.Control
-                  type="password"
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                  value={formState.githubToken}
-                  onChange={handleChange("githubToken")}
-                  size="sm"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  GitHub Username
-                </Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="your-github-username"
-                  value={formState.githubUsername}
-                  onChange={handleChange("githubUsername")}
-                  size="sm"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-0">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  GitHub Org
-                </Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="your-github-org"
-                  value={formState.githubOrg}
-                  onChange={handleChange("githubOrg")}
-                  size="sm"
-                />
-                <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-                  Optional. Used to browse all open PRs across the org.
-                </Form.Text>
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* JIRA Configuration */}
-        <Col lg={6}>
-          <Card className="mb-3">
-            <Card.Body>
-              <h6 style={{ marginBottom: 12 }}>JIRA Configuration</h6>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  JIRA Base URL
-                </Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="https://your-org.atlassian.net"
-                  value={formState.jiraBaseUrl}
-                  onChange={handleChange("jiraBaseUrl")}
-                  size="sm"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  JIRA Email
-                </Form.Label>
-                <Form.Control
-                  type="email"
-                  placeholder="you@company.com"
-                  value={formState.jiraEmail}
-                  onChange={handleChange("jiraEmail")}
-                  size="sm"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-0">
-                <Form.Label className="text-secondary-custom" style={labelStyle}>
-                  JIRA API Token
-                </Form.Label>
-                <Form.Control
-                  type="password"
-                  placeholder="your-jira-api-token"
-                  value={formState.jiraApiToken}
-                  onChange={handleChange("jiraApiToken")}
-                  size="sm"
-                />
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <AiAssistanceSection
-        formState={formState}
-        setFormState={setFormState}
-        labelStyle={labelStyle}
+      <SegmentedTabs
+        tabs={[
+          { key: "integrations", label: "Integrations" },
+          { key: "claude", label: "Claude" },
+          { key: "appearance", label: "Appearance" },
+        ]}
+        activeKey={activeSettingsTab}
+        onChange={setActiveSettingsTab}
       />
 
-      <ThemePicker theme={theme} onToggleTheme={onToggleTheme} />
+      {/* GitHub + JIRA Configuration */}
+      {activeSettingsTab === "integrations" && (
+        <Row>
+          <Col lg={6}>
+            <Card className="mb-3">
+              <Card.Body>
+                <h6 style={{ marginBottom: 12 }}>GitHub</h6>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    GitHub Token
+                  </Form.Label>
+                  <Form.Control
+                    type="password"
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    value={formState.githubToken}
+                    onChange={handleChange("githubToken")}
+                    size="sm"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    GitHub Username
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="your-github-username"
+                    value={formState.githubUsername}
+                    onChange={handleChange("githubUsername")}
+                    size="sm"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-0">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    GitHub Org
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="your-github-org"
+                    value={formState.githubOrg}
+                    onChange={handleChange("githubOrg")}
+                    size="sm"
+                  />
+                  <Form.Text className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
+                    Optional. Used to browse all open PRs across the org.
+                  </Form.Text>
+                </Form.Group>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col lg={6}>
+            <Card className="mb-3">
+              <Card.Body>
+                <h6 style={{ marginBottom: 12 }}>JIRA</h6>
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    JIRA Base URL
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="https://your-org.atlassian.net"
+                    value={formState.jiraBaseUrl}
+                    onChange={handleChange("jiraBaseUrl")}
+                    size="sm"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    JIRA Email
+                  </Form.Label>
+                  <Form.Control
+                    type="email"
+                    placeholder="you@company.com"
+                    value={formState.jiraEmail}
+                    onChange={handleChange("jiraEmail")}
+                    size="sm"
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-0">
+                  <Form.Label className="text-secondary-custom" style={labelStyle}>
+                    JIRA API Token
+                  </Form.Label>
+                  <Form.Control
+                    type="password"
+                    placeholder="your-jira-api-token"
+                    value={formState.jiraApiToken}
+                    onChange={handleChange("jiraApiToken")}
+                    size="sm"
+                  />
+                </Form.Group>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Claude / AI Assistance */}
+      {activeSettingsTab === "claude" && (
+        <AiAssistanceSection
+          formState={formState}
+          setFormState={setFormState}
+          labelStyle={labelStyle}
+        />
+      )}
+
+      {/* Appearance */}
+      {activeSettingsTab === "appearance" && (
+        <>
+          <ThemePicker theme={theme} onToggleTheme={onToggleTheme} />
+          <MenuItemsToggle formState={formState} setFormState={setFormState} />
+        </>
+      )}
     </div>
   );
 };
