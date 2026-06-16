@@ -11,6 +11,7 @@ interface Settings {
   claudeCliPath: string;
   claudeWorkingDirectory: string;
   claudeMaxConcurrentSessions: number;
+  hiddenTabs: string[];
 }
 
 const store = new Store<Settings>({
@@ -56,6 +57,11 @@ const store = new Store<Settings>({
       type: "number",
       default: 3,
     },
+    hiddenTabs: {
+      type: "array",
+      items: { type: "string" },
+      default: [],
+    },
   },
 });
 
@@ -71,6 +77,7 @@ export function getSettings(): Settings {
     claudeCliPath: store.get("claudeCliPath"),
     claudeWorkingDirectory: store.get("claudeWorkingDirectory"),
     claudeMaxConcurrentSessions: store.get("claudeMaxConcurrentSessions"),
+    hiddenTabs: store.get("hiddenTabs"),
   };
 }
 
@@ -85,6 +92,7 @@ export function setSettings(settings: Partial<Settings>): void {
   if (settings.claudeCliPath !== undefined) store.set("claudeCliPath", settings.claudeCliPath);
   if (settings.claudeWorkingDirectory !== undefined) store.set("claudeWorkingDirectory", settings.claudeWorkingDirectory);
   if (settings.claudeMaxConcurrentSessions !== undefined) store.set("claudeMaxConcurrentSessions", settings.claudeMaxConcurrentSessions);
+  if (settings.hiddenTabs !== undefined) store.set("hiddenTabs", settings.hiddenTabs);
 }
 
 export function isConfigured(): boolean {

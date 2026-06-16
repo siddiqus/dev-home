@@ -126,6 +126,8 @@ export default function App() {
     editNote,
     resolveNote,
     unresolveNote,
+    pinNote,
+    unpinNote,
     removeNote,
     refresh: refreshNotes,
   } = useNotes(configured);
@@ -609,6 +611,8 @@ export default function App() {
                     loading={notesLoading}
                     onResolve={resolveNote}
                     onDelete={removeNote}
+                    onPin={pinNote}
+                    onUnpin={unpinNote}
                     onOpenNote={(note) => {
                       setOpenNote(note);
                       setShowNoteEditor(true);

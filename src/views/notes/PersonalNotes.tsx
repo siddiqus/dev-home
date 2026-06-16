@@ -4,7 +4,7 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { Badge } from "../../components/primitives/Badge";
 import { SectionHeader } from "../../components/primitives/SectionHeader";
-import { IconNote, IconCheck, IconPlus } from "@tabler/icons-react";
+import { IconNote, IconCheck, IconPlus, IconPinFilled } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { NoteRow } from "./NoteRow";
@@ -15,6 +15,8 @@ interface PersonalNotesProps {
   loading: boolean;
   onResolve: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onPin: (id: number) => Promise<void>;
+  onUnpin: (id: number) => Promise<void>;
   onOpenNote: (note: Note) => void;
   onAdd: () => void;
   jiraBaseUrl: string;
@@ -25,6 +27,8 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   loading,
   onResolve,
   onDelete,
+  onPin,
+  onUnpin,
   onOpenNote,
   onAdd,
   jiraBaseUrl,
@@ -53,8 +57,9 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
     );
   }
 
-  const unresolved = notes.filter((n) => n.resolved === 0);
-  const resolved = notes.filter((n) => n.resolved === 1);
+  const pinned = notes.filter((n) => n.pinned === 1);
+  const unresolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 0);
+  const resolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 1);
 
   return (
     <div>
@@ -64,6 +69,31 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
           Add Note
         </Button>
       </div>
+      {pinned.length > 0 && (
+        <Card className="mb-3">
+          <Card.Body className="p-0">
+            <SectionHeader className="px-3 pt-3 mb-0">
+              <IconPinFilled size={13} stroke={1.8} />
+              <span>Pinned</span>
+              <Badge variant="neutral">{pinned.length}</Badge>
+            </SectionHeader>
+            <div style={{ marginTop: 8 }}>
+              {pinned.map((note) => (
+                <NoteRow
+                  key={note.id}
+                  note={note}
+                  jiraBaseUrl={jiraBaseUrl}
+                  onResolve={onResolve}
+                  onDelete={onDelete}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
+                  onOpenNote={onOpenNote}
+                />
+              ))}
+            </div>
+          </Card.Body>
+        </Card>
+      )}
       {unresolved.length > 0 && (
         <Card className="mb-3">
           <Card.Body className="p-0">
@@ -80,6 +110,8 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   onResolve={onResolve}
                   onDelete={onDelete}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
                   onOpenNote={onOpenNote}
                 />
               ))}
@@ -104,6 +136,8 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   onResolve={onResolve}
                   onDelete={onDelete}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
                   onOpenNote={onOpenNote}
                 />
               ))}

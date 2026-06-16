@@ -158,6 +158,7 @@ export interface Note {
   content: string;
   reference_id: string | null;
   resolved: number;
+  pinned: number;
   created_at: string;
   updated_at: string;
 }

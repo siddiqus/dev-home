@@ -136,17 +136,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         githubUsername={githubUsername}
       />
 
-      {/* Success / Error alerts */}
-      {successMessage && (
-        <Alert
-          variant="success"
-          className="py-2"
-          dismissible
-          onClose={() => setSuccessMessage(null)}
-        >
-          {successMessage}
-        </Alert>
-      )}
+      {/* Error alert (kept inline so it's actionable) */}
       {errorMessage && (
         <Alert variant="danger" className="py-2" dismissible onClose={() => setErrorMessage(null)}>
           {errorMessage}
@@ -279,6 +269,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <MenuItemsToggle formState={formState} setFormState={setFormState} />
         </>
       )}
+
+      {/* Saved confirmation — fixed at the bottom so it doesn't shift the layout */}
+      <div className={`settings-saved-toast ${successMessage ? "is-visible" : ""}`} role="status">
+        {successMessage}
+      </div>
     </div>
   );
 };

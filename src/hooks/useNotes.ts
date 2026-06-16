@@ -60,6 +60,26 @@ export function useNotes(active: boolean) {
     }
   }, []);
 
+  const pinNote = useCallback(async (id: number) => {
+    try {
+      const updated = await updateNote(id, { pinned: true });
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    } catch (err: any) {
+      setError(err?.message || "Failed to pin note");
+      throw err;
+    }
+  }, []);
+
+  const unpinNote = useCallback(async (id: number) => {
+    try {
+      const updated = await updateNote(id, { pinned: false });
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    } catch (err: any) {
+      setError(err?.message || "Failed to unpin note");
+      throw err;
+    }
+  }, []);
+
   const editNote = useCallback(
     async (id: number, updates: { title?: string; content?: string; reference_id?: string }) => {
       try {
@@ -92,6 +112,8 @@ export function useNotes(active: boolean) {
     editNote,
     resolveNote,
     unresolveNote,
+    pinNote,
+    unpinNote,
     removeNote,
     refresh: loadNotes,
   };

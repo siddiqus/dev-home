@@ -22,7 +22,13 @@ export async function createNote(note: {
 
 export async function updateNote(
   id: number,
-  updates: { resolved?: boolean; title?: string; content?: string; reference_id?: string },
+  updates: {
+    resolved?: boolean;
+    pinned?: boolean;
+    title?: string;
+    content?: string;
+    reference_id?: string;
+  },
 ): Promise<Note> {
   const { data } = await apiClient.patch(`/notes/${id}`, updates);
   return data.note;

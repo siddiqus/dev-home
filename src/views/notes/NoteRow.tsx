@@ -8,6 +8,8 @@ import {
   IconLink,
   IconCheck,
   IconTrash,
+  IconPin,
+  IconPinFilled,
 } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
@@ -32,12 +34,23 @@ interface NoteRowProps {
   jiraBaseUrl: string;
   onResolve: (id: number) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onPin: (id: number) => Promise<void>;
+  onUnpin: (id: number) => Promise<void>;
   onOpenNote: (note: Note) => void;
 }
 
-export function NoteRow({ note, jiraBaseUrl, onResolve, onDelete, onOpenNote }: NoteRowProps) {
+export function NoteRow({
+  note,
+  jiraBaseUrl,
+  onResolve,
+  onDelete,
+  onPin,
+  onUnpin,
+  onOpenNote,
+}: NoteRowProps) {
   const url = getReferenceUrl(note, jiraBaseUrl);
   const title = getNoteDisplayTitle(note);
+  const isPinned = note.pinned === 1;
 
   return (
     <div
@@ -87,6 +100,22 @@ export function NoteRow({ note, jiraBaseUrl, onResolve, onDelete, onOpenNote }: 
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         <Badge variant="neutral">{TYPE_LABEL[note.type]}</Badge>
+        <Button
+          variant={isPinned ? "primary" : "outline-secondary"}
+          size="sm"
+          style={{ padding: "2px 6px" }}
+          title={isPinned ? "Unpin" : "Pin"}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isPinned) {
+              onUnpin(note.id);
+            } else {
+              onPin(note.id);
+            }
+          }}
+        >
+          {isPinned ? <IconPinFilled size={12} /> : <IconPin size={12} />}
+        </Button>
         {note.resolved === 0 && (
           <Button
             variant="outline-secondary"

@@ -21,7 +21,7 @@ router.get("/", (req: Request, res: Response) => {
     params.push(resolved === "true" ? 1 : 0);
   }
 
-  sql += " ORDER BY created_at DESC";
+  sql += " ORDER BY pinned DESC, created_at DESC";
 
   const notes = db.prepare(sql).all(...params);
   res.json({ notes });
@@ -61,7 +61,7 @@ router.post("/", (req: Request, res: Response) => {
 router.patch("/:id", (req: Request, res: Response) => {
   const db = getDb();
   const { id } = req.params;
-  const { resolved, content, reference_id, title } = req.body;
+  const { resolved, content, reference_id, title, pinned } = req.body;
 
   const existing = db.prepare("SELECT * FROM notes WHERE id = ?").get(id);
   if (!existing) {
@@ -75,6 +75,11 @@ router.patch("/:id", (req: Request, res: Response) => {
   if (resolved !== undefined) {
     setClauses.push("resolved = ?");
     params.push(resolved ? 1 : 0);
+  }
+
+  if (pinned !== undefined) {
+    setClauses.push("pinned = ?");
+    params.push(pinned ? 1 : 0);
   }
 
   if (title !== undefined) {

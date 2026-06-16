@@ -183,6 +183,14 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_claude_sessions_started_at ON claude_sessions(started_at);
     `);
   },
+
+  // 11 – add pinned column to notes
+  (d) => {
+    const columns = d.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "pinned")) {
+      d.exec("ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+    }
+  },
 ];
 
 function runMigrations(d: Database.Database): void {
