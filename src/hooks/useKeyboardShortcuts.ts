@@ -8,7 +8,7 @@ const tabShortcuts: Record<string, string> = {
   j: "jira",
   m: "mentions",
   p: "prs",
-  r: "reviews",
+  v: "reviews",
   g: "org-prs",
   t: "pomodoro",
   c: "claude",
