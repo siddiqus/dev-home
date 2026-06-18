@@ -5,6 +5,7 @@ import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh, IconFilter } from "@tabler/icons-react";
 import "../prs/PRsView.css";
 import { GitHubPR, JiraIssue } from "../../types";
+import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
@@ -80,6 +81,20 @@ interface OrgPRsViewProps {
   jiraBaseUrl: string;
   jiraIssues?: JiraIssue[];
   refreshKey?: number;
+  claudeEnabled?: boolean;
+  claudeSessions?: ClaudeSession[];
+  onClaudeAction?: (
+    pr: {
+      number: number;
+      repo_full_name: string;
+      title: string;
+      headBranch: string;
+      baseBranch: string;
+    },
+    action: ClaudeAction,
+    customPrompt?: string,
+  ) => void;
+  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
@@ -87,6 +102,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   jiraBaseUrl,
   jiraIssues,
   refreshKey,
+  claudeEnabled,
+  claudeSessions,
+  onClaudeAction,
+  onViewClaudeSession,
 }) => {
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
@@ -529,6 +548,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                   jiraBaseUrl={jiraBaseUrl}
                   jiraIssues={jiraIssues}
                   variant="org-prs"
+                  claudeEnabled={claudeEnabled}
+                  claudeSessions={claudeSessions}
+                  onClaudeAction={onClaudeAction}
+                  onViewClaudeSession={onViewClaudeSession}
                 />
               </div>
 

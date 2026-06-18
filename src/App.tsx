@@ -603,6 +603,10 @@ export default function App() {
                     jiraBaseUrl={jiraBaseUrl}
                     jiraIssues={jiraIssues}
                     refreshKey={refreshKey}
+                    claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions.sessions}
+                    onClaudeAction={handleClaudeAction}
+                    onViewClaudeSession={handleViewClaudeSession}
                   />
                 )}
                 {effectiveTab === "notes" && (
