@@ -38,19 +38,30 @@ git fetch origin ${ctx.headBranch}
 git worktree add .claude/worktrees/review-pr-${ctx.prNumber} origin/${ctx.headBranch}
 cd .claude/worktrees/review-pr-${ctx.prNumber}
 
-## Review Criteria
+## Philosophy
 
-Analyze the diff between ${ctx.baseBranch} and ${ctx.headBranch} with these criteria:
+Comment only on things that materially affect correctness, security, performance, scalability, or maintainability. A reviewer's job is to catch what breaks in production and what costs the team later — not to redecorate the code.
 
-1. **Coding Best Practices** — Design patterns, SOLID principles, DRY, appropriate abstractions
-2. **Codebase Conventions** — Consistency with existing patterns, naming conventions, file structure, and style in this repository
-3. **Regression Prevention** — Could these changes break existing functionality? Are there unintended side effects?
-4. **Test Coverage** — Are there adequate tests? Are edge cases and error paths covered? Are existing tests updated for changed behavior?
-5. **Code Clarity & Readability** — Is the code self-documenting? Are variable and function names meaningful? Is complexity minimized?
-6. **Documentation** — Point out where documentation is necessary: complex logic, public APIs, non-obvious behavior, architectural decisions
-7. **Security** — Check for injection vulnerabilities, authentication/authorization issues, data exposure, OWASP top 10
-8. **Performance** — Unnecessary loops, N+1 queries, large memory allocations, missing indexes, unoptimized algorithms
-9. **Error Handling** — Are errors handled gracefully? Are error messages helpful and actionable?
+**Do NOT comment on:**
+- Language syntax preferences, formatting, or style that a linter/formatter would handle
+- Naming bikeshedding, comment wording, or other cosmetic nits
+- Subjective "I would have written it differently" opinions with no concrete downside
+- Restating what the code obviously does
+- Speculative concerns with no realistic trigger in this codebase
+
+If a finding wouldn't change whether you approve the PR, don't write it. Silence on a line means it's fine. A short review with three real issues beats a long one padded with nits.
+
+## What to Look For
+
+Analyze the diff between ${ctx.baseBranch} and ${ctx.headBranch}. Focus on hard engineering facts:
+
+1. **Correctness & Edge Cases** — Logic bugs, off-by-one, null/undefined handling, race conditions, unhandled error paths, boundary conditions, incorrect assumptions about inputs or state.
+2. **Regression Risk** — Could this break existing behavior or callers? Unintended side effects? Changed contracts that other code depends on?
+3. **Security** — Injection, authn/authz gaps, secrets/data exposure, unsafe deserialization, SSRF, missing input validation. Flag concrete, exploitable holes — not theoretical hardening.
+4. **Performance & Scale** — N+1 queries, missing indexes, unbounded loops/memory, blocking I/O on hot paths, algorithmic complexity that degrades with data growth, redundant work.
+5. **Concurrency & State** — Shared mutable state, missing locks/atomicity, ordering assumptions, leaks (connections, listeners, timers).
+6. **Consolidation** — If the diff introduces logic that clearly duplicates existing code, suggest consolidating it — but ONLY when the abstraction is a net win. Do not force shared helpers that couple unrelated callers, add premature indirection, or make the code harder to change later. When in doubt, leave duplication alone.
+7. **Test Coverage** — Only where missing tests leave a real correctness or regression risk uncovered. Don't demand tests for trivial code.
 
 ## Output
 
@@ -58,7 +69,9 @@ Leave inline review comments on specific lines using the GitHub CLI:
 - Use \`gh api\` to post line-level review comments on the PR
 - For overall feedback, use \`gh pr review ${ctx.prNumber} --repo ${ctx.repoFullName}\` with --approve, --request-changes, or --comment
 
-Provide an overall assessment with a clear recommendation: approve, request changes, or comment only.
+Each comment must state the concrete impact (what breaks, what's exploitable, what degrades) and a specific suggestion. If you can't articulate a real consequence, drop the comment.
+
+Provide an overall assessment with a clear recommendation: approve, request changes, or comment only. If the PR is solid, say so plainly and approve — don't manufacture findings to look thorough.
 
 If a \`/review\` or \`/code-review\` skill is available, use it to augment your review.
 
