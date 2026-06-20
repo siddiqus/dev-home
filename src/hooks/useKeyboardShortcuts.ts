@@ -1,14 +1,15 @@
 import { useEffect } from "react";
 
 const tabShortcuts: Record<string, string> = {
-  1: "summary",
-  2: "focus",
-  4: "board",
-  5: "notes",
-  6: "jira",
-  7: "mentions",
-  3: "prs",
-  8: "reviews",
+  0: "summary",
+  1: "focus",
+  2: "board",
+  3: "notes",
+  4: "jira-tasks",
+  5: "jira-mentions",
+  6: "prs",
+  7: "reviews",
+  8: "github-mentions",
   9: "org-prs",
   p: "pomodoro",
   l: "claude",

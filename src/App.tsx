@@ -18,8 +18,6 @@ import {
   IconGitPullRequest,
   IconEye,
   IconBuilding,
-  IconChevronsLeft,
-  IconChevronsRight,
   IconClock,
   IconTarget,
   IconSparkles,
@@ -32,7 +30,8 @@ import { useFocus } from "./hooks/useFocus";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasksView } from "./views/jira/JiraTasksView";
-import { MentionsView } from "./components/MentionsView";
+import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
+import { GitHubMentionsView } from "./views/mentions/GitHubMentionsView";
 import { PRTable } from "./components/PRTable";
 import { PRsView } from "./views/prs/PRsView";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
@@ -69,16 +68,6 @@ export default function App() {
       prevTabRef.current = activeTab;
     }
   }, [activeTab]);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return localStorage.getItem("dev-home-sidebar-collapsed") === "true";
-  });
-
-  const toggleSidebar = () => {
-    const next = !sidebarCollapsed;
-    setSidebarCollapsed(next);
-    localStorage.setItem("dev-home-sidebar-collapsed", String(next));
-  };
-
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "light";
   });
@@ -390,7 +379,7 @@ export default function App() {
       <ErrorBoundary>
         <div className="app-body">
           {/* Sidebar navigation */}
-          <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
+          <nav className="sidebar">
             {(() => {
               // Runtime per-tab metadata (icons + live counts) keyed by tab key.
               const tabMeta: Record<string, { icon: Icon; count?: number }> = {
@@ -399,12 +388,10 @@ export default function App() {
                 board: { icon: IconColumns3, count: undefined },
                 notes: { icon: IconNotes, count: unresolvedNotes.length },
                 jira: { icon: IconSubtask, count: jiraIssues.length },
-                mentions: {
-                  icon: IconAt,
-                  count: jiraComments.length + githubMentions.length,
-                },
+                "jira-mentions": { icon: IconAt, count: jiraComments.length },
                 prs: { icon: IconGitPullRequest, count: openPRs.length },
                 reviews: { icon: IconEye, count: reviewRequests.length },
+                "github-mentions": { icon: IconAt, count: githubMentions.length },
                 "org-prs": { icon: IconBuilding, count: undefined },
                 pomodoro: { icon: IconClock, count: undefined },
                 claude: { icon: IconSparkles, count: claudeSessions.activeCount || undefined },
@@ -450,13 +437,6 @@ export default function App() {
                 );
               });
             })()}
-            <button
-              className="sidebar-toggle"
-              onClick={toggleSidebar}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {sidebarCollapsed ? <IconChevronsRight size={16} /> : <IconChevronsLeft size={16} />}
-            </button>
           </nav>
 
           {/* Main content panel */}
@@ -555,13 +535,15 @@ export default function App() {
                 {effectiveTab === "jira" && (
                   <JiraTasksView issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
                 )}
-                {effectiveTab === "mentions" && (
-                  <MentionsView
+                {effectiveTab === "jira-mentions" && (
+                  <JiraMentionsView
                     jiraComments={jiraComments}
-                    githubMentions={githubMentions}
                     loading={loading}
                     jiraBaseUrl={jiraBaseUrl}
                   />
+                )}
+                {effectiveTab === "github-mentions" && (
+                  <GitHubMentionsView githubMentions={githubMentions} loading={loading} />
                 )}
                 {effectiveTab === "prs" && (
                   <PRsView

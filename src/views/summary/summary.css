@@ -2,6 +2,70 @@
    Summary view
    ============================================ */
 
+/* 3-column × 2-row grid that fills the content area.
+   Two rows split the height evenly after the gap is subtracted. */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: var(--space-3);
+  /* App header (46px) + .main-content top/bottom padding (space-3 + space-6) */
+  height: calc(100vh - 46px - var(--space-3) - var(--space-6));
+  min-height: 0;
+}
+
+/* Each card is a flex column: fixed header/footer, scrollable list. */
+.summary-card {
+  min-height: 0;
+  height: 100%;
+}
+
+.summary-card-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.summary-card-header {
+  flex-shrink: 0;
+}
+
+.summary-card-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.summary-card-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  min-height: 0;
+}
+
+/* Collapse to a single scrolling column on narrow widths. */
+@media (max-width: 768px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    height: auto;
+  }
+
+  .summary-card-list {
+    overflow-y: visible;
+  }
+
+  .summary-card-placeholder {
+    display: none;
+  }
+}
+
 .summary-item {
   border-bottom: 1px solid var(--color-border-subtle);
   transition: background-color 120ms ease;
@@ -15,6 +79,7 @@
 .see-more-row {
   border-top: 1px solid var(--color-border-subtle);
   text-align: center;
+  flex-shrink: 0;
 }
 
 /* Shared with notes view */

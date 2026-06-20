@@ -10,7 +10,6 @@
   padding: var(--space-2);
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 200ms ease, min-width 200ms ease, padding 200ms ease;
 }
 
 .sidebar-tab {
@@ -62,52 +61,6 @@
   color: #ffffff;
 }
 
-/* --- Sidebar Toggle Button --- */
-.sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: auto;
-  padding: var(--space-2);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
-}
-
-.sidebar-toggle:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-hover);
-}
-
-.sidebar-toggle:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
-  outline: none;
-}
-
-/* --- Sidebar Collapsed State --- */
-.sidebar.collapsed {
-  width: 48px;
-  min-width: 48px;
-  padding: var(--space-2) 6px;
-  align-items: center;
-}
-
-.sidebar.collapsed .sidebar-tab {
-  justify-content: center;
-  padding: var(--space-2);
-  gap: 0;
-}
-
-.sidebar.collapsed .sidebar-tab-label,
-.sidebar.collapsed .sidebar-badge {
-  display: none;
-}
-
 /* --- Sidebar Groups --- */
 .sidebar-group {
   display: flex;
@@ -135,13 +88,4 @@
 
 .sidebar-group:not(:first-of-type) .sidebar-group-divider {
   display: block;
-}
-
-/* --- Collapsed: hide labels, keep dividers between groups --- */
-.sidebar.collapsed .sidebar-group-label {
-  display: none;
-}
-
-.sidebar.collapsed .sidebar-group:not(:first-of-type) .sidebar-group-divider {
-  margin: var(--space-2) 6px;
 }

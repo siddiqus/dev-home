@@ -22,8 +22,8 @@ export interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    key: "overview",
-    label: "Overview",
+    key: "general",
+    label: "General",
     tabs: [
       { key: "summary", label: "Summary" },
       { key: "focus", label: "Focus" },
@@ -36,7 +36,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "JIRA",
     tabs: [
       { key: "jira", label: "JIRA Tasks" },
-      { key: "mentions", label: "Mentions" },
+      { key: "jira-mentions", label: "Mentions" },
     ],
   },
   {
@@ -45,6 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { key: "prs", label: "Pull Requests" },
       { key: "reviews", label: "Reviews" },
+      { key: "github-mentions", label: "Mentions" },
       { key: "org-prs", label: "Org PRs" },
     ],
   },

@@ -1,14 +1,13 @@
 import React from "react";
-import Spinner from "react-bootstrap/Spinner";
 import { IconAt } from "@tabler/icons-react";
 import { GitHubComment } from "../types";
 import { formatRelativeTime } from "../utils/time";
-import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
 import { REASON_LABELS } from "../utils/github";
 import { Badge } from "./primitives/Badge";
 import { Avatar } from "./primitives/Avatar";
 import { CommentCard } from "./primitives/CommentCard";
+import { CommentList } from "./primitives/CommentList";
 
 interface GitHubMentionsProps {
   mentions: GitHubComment[];
@@ -16,26 +15,16 @@ interface GitHubMentionsProps {
 }
 
 export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loading }) => {
-  if (loading && mentions.length === 0) {
-    return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <Spinner animation="border" variant="secondary" />
-      </div>
-    );
-  }
-
-  if (mentions.length === 0) {
-    return (
-      <EmptyState
-        icon={<IconAt size={40} stroke={1.5} />}
-        title="No GitHub mentions"
-        description="You haven't been mentioned in any GitHub comments recently."
-      />
-    );
-  }
-
   return (
-    <div className="d-flex flex-column gap-2">
+    <CommentList
+      loading={loading}
+      isEmpty={mentions.length === 0}
+      emptyState={{
+        icon: <IconAt size={40} stroke={1.5} />,
+        title: "No GitHub mentions",
+        description: "You haven't been mentioned in any GitHub comments recently.",
+      }}
+    >
       {mentions.map((mention) => (
         <CommentCard key={mention.id}>
           <div className="d-flex gap-3 align-items-start">
@@ -97,6 +86,6 @@ export const GitHubMentions: React.FC<GitHubMentionsProps> = ({ mentions, loadin
           </div>
         </CommentCard>
       ))}
-    </div>
+    </CommentList>
   );
 };

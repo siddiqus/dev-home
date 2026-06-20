@@ -1,12 +1,11 @@
 import React from "react";
-import Spinner from "react-bootstrap/Spinner";
 import { IconMessageCircle } from "@tabler/icons-react";
 import { JiraComment } from "../types";
 import { formatRelativeTime } from "../utils/time";
-import { EmptyState } from "./EmptyState";
 import { truncateText } from "../utils/text";
 import { Avatar } from "./primitives/Avatar";
 import { CommentCard } from "./primitives/CommentCard";
+import { CommentList } from "./primitives/CommentList";
 
 interface JiraCommentsProps {
   comments: JiraComment[];
@@ -15,26 +14,16 @@ interface JiraCommentsProps {
 }
 
 export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, baseUrl }) => {
-  if (loading && comments.length === 0) {
-    return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <Spinner animation="border" variant="secondary" />
-      </div>
-    );
-  }
-
-  if (comments.length === 0) {
-    return (
-      <EmptyState
-        icon={<IconMessageCircle size={40} stroke={1.5} />}
-        title="No recent mentions"
-        description="No one has mentioned you in JIRA comments recently."
-      />
-    );
-  }
-
   return (
-    <div className="d-flex flex-column gap-2">
+    <CommentList
+      loading={loading}
+      isEmpty={comments.length === 0}
+      emptyState={{
+        icon: <IconMessageCircle size={40} stroke={1.5} />,
+        title: "No recent mentions",
+        description: "No one has mentioned you in JIRA comments recently.",
+      }}
+    >
       {comments.map((comment) => {
         const issueUrl = baseUrl
           ? `${baseUrl.replace(/\/$/, "")}/browse/${comment.issueKey}`
@@ -92,6 +81,6 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
           </CommentCard>
         );
       })}
-    </div>
+    </CommentList>
   );
 };
