@@ -107,3 +107,41 @@
 .sidebar.collapsed .sidebar-badge {
   display: none;
 }
+
+/* --- Sidebar Groups --- */
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-group-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  padding: var(--space-2) 10px 4px;
+  white-space: nowrap;
+}
+
+/* Divider between groups (hidden before the first group). */
+.sidebar-group-divider {
+  display: none;
+  height: 1px;
+  background-color: var(--color-border-subtle);
+  margin: var(--space-2) 6px 0;
+}
+
+.sidebar-group:not(:first-of-type) .sidebar-group-divider {
+  display: block;
+}
+
+/* --- Collapsed: hide labels, keep dividers between groups --- */
+.sidebar.collapsed .sidebar-group-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-group:not(:first-of-type) .sidebar-group-divider {
+  margin: var(--space-2) 6px;
+}
