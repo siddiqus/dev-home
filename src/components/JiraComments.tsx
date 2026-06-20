@@ -28,6 +28,9 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
         const issueUrl = baseUrl
           ? `${baseUrl.replace(/\/$/, "")}/browse/${comment.issueKey}`
           : `#${comment.issueKey}`;
+        const commentUrl = baseUrl
+          ? `${issueUrl}?focusedCommentId=${comment.id}#comment-${comment.id}`
+          : issueUrl;
 
         return (
           <CommentCard key={comment.id}>
@@ -75,6 +78,16 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
                   }}
                 >
                   {truncateText(comment.body?.text || "", 120)}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <a
+                    href={commentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    View comment
+                  </a>
                 </div>
               </div>
             </div>
