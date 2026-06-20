@@ -23,6 +23,7 @@ import {
   IconClock,
   IconTarget,
   IconSparkles,
+  type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useDashboard } from "./hooks/useDashboard";
@@ -54,6 +55,7 @@ import type { FocusableItem } from "./types";
 import type { ClaudeAction } from "./types/claude";
 import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
+import { NAV_GROUPS } from "./config/navTabs";
 import { useKeyboardShortcuts, getShortcutTitle } from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
@@ -389,74 +391,65 @@ export default function App() {
         <div className="app-body">
           {/* Sidebar navigation */}
           <nav className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
-            {[
-              { key: "summary", label: "Summary", icon: IconLayoutDashboard, count: undefined },
-              { key: "focus", label: "Focus", icon: IconTarget, count: undefined },
-              { key: "board", label: "Board", icon: IconColumns3, count: undefined },
-              {
-                key: "notes",
-                label: "Notes",
-                icon: IconNotes,
-                count: unresolvedNotes.length,
-              },
-              { key: "jira", label: "JIRA Tasks", icon: IconSubtask, count: jiraIssues.length },
-              {
-                key: "mentions",
-                label: "Mentions",
-                icon: IconAt,
-                count: jiraComments.length + githubMentions.length,
-              },
-              {
-                key: "prs",
-                label: "Pull Requests",
-                icon: IconGitPullRequest,
-                count: openPRs.length,
-              },
-              {
-                key: "reviews",
-                label: "Reviews",
-                icon: IconEye,
-                count: reviewRequests.length,
-              },
-              ...(githubOrg
-                ? [
-                    {
-                      key: "org-prs",
-                      label: "Org PRs",
-                      icon: IconBuilding,
-                      count: undefined,
-                    },
-                  ]
-                : []),
-              { key: "pomodoro", label: "Pomodoro", icon: IconClock, count: undefined },
-              ...(claudeEnabled
-                ? [
-                    {
-                      key: "claude",
-                      label: "Claude",
-                      icon: IconSparkles,
-                      count: claudeSessions.activeCount || undefined,
-                    },
-                  ]
-                : []),
-            ]
-              .filter((tab) => !hiddenTabs.includes(tab.key))
-              .map((tab) => (
-                <button
-                  key={tab.key}
-                  className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
-                  onClick={() => setActiveTab(tab.key)}
-                  title={getShortcutTitle(tab.key, tab.label)}
-                >
-                  <tab.icon size={18} />
-                  <span className="sidebar-tab-label">{tab.label}</span>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <Badge bg="secondary" pill className="sidebar-badge">
-                      {tab.count}
-                    </Badge>
-                  )}
-                </button>
-              ))}
+            {(() => {
+              // Runtime per-tab metadata (icons + live counts) keyed by tab key.
+              const tabMeta: Record<string, { icon: Icon; count?: number }> = {
+                summary: { icon: IconLayoutDashboard, count: undefined },
+                focus: { icon: IconTarget, count: undefined },
+                board: { icon: IconColumns3, count: undefined },
+                notes: { icon: IconNotes, count: unresolvedNotes.length },
+                jira: { icon: IconSubtask, count: jiraIssues.length },
+                mentions: {
+                  icon: IconAt,
+                  count: jiraComments.length + githubMentions.length,
+                },
+                prs: { icon: IconGitPullRequest, count: openPRs.length },
+                reviews: { icon: IconEye, count: reviewRequests.length },
+                "org-prs": { icon: IconBuilding, count: undefined },
+                pomodoro: { icon: IconClock, count: undefined },
+                claude: { icon: IconSparkles, count: claudeSessions.activeCount || undefined },
+              };
+
+              // Tabs whose visibility depends on runtime config.
+              const isTabVisible = (key: string): boolean => {
+                if (hiddenTabs.includes(key)) return false;
+                if (key === "org-prs") return !!githubOrg;
+                if (key === "claude") return claudeEnabled;
+                return true;
+              };
+
+              return NAV_GROUPS.map((group) => {
+                const visibleTabs = group.tabs.filter((t) => isTabVisible(t.key));
+                if (visibleTabs.length === 0) return null;
+
+                return (
+                  <div className="sidebar-group" key={group.key}>
+                    <div className="sidebar-group-divider" />
+                    <div className="sidebar-group-label">{group.label}</div>
+                    {visibleTabs.map((tab) => {
+                      const meta = tabMeta[tab.key];
+                      const Icon = meta.icon;
+                      return (
+                        <button
+                          key={tab.key}
+                          className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
+                          onClick={() => setActiveTab(tab.key)}
+                          title={getShortcutTitle(tab.key, tab.label)}
+                        >
+                          <Icon size={18} />
+                          <span className="sidebar-tab-label">{tab.label}</span>
+                          {meta.count !== undefined && meta.count > 0 && (
+                            <Badge bg="secondary" pill className="sidebar-badge">
+                              {meta.count}
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              });
+            })()}
             <button
               className="sidebar-toggle"
               onClick={toggleSidebar}
