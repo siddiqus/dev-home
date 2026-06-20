@@ -1,29 +1,67 @@
 /**
- * Shared definition of the static sidebar tabs.
+ * Shared definition of the sidebar tabs and their groups.
  *
- * This is the source of truth for which tabs can be toggled on/off from
- * Settings → Appearance. The sidebar itself (App.tsx) also renders conditional
- * tabs (org-prs, claude) that depend on runtime config — those are intentionally
- * not toggleable here and stay in App.tsx.
+ * NAV_GROUPS is the source of truth for sidebar structure (order + grouping).
+ * NAV_TABS is the flattened list, used by Settings → Appearance to decide which
+ * tabs can be toggled on/off. The conditional tabs (org-prs, claude) are listed
+ * here for structure; their runtime visibility (githubOrg, claudeEnabled) is
+ * still decided in App.tsx.
  *
- * Keys must match the `key` values used in App.tsx's sidebar tab list.
+ * Keys must match the `key` values used in App.tsx's sidebar tab metadata.
  */
 export interface NavTab {
   key: string;
   label: string;
 }
 
-export const NAV_TABS: NavTab[] = [
-  { key: "summary", label: "Summary" },
-  { key: "focus", label: "Focus" },
-  { key: "board", label: "Board" },
-  { key: "notes", label: "Notes" },
-  { key: "jira", label: "JIRA Tasks" },
-  { key: "mentions", label: "Mentions" },
-  { key: "prs", label: "Pull Requests" },
-  { key: "reviews", label: "Reviews" },
-  { key: "pomodoro", label: "Pomodoro" },
+export interface NavGroup {
+  key: string;
+  label: string;
+  tabs: NavTab[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    key: "overview",
+    label: "Overview",
+    tabs: [
+      { key: "summary", label: "Summary" },
+      { key: "focus", label: "Focus" },
+      { key: "board", label: "Board" },
+      { key: "notes", label: "Notes" },
+    ],
+  },
+  {
+    key: "jira",
+    label: "JIRA",
+    tabs: [
+      { key: "jira", label: "JIRA Tasks" },
+      { key: "mentions", label: "Mentions" },
+    ],
+  },
+  {
+    key: "github",
+    label: "GitHub",
+    tabs: [
+      { key: "prs", label: "Pull Requests" },
+      { key: "reviews", label: "Reviews" },
+      { key: "org-prs", label: "Org PRs" },
+    ],
+  },
+  {
+    key: "tools",
+    label: "Tools",
+    tabs: [{ key: "pomodoro", label: "Pomodoro" }],
+  },
+  {
+    key: "ai",
+    label: "AI",
+    tabs: [{ key: "claude", label: "Claude" }],
+  },
 ];
+
+/** Flattened list of all tabs, in sidebar order. */
+export const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((g) => g.tabs);
 
 /** Tabs the user is allowed to hide. Summary is always shown as a landing tab. */
 export const TOGGLEABLE_TABS: NavTab[] = NAV_TABS.filter((t) => t.key !== "summary");
