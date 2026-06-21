@@ -1,0 +1,60 @@
+.jira-issue-drawer.offcanvas-end {
+  width: 420px;
+}
+
+.jira-issue-drawer .jira-drawer-header {
+  min-width: 0;
+}
+
+.jira-issue-drawer .jira-drawer-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.jira-issue-drawer .jira-drawer-subtitle {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.jira-issue-drawer .jira-drawer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  margin-top: 6px;
+  color: var(--color-accent);
+}
+
+.jira-issue-drawer .jira-drawer-link:hover {
+  color: var(--color-accent-link-hover);
+}
+
+.jira-issue-drawer .jira-drawer-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.jira-issue-drawer .jira-drawer-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.jira-issue-drawer .jira-drawer-assignee {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.jira-issue-drawer .modal-body-section-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+}

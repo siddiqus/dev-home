@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import Table from "react-bootstrap/Table";
+import { IconExternalLink } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import { formatRelativeTime } from "../hooks/useRelativeTime";
 import { StatusBadge } from "./StatusBadge";
-import { DescriptionModal } from "./DescriptionModal";
+import { JiraIssueDrawer } from "./JiraIssueDrawer";
 import { Badge } from "./primitives/Badge";
 import { Avatar } from "./primitives/Avatar";
 
@@ -28,6 +29,7 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
             <th>Project</th>
             <th>Created</th>
             <th>Updated</th>
+            <th style={{ width: 1 }} />
           </tr>
         </thead>
         <tbody>
@@ -56,10 +58,12 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
                     href={browseUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="d-inline-flex align-items-center gap-1"
                     style={{ fontWeight: 500, whiteSpace: "nowrap" }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {issue.key}
+                    <IconExternalLink size={13} stroke={1.5} style={{ opacity: 0.6 }} />
                   </a>
                 </td>
                 <td>
@@ -100,23 +104,29 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
                     {formatRelativeTime(issue.updated)}
                   </span>
                 </td>
+                <td>
+                  <button
+                    className="btn btn-outline-secondary btn-sm"
+                    style={{ whiteSpace: "nowrap" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedIssue(issue);
+                    }}
+                  >
+                    Details
+                  </button>
+                </td>
               </tr>
             );
           })}
         </tbody>
       </Table>
 
-      <DescriptionModal
+      <JiraIssueDrawer
+        issue={selectedIssue}
         show={!!selectedIssue}
         onHide={() => setSelectedIssue(null)}
-        title={selectedIssue ? `${selectedIssue.key}: ${selectedIssue.summary}` : ""}
-        subtitle={selectedIssue?.project.name}
-        description={selectedIssue?.description || ""}
-        url={
-          selectedIssue && baseUrl
-            ? `${baseUrl.replace(/\/$/, "")}/browse/${selectedIssue.key}`
-            : undefined
-        }
+        baseUrl={baseUrl}
       />
     </>
   );
