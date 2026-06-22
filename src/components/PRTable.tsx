@@ -384,7 +384,7 @@ export const PRTable: React.FC<PRTableProps> = ({
                   </tr>
                 )}
                 {!isCollapsed &&
-                  group.prs.map((pr, index) => (
+                  group.prs.map((pr) => (
                     <tr
                       key={pr.id}
                       onClick={() => setSelectedPR(pr)}

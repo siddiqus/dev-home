@@ -217,7 +217,10 @@ export function createSession(opts: {
             if (block.type === "text" && block.text) {
               broadcastLine("stdout", block.text);
             } else if (block.type === "tool_use") {
-              broadcastLine("stdout", `[Tool: ${block.name}] ${JSON.stringify(block.input).slice(0, 200)}`);
+              broadcastLine(
+                "stdout",
+                `[Tool: ${block.name}] ${JSON.stringify(block.input).slice(0, 200)}`,
+              );
             }
           }
         } else if (event.type === "result" && event.result) {
@@ -321,6 +324,7 @@ export function listSessions(status?: string): Omit<SerializedSession, "outputBu
 
     const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
     dbSessions = rows.map((row) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { outputBuffer: _ob, ...rest } = dbRowToSession({ ...row, output_buffer: "[]" });
       return {
         ...rest,
@@ -378,9 +382,9 @@ export function subscribe(id: string, ws: WebSocket): OutputEntry[] | null {
   }
 
   const db = getDb();
-  const row = db
-    .prepare("SELECT output_buffer FROM claude_sessions WHERE id = ?")
-    .get(id) as { output_buffer: string } | undefined;
+  const row = db.prepare("SELECT output_buffer FROM claude_sessions WHERE id = ?").get(id) as
+    | { output_buffer: string }
+    | undefined;
   if (row) {
     try {
       return JSON.parse(row.output_buffer || "[]");

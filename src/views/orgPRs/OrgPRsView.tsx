@@ -416,11 +416,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     setSelectedRepos(vals);
   }, []);
 
-  const activeFilterName = useMemo(() => {
-    if (activeFilterId === null) return undefined;
-    return savedFilters.find((f) => f.id === activeFilterId)?.name;
-  }, [activeFilterId, savedFilters]);
-
   // Dropdown items
   const authorItems = useMemo<DropdownItem[]>(
     () => members.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),

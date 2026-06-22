@@ -38,7 +38,9 @@ router.post("/", (req: Request, res: Response) => {
   const stmt = db.prepare("INSERT INTO saved_filters (name, filter_config) VALUES (?, ?)");
   const result = stmt.run(name.trim(), JSON.stringify(filter_config));
 
-  const filter = db.prepare("SELECT * FROM saved_filters WHERE id = ?").get(result.lastInsertRowid) as any;
+  const filter = db
+    .prepare("SELECT * FROM saved_filters WHERE id = ?")
+    .get(result.lastInsertRowid) as any;
   res.status(201).json({
     filter: { ...filter, filter_config: JSON.parse(filter.filter_config) },
   });

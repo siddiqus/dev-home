@@ -50,7 +50,8 @@ router.post("/sessions", (req: Request, res: Response) => {
     return;
   }
 
-  const { prNumber, repoFullName, prTitle, action, customPrompt, headBranch, baseBranch } = req.body || {};
+  const { prNumber, repoFullName, prTitle, action, customPrompt, headBranch, baseBranch } =
+    req.body || {};
 
   if (!prNumber || !repoFullName || !action) {
     res.status(400).json({ error: "Missing required fields: prNumber, repoFullName, action" });
@@ -92,6 +93,7 @@ router.get("/sessions/:id", (req: Request, res: Response) => {
     return;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { process: _p, subscribers: _s, ...rest } = session as Record<string, unknown>;
   res.json(rest);
 });

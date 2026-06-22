@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import Spinner from "react-bootstrap/Spinner";
 import { IconFilter } from "@tabler/icons-react";
-import { KanbanTile, KanbanColumnId, KanbanItemType } from "../../types";
+import { KanbanTile, KanbanColumnId } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { KANBAN_COLUMNS } from "../../hooks/useKanban";
 import { DescriptionModal } from "../../components/DescriptionModal";
