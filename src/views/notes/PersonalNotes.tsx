@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { Badge } from "../../components/primitives/Badge";
 import { SectionHeader } from "../../components/primitives/SectionHeader";
+import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { IconNote, IconCheck, IconPlus, IconPinFilled } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
@@ -33,6 +34,8 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   onAdd,
   jiraBaseUrl,
 }) => {
+  const [activeTab, setActiveTab] = useState<"unresolved" | "resolved">("unresolved");
+
   if (loading && notes.length === 0) {
     return (
       <div className="d-flex justify-content-center py-5">
@@ -60,6 +63,8 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   const pinned = notes.filter((n) => n.pinned === 1);
   const unresolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 0);
   const resolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 1);
+
+  const activeNotes = activeTab === "unresolved" ? unresolved : resolved;
 
   return (
     <div>
@@ -94,42 +99,38 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
           </Card.Body>
         </Card>
       )}
-      {unresolved.length > 0 && (
-        <Card className="mb-3">
-          <Card.Body className="p-0">
-            <SectionHeader className="px-3 pt-3 mb-0">
-              <IconNote size={13} stroke={1.8} />
-              <span>Unresolved</span>
-              <Badge variant="warning">{unresolved.length}</Badge>
-            </SectionHeader>
-            <div style={{ marginTop: 8 }}>
-              {unresolved.map((note) => (
-                <NoteRow
-                  key={note.id}
-                  note={note}
-                  jiraBaseUrl={jiraBaseUrl}
-                  onResolve={onResolve}
-                  onDelete={onDelete}
-                  onPin={onPin}
-                  onUnpin={onUnpin}
-                  onOpenNote={onOpenNote}
-                />
-              ))}
-            </div>
-          </Card.Body>
-        </Card>
-      )}
 
-      {resolved.length > 0 && (
-        <Card>
-          <Card.Body className="p-0">
-            <SectionHeader className="px-3 pt-3 mb-0">
-              <IconCheck size={13} stroke={1.8} />
-              <span>Resolved</span>
-              <Badge variant="success">{resolved.length}</Badge>
-            </SectionHeader>
+      <SegmentedTabs
+        className="mb-3"
+        tabs={[
+          { key: "unresolved", label: `Unresolved (${unresolved.length})` },
+          { key: "resolved", label: `Resolved (${resolved.length})` },
+        ]}
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
+      />
+
+      <Card>
+        <Card.Body className="p-0">
+          {activeNotes.length === 0 ? (
+            <EmptyState
+              icon={
+                activeTab === "unresolved" ? (
+                  <IconNote size={48} stroke={1} />
+                ) : (
+                  <IconCheck size={48} stroke={1} />
+                )
+              }
+              title={activeTab === "unresolved" ? "No unresolved notes" : "No resolved notes"}
+              description={
+                activeTab === "unresolved"
+                  ? "You're all caught up."
+                  : "Resolved notes will appear here."
+              }
+            />
+          ) : (
             <div style={{ marginTop: 8 }}>
-              {resolved.map((note) => (
+              {activeNotes.map((note) => (
                 <NoteRow
                   key={note.id}
                   note={note}
@@ -142,9 +143,9 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
                 />
               ))}
             </div>
-          </Card.Body>
-        </Card>
-      )}
+          )}
+        </Card.Body>
+      </Card>
     </div>
   );
 };
