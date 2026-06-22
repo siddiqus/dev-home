@@ -1,6 +1,6 @@
 {
   "name": "dev-home",
-  "version": "1.14.2",
+  "version": "1.14.3",
   "private": true,
   "description": "Developer Home Dashboard - JIRA & GitHub integration",
   "repository": "https://github.com/siddiqus/dev-home",
