@@ -2,6 +2,16 @@
    Notes view
    ============================================ */
 
+/* Subtle hover background, matching table row hovers elsewhere */
+.note-card {
+  height: 200px;
+  transition: background-color 0.12s ease;
+}
+
+.note-card:hover {
+  background-color: var(--color-bg-hover);
+}
+
 /* 3-line truncation for note content preview */
 .note-content-truncate {
   display: -webkit-box;

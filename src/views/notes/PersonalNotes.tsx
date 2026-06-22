@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { Badge } from "../../components/primitives/Badge";
@@ -8,7 +7,7 @@ import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { IconNote, IconCheck, IconPlus, IconPinFilled } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
-import { NoteRow } from "./NoteRow";
+import { NoteCard } from "./NoteCard";
 import "./notes.css";
 
 interface PersonalNotesProps {
@@ -66,6 +65,24 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
 
   const activeNotes = activeTab === "unresolved" ? unresolved : resolved;
 
+  const renderGrid = (items: Note[]) => (
+    <div className="row g-3">
+      {items.map((note) => (
+        <div key={note.id} className="col-md-3">
+          <NoteCard
+            note={note}
+            jiraBaseUrl={jiraBaseUrl}
+            onResolve={onResolve}
+            onDelete={onDelete}
+            onPin={onPin}
+            onUnpin={onUnpin}
+            onOpenNote={onOpenNote}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div>
       <div className="d-flex justify-content-end mb-2">
@@ -75,29 +92,14 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
         </Button>
       </div>
       {pinned.length > 0 && (
-        <Card className="mb-3">
-          <Card.Body className="p-0">
-            <SectionHeader className="px-3 pt-3 mb-0">
-              <IconPinFilled size={13} stroke={1.8} />
-              <span>Pinned</span>
-              <Badge variant="neutral">{pinned.length}</Badge>
-            </SectionHeader>
-            <div style={{ marginTop: 8 }}>
-              {pinned.map((note) => (
-                <NoteRow
-                  key={note.id}
-                  note={note}
-                  jiraBaseUrl={jiraBaseUrl}
-                  onResolve={onResolve}
-                  onDelete={onDelete}
-                  onPin={onPin}
-                  onUnpin={onUnpin}
-                  onOpenNote={onOpenNote}
-                />
-              ))}
-            </div>
-          </Card.Body>
-        </Card>
+        <div className="mb-3">
+          <SectionHeader className="mb-2">
+            <IconPinFilled size={13} stroke={1.8} />
+            <span>Pinned</span>
+            <Badge variant="neutral">{pinned.length}</Badge>
+          </SectionHeader>
+          {renderGrid(pinned)}
+        </div>
       )}
 
       <SegmentedTabs
@@ -110,42 +112,25 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
         onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
       />
 
-      <Card>
-        <Card.Body className="p-0">
-          {activeNotes.length === 0 ? (
-            <EmptyState
-              icon={
-                activeTab === "unresolved" ? (
-                  <IconNote size={48} stroke={1} />
-                ) : (
-                  <IconCheck size={48} stroke={1} />
-                )
-              }
-              title={activeTab === "unresolved" ? "No unresolved notes" : "No resolved notes"}
-              description={
-                activeTab === "unresolved"
-                  ? "You're all caught up."
-                  : "Resolved notes will appear here."
-              }
-            />
-          ) : (
-            <div style={{ marginTop: 8 }}>
-              {activeNotes.map((note) => (
-                <NoteRow
-                  key={note.id}
-                  note={note}
-                  jiraBaseUrl={jiraBaseUrl}
-                  onResolve={onResolve}
-                  onDelete={onDelete}
-                  onPin={onPin}
-                  onUnpin={onUnpin}
-                  onOpenNote={onOpenNote}
-                />
-              ))}
-            </div>
-          )}
-        </Card.Body>
-      </Card>
+      {activeNotes.length === 0 ? (
+        <EmptyState
+          icon={
+            activeTab === "unresolved" ? (
+              <IconNote size={48} stroke={1} />
+            ) : (
+              <IconCheck size={48} stroke={1} />
+            )
+          }
+          title={activeTab === "unresolved" ? "No unresolved notes" : "No resolved notes"}
+          description={
+            activeTab === "unresolved"
+              ? "You're all caught up."
+              : "Resolved notes will appear here."
+          }
+        />
+      ) : (
+        renderGrid(activeNotes)
+      )}
     </div>
   );
 };
