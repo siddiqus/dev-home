@@ -87,3 +87,21 @@ yarn dist:mac     # Build and package as a macOS DMG (arm64)
 ```
 
 The packaged output is written to the `release/` directory.
+
+## Troubleshooting
+
+### macOS: "Dev Home is damaged and can't be opened"
+
+This is **not** an actual corruption — the app simply isn't code-signed/notarized with an Apple Developer ID, so macOS Gatekeeper quarantines it after download and refuses to open it.
+
+To fix, run this in Terminal after dragging Dev Home into Applications:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Dev Home.app"
+```
+
+Then open the app normally. If the error persists, clear all extended attributes instead:
+
+```bash
+xattr -cr "/Applications/Dev Home.app"
+```
