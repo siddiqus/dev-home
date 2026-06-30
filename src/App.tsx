@@ -2,14 +2,12 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import Spinner from "react-bootstrap/Spinner";
 import {
   IconCode,
   IconRefresh,
   IconSettings,
-  IconPlus,
   IconLayoutDashboard,
   IconColumns3,
   IconNotes,
@@ -349,29 +347,6 @@ export default function App() {
               />
             )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => setShowNoteEditor(true)}
-              title="Add a note"
-            >
-              <IconPlus size={14} />
-            </Button>
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => {
-                refresh();
-                refreshNotes();
-                refreshKanban();
-              }}
-              disabled={loading}
-            >
-              <IconRefresh size={14} />
-            </Button>
-            <Button variant="outline-secondary" size="sm" onClick={() => setActiveTab("settings")}>
-              <IconSettings size={14} />
-            </Button>
           </div>
         </Container>
       </Navbar>
@@ -437,6 +412,40 @@ export default function App() {
                 );
               });
             })()}
+
+            {/* Footer actions -- equally spaced icon-only buttons pinned to bottom */}
+            <div className="sidebar-footer">
+              <button
+                type="button"
+                className="sidebar-footer-btn"
+                onClick={() => {
+                  refresh();
+                  refreshNotes();
+                  refreshKanban();
+                }}
+                disabled={loading}
+                title="Refresh"
+              >
+                <IconRefresh
+                  size={18}
+                  className={
+                    loading || notesLoading || kanbanLoading
+                      ? "sidebar-refresh-icon spinning"
+                      : "sidebar-refresh-icon"
+                  }
+                />
+                <span className="sidebar-footer-label">Refresh</span>
+              </button>
+              <button
+                type="button"
+                className={`sidebar-footer-btn${effectiveTab === "settings" ? " active" : ""}`}
+                onClick={() => setActiveTab("settings")}
+                title="Settings"
+              >
+                <IconSettings size={18} />
+                <span className="sidebar-footer-label">Settings</span>
+              </button>
+            </div>
           </nav>
 
           {/* Main content panel */}

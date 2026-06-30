@@ -82,10 +82,86 @@
 .sidebar-group-divider {
   display: none;
   height: 1px;
-  background-color: var(--color-border-subtle);
+  background-color: var(--color-border-strong);
   margin: var(--space-2) 6px 0;
 }
 
 .sidebar-group:not(:first-of-type) .sidebar-group-divider {
   display: block;
+}
+
+/* --- Sidebar Footer --- */
+/* Pinned to the bottom; actions stacked vertically like the nav menu items. */
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar-footer-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.sidebar-footer-btn:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-hover);
+}
+
+.sidebar-footer-btn.active {
+  color: var(--color-accent);
+  background-color: var(--color-accent-bg-subtle);
+}
+
+.sidebar-footer-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  outline: none;
+}
+
+.sidebar-footer-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Spin the refresh icon while a refresh is in progress. */
+.sidebar-refresh-icon.spinning {
+  animation: sidebar-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes sidebar-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-refresh-icon.spinning {
+    animation: none;
+  }
 }
