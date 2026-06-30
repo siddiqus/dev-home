@@ -28,6 +28,7 @@ import {
   type FocusKind,
 } from "../services/focus";
 import { type FocusGroups } from "../hooks/useFocus";
+import { EmptyState } from "./EmptyState";
 
 interface Props {
   groups: FocusGroups;
@@ -189,10 +190,11 @@ export function FocusView({ groups, loading, offline, onPin, onSnooze, onDismiss
 
   if (totalActive === 0 && groups.snoozed.length === 0 && groups.dismissed.length === 0) {
     return (
-      <div className="text-center text-muted p-5">
-        <IconTarget size={48} className="mb-2" />
-        <div>Nothing urgent. 🎯</div>
-      </div>
+      <EmptyState
+        icon={<IconTarget size={48} />}
+        title="Nothing urgent"
+        description="You're all caught up — new PRs, mentions, and tasks will show up here."
+      />
     );
   }
 

@@ -13,6 +13,7 @@ import {
   IconNote,
   IconCheck,
   IconPlus,
+  IconInbox,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
@@ -21,6 +22,7 @@ import { REASON_SUMMARY } from "../../utils/github";
 import { formatRelativeTime } from "../../utils/time";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { SummaryItem } from "./SummaryItem";
+import { EmptyState } from "../../components/EmptyState";
 import "./summary.css";
 
 interface SummaryViewProps {
@@ -415,7 +417,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           )}
         </Section>
 
-        <div className="summary-card-placeholder">Nothing here yet</div>
+        <div className="summary-card-placeholder">
+          <EmptyState
+            icon={<IconInbox size={48} />}
+            title="Nothing here yet"
+            description="New items from your connected sources will show up across these cards."
+          />
+        </div>
       </div>
 
       <DescriptionModal

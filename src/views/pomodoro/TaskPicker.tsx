@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
-import { IconSearch, IconCheck } from "@tabler/icons-react";
+import { IconSearch, IconCheck, IconListSearch } from "@tabler/icons-react";
 import type { FocusableItem, FocusableGroup } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
+import { EmptyState } from "../../components/EmptyState";
 
 interface TaskPickerProps {
   items: FocusableItem[];
@@ -95,9 +96,15 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
           </button>
 
           {grouped.length === 0 && (
-            <div className="pomodoro-task-picker-empty">
-              {query ? "No matching tasks" : "Nothing to focus on yet"}
-            </div>
+            <EmptyState
+              icon={<IconListSearch size={48} />}
+              title={query ? "No matching tasks" : "Nothing to focus on yet"}
+              description={
+                query
+                  ? "Try a different search term to find a task to focus on."
+                  : "Tasks from your PRs, reviews, JIRA, and notes will appear here."
+              }
+            />
           )}
 
           {grouped.map(({ group, items: groupItems }) => (

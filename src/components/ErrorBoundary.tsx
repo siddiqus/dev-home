@@ -4,6 +4,12 @@ import Button from "react-bootstrap/Button";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
+  /**
+   * When this value changes, a boundary currently in an error state resets back
+   * to rendering its children. Used to clear a crashed view when the user
+   * navigates to a different tab.
+   */
+  resetKey?: string | number;
 }
 
 interface ErrorBoundaryState {
@@ -23,6 +29,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps): void {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   render() {

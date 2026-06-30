@@ -465,155 +465,158 @@ export default function App() {
               </Alert>
             )}
 
-            {/* Show settings or dashboard */}
-            {effectiveTab === "settings" ? (
-              <SettingsView
-                backendOnline={backendOnline}
-                backendVersion={backendVersion}
-                configured={configured}
-                jiraBaseUrl={jiraBaseUrl}
-                githubUsername={githubUsername}
-                onBack={() => setActiveTab(prevTabRef.current)}
-                saveSettings={handleSaveSettingsWrapped}
-                theme={theme}
-                onToggleTheme={toggleTheme}
-              />
-            ) : (
-              <div className="tab-content-area" key={effectiveTab}>
-                {effectiveTab === "summary" && (
-                  <SummaryView
-                    jiraIssues={jiraIssues}
-                    jiraComments={jiraComments}
-                    githubMentions={githubMentions}
-                    openPRs={openPRs}
-                    reviewRequests={reviewRequests}
-                    loading={loading}
-                    jiraIssuesLoading={jiraIssuesLoading}
-                    jiraCommentsLoading={jiraCommentsLoading}
-                    githubMentionsLoading={githubMentionsLoading}
-                    openPRsLoading={openPRsLoading}
-                    reviewRequestsLoading={reviewRequestsLoading}
-                    notesLoading={notesLoading}
-                    jiraBaseUrl={jiraBaseUrl}
-                    onNavigate={setActiveTab}
-                    notes={unresolvedNotes}
-                    onResolveNote={resolveNote}
-                    onAddNote={() => setShowNoteEditor(true)}
-                    onOpenNote={(note) => {
-                      setOpenNote(note);
-                      setShowNoteEditor(true);
-                    }}
-                    doneItemIds={doneItemIds}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions.sessions}
-                    onClaudeAction={handleClaudeAction}
-                    onViewClaudeSession={handleViewClaudeSession}
-                  />
-                )}
-                {effectiveTab === "focus" && (
-                  <FocusView
-                    groups={focusGroups}
-                    loading={focusLoading}
-                    offline={focusOffline}
-                    onPin={pinFocusItem}
-                    onSnooze={snoozeFocusItem}
-                    onDismiss={dismissFocusItem}
-                  />
-                )}
-                {effectiveTab === "board" && (
-                  <KanbanBoard
-                    columnTiles={columnTiles}
-                    loading={kanbanLoading}
-                    jiraBaseUrl={jiraBaseUrl}
-                    onMoveItem={kanbanMoveItem}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions.sessions}
-                    onClaudeAction={handleClaudeAction}
-                    onViewClaudeSession={handleViewClaudeSession}
-                  />
-                )}
-                {effectiveTab === "jira" && (
-                  <JiraTasksView issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
-                )}
-                {effectiveTab === "jira-mentions" && (
-                  <JiraMentionsView
-                    jiraComments={jiraComments}
-                    loading={loading}
-                    jiraBaseUrl={jiraBaseUrl}
-                  />
-                )}
-                {effectiveTab === "github-mentions" && (
-                  <GitHubMentionsView githubMentions={githubMentions} loading={loading} />
-                )}
-                {effectiveTab === "prs" && (
-                  <PRsView
-                    openPRs={openPRs}
-                    loading={loading}
-                    jiraIssues={jiraIssues}
-                    jiraBaseUrl={jiraBaseUrl}
-                    configured={configured}
-                    refreshKey={refreshKey}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions.sessions}
-                    onClaudeAction={handleClaudeAction}
-                    onViewClaudeSession={handleViewClaudeSession}
-                  />
-                )}
-                {effectiveTab === "reviews" && (
-                  <PRTable
-                    prs={reviewRequests}
-                    loading={loading}
-                    jiraIssues={jiraIssues}
-                    variant="review-requests"
-                    jiraBaseUrl={jiraBaseUrl}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions.sessions}
-                    onClaudeAction={handleClaudeAction}
-                    onViewClaudeSession={handleViewClaudeSession}
-                  />
-                )}
-                {effectiveTab === "org-prs" && (
-                  <OrgPRsView
-                    configured={configured}
-                    jiraBaseUrl={jiraBaseUrl}
-                    jiraIssues={jiraIssues}
-                    refreshKey={refreshKey}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions.sessions}
-                    onClaudeAction={handleClaudeAction}
-                    onViewClaudeSession={handleViewClaudeSession}
-                  />
-                )}
-                {effectiveTab === "notes" && (
-                  <PersonalNotes
-                    notes={notes}
-                    loading={notesLoading}
-                    onResolve={resolveNote}
-                    onDelete={removeNote}
-                    onPin={pinNote}
-                    onUnpin={unpinNote}
-                    onOpenNote={(note) => {
-                      setOpenNote(note);
-                      setShowNoteEditor(true);
-                    }}
-                    onAdd={() => setShowNoteEditor(true)}
-                    jiraBaseUrl={jiraBaseUrl}
-                  />
-                )}
-                {effectiveTab === "pomodoro" && (
-                  <PomodoroView focusableItems={focusableItems} {...pomodoro} />
-                )}
-                {effectiveTab === "claude" && claudeEnabled && (
-                  <ClaudeSessionsView
-                    sessions={claudeSessions.sessions}
-                    loading={claudeSessions.loading}
-                    onCancel={claudeSessions.cancel}
-                    onDelete={claudeSessions.remove}
-                    initialSessionId={viewClaudeSessionId}
-                  />
-                )}
-              </div>
-            )}
+            {/* Show settings or dashboard. Per-view boundary isolates a view crash
+                to the content area (sidebar stays usable) and resets on tab switch. */}
+            <ErrorBoundary resetKey={effectiveTab}>
+              {effectiveTab === "settings" ? (
+                <SettingsView
+                  backendOnline={backendOnline}
+                  backendVersion={backendVersion}
+                  configured={configured}
+                  jiraBaseUrl={jiraBaseUrl}
+                  githubUsername={githubUsername}
+                  onBack={() => setActiveTab(prevTabRef.current)}
+                  saveSettings={handleSaveSettingsWrapped}
+                  theme={theme}
+                  onToggleTheme={toggleTheme}
+                />
+              ) : (
+                <div className="tab-content-area" key={effectiveTab}>
+                  {effectiveTab === "summary" && (
+                    <SummaryView
+                      jiraIssues={jiraIssues}
+                      jiraComments={jiraComments}
+                      githubMentions={githubMentions}
+                      openPRs={openPRs}
+                      reviewRequests={reviewRequests}
+                      loading={loading}
+                      jiraIssuesLoading={jiraIssuesLoading}
+                      jiraCommentsLoading={jiraCommentsLoading}
+                      githubMentionsLoading={githubMentionsLoading}
+                      openPRsLoading={openPRsLoading}
+                      reviewRequestsLoading={reviewRequestsLoading}
+                      notesLoading={notesLoading}
+                      jiraBaseUrl={jiraBaseUrl}
+                      onNavigate={setActiveTab}
+                      notes={unresolvedNotes}
+                      onResolveNote={resolveNote}
+                      onAddNote={() => setShowNoteEditor(true)}
+                      onOpenNote={(note) => {
+                        setOpenNote(note);
+                        setShowNoteEditor(true);
+                      }}
+                      doneItemIds={doneItemIds}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
+                    />
+                  )}
+                  {effectiveTab === "focus" && (
+                    <FocusView
+                      groups={focusGroups}
+                      loading={focusLoading}
+                      offline={focusOffline}
+                      onPin={pinFocusItem}
+                      onSnooze={snoozeFocusItem}
+                      onDismiss={dismissFocusItem}
+                    />
+                  )}
+                  {effectiveTab === "board" && (
+                    <KanbanBoard
+                      columnTiles={columnTiles}
+                      loading={kanbanLoading}
+                      jiraBaseUrl={jiraBaseUrl}
+                      onMoveItem={kanbanMoveItem}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
+                    />
+                  )}
+                  {effectiveTab === "jira" && (
+                    <JiraTasksView issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
+                  )}
+                  {effectiveTab === "jira-mentions" && (
+                    <JiraMentionsView
+                      jiraComments={jiraComments}
+                      loading={loading}
+                      jiraBaseUrl={jiraBaseUrl}
+                    />
+                  )}
+                  {effectiveTab === "github-mentions" && (
+                    <GitHubMentionsView githubMentions={githubMentions} loading={loading} />
+                  )}
+                  {effectiveTab === "prs" && (
+                    <PRsView
+                      openPRs={openPRs}
+                      loading={loading}
+                      jiraIssues={jiraIssues}
+                      jiraBaseUrl={jiraBaseUrl}
+                      configured={configured}
+                      refreshKey={refreshKey}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
+                    />
+                  )}
+                  {effectiveTab === "reviews" && (
+                    <PRTable
+                      prs={reviewRequests}
+                      loading={loading}
+                      jiraIssues={jiraIssues}
+                      variant="review-requests"
+                      jiraBaseUrl={jiraBaseUrl}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
+                    />
+                  )}
+                  {effectiveTab === "org-prs" && (
+                    <OrgPRsView
+                      configured={configured}
+                      jiraBaseUrl={jiraBaseUrl}
+                      jiraIssues={jiraIssues}
+                      refreshKey={refreshKey}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
+                    />
+                  )}
+                  {effectiveTab === "notes" && (
+                    <PersonalNotes
+                      notes={notes}
+                      loading={notesLoading}
+                      onResolve={resolveNote}
+                      onDelete={removeNote}
+                      onPin={pinNote}
+                      onUnpin={unpinNote}
+                      onOpenNote={(note) => {
+                        setOpenNote(note);
+                        setShowNoteEditor(true);
+                      }}
+                      onAdd={() => setShowNoteEditor(true)}
+                      jiraBaseUrl={jiraBaseUrl}
+                    />
+                  )}
+                  {effectiveTab === "pomodoro" && (
+                    <PomodoroView focusableItems={focusableItems} {...pomodoro} />
+                  )}
+                  {effectiveTab === "claude" && claudeEnabled && (
+                    <ClaudeSessionsView
+                      sessions={claudeSessions.sessions}
+                      loading={claudeSessions.loading}
+                      onCancel={claudeSessions.cancel}
+                      onDelete={claudeSessions.remove}
+                      initialSessionId={viewClaudeSessionId}
+                    />
+                  )}
+                </div>
+              )}
+            </ErrorBoundary>
           </main>
         </div>
       </ErrorBoundary>
