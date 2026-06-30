@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db";
 import { createJiraClient } from "../clients/jiraApiClient";
+import { adfToMarkdown } from "../utils/adf";
 
 const router = Router();
 
@@ -121,6 +122,7 @@ router.post("/search", async (req: Request, res: Response) => {
   const maxResults = 50;
 
   const payload: Record<string, any> = { jql: jql.trim(), fields, maxResults };
+
   if (nextPageToken) {
     payload.nextPageToken = nextPageToken;
   }
@@ -153,6 +155,7 @@ router.post("/search", async (req: Request, res: Response) => {
     created: issue.fields?.created,
     updated: issue.fields?.updated,
     self: issue.self,
+    description: adfToMarkdown(issue.fields?.description),
   }));
 
   res.json({
