@@ -386,8 +386,12 @@ export default function App() {
 
                 return (
                   <div className="sidebar-group" key={group.key}>
-                    <div className="sidebar-group-divider" />
-                    <div className="sidebar-group-label">{group.label}</div>
+                    {group.label && (
+                      <>
+                        <div className="sidebar-group-divider" />
+                        <div className="sidebar-group-label">{group.label}</div>
+                      </>
+                    )}
                     {visibleTabs.map((tab) => {
                       const meta = tabMeta[tab.key];
                       const Icon = meta.icon;

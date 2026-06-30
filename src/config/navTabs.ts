@@ -16,14 +16,14 @@ export interface NavTab {
 
 export interface NavGroup {
   key: string;
-  label: string;
+  /** Optional section header. A group with no label renders flat (no header). */
+  label?: string;
   tabs: NavTab[];
 }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
     key: "general",
-    label: "General",
     tabs: [
       { key: "summary", label: "Summary" },
       { key: "focus", label: "Focus" },
