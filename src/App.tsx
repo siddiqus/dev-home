@@ -19,6 +19,8 @@ import {
   IconClock,
   IconTarget,
   IconSparkles,
+  IconUsersGroup,
+  IconChartBar,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -42,6 +44,8 @@ import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
+import { TeamsView } from "./views/teams/TeamsView";
+import { TeamDashboardView } from "./views/teams/TeamDashboardView";
 import { FindInPage } from "./components/FindInPage";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroView } from "./views/pomodoro/PomodoroView";
@@ -369,6 +373,8 @@ export default function App() {
                 reviews: { icon: IconEye, count: reviewRequests.length },
                 "github-mentions": { icon: IconAt, count: githubMentions.length },
                 "org-prs": { icon: IconBuilding, count: undefined },
+                teams: { icon: IconUsersGroup, count: undefined },
+                "team-dashboard": { icon: IconChartBar, count: undefined },
                 pomodoro: { icon: IconClock, count: undefined },
                 claude: { icon: IconSparkles, count: claudeSessions.activeCount || undefined },
               };
@@ -377,6 +383,7 @@ export default function App() {
               const isTabVisible = (key: string): boolean => {
                 if (hiddenTabs.includes(key)) return false;
                 if (key === "org-prs") return !!githubOrg;
+                if (key === "teams" || key === "team-dashboard") return !!githubOrg;
                 if (key === "claude") return claudeEnabled;
                 return true;
               };
@@ -603,6 +610,10 @@ export default function App() {
                       onClaudeAction={handleClaudeAction}
                       onViewClaudeSession={handleViewClaudeSession}
                     />
+                  )}
+                  {effectiveTab === "teams" && <TeamsView />}
+                  {effectiveTab === "team-dashboard" && (
+                    <TeamDashboardView jiraBaseUrl={jiraBaseUrl} />
                   )}
                   {effectiveTab === "notes" && (
                     <PersonalNotes
