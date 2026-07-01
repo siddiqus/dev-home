@@ -50,6 +50,14 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: "teams",
+    label: "Teams",
+    tabs: [
+      { key: "teams", label: "Manage Teams" },
+      { key: "team-dashboard", label: "Team Dashboard" },
+    ],
+  },
+  {
     key: "tools",
     label: "Tools",
     tabs: [{ key: "pomodoro", label: "Pomodoro" }],
