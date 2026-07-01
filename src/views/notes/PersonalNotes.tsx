@@ -85,12 +85,6 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
 
   return (
     <div>
-      <div className="d-flex justify-content-end mb-2">
-        <Button variant="outline-secondary" size="sm" onClick={onAdd}>
-          <IconPlus size={14} className="me-1" />
-          Add Note
-        </Button>
-      </div>
       {pinned.length > 0 && (
         <div className="mb-3">
           <SectionHeader className="mb-2">
@@ -102,15 +96,21 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
         </div>
       )}
 
-      <SegmentedTabs
-        className="mb-3"
-        tabs={[
-          { key: "unresolved", label: `Unresolved (${unresolved.length})` },
-          { key: "resolved", label: `Resolved (${resolved.length})` },
-        ]}
-        activeKey={activeTab}
-        onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
-      />
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <SegmentedTabs
+          className="mb-0"
+          tabs={[
+            { key: "unresolved", label: `Unresolved (${unresolved.length})` },
+            { key: "resolved", label: `Resolved (${resolved.length})` },
+          ]}
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
+        />
+        <Button variant="outline-secondary" size="sm" onClick={onAdd}>
+          <IconPlus size={14} className="me-1" />
+          Add Note
+        </Button>
+      </div>
 
       {activeNotes.length === 0 ? (
         <EmptyState

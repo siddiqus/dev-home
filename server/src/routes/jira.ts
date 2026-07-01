@@ -10,10 +10,9 @@ const router = Router();
  * Fetch unresolved issues assigned to the current user.
  */
 router.get("/issues", async (_req: Request, res: Response) => {
-  const config = getConfig();
   const jira = createJiraClient();
 
-  const jql = `assignee = "${config.jiraEmail}" AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
+  const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
   const fields = [
     "summary",
     "status",

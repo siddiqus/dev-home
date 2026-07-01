@@ -93,6 +93,7 @@ export default function App() {
   } = useConfig();
   const {
     jiraIssues,
+    assignedJiraIssues,
     jiraComments,
     githubMentions,
     openPRs,
@@ -362,7 +363,7 @@ export default function App() {
                 focus: { icon: IconTarget, count: undefined },
                 board: { icon: IconColumns3, count: undefined },
                 notes: { icon: IconNotes, count: unresolvedNotes.length },
-                jira: { icon: IconSubtask, count: jiraIssues.length },
+                jira: { icon: IconSubtask, count: assignedJiraIssues.length },
                 "jira-mentions": { icon: IconAt, count: jiraComments.length },
                 prs: { icon: IconGitPullRequest, count: openPRs.length },
                 reviews: { icon: IconEye, count: reviewRequests.length },
@@ -548,7 +549,11 @@ export default function App() {
                     />
                   )}
                   {effectiveTab === "jira" && (
-                    <JiraTasksView issues={jiraIssues} loading={loading} baseUrl={jiraBaseUrl} />
+                    <JiraTasksView
+                      issues={assignedJiraIssues}
+                      loading={loading}
+                      baseUrl={jiraBaseUrl}
+                    />
                   )}
                   {effectiveTab === "jira-mentions" && (
                     <JiraMentionsView

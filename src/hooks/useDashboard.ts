@@ -56,6 +56,7 @@ function saveCache(data: Omit<DashboardCacheData, "timestamp">): void {
 
 interface UseDashboardReturn {
   jiraIssues: JiraIssue[];
+  assignedJiraIssues: JiraIssue[];
   jiraComments: JiraComment[];
   githubMentions: GitHubComment[];
   openPRs: GitHubPR[];
@@ -74,6 +75,12 @@ interface UseDashboardReturn {
 export function useDashboard(active: boolean): UseDashboardReturn {
   const cachedRef = useRef(loadCache());
   const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>(cachedRef.current?.jiraIssues ?? []);
+  // Issues strictly assigned to the current user (from fetchAssignedIssues only).
+  // Unlike jiraIssues, this is never merged with PR-referenced tickets, so it
+  // stays clean for the "My Tasks" view.
+  const [assignedJiraIssues, setAssignedJiraIssues] = useState<JiraIssue[]>(
+    cachedRef.current?.jiraIssues ?? [],
+  );
   const [jiraComments, setJiraComments] = useState<JiraComment[]>(
     cachedRef.current?.jiraComments ?? [],
   );
@@ -194,6 +201,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       .then((data) => {
         if (controller.signal.aborted) return;
         setJiraIssues(data);
+        setAssignedJiraIssues(data);
         pendingData.jiraIssues = data;
         setJiraIssuesLoading(false);
         fetchMissingJiraIssues();
@@ -303,6 +311,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
   return {
     jiraIssues,
+    assignedJiraIssues,
     jiraComments,
     githubMentions,
     openPRs,
