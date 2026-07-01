@@ -4,7 +4,7 @@
 
 /* Subtle hover background, matching table row hovers elsewhere */
 .note-card {
-  height: 200px;
+  height: 150px;
   transition: background-color 0.12s ease;
 }
 

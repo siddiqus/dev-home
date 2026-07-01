@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { Badge } from "../../components/primitives/Badge";
-import { SectionHeader } from "../../components/primitives/SectionHeader";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
-import { IconNote, IconCheck, IconPlus, IconPinFilled } from "@tabler/icons-react";
+import { IconNote, IconCheck, IconPlus } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { NoteCard } from "./NoteCard";
@@ -59,9 +57,15 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
     );
   }
 
-  const pinned = notes.filter((n) => n.pinned === 1);
-  const unresolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 0);
-  const resolved = notes.filter((n) => n.pinned !== 1 && n.resolved === 1);
+  // Pinned notes float to the front, then newest-first within each group.
+  const sortPinnedFirst = (items: Note[]) =>
+    [...items].sort((a, b) => {
+      if (a.pinned !== b.pinned) return b.pinned - a.pinned;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+  const unresolved = sortPinnedFirst(notes.filter((n) => n.resolved === 0));
+  const resolved = sortPinnedFirst(notes.filter((n) => n.resolved === 1));
 
   const activeNotes = activeTab === "unresolved" ? unresolved : resolved;
 
@@ -85,17 +89,6 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
 
   return (
     <div>
-      {pinned.length > 0 && (
-        <div className="mb-3">
-          <SectionHeader className="mb-2">
-            <IconPinFilled size={13} stroke={1.8} />
-            <span>Pinned</span>
-            <Badge variant="neutral">{pinned.length}</Badge>
-          </SectionHeader>
-          {renderGrid(pinned)}
-        </div>
-      )}
-
       <div className="d-flex justify-content-between align-items-center mb-3">
         <SegmentedTabs
           className="mb-0"

@@ -57,6 +57,15 @@ export function NoteCard({
     <Card className="note-card" style={{ cursor: "pointer" }} onClick={() => onOpenNote(note)}>
       <Card.Body className="d-flex flex-column p-3">
         <div className="d-flex align-items-center gap-2 mb-2">
+          {isPinned && (
+            <span
+              className="d-flex align-items-center text-primary"
+              style={{ flexShrink: 0 }}
+              title="Pinned"
+            >
+              <IconPinFilled size={13} stroke={1.8} />
+            </span>
+          )}
           <span className="d-flex align-items-center" style={{ flexShrink: 0 }}>
             {TYPE_ICON[note.type]}
           </span>
@@ -88,7 +97,7 @@ export function NoteCard({
           {note.content || ""}
         </div>
 
-        <div className="d-flex align-items-center gap-2 mt-3">
+        <div className="d-flex align-items-center gap-2 mt-auto pt-3">
           <Badge variant="neutral">{TYPE_LABEL[note.type]}</Badge>
           <span
             className="text-secondary-custom"
