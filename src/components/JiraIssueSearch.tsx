@@ -40,6 +40,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
 
   const [localFilters, setLocalFilters] = useState<JqlFilter[]>([]);
   const [remoteFilters, setRemoteFilters] = useState<RemoteJiraFilter[]>([]);
+  const [loadingRemoteFilters, setLoadingRemoteFilters] = useState(false);
 
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [filterName, setFilterName] = useState("");
@@ -76,12 +77,15 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
       // ignore corrupt cache
     }
 
+    setLoadingRemoteFilters(true);
     try {
       const filters = await fetchRemoteJiraFilters();
       setRemoteFilters(filters);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ filters, ts: Date.now() }));
     } catch {
       // silent
+    } finally {
+      setLoadingRemoteFilters(false);
     }
   }, []);
 
@@ -199,6 +203,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
           allLabel="My JIRA Filters"
           width={400}
           triggerIcon={<IconFilter size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+          loading={loadingRemoteFilters}
         />
       </div>
 
