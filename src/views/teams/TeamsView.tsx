@@ -10,19 +10,27 @@ export function TeamsView() {
   const { teams, loading, error, refresh } = useTeams(true);
   const [editing, setEditing] = useState<Team | null>(null);
   const [newName, setNewName] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    const team = await createTeam({ name: newName.trim() });
-    setNewName("");
-    refresh();
-    setEditing(team);
+    setActionError(null);
+    try {
+      const team = await createTeam({ name: newName.trim() });
+      setNewName("");
+      refresh();
+      setEditing(team);
+    } catch (e: any) {
+      setActionError(e?.message || "Action failed");
+      console.error(e);
+    }
   };
 
   return (
     <div className="p-3">
       <h5 className="mb-3">Teams</h5>
       {error && <div className="alert alert-danger small">{error}</div>}
+      {actionError && <div className="alert alert-danger small">{actionError}</div>}
 
       <div className="d-flex gap-2 mb-3" style={{ maxWidth: 420 }}>
         <input
@@ -68,8 +76,14 @@ export function TeamsView() {
             <button
               className="btn btn-sm btn-outline-danger"
               onClick={async () => {
-                await deleteTeam(t.id);
-                refresh();
+                setActionError(null);
+                try {
+                  await deleteTeam(t.id);
+                  refresh();
+                } catch (e: any) {
+                  setActionError(e?.message || "Action failed");
+                  console.error(e);
+                }
               }}
             >
               Delete

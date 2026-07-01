@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { searchJiraUsers } from "../../services/teams";
 import { apiClient } from "../../services/config";
 import type { JiraUserResult } from "../../types/teams";
@@ -25,6 +25,7 @@ export function MemberSearchRow({ onAdd }: Props) {
   const [ghQuery, setGhQuery] = useState("");
   const [ghResults, setGhResults] = useState<GhMember[]>([]);
   const [selectedGh, setSelectedGh] = useState<GhMember | null>(null);
+  const ghMembersCache = useRef<GhMember[] | null>(null);
 
   const runJiraSearch = async (q: string) => {
     setJiraQuery(q);
@@ -40,10 +41,13 @@ export function MemberSearchRow({ onAdd }: Props) {
     setGhQuery(q);
     if (q.trim().length < 1) return setGhResults([]);
     try {
-      const { data } = await apiClient.get("/github/org-members");
-      const members: GhMember[] = data.members || [];
+      if (!ghMembersCache.current) {
+        const { data } = await apiClient.get("/github/org-members");
+        ghMembersCache.current = data.members || [];
+      }
+      const cached = ghMembersCache.current ?? [];
       setGhResults(
-        members.filter((m) => m.login.toLowerCase().includes(q.toLowerCase())).slice(0, 10),
+        cached.filter((m) => m.login.toLowerCase().includes(q.toLowerCase())).slice(0, 10),
       );
     } catch {
       setGhResults([]);

@@ -22,6 +22,7 @@ export function TeamEditor({ team, onClose, onChanged }: Props) {
   const [boardResults, setBoardResults] = useState<JiraBoardResult[]>([]);
   const [boardId, setBoardId] = useState<number | null>(team.jira_board_id);
   const [boardName, setBoardName] = useState<string | null>(team.jira_board_name);
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   const loadMembers = () => fetchTeamMembers(team.id).then(setMembers);
   useEffect(() => {
@@ -41,8 +42,14 @@ export function TeamEditor({ team, onClose, onChanged }: Props) {
   };
 
   const saveMeta = async () => {
-    await updateTeam(team.id, { name, boardId, boardName });
-    onChanged();
+    setEditorError(null);
+    try {
+      await updateTeam(team.id, { name, boardId, boardName });
+      onChanged();
+    } catch (e: any) {
+      setEditorError(e?.message || "Action failed");
+      console.error(e);
+    }
   };
 
   return (
@@ -63,6 +70,8 @@ export function TeamEditor({ team, onClose, onChanged }: Props) {
           </button>
         </div>
       </div>
+
+      {editorError && <div className="alert alert-danger small">{editorError}</div>}
 
       <label className="small text-muted">Jira board (optional)</label>
       <input
@@ -97,8 +106,14 @@ export function TeamEditor({ team, onClose, onChanged }: Props) {
           <button
             className="btn btn-sm btn-outline-danger"
             onClick={async () => {
-              await removeTeamMember(team.id, m.id);
-              loadMembers();
+              setEditorError(null);
+              try {
+                await removeTeamMember(team.id, m.id);
+                loadMembers();
+              } catch (e: any) {
+                setEditorError(e?.message || "Action failed");
+                console.error(e);
+              }
             }}
           >
             Remove
@@ -108,8 +123,14 @@ export function TeamEditor({ team, onClose, onChanged }: Props) {
       <div className="mt-2">
         <MemberSearchRow
           onAdd={async (member) => {
-            await addTeamMember(team.id, member);
-            loadMembers();
+            setEditorError(null);
+            try {
+              await addTeamMember(team.id, member);
+              loadMembers();
+            } catch (e: any) {
+              setEditorError(e?.message || "Action failed");
+              console.error(e);
+            }
           }}
         />
       </div>
