@@ -191,6 +191,36 @@ const MIGRATIONS: Migration[] = [
       d.exec("ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
     }
   },
+
+  // 12 – create teams table
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS teams (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        jira_board_id INTEGER,
+        jira_board_name TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+  },
+
+  // 13 – create team_members table
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS team_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        team_id INTEGER NOT NULL,
+        display_name TEXT NOT NULL,
+        jira_account_id TEXT NOT NULL,
+        jira_email TEXT,
+        github_username TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {
