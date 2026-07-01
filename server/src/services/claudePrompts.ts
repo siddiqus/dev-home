@@ -75,6 +75,10 @@ Provide an overall assessment with a clear recommendation: approve, request chan
 
 If a \`/review\` or \`/code-review\` skill is available, use it to augment your review.
 
+## Mandates
+DO NOT APPROVE OR REJECT A PR
+DO NOT MAKE ANY CHANGES TO THE PR CODE
+
 ## Cleanup
 
 After completing the review, clean up the worktree:
