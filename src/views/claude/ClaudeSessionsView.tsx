@@ -10,6 +10,7 @@ import { useClaudeWebSocket } from "../../hooks/useClaudeWebSocket";
 import { fetchClaudeSession } from "../../services/claude";
 import { formatRelativeTime } from "../../utils/time";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
+import { SessionTranscript } from "./SessionTranscript";
 import "./ClaudeSessionsView.css";
 
 interface ClaudeSessionsViewProps {
@@ -258,26 +259,25 @@ const SessionDetailView: React.FC<SessionDetailViewProps> = ({ session, onBack, 
         )}
       </div>
 
-      <div className="claude-terminal" ref={outputRef}>
-        {output.map((line, i) => (
-          <div key={i} className={`claude-terminal-line ${line.stream}`}>
-            {line.data}
-          </div>
-        ))}
-        {isRunning && <span className="claude-cursor">█</span>}
-        {(done || isCompleted) && (
-          <div className="claude-terminal-done">
-            {effectiveExitCode === 0
-              ? "✓ Session completed"
-              : `✗ Session ended with exit code ${effectiveExitCode}`}
-            {duration != null && ` (${Math.round(duration / 1000)}s)`}
-            {!duration &&
-              session.completedAt &&
-              session.startedAt &&
-              ` (${Math.round((new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 1000)}s)`}
-          </div>
-        )}
-      </div>
+      <SessionTranscript
+        containerRef={outputRef}
+        output={output}
+        isRunning={isRunning}
+        footer={
+          (done || isCompleted) && (
+            <div className="claude-terminal-done">
+              {effectiveExitCode === 0
+                ? "✓ Session completed"
+                : `✗ Session ended with exit code ${effectiveExitCode}`}
+              {duration != null && ` (${Math.round(duration / 1000)}s)`}
+              {!duration &&
+                session.completedAt &&
+                session.startedAt &&
+                ` (${Math.round((new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()) / 1000)}s)`}
+            </div>
+          )
+        }
+      />
 
       <div className="claude-input-bar">
         <Form.Control

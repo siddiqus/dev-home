@@ -1,11 +1,14 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { API_BASE } from "../services/config";
-import type { ClaudeWsServerMessage } from "../types/claude";
+import type { ClaudeWsServerMessage, ClaudeOutputKind } from "../types/claude";
 
-interface OutputLine {
+export interface OutputLine {
   data: string;
   stream: "stdout" | "stderr";
   timestamp: string;
+  kind?: ClaudeOutputKind;
+  toolName?: string;
+  toolInput?: unknown;
 }
 
 interface UseClaudeWebSocketReturn {
@@ -47,6 +50,9 @@ export function useClaudeWebSocket(sessionId: string | null): UseClaudeWebSocket
             data: msg.data,
             stream: msg.stream,
             timestamp: msg.timestamp,
+            kind: msg.kind,
+            toolName: msg.toolName,
+            toolInput: msg.toolInput,
           },
         ]);
       }

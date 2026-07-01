@@ -7,6 +7,8 @@ export type ClaudeAction =
 
 export type ClaudeSessionStatus = "running" | "completed" | "cancelled" | "error";
 
+export type ClaudeOutputKind = "text" | "tool_use" | "tool_result" | "result" | "raw";
+
 export interface ClaudeSession {
   id: string;
   prNumber: number;
@@ -25,6 +27,9 @@ export interface ClaudeSession {
     timestamp: string;
     stream: "stdout" | "stderr";
     data: string;
+    kind?: ClaudeOutputKind;
+    toolName?: string;
+    toolInput?: unknown;
   }>;
 }
 
@@ -34,6 +39,9 @@ export interface ClaudeOutputMessage {
   data: string;
   stream: "stdout" | "stderr";
   timestamp: string;
+  kind?: ClaudeOutputKind;
+  toolName?: string;
+  toolInput?: unknown;
 }
 
 export interface ClaudeDoneMessage {

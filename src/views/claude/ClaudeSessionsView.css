@@ -40,7 +40,7 @@
 }
 
 .claude-session-preview {
-  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--color-text-secondary);
   background: var(--color-bg-app);
@@ -58,37 +58,230 @@
   height: calc(100vh - 120px);
 }
 
-.claude-terminal {
+/* ── Rich transcript ───────────────────────────────────────────── */
+
+.claude-transcript {
   flex: 1;
-  background: #0d1117;
-  padding: 16px;
+  background: var(--color-bg-app);
+  border: 1px solid var(--color-border-subtle);
+  padding: var(--space-4);
   border-radius: var(--radius-md);
-  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
-  font-size: 0.78rem;
-  line-height: 1.7;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Markdown message bubble (base typography from global .markdown-body). */
+.claude-msg {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Trim leading/trailing margins so bubbles hug their content. */
+.claude-msg > :first-child {
+  margin-top: 0;
+}
+.claude-msg > :last-child {
+  margin-bottom: 0;
+}
+
+/* Final "result" summary reads as an accented callout. */
+.claude-msg-result {
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-bg-subtle);
+}
+
+/* ── Tool call cards ───────────────────────────────────────────── */
+
+/* Per-tone color mapping (theme-aware via existing status tokens).
+   --tone      → solid accent (icon, name, rail)
+   --tone-bg   → soft tint (chip + header wash) */
+.claude-tool-card {
+  --tone: var(--color-text-secondary);
+  --tone-bg: var(--color-status-neutral-bg);
+
+  position: relative;
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--tone);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.claude-tool-card[data-tone="amber"] {
+  --tone: var(--color-status-warning);
+  --tone-bg: var(--color-status-warning-bg);
+}
+.claude-tool-card[data-tone="blue"] {
+  --tone: var(--color-status-info);
+  --tone-bg: var(--color-status-info-bg);
+}
+.claude-tool-card[data-tone="green"] {
+  --tone: var(--color-status-success);
+  --tone-bg: var(--color-status-success-bg);
+}
+.claude-tool-card[data-tone="purple"] {
+  --tone: var(--color-status-purple);
+  --tone-bg: var(--color-status-purple-bg);
+}
+.claude-tool-card[data-tone="red"] {
+  --tone: var(--color-status-danger);
+  --tone-bg: var(--color-status-danger-bg);
+}
+.claude-tool-card[data-tone="slate"] {
+  --tone: var(--color-text-muted);
+  --tone-bg: var(--color-status-neutral-bg);
+}
+
+.claude-tool-card:hover {
+  border-color: var(--color-border);
+  border-left-color: var(--tone);
+}
+
+.claude-tool-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.12s ease;
+}
+
+.claude-tool-header:hover {
+  background: var(--tone-bg);
+}
+
+/* Tinted rounded icon chip carrying the tool's color. */
+.claude-tool-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--tone-bg);
+  color: var(--tone);
+}
+
+.claude-tool-verb {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.claude-tool-name {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--tone);
+  background: var(--tone-bg);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.claude-tool-summary {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-app);
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.claude-tool-chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.15s ease;
+  color: var(--color-text-muted);
+}
+
+.claude-tool-card.open .claude-tool-chevron {
+  transform: rotate(90deg);
+  color: var(--tone);
+}
+
+.claude-tool-body {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-3);
+  background: var(--color-bg-app);
+}
+
+.claude-tool-pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
 }
 
-.claude-terminal-line.stdout {
-  color: #c9d1d9;
+.claude-tool-result-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin: var(--space-3) 0 4px;
 }
 
-.claude-terminal-line.stderr {
-  color: #f85149;
+.claude-tool-result {
+  color: var(--color-text-muted);
+}
+
+.claude-tool-orphan-result {
+  padding: var(--space-3);
+}
+
+.claude-tool-orphan-result .claude-tool-result-label {
+  margin-top: 0;
+}
+
+/* ── Raw / stderr fallback (old sessions) ──────────────────────── */
+
+.claude-raw-line {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-text-secondary);
+}
+
+.claude-raw-line.stderr {
+  color: var(--color-status-danger);
 }
 
 .claude-terminal-done {
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid #30363d;
-  color: #8b949e;
+  margin-top: 4px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 .claude-cursor {
-  color: #f0883e;
+  color: var(--color-accent);
   animation: claude-blink 1s infinite;
+  font-family: var(--font-mono);
 }
 
 .claude-input-bar {

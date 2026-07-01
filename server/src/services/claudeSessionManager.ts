@@ -13,10 +13,15 @@ export type ClaudeAction =
   | "custom";
 export type SessionStatus = "running" | "completed" | "cancelled" | "error";
 
+type OutputKind = "text" | "tool_use" | "tool_result" | "result" | "raw";
+
 interface OutputEntry {
   timestamp: string;
   stream: "stdout" | "stderr";
   data: string;
+  kind?: OutputKind;
+  toolName?: string;
+  toolInput?: unknown;
 }
 
 interface Session {
@@ -190,15 +195,42 @@ export function createSession(opts: {
     }
   };
 
-  const broadcastLine = (stream: "stdout" | "stderr", text: string) => {
+  const broadcastEntry = (
+    stream: "stdout" | "stderr",
+    text: string,
+    extra?: { kind?: OutputKind; toolName?: string; toolInput?: unknown },
+  ) => {
     if (!text) return;
     const entry: OutputEntry = {
       timestamp: new Date().toISOString(),
       stream,
       data: text,
+      ...extra,
     };
     session.outputBuffer.push(entry);
-    broadcast({ type: "output", sessionId: id, data: text, stream, timestamp: entry.timestamp });
+    broadcast({
+      type: "output",
+      sessionId: id,
+      data: text,
+      stream,
+      timestamp: entry.timestamp,
+      kind: entry.kind,
+      toolName: entry.toolName,
+      toolInput: entry.toolInput,
+    });
+  };
+
+  const summarizeToolResult = (content: unknown): string => {
+    if (typeof content === "string") return content.slice(0, 2000);
+    if (Array.isArray(content)) {
+      return content
+        .map((block) =>
+          block?.type === "text" && typeof block.text === "string" ? block.text : "",
+        )
+        .join("\n")
+        .slice(0, 2000);
+    }
+    return "";
   };
 
   let stdoutBuffer = "";
@@ -215,25 +247,33 @@ export function createSession(opts: {
         if (event.type === "assistant" && event.message?.content) {
           for (const block of event.message.content) {
             if (block.type === "text" && block.text) {
-              broadcastLine("stdout", block.text);
+              broadcastEntry("stdout", block.text, { kind: "text" });
             } else if (block.type === "tool_use") {
-              broadcastLine(
+              broadcastEntry(
                 "stdout",
                 `[Tool: ${block.name}] ${JSON.stringify(block.input).slice(0, 200)}`,
+                { kind: "tool_use", toolName: block.name, toolInput: block.input },
               );
             }
           }
+        } else if (event.type === "user" && event.message?.content) {
+          for (const block of event.message.content) {
+            if (block.type === "tool_result") {
+              const text = summarizeToolResult(block.content);
+              if (text.trim()) broadcastEntry("stdout", text, { kind: "tool_result" });
+            }
+          }
         } else if (event.type === "result" && event.result) {
-          broadcastLine("stdout", event.result);
+          broadcastEntry("stdout", event.result, { kind: "result" });
         }
       } catch {
-        broadcastLine("stdout", line);
+        broadcastEntry("stdout", line, { kind: "raw" });
       }
     }
   };
 
   const onStderr = (chunk: Buffer) => {
-    broadcastLine("stderr", chunk.toString());
+    broadcastEntry("stderr", chunk.toString(), { kind: "raw" });
   };
 
   child.stdout?.on("data", onStdout);
