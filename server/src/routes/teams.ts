@@ -1,5 +1,16 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db";
+import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
+import { graphql } from "../clients/githubGraphqlClient";
+import {
+  linkPRsToIssues,
+  partitionOffBoardPRs,
+  groupByEpic,
+  computeWorkload,
+  type RawIssue,
+  type RawPR,
+  type RosterEntry,
+} from "../services/teamAggregation";
 
 const router = Router();
 
@@ -119,6 +130,210 @@ router.delete("/:teamId/members/:memberId", (req: Request, res: Response) => {
   const db = getDb();
   db.prepare("DELETE FROM team_members WHERE id = ? AND team_id = ?").run(memberId, teamId);
   res.json({ ok: true });
+});
+
+const MEMBER_PRS_QUERY = `
+  query($q: String!) {
+    search(query: $q, type: ISSUE, first: 30) {
+      nodes {
+        ... on PullRequest {
+          number title url state createdAt
+          author { login }
+          repository { nameWithOwner }
+          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        }
+      }
+    }
+  }
+`;
+
+function twoWeeksAgoISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 14);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Fetch each member's PRs (last 2 weeks) in batches to bound concurrency. */
+async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
+  const since = twoWeeksAgoISO();
+  const batchSize = 5;
+  const all: RawPR[] = [];
+  for (let i = 0; i < roster.length; i += batchSize) {
+    const batch = roster.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (m) => {
+        const q = `author:${m.githubUsername} type:pr created:>=${since}`;
+        try {
+          const data = await graphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
+          return (data.search.nodes || []).map((n: any) => ({
+            number: n.number,
+            title: n.title,
+            repo_full_name: n.repository?.nameWithOwner || "",
+            html_url: n.url,
+            state: (n.state || "").toLowerCase(),
+            checks_status: n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
+            author: n.author?.login || m.githubUsername,
+            created_at: n.createdAt,
+          })) as RawPR[];
+        } catch {
+          return [] as RawPR[];
+        }
+      }),
+    );
+    for (const r of results) all.push(...r);
+  }
+  return all;
+}
+
+/** Map Agile-API issues (which carry a dedicated `epic` field). */
+function mapAgileIssues(rawIssues: any[]): RawIssue[] {
+  return rawIssues.map((issue: any) => ({
+    key: issue.key,
+    summary: issue.fields?.summary || "",
+    status: issue.fields?.status?.name || "",
+    statusCategory: issue.fields?.status?.statusCategory?.key || "new",
+    assigneeAccountId: issue.fields?.assignee?.accountId || null,
+    assigneeName: issue.fields?.assignee?.displayName || null,
+    epicKey: issue.fields?.epic?.key || null,
+    epicName: issue.fields?.epic?.name || null,
+  }));
+}
+
+/** Map platform JQL issues (epic derived from `parent`). */
+function mapJqlIssues(rawIssues: any[]): RawIssue[] {
+  return rawIssues.map((issue: any) => {
+    const parent = issue.fields?.parent;
+    const parentIsEpic = parent?.fields?.issuetype?.name?.toLowerCase() === "epic";
+    return {
+      key: issue.key,
+      summary: issue.fields?.summary || "",
+      status: issue.fields?.status?.name || "",
+      statusCategory: issue.fields?.status?.statusCategory?.key || "new",
+      assigneeAccountId: issue.fields?.assignee?.accountId || null,
+      assigneeName: issue.fields?.assignee?.displayName || null,
+      epicKey: parentIsEpic ? parent.key : parent?.key || null,
+      epicName: parentIsEpic
+        ? parent.fields?.summary || parent.key
+        : parent?.fields?.summary || null,
+    };
+  });
+}
+
+/**
+ * GET /api/teams/:id/dashboard?sprintId=
+ * Aggregate Jira issues + GitHub PRs for the team's roster.
+ */
+router.get("/:id/dashboard", async (req: Request, res: Response) => {
+  const teamId = parseInt(req.params.id, 10);
+  if (Number.isNaN(teamId)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
+  const db = getDb();
+  const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(teamId) as any;
+  if (!team) {
+    res.status(404).json({ error: "team not found" });
+    return;
+  }
+  const memberRows = db
+    .prepare("SELECT * FROM team_members WHERE team_id = ?")
+    .all(teamId) as any[];
+  const roster: RosterEntry[] = memberRows.map((m) => ({
+    accountId: m.jira_account_id,
+    displayName: m.display_name,
+    githubUsername: m.github_username,
+  }));
+
+  const errors: string[] = [];
+  let issues: RawIssue[] = [];
+  let sprints: any[] = [];
+  let currentSprint: any = null;
+
+  const accountIds = roster.map((r) => r.accountId);
+  const requestedSprintId =
+    typeof req.query.sprintId === "string" ? parseInt(req.query.sprintId, 10) : null;
+
+  // --- Jira ---
+  if (accountIds.length > 0) {
+    try {
+      if (team.jira_board_id) {
+        const agile = createJiraAgileClient();
+        const { data: sprintData } = await agile.get(`/board/${team.jira_board_id}/sprint`, {
+          params: { state: "active,closed", maxResults: 50 },
+        });
+        sprints = (sprintData.values || []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          state: s.state,
+          startDate: s.startDate,
+          endDate: s.endDate,
+        }));
+        currentSprint =
+          sprints.find((s) => s.id === requestedSprintId) ||
+          sprints.find((s) => s.state === "active") ||
+          null;
+
+        if (currentSprint) {
+          const { data: issueData } = await agile.get(
+            `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
+            { params: { fields: "summary,status,assignee,epic,priority", maxResults: 100 } },
+          );
+          issues = mapAgileIssues(issueData.issues || []).filter(
+            (i) => i.assigneeAccountId && accountIds.includes(i.assigneeAccountId),
+          );
+        }
+      } else {
+        const jira = createJiraClient();
+        const idList = accountIds.map((a) => `"${a}"`).join(", ");
+        const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
+        const { data } = await jira.post("/search/jql", {
+          jql,
+          fields: ["summary", "status", "assignee", "parent", "priority"],
+          maxResults: 100,
+        });
+        issues = mapJqlIssues(data.issues || []);
+      }
+    } catch (err: any) {
+      errors.push(`Jira: ${err.message || "failed to load issues"}`);
+    }
+  }
+
+  // --- GitHub ---
+  let prs: RawPR[] = [];
+  if (roster.length > 0) {
+    try {
+      prs = await fetchMemberPRs(roster);
+    } catch (err: any) {
+      errors.push(`GitHub: ${err.message || "failed to load PRs"}`);
+    }
+  }
+
+  // --- Aggregate ---
+  const sprintKeys = new Set(issues.map((i) => i.key));
+  const issuesWithPRs = linkPRsToIssues(issues, prs);
+  const offBoardPRs = partitionOffBoardPRs(prs, sprintKeys);
+  const epics = groupByEpic(issues);
+  const workload = computeWorkload(roster, issues, prs);
+
+  res.json({
+    team: {
+      id: team.id,
+      name: team.name,
+      board: team.jira_board_id ? { id: team.jira_board_id, name: team.jira_board_name } : null,
+    },
+    sprint: currentSprint,
+    sprints,
+    epics,
+    issues: issuesWithPRs,
+    workload,
+    offBoardPRs,
+    counts: {
+      sprintIssues: issues.length,
+      epics: epics.length,
+      offBoardPRs: offBoardPRs.length,
+    },
+    errors,
+  });
 });
 
 export default router;
