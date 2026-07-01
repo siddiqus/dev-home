@@ -211,10 +211,8 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
       statusCategory: issue.fields?.status?.statusCategory?.key || "new",
       assigneeAccountId: issue.fields?.assignee?.accountId || null,
       assigneeName: issue.fields?.assignee?.displayName || null,
-      epicKey: parentIsEpic ? parent.key : parent?.key || null,
-      epicName: parentIsEpic
-        ? parent.fields?.summary || parent.key
-        : parent?.fields?.summary || null,
+      epicKey: parentIsEpic ? parent.key : null,
+      epicName: parentIsEpic ? parent.fields?.summary || parent.key : null,
     };
   });
 }
@@ -276,7 +274,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
         if (currentSprint) {
           const { data: issueData } = await agile.get(
             `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
-            { params: { fields: "summary,status,assignee,epic,priority", maxResults: 100 } },
+            { params: { fields: "summary,status,assignee,epic", maxResults: 100 } },
           );
           issues = mapAgileIssues(issueData.issues || []).filter(
             (i) => i.assigneeAccountId && accountIds.includes(i.assigneeAccountId),
@@ -288,7 +286,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
         const { data } = await jira.post("/search/jql", {
           jql,
-          fields: ["summary", "status", "assignee", "parent", "priority"],
+          fields: ["summary", "status", "assignee", "parent"],
           maxResults: 100,
         });
         issues = mapJqlIssues(data.issues || []);
