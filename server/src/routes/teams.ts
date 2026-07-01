@@ -33,6 +33,10 @@ router.post("/", (req: Request, res: Response) => {
 /** PUT /api/teams/:id — update name/board. */
 router.put("/:id", (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
   const { name, boardId, boardName } = req.body || {};
   const db = getDb();
   const existing = db.prepare("SELECT * FROM teams WHERE id = ?").get(id);
@@ -42,7 +46,12 @@ router.put("/:id", (req: Request, res: Response) => {
   }
   db.prepare(
     "UPDATE teams SET name = ?, jira_board_id = ?, jira_board_name = ?, updated_at = datetime('now') WHERE id = ?",
-  ).run(name ?? (existing as any).name, boardId ?? null, boardName ?? null, id);
+  ).run(
+    (name ?? (existing as any).name).trim(),
+    boardId !== undefined ? boardId : (existing as any).jira_board_id,
+    boardName !== undefined ? boardName : (existing as any).jira_board_name,
+    id,
+  );
   const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(id);
   res.json({ team });
 });
@@ -50,6 +59,10 @@ router.put("/:id", (req: Request, res: Response) => {
 /** DELETE /api/teams/:id — delete team and its members. */
 router.delete("/:id", (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
   const db = getDb();
   db.transaction(() => {
     db.prepare("DELETE FROM team_members WHERE team_id = ?").run(id);
@@ -61,6 +74,10 @@ router.delete("/:id", (req: Request, res: Response) => {
 /** GET /api/teams/:id/members */
 router.get("/:id/members", (req: Request, res: Response) => {
   const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
   const db = getDb();
   const members = db
     .prepare("SELECT * FROM team_members WHERE team_id = ? ORDER BY display_name COLLATE NOCASE")
@@ -71,6 +88,10 @@ router.get("/:id/members", (req: Request, res: Response) => {
 /** POST /api/teams/:id/members — Body: { displayName, jiraAccountId, jiraEmail?, githubUsername } */
 router.post("/:id/members", (req: Request, res: Response) => {
   const teamId = parseInt(req.params.id, 10);
+  if (Number.isNaN(teamId)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
   const { displayName, jiraAccountId, jiraEmail, githubUsername } = req.body || {};
   if (!displayName || !jiraAccountId || !githubUsername) {
     res.status(400).json({ error: "displayName, jiraAccountId, githubUsername are required" });
@@ -89,9 +110,14 @@ router.post("/:id/members", (req: Request, res: Response) => {
 
 /** DELETE /api/teams/:teamId/members/:memberId */
 router.delete("/:teamId/members/:memberId", (req: Request, res: Response) => {
+  const teamId = parseInt(req.params.teamId, 10);
   const memberId = parseInt(req.params.memberId, 10);
+  if (Number.isNaN(teamId) || Number.isNaN(memberId)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
   const db = getDb();
-  db.prepare("DELETE FROM team_members WHERE id = ?").run(memberId);
+  db.prepare("DELETE FROM team_members WHERE id = ? AND team_id = ?").run(memberId, teamId);
   res.json({ ok: true });
 });
 
