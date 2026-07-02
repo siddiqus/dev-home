@@ -6,6 +6,18 @@
   min-width: 0;
 }
 
+.jira-issue-drawer .jira-drawer-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .jira-issue-drawer .jira-drawer-title {
   font-size: 1rem;
   font-weight: 600;
@@ -45,6 +57,13 @@
 }
 
 .jira-issue-drawer .jira-drawer-assignee {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.jira-issue-drawer .jira-drawer-linked-prs {
   flex-shrink: 0;
   margin-top: 16px;
   padding-top: 16px;

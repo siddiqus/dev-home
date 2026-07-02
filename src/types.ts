@@ -33,6 +33,10 @@ export interface JiraIssue {
   updated: string;
   self: string;
   description: string;
+  issueType?: {
+    name: string | null;
+    iconUrl: string | null;
+  };
   fields: Record<string, any>;
 }
 

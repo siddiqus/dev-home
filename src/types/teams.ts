@@ -73,7 +73,7 @@ export interface WorkloadEntry {
   githubUsername: string;
   ticketCount: number;
   prCount: number;
-  byStatus: { new: number; indeterminate: number; done: number };
+  byStatus: { new: number; indeterminate: number; inReview: number; done: number };
 }
 
 export interface OffBoardPR {
@@ -94,6 +94,7 @@ export interface TeamDashboard {
   epics: DashboardEpic[];
   issues: DashboardIssue[];
   workload: WorkloadEntry[];
+  progress: { total: number; new: number; indeterminate: number; inReview: number; done: number };
   offBoardPRs: OffBoardPR[];
   counts: { sprintIssues: number; epics: number; offBoardPRs: number };
   errors: string[];

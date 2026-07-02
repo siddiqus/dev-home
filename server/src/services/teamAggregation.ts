@@ -129,16 +129,39 @@ export function groupByEpic(issues: RawIssue[]) {
   });
 }
 
+export type StatusBucket = "new" | "indeterminate" | "inReview" | "done";
+
+/**
+ * Classify an issue into a display bucket. Jira only exposes 3 status
+ * *categories* (new / indeterminate / done), but we split the in-progress
+ * category into "In Review" (any status whose name contains "review") and the
+ * rest, so the bars can show To Do / In Progress / In Review / Done.
+ */
+export function classifyStatus(issue: RawIssue): StatusBucket {
+  if (issue.statusCategory === "done") return "done";
+  if (issue.statusCategory === "indeterminate") {
+    return /review/i.test(issue.status) ? "inReview" : "indeterminate";
+  }
+  return /review/i.test(issue.status) ? "inReview" : "new";
+}
+
+function emptyByStatus() {
+  return { new: 0, indeterminate: 0, inReview: 0, done: 0 };
+}
+
+/** Whole-sprint status rollup for the sprint progress bar. */
+export function computeSprintProgress(issues: RawIssue[]) {
+  const byStatus = emptyByStatus();
+  for (const i of issues) byStatus[classifyStatus(i)] += 1;
+  return { total: issues.length, ...byStatus };
+}
+
 /** Per-member ticket + PR counts and status breakdown. */
 export function computeWorkload(roster: RosterEntry[], issues: RawIssue[], prs: RawPR[]) {
   return roster.map((r) => {
     const memberIssues = issues.filter((i) => i.assigneeAccountId === r.accountId);
-    const byStatus = { new: 0, indeterminate: 0, done: 0 };
-    for (const i of memberIssues) {
-      if (i.statusCategory === "done") byStatus.done += 1;
-      else if (i.statusCategory === "indeterminate") byStatus.indeterminate += 1;
-      else byStatus.new += 1;
-    }
+    const byStatus = emptyByStatus();
+    for (const i of memberIssues) byStatus[classifyStatus(i)] += 1;
     const prCount = prs.filter(
       (p) => p.author.toLowerCase() === r.githubUsername.toLowerCase(),
     ).length;

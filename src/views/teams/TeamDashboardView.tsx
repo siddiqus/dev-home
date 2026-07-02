@@ -1,12 +1,20 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { IconChartBar, IconUsersGroup, IconRun } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
-import { WorkloadBars } from "./WorkloadBars";
+import { WorkloadBars, SprintProgressBar } from "./WorkloadBars";
 import { SprintIssueTable } from "./SprintIssueTable";
 import { ReadOnlyBoard } from "./ReadOnlyBoard";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
+import { JiraIssueDrawer } from "../../components/JiraIssueDrawer";
+import { DescriptionModal } from "../../components/DescriptionModal";
+import { LoadingOverlay } from "../../components/LoadingOverlay";
+import { fetchIssuesByKeys } from "../../services/jira";
+import { fetchPR } from "../../services/github";
+import { formatRelativeTime, formatShortDate } from "../../utils/time";
+import type { JiraIssue, GitHubPR } from "../../types";
+import type { LinkedPR } from "../../types/teams";
 
 interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
@@ -59,6 +67,50 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
   // The active/default sprint, shown when the user hasn't picked one explicitly.
   const selectedSprintId = sprintId ?? dashboard?.sprint?.id ?? null;
 
+  // The sprint object currently on screen — used to show its start date.
+  const selectedSprint =
+    dashboard?.sprints.find((s) => s.id === selectedSprintId) ?? dashboard?.sprint ?? null;
+
+  // --- Detail modals (Jira drawer + PR description modal) ---
+  // Both dashboard views (table + board) and the off-board PR table share these
+  // handlers; the modals are rendered once here at the dashboard level. Each
+  // object only carries a reference (issue key / repo+number), so we fetch the
+  // full record on click.
+  const [drawerIssue, setDrawerIssue] = useState<JiraIssue | null>(null);
+  const [drawerPRs, setDrawerPRs] = useState<LinkedPR[]>([]);
+  const [modalPR, setModalPR] = useState<GitHubPR | null>(null);
+  // A full-page overlay while a detail record is being fetched, so the click
+  // gives immediate feedback before the drawer/modal can open.
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openIssue = useCallback(
+    (key: string) => {
+      setDrawerIssue(null);
+      // Linked PRs live on the dashboard row, not the fetched Jira issue.
+      // Epics aren't in `issues`, so they resolve to an empty list.
+      setDrawerPRs(dashboard?.issues.find((i) => i.key === key)?.linkedPRs ?? []);
+      setDetailLoading(true);
+      fetchIssuesByKeys([key])
+        .then((issues) => {
+          if (issues[0]) setDrawerIssue(issues[0]);
+        })
+        .catch(() => setDrawerIssue(null))
+        .finally(() => setDetailLoading(false));
+    },
+    [dashboard?.issues],
+  );
+
+  const openPR = useCallback((repoFullName: string, number: number) => {
+    const [owner, repo] = repoFullName.split("/");
+    if (!owner || !repo) return;
+    setModalPR(null);
+    setDetailLoading(true);
+    fetchPR(owner, repo, number)
+      .then(setModalPR)
+      .catch(() => setModalPR(null))
+      .finally(() => setDetailLoading(false));
+  }, []);
+
   return (
     <div className="p-3">
       <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
@@ -85,8 +137,14 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
             allLabel="Sprint"
             hideAllOption
             triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-            width={240}
+            width={400}
           />
+        )}
+
+        {selectedSprint?.startDate && (
+          <span className="small text-muted ms-auto">
+            Started {formatShortDate(selectedSprint.startDate)}
+          </span>
         )}
       </div>
 
@@ -141,7 +199,13 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
                 <div
                   key={ep.key ?? "none"}
                   className="border rounded p-2"
-                  style={{ flex: "1 1 160px", fontSize: "0.8125rem" }}
+                  style={{
+                    flex: "1 1 160px",
+                    fontSize: "0.8125rem",
+                    cursor: ep.key ? "pointer" : undefined,
+                  }}
+                  onClick={ep.key ? () => openIssue(ep.key!) : undefined}
+                  title={ep.key ? `View ${ep.key}` : undefined}
                 >
                   <div className="fw-semibold text-truncate">{ep.name}</div>
                   <div className="text-muted">
@@ -173,27 +237,40 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
 
           {/* Sprint issues */}
           <div className="border rounded p-2 mb-3">
-            <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
               <div className="small text-muted">SPRINT ISSUES · {filteredIssues.length}</div>
-              <div className="btn-group btn-group-sm">
-                <button
-                  className={`btn btn-outline-secondary ${view === "list" ? "active" : ""}`}
-                  onClick={() => setView("list")}
-                >
-                  List
-                </button>
-                <button
-                  className={`btn btn-outline-secondary ${view === "board" ? "active" : ""}`}
-                  onClick={() => setView("board")}
-                >
-                  Board
-                </button>
+              <div className="d-flex align-items-center gap-3 flex-wrap">
+                <SprintProgressBar progress={dashboard.progress} />
+                <div className="btn-group btn-group-sm">
+                  <button
+                    className={`btn btn-outline-secondary ${view === "list" ? "active" : ""}`}
+                    onClick={() => setView("list")}
+                  >
+                    List
+                  </button>
+                  <button
+                    className={`btn btn-outline-secondary ${view === "board" ? "active" : ""}`}
+                    onClick={() => setView("board")}
+                  >
+                    Board
+                  </button>
+                </div>
               </div>
             </div>
             {view === "list" ? (
-              <SprintIssueTable issues={filteredIssues} jiraBaseUrl={jiraBaseUrl} />
+              <SprintIssueTable
+                issues={filteredIssues}
+                jiraBaseUrl={jiraBaseUrl}
+                onIssueClick={openIssue}
+                onPRClick={openPR}
+              />
             ) : (
-              <ReadOnlyBoard issues={filteredIssues} jiraBaseUrl={jiraBaseUrl} />
+              <ReadOnlyBoard
+                issues={filteredIssues}
+                jiraBaseUrl={jiraBaseUrl}
+                onIssueClick={openIssue}
+                onPRClick={openPR}
+              />
             )}
           </div>
 
@@ -209,13 +286,22 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
             {dashboard.offBoardPRs.length === 0 ? (
               <div className="text-muted small">None.</div>
             ) : (
-              <table className="table table-sm mb-0">
+              <table className="table table-sm table-hover mb-0">
                 <tbody>
                   {dashboard.offBoardPRs.map((pr) => (
-                    <tr key={`${pr.repo_full_name}#${pr.number}`}>
+                    <tr
+                      key={`${pr.repo_full_name}#${pr.number}`}
+                      onClick={() => openPR(pr.repo_full_name, pr.number)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <td>{pr.author}</td>
                       <td>
-                        <a href={pr.html_url} target="_blank" rel="noreferrer">
+                        <a
+                          href={pr.html_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           #{pr.number} {pr.title}
                         </a>
                       </td>
@@ -231,6 +317,30 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
           </div>
         </>
       )}
+
+      <LoadingOverlay show={detailLoading} label="Loading…" />
+
+      <JiraIssueDrawer
+        issue={drawerIssue}
+        show={!!drawerIssue}
+        onHide={() => setDrawerIssue(null)}
+        baseUrl={jiraBaseUrl}
+        linkedPRs={drawerPRs}
+      />
+
+      <DescriptionModal
+        show={!!modalPR}
+        onHide={() => setModalPR(null)}
+        title={modalPR ? `#${modalPR.number} ${modalPR.title}` : ""}
+        subtitle={
+          modalPR
+            ? `${modalPR.user.login} · ${modalPR.repo_full_name} · ${modalPR.head.ref} · ${formatRelativeTime(modalPR.created_at)}`
+            : ""
+        }
+        description={modalPR?.body || ""}
+        url={modalPR?.html_url}
+        checks={modalPR?.checks}
+      />
     </div>
   );
 }

@@ -1044,4 +1044,78 @@ router.get("/prs/:owner/:repo/:number/comments", async (req: Request, res: Respo
   }
 });
 
+const SINGLE_PR_QUERY = `
+  query SinglePR($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        databaseId
+        number
+        title
+        url
+        state
+        isDraft
+        createdAt
+        updatedAt
+        author { login avatarUrl }
+        body
+        headRefName
+        baseRefName
+        repository { nameWithOwner url }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+                contexts(first: 50) {
+                  nodes {
+                    ... on CheckRun { name conclusion status detailsUrl }
+                    ... on StatusContext { context state targetUrl }
+                  }
+                }
+              }
+            }
+          }
+        }
+        reviews(last: 20) {
+          nodes { state author { login avatarUrl } submittedAt }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * GET /api/github/pr/:owner/:repo/:number
+ * Fetch a single PR with its body and checks, shaped like the list endpoints.
+ * Used by views (e.g. the team dashboard) that only hold a PR reference and need
+ * the full record to populate the description modal on demand.
+ */
+router.get("/pr/:owner/:repo/:number", async (req: Request, res: Response) => {
+  const { owner, repo } = req.params;
+  const number = parseInt(req.params.number, 10);
+
+  if (!owner || !repo || isNaN(number)) {
+    res.status(400).json({ error: "owner, repo, and number are required" });
+    return;
+  }
+
+  try {
+    const result = await graphql<{ repository: { pullRequest: any } }>(SINGLE_PR_QUERY, {
+      owner,
+      repo,
+      number,
+    });
+    const node = result.repository?.pullRequest;
+    if (!node) {
+      res.status(404).json({ error: "Pull request not found" });
+      return;
+    }
+    res.json({ pr: mapGraphQLPr(node) });
+  } catch (err: any) {
+    const status = err.response?.status || 500;
+    const message = err.response?.data?.message || err.message || "Failed to fetch pull request";
+    res.status(status).json({ error: message });
+  }
+});
+
 export default router;

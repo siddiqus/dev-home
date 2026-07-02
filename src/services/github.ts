@@ -145,3 +145,9 @@ export async function fetchPRComments(
   const { data } = await apiClient.get(`/github/prs/${owner}/${repo}/${prNumber}/comments`);
   return data;
 }
+
+/** Fetch a single PR (body + checks) by repo and number. */
+export async function fetchPR(owner: string, repo: string, number: number): Promise<GitHubPR> {
+  const { data } = await apiClient.get(`/github/pr/${owner}/${repo}/${number}`);
+  return data.pr;
+}

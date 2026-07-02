@@ -104,8 +104,23 @@ export function adfToMarkdown(node: any): string {
       return (node.content || []).map(adfToMarkdown).join("");
 
     case "mediaSingle":
-    case "media":
-      return "";
+    case "mediaGroup":
+      return (node.content || []).map(adfToMarkdown).join("\n");
+
+    case "media": {
+      // Media bytes live behind Atlassian's auth-gated Media API, so we can't
+      // embed them directly. Instead of silently dropping the node (which made
+      // descriptions look like they were missing content), emit a visible
+      // marker so the reader knows an image/video is attached in Jira.
+      const attrs = node.attrs || {};
+      // External media carries a real, fetchable URL.
+      if (attrs.type === "external" && attrs.url) {
+        const label = attrs.alt || "attachment";
+        return `![${label}](${attrs.url})`;
+      }
+      const label = attrs.alt || (attrs.type === "video" ? "video" : "image");
+      return `📎 _${label} (view in Jira)_`;
+    }
 
     default:
       // Fallback: recurse into content

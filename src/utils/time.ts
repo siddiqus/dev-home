@@ -46,3 +46,14 @@ export function formatRelativeTime(dateString: string): string {
 
   return `${years}y ago`;
 }
+
+/**
+ * Formats a date string as an absolute short date, e.g. "Jul 2, 2026".
+ * Returns "" for empty/invalid input so callers can skip rendering.
+ */
+export function formatShortDate(dateString?: string | null): string {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}

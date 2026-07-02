@@ -72,7 +72,17 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
   const jira = createJiraClient();
   const keyList = keys.map((k: string) => `"${k}"`).join(", ");
   const jql = `key IN (${keyList}) ORDER BY updated DESC`;
-  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
+  const fields = [
+    "summary",
+    "status",
+    "priority",
+    "assignee",
+    "project",
+    "created",
+    "updated",
+    "description",
+    "issuetype",
+  ];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
 
@@ -102,6 +112,11 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
     created: issue.fields?.created,
     updated: issue.fields?.updated,
     self: issue.self,
+    description: adfToMarkdown(issue.fields?.description),
+    issueType: {
+      name: issue.fields?.issuetype?.name || null,
+      iconUrl: issue.fields?.issuetype?.iconUrl || null,
+    },
   }));
 
   res.json({ issues });

@@ -7,6 +7,7 @@ import {
   partitionOffBoardPRs,
   groupByEpic,
   computeWorkload,
+  computeSprintProgress,
   type RawIssue,
   type RawPR,
   type RosterEntry,
@@ -294,9 +295,11 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
             `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
             { params: { fields: "summary,status,assignee,epic", maxResults: 100 } },
           );
-          issues = mapAgileIssues(issueData.issues || []).filter(
-            (i) => i.assigneeAccountId && accountIds.includes(i.assigneeAccountId),
-          );
+          // Include every ticket in the sprint — assigned, unassigned, and
+          // assigned to people outside this team's roster — so the counts and
+          // the progress bar reflect the sprint as a whole. Per-member workload
+          // still narrows to the roster in computeWorkload.
+          issues = mapAgileIssues(issueData.issues || []);
         }
       } else {
         const jira = createJiraClient();
@@ -330,6 +333,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
   const offBoardPRs = partitionOffBoardPRs(prs, sprintKeys);
   const epics = groupByEpic(issues);
   const workload = computeWorkload(roster, issues, prs);
+  const progress = computeSprintProgress(issues);
 
   res.json({
     team: {
@@ -342,6 +346,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     epics,
     issues: issuesWithPRs,
     workload,
+    progress,
     offBoardPRs,
     counts: {
       sprintIssues: issues.length,

@@ -15,9 +15,13 @@ const col = createColumnHelper<DashboardIssue>();
 interface Props {
   issues: DashboardIssue[];
   jiraBaseUrl?: string;
+  /** Open the Jira drawer for an issue key. */
+  onIssueClick?: (key: string) => void;
+  /** Open the PR description modal for a linked PR. */
+  onPRClick?: (repoFullName: string, number: number) => void;
 }
 
-export function SprintIssueTable({ issues, jiraBaseUrl }: Props) {
+export function SprintIssueTable({ issues, jiraBaseUrl, onIssueClick, onPRClick }: Props) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filter, setFilter] = useState("");
 
@@ -26,13 +30,22 @@ export function SprintIssueTable({ issues, jiraBaseUrl }: Props) {
       col.accessor("key", {
         header: "Key",
         cell: (c) => {
+          const key = c.getValue();
           const base = jiraBaseUrl?.replace(/\/+$/, "");
+          // The key links out to Jira in a new tab; clicking elsewhere on the
+          // row opens the drawer (see the <tr> onClick below). stopPropagation
+          // keeps the link from also triggering the row handler.
           return base ? (
-            <a href={`${base}/browse/${c.getValue()}`} target="_blank" rel="noreferrer">
-              {c.getValue()}
+            <a
+              href={`${base}/browse/${key}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {key}
             </a>
           ) : (
-            c.getValue()
+            key
           );
         },
       }),
@@ -46,22 +59,38 @@ export function SprintIssueTable({ issues, jiraBaseUrl }: Props) {
         cell: (c) => {
           const prs = c.row.original.linkedPRs;
           if (prs.length === 0) return "—";
-          return prs.map((pr) => (
-            <a
-              key={pr.number}
-              href={pr.html_url}
-              target="_blank"
-              rel="noreferrer"
-              className="me-1"
-              title={pr.checks_status || ""}
-            >
-              #{pr.number}
-            </a>
-          ));
+          return prs.map((pr) =>
+            onPRClick ? (
+              <button
+                key={pr.number}
+                type="button"
+                className="btn btn-link p-0 me-1 align-baseline"
+                style={{ fontSize: "inherit" }}
+                title={pr.checks_status || ""}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPRClick(pr.repo_full_name, pr.number);
+                }}
+              >
+                #{pr.number}
+              </button>
+            ) : (
+              <a
+                key={pr.number}
+                href={pr.html_url}
+                target="_blank"
+                rel="noreferrer"
+                className="me-1"
+                title={pr.checks_status || ""}
+              >
+                #{pr.number}
+              </a>
+            ),
+          );
         },
       }),
     ],
-    [jiraBaseUrl],
+    [jiraBaseUrl, onIssueClick, onPRClick],
   );
 
   const table = useReactTable({
@@ -103,7 +132,11 @@ export function SprintIssueTable({ issues, jiraBaseUrl }: Props) {
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
+            <tr
+              key={row.id}
+              onClick={onIssueClick ? () => onIssueClick(row.original.key) : undefined}
+              style={onIssueClick ? { cursor: "pointer" } : undefined}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
               ))}

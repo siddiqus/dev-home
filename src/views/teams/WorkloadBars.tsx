@@ -1,4 +1,4 @@
-import type { WorkloadEntry } from "../../types/teams";
+import type { WorkloadEntry, TeamDashboard } from "../../types/teams";
 
 interface Props {
   workload: WorkloadEntry[];
@@ -6,12 +6,23 @@ interface Props {
   selectedAccountId?: string | null;
 }
 
-// Status-category colors for the stacked ticket bar (To Do / In Progress / Done).
-const STATUS_COLORS = {
+// Colors for the stacked ticket bar (To Do / In Progress / In Review / Done).
+export const STATUS_COLORS = {
   new: "#6e7781",
   indeterminate: "#4c8dff",
+  inReview: "#e0a458",
   done: "#50c878",
 } as const;
+
+const STATUS_LABELS = {
+  new: "To Do",
+  indeterminate: "In Progress",
+  inReview: "In Review",
+  done: "Done",
+} as const;
+
+// Segment order, shared by the bars and the legend so they stay in sync.
+const STATUS_ORDER = ["new", "indeterminate", "inReview", "done"] as const;
 
 function rowStyle(
   isSelected: boolean,
@@ -43,7 +54,7 @@ function SimpleBars({
           style={rowStyle(selectedAccountId === w.accountId, !!selectedAccountId, onSelectMember)}
           onClick={() => onSelectMember?.(selectedAccountId === w.accountId ? null : w.accountId)}
         >
-          <span style={{ width: 90 }} className="text-truncate">
+          <span style={{ width: 120 }} className="text-truncate">
             {w.displayName}
           </span>
           <div style={{ flex: 1, background: "rgba(125,125,125,.15)", borderRadius: 3 }}>
@@ -76,7 +87,7 @@ function TicketBars({ workload, onSelectMember, selectedAccountId }: Props) {
           style={rowStyle(selectedAccountId === w.accountId, !!selectedAccountId, onSelectMember)}
           onClick={() => onSelectMember?.(selectedAccountId === w.accountId ? null : w.accountId)}
         >
-          <span style={{ width: 90 }} className="text-truncate">
+          <span style={{ width: 120 }} className="text-truncate">
             {w.displayName}
           </span>
           <div
@@ -88,10 +99,10 @@ function TicketBars({ workload, onSelectMember, selectedAccountId }: Props) {
               overflow: "hidden",
             }}
           >
-            {(["new", "indeterminate", "done"] as const).map((k) => (
+            {STATUS_ORDER.map((k) => (
               <div
                 key={k}
-                title={`${k === "new" ? "To Do" : k === "indeterminate" ? "In Progress" : "Done"}: ${w.byStatus[k]}`}
+                title={`${STATUS_LABELS[k]}: ${w.byStatus[k]}`}
                 style={{
                   width: `${(w.byStatus[k] / max) * 100}%`,
                   height: 12,
@@ -107,6 +118,39 @@ function TicketBars({ workload, onSelectMember, selectedAccountId }: Props) {
   );
 }
 
+/**
+ * Whole-sprint progress bar: one stacked To Do / In Progress / Done bar for the
+ * entire sprint, plus a "% done" label. Mirrors the per-member `TicketBars`, but
+ * segments scale by the sprint's own total so the track always fills 100%.
+ */
+export function SprintProgressBar({ progress }: { progress: TeamDashboard["progress"] }) {
+  const { total, done } = progress;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="d-flex align-items-center gap-2" style={{ minWidth: 220 }}>
+      <div
+        className="d-flex flex-fill"
+        style={{ background: "rgba(125,125,125,.15)", borderRadius: 3, overflow: "hidden" }}
+      >
+        {STATUS_ORDER.map((k) => (
+          <div
+            key={k}
+            title={`${STATUS_LABELS[k]}: ${progress[k]}`}
+            style={{
+              width: `${total ? (progress[k] / total) * 100 : 0}%`,
+              height: 12,
+              background: STATUS_COLORS[k],
+            }}
+          />
+        ))}
+      </div>
+      <span className="small text-muted" style={{ whiteSpace: "nowrap" }}>
+        {pct}% done
+      </span>
+    </div>
+  );
+}
+
 export function WorkloadBars(props: Props) {
   return (
     <div className="d-flex gap-3">
@@ -114,9 +158,11 @@ export function WorkloadBars(props: Props) {
         <div className="small text-muted mb-1 d-flex justify-content-between">
           <span>ASSIGNED TICKETS</span>
           <span style={{ fontSize: "0.6875rem" }}>
-            <span style={{ color: STATUS_COLORS.new }}>■</span> To Do{" "}
-            <span style={{ color: STATUS_COLORS.indeterminate }}>■</span> In Progress{" "}
-            <span style={{ color: STATUS_COLORS.done }}>■</span> Done
+            {STATUS_ORDER.map((k) => (
+              <span key={k}>
+                <span style={{ color: STATUS_COLORS[k] }}>■</span> {STATUS_LABELS[k]}{" "}
+              </span>
+            ))}
           </span>
         </div>
         <TicketBars {...props} />
