@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/bundle.js --external:better-sqlite3",
     "build:bundle": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/bundle.js --external:better-sqlite3",
-    "start": "node dist/bundle.js"
+    "start": "node dist/bundle.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "axios": "^1.14.0",
@@ -32,6 +34,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.9"
   }
 }

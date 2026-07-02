@@ -16,6 +16,9 @@
     "lint:server:fix": "cd server && yarn eslint src/ --fix",
     "lint:all": "yarn lint && yarn lint:server",
     "fix:all": "yarn lint:fix && yarn lint:server:fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:all": "yarn test && yarn --cwd server test",
     "icons": "bash scripts/generate-icons.sh",
     "pack": "yarn icons && yarn build && electron-builder --dir",
     "dist": "yarn icons && yarn build && electron-builder",
@@ -104,6 +107,7 @@
     "express": "^4.21.0",
     "express-async-errors": "^3.1.1",
     "get-port": "^7.2.0",
+    "recharts": "^3.9.1",
     "remark-breaks": "^4.0.0",
     "tiptap-markdown": "^0.9.0",
     "ws": "^8.21.0"
@@ -114,6 +118,9 @@
     "@tabler/icons-react": "^3.0.0",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/table-core": "^8.21.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/react": "^18.3.0",
@@ -132,6 +139,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "react": "^18.3.1",
@@ -143,7 +151,8 @@
     "typescript": "^5.5.0",
     "vite": "^5.4.0",
     "vite-plugin-electron": "^0.28.0",
-    "vite-plugin-electron-renderer": "^0.14.0"
+    "vite-plugin-electron-renderer": "^0.14.0",
+    "vitest": "^4.1.9"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [

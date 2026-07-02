@@ -27,6 +27,14 @@ export interface RawPR {
   checks_status: string | null;
   author: string;
   created_at: string;
+  // --- cockpit enrichment (populated by the fetch layer) ---
+  merged_at?: string | null;
+  /** ISO timestamp of the first review submitted on the PR, if any. */
+  first_review_at?: string | null;
+  /** Rollup: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | COMMENTED | null */
+  review_state?: string | null;
+  /** True when the PR has requested reviewers (review has been asked for). */
+  review_requested?: boolean;
 }
 
 export interface RawIssue {
@@ -38,6 +46,11 @@ export interface RawIssue {
   assigneeName: string | null;
   epicKey: string | null;
   epicName: string | null;
+  // --- cockpit enrichment (populated by the fetch layer) ---
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  dueDate?: string | null;
+  storyPoints?: number | null;
 }
 
 export interface RosterEntry {
@@ -99,10 +112,11 @@ export function partitionOffBoardPRs(prs: RawPR[], sprintKeys: Set<string>) {
 
 /**
  * Group issues by epic. Issues with no epic roll into a synthetic bucket
- * with key=null, name="No epic".
+ * with key=null, name="No epic". `staleKeys`, when provided, is the set of
+ * issue keys currently considered stalled — used to surface a per-epic risk chip.
  */
-export function groupByEpic(issues: RawIssue[]) {
-  const map = new Map<string | null, { key: string | null; name: string; total: number; done: number; issueKeys: string[] }>();
+export function groupByEpic(issues: RawIssue[], staleKeys?: Set<string>) {
+  const map = new Map<string | null, { key: string | null; name: string; total: number; done: number; stalled: number; issueKeys: string[] }>();
   for (const issue of issues) {
     const epicKey = issue.epicKey ?? null;
     const bucketKey = epicKey;
@@ -113,12 +127,14 @@ export function groupByEpic(issues: RawIssue[]) {
         name: epicKey ? issue.epicName || epicKey : "No epic",
         total: 0,
         done: 0,
+        stalled: 0,
         issueKeys: [],
       };
       map.set(bucketKey, bucket);
     }
     bucket.total += 1;
     if (issue.statusCategory === "done") bucket.done += 1;
+    if (staleKeys?.has(issue.key)) bucket.stalled += 1;
     bucket.issueKeys.push(issue.key);
   }
   // Real epics first (by total desc), "No epic" last.
