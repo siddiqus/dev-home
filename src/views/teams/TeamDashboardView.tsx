@@ -145,7 +145,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
       </div>
 
       {error && <div className="alert alert-danger small">{error}</div>}
-      {loading && <div className="text-muted small">Loading…</div>}
       {!teamId && !loading && (
         <EmptyState
           icon={<IconChartBar size={32} />}
@@ -244,6 +243,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
         </>
       )}
 
+      <LoadingOverlay show={loading} label="Loading team data…" />
       <LoadingOverlay show={detailLoading} label="Loading…" />
 
       <JiraIssueDrawer
