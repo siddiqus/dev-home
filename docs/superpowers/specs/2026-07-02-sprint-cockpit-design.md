@@ -6,168 +6,182 @@
 
 ## 1. Goal
 
-Transform the current team sprint dashboard from a *reporting* view (counts, ticket
-lists, "PRs created") into a *management cockpit* that answers three questions within
-ten seconds:
+Transform the team sprint dashboard from a *reporting* view (counts, ticket lists,
+"PRs created") into a management *cockpit*. Three questions, in priority order:
 
-1. **Are we on track?**
-2. **Where is work stuck?**
-3. **Who needs help, review, or scope protection?**
+1. **Are we on track?** — overall completion measured against **elapsed time**.
+2. **Where is work stuck?** — **stalled** tickets (no movement) and blocked PR flow.
+3. **Is load distributed sanely?** — who is overloaded, who is stuck.
+
+Story points and SP-based completion are explicitly **secondary** — the primary
+completion signal is **ticket count**, not story points.
 
 ## 2. Current state (baseline)
 
 - **Frontend:** React + Bootstrap 5, no charting library (custom CSS/SVG bars).
   `src/views/teams/TeamDashboardView.tsx` is the container; data comes from
   `useTeamDashboard(teamId, sprintId)` → `GET /teams/:id/dashboard?sprintId=`.
-  Existing pieces: top-row count cards (sprint issues / epics / off-board PRs),
-  epic cards, `WorkloadBars` (ticket counts + "PRs Created (2wk)"),
-  `SprintIssueTable`, `ReadOnlyBoard`, `JiraIssueDrawer`, `DescriptionModal`.
+  Existing pieces: top-row count cards, epic cards, `WorkloadBars` (ticket counts +
+  "PRs Created (2wk)"), `SprintIssueTable`, `ReadOnlyBoard`, `JiraIssueDrawer`,
+  `DescriptionModal`.
 - **Backend:** `server/src/routes/teams.ts` + `server/src/services/teamAggregation.ts`.
-  Jira Agile API is queried with `fields=summary,status,assignee,epic`; sprint
-  start/end dates are already fetched. GitHub PRs come via a per-member batched
-  GraphQL search (2-week lookback). PR↔Jira linkage is by title regex.
-  **No caching layer, no persistence** — everything is fetched fresh per load.
+  Jira Agile API queried with `fields=summary,status,assignee,epic`; sprint start/end
+  dates already fetched. GitHub PRs via per-member batched GraphQL search (2-week
+  lookback). PR↔Jira linkage by title regex. **No caching, no persistence** — fetched
+  fresh per load.
 
 ### Data availability (decisions applied)
 
 | Data point | Availability | Decision |
 |---|---|---|
-| Story points | Instance-specific custom field, not fetched | **Auto-detect** field via Jira field metadata (memoized) |
-| Sprint start/end dates | Available | Use for pace |
-| Sprint goal | Easy add | Add to Agile mapping |
+| Sprint start/end dates | Available | **Core** — drives completion-vs-time |
+| Status category (To Do/In Progress/Done) | Available | **Core** — completion + WIP |
+| Assignee | Available | **Core** — load distribution + unassigned |
+| Issue `updated` timestamp | Available | **Core** — stalled detection (no changelog) |
 | Issue created date | Easy add | Add → scope-change heuristic |
 | Due date | Easy add | Add → due-soon risk |
-| Status category | Available | Use |
-| Time-in-status / transitions | Needs changelog (avoided) | **Approximate** staleness via `now − updated` |
-| Blocked / flags / labels | Custom field, not fetched | **Skip for v1** (dropped from panel + risk) |
-| Epic link | Available | Use |
-| Assignee | Available | Use → unassigned detection |
-| PR state + created/merged | Available (`mergedAt` easy add) | Use |
-| PR reviews / first-review time | Extend GraphQL query | Add |
+| Sprint goal | Easy add | Add to Agile mapping (header) |
+| Epic link | Available | Use → epic drift |
+| PR state + created/merged | Available (`mergedAt` easy add) | Use → PR flow |
+| PR reviews / first-review time | Extend GraphQL query | Add → waiting-review |
 | PR requested reviewers | Extend GraphQL query | Add → waiting-review |
-| PR CI rollup / details | Rollup available; details easy | Use |
+| PR CI rollup / details | Available/easy | Use → failing CI |
 | PR age | Compute from `createdAt` | Compute |
+| Story points | Instance custom field, not fetched | **Optional/secondary** — auto-detect if cheap; nothing depends on it |
+| Blocked / flags / labels | Custom field, not fetched | **Out for v1** — stalled is the stuck signal |
+| Time-in-status / transitions | Needs changelog (avoided) | Approximate staleness via `now − updated` |
 
 ## 3. Architecture: fat backend, thin components
 
 The backend enriches each issue with a `risk` object and signal flags, computes
-sprint-level pace/commitment/scope, workload, PR-flow, and hygiene, and returns one
-richly-typed `TeamDashboard`. Frontend components are presentational slices of that
-object.
+sprint-level completion/pace/scope, load distribution, PR-flow, and hygiene, and
+returns one richly-typed `TeamDashboard`. Frontend components are presentational
+slices of that object.
 
-**Rationale:** the shared TypeScript type in `src/types/teams.ts` becomes the
-coordination contract. Defined once up front, every backend aggregator and every
-frontend component can be built independently against it — no shared mutable logic,
-no collisions. This matches the existing server-side aggregation pattern and makes
-risk/pace logic unit-testable as pure functions.
+**Rationale:** the shared TypeScript type in `src/types/teams.ts` is the coordination
+contract. Defined once up front, every backend aggregator and every frontend component
+is built independently against it — no shared mutable logic, no collisions. Matches the
+existing server-side aggregation pattern; risk/pace logic is unit-testable as pure
+functions.
 
 ## 4. Scope decisions & caveats (signed off)
 
-1. **Blocked is dropped** across the Needs-Attention row, the `+3` risk term, and the
-   health-strip "blocked" count. Risk thresholds re-tuned without it.
-2. **Stale / in-progress age approximated** by `now − updated`. "No movement > 2 days"
-   is accurate; "time in progress" is surfaced as "days since update" / "stalest item"
-   and labeled honestly so it is not read as true cycle time.
-3. **Scope-change approximated** by `issue.created > sprint.startDate` — catches newly
-   created tickets, misses pre-existing tickets dragged into the sprint. Captioned
-   "new tickets added after start."
-4. **Burn-up requires history we don't have.** Add a SQLite table that snapshots
-   `{sprintId, date, committedSP, doneSP, doneCount}` on each dashboard load. History
-   accrues from the first load; UI states "tracking since <date>" for sprints already
-   underway.
-5. **Charting:** add **recharts** for the burn-up line chart only; keep all bar
-   visualizations as existing custom CSS/SVG to match current style.
+1. **Completion is measured by ticket count**, not story points:
+   `donePct = doneCount / totalCount`, compared to `elapsedPct = elapsed / sprintLength`.
+   `behindPace` when `donePct` trails `elapsedPct` beyond a tolerance.
+2. **Stalled is the stuck signal.** `stale = in-progress AND now − updated > N days`
+   (N configurable, default 2 working days). No explicit "blocked" field in v1. Labeled
+   honestly as "no movement / days since update," not true cycle time.
+3. **Story points are optional.** Auto-detect the SP custom field if present and show it
+   as a *secondary* label only; no card, metric, or layout depends on it. If detection
+   fails or SP is absent, everything still works on ticket counts.
+4. **Scope-change approximated** by `issue.created > sprint.startDate` — catches newly
+   created tickets, misses pre-existing tickets dragged in (needs sprint-field changelog,
+   avoided). Captioned "new tickets added after start."
+5. **Burn-up / completion-over-time needs history we don't have.** Add a SQLite table
+   snapshotting `{sprintId, date, doneCount, totalCount}` on each dashboard load. History
+   accrues from first load; UI states "tracking since <date>" for in-flight sprints.
+   (SP snapshot columns optional if SP detection lands.)
+6. **Charting:** add **recharts** for the completion-over-time line chart only; keep all
+   bars as existing custom CSS/SVG.
 
 ## 5. Data contract
 
 Enriched types in `src/types/teams.ts` (shared FE + BE contract).
-`Ref` is a lightweight pointer used in drill-down arrays so panels don't duplicate
-full objects: `type Ref = { kind: 'issue'; key: string } | { kind: 'pr'; repo: string; number: number }`.
+`Ref` is a lightweight pointer for drill-down arrays:
+`type Ref = { kind: 'issue'; key: string } | { kind: 'pr'; repo: string; number: number }`.
 
 ```ts
 DashboardIssue += {
-  storyPoints: number | null
   createdAt: string | null
   dueDate: string | null
   updatedAt: string | null
   ageDays: number
   daysSinceUpdate: number
+  storyPoints: number | null        // optional/secondary; may be null
   flags: {
     unassigned: boolean
     noEpic: boolean
-    noStoryPoints: boolean
-    stale: boolean            // in-progress & daysSinceUpdate > 2
-    addedAfterStart: boolean  // created > sprint.startDate
+    stale: boolean                  // in-progress & daysSinceUpdate > N
+    addedAfterStart: boolean        // created > sprint.startDate
     dueSoon: boolean
     prFailingCI: boolean
-    prWaitingReview: boolean  // linked PR open & waiting review > 24h
+    prWaitingReview: boolean        // linked PR open & waiting review > 24h
     inProgressNoPR: boolean
   }
   risk: { score: number; level: 'normal' | 'attention' | 'high'; reasons: string[] }
 }
 
 TeamDashboard += {
-  pace: {
+  pace: {                           // TICKET-COUNT based
     dayOfSprint: number; sprintLength: number; elapsedPct: number
-    committedSP: number; doneSP: number; remainingSP: number
-    doneSPpct: number; behindPace: boolean
+    totalCount: number; doneCount: number; remainingCount: number
+    donePct: number; behindPace: boolean
+    // optional SP mirror if detected:
+    committedSP?: number; doneSP?: number
   }
-  scope: { addedCount: number; addedSP: number }
-  needsAttention: {          // arrays of issue/PR refs (ids/keys) for drill-down
+  scope: { addedCount: number }     // + addedSP? optional
+  needsAttention: {                 // arrays of Refs for drill-down
     stale: Ref[]; waitingReview: Ref[]; failingCI: Ref[]; noLinkedPR: Ref[]
     offBoard: Ref[]; scopeCreep: Ref[]; unassigned: Ref[]; noEpic: Ref[]
   }
-  workload[]: += {
-    sp: number; doneSP: number; wip: number
+  workload[]: += {                  // LOAD DISTRIBUTION (elevated)
+    ticketCount: number; wip: number; doneCount: number; stalledCount: number
     avgDaysSinceUpdate: number; stalest: Ref | null
     prOpen: number; prReviewing: number; prMerged: number
     riskLevel: 'normal' | 'attention' | 'high'
+    sp?: number; doneSP?: number    // optional
   }
+  loadBalance: { max: number; min: number; imbalance: number }  // team spread indicator
   prFlow: {
     open: number; merged: number; avgFirstReviewH: number | null
     avgAgeDays: number; failingChecks: number; noJira: number; jiraNoPR: number
   }
   hygiene: { prNoJira: Ref[]; jiraNoPR: Ref[]; mergedNotDone: Ref[]; doneNoMerged: Ref[] }
-  burnup: {
+  burnup: {                         // ticket-count completion over time
     trackingSince: string
-    points: { date: string; committedSP: number; doneSP: number; ideal: number }[]
+    points: { date: string; doneCount: number; totalCount: number; ideal: number }[]
   }
   insights: { key: string; severity: 'info'|'warn'|'critical'; title: string; detail: string }[]
 }
 ```
 
-### Risk scoring (blocked removed)
+### Risk scoring (stalled-centric, no blocked, no SP weight)
 
 ```
-+2  stale (in-progress, no movement > 2 working days)
++3  stale (in-progress, no movement > N days)   <- heaviest
 +2  linked PR has failing CI
 +2  linked PR waiting review > 24h
 +1  no assignee
 +1  no epic
-+1  no story points
++1  in progress with no linked PR
 +1  due date near
 +1  added after sprint start
 
 0–2  = normal
-3–5  = needs attention
-6+   = high risk
+3–4  = needs attention
+5+   = high risk
 ```
 
-### Manager insight cards (derived from the above)
+### Manager insight cards (derived)
 
-"Behind Pace", "Scope Increased", "Review Bottleneck", "Stale Work",
-"Hidden Work" (off-board PRs), "Epic Drift" (no-epic count), "Done Mismatch"
-(merged but Jira not done), "Unstarted Commitment" (To-Do SP with N days left).
+"Behind Pace" (donePct vs elapsedPct), "Stale Work" (N tickets no movement > Nd),
+"Review Bottleneck" (PRs waiting > 24h), "Uneven Load" (imbalance across assignees),
+"Hidden Work" (off-board PRs), "Epic Drift" (no-epic count), "Done Mismatch" (merged
+but Jira not done), "Scope Increased" (tickets added after start).
 
 ## 6. Target layout
 
-- **Header:** team / sprint selectors, sprint dates, day-of-sprint, last-synced.
-- **Row 1 — Sprint Health strip:** progress vs time, committed/done/remaining SP,
-  completion-vs-time, scope change, at-risk count, off-board PRs.
-- **Row 2 — Flow:** left = burn-up chart, right = Needs-Attention panel (clickable).
-- **Row 3 — Epic progress:** cards with tickets, SP, done SP, risk chips.
-- **Row 4 — Team Workload & Flow:** per person — SP, done SP, WIP, avg days-since-update,
-  PRs open/reviewing/merged, risk. Styled as "who needs help", **not** a leaderboard.
+- **Header:** team / sprint selectors, sprint dates, day-of-sprint, sprint goal,
+  last-synced.
+- **Row 1 — On Track?:** completion-vs-time (donePct vs elapsedPct, behind/ahead),
+  remaining tickets, scope change, off-board PRs.
+- **Row 2 — Stuck & Attention:** left = completion-over-time (burn-up) chart;
+  right = Needs-Attention panel led by **Stale Work**, then waiting-review, failing-CI,
+  no-linked-PR, unassigned, no-epic (each clickable → filtered list).
+- **Row 3 — Load Distribution:** per-person ticket count + WIP + stalled count + PR
+  open/merged; team imbalance indicator. Framed "who needs help," not a leaderboard.
+- **Row 4 — Epic progress:** cards with tickets, done, stalled chips (SP optional).
 - **Row 5 — Delivery Hygiene:** PRs without Jira, Jira without PR, merged-but-not-done,
   done-without-merged-PR, failing checks.
 - Existing list/board views and drawers retained below.
@@ -175,29 +189,29 @@ TeamDashboard += {
 ## 7. Parallel decomposition
 
 **Wave 0 — Foundation (1 agent, blocks all):** write the enriched `TeamDashboard` /
-`DashboardIssue` types **and** internal `RawIssue` / `RawPR` enriched interfaces. This
-is the contract every other agent codes against.
+`DashboardIssue` types (ticket-count pace, optional SP) **and** internal
+`RawIssue` / `RawPR` enriched interfaces. The contract every other agent codes against.
 
 **Wave 1 — Backend (parallel against Wave-0 interfaces):**
-- **B1** Jira: auto-detect SP custom field (memoized cache) + add `created`, `duedate`,
-  sprint `goal` to both the Agile and JQL fallback fetch paths.
+- **B1** Jira fetch: add `created`, `duedate`, sprint `goal` to both fetch paths.
+  *Optional sub-task:* auto-detect SP custom field (memoized) — not on critical path.
 - **B2** GitHub: enrich PR GraphQL query — `mergedAt`, reviews (first-review time),
   requested reviewers, check details; extend `RawPR` + mapping.
-- **B3** Aggregation: per-issue flags + risk scoring (pure module, TDD).
-- **B4** Aggregation: sprint pace + commitment + scope change (pure module, TDD).
-- **B5** Aggregation: workload v2 — SP/doneSP/WIP/avgDaysSinceUpdate/PR counts (TDD).
+- **B3** Aggregation: per-issue flags + stalled-centric risk scoring (pure, TDD).
+- **B4** Aggregation: completion-vs-time / pace (ticket count) + scope change (TDD).
+- **B5** Aggregation: load distribution v2 — ticket/WIP/stalled/done/PR counts +
+  imbalance indicator (TDD). **Elevated priority.**
 - **B6** Aggregation: PR-flow metrics + delivery hygiene (TDD).
-- **B7** Burn-up: SQLite snapshot table + write-on-load + history read.
+- **B7** Burn-up: SQLite snapshot table (ticket-count) + write-on-load + history read.
 - **B8** Assemble enriched response in `/teams/:id/dashboard` (integrates B1–B7).
 
-**Wave 2 — Frontend (parallel, each renders a slice against the Wave-0 type using
+**Wave 2 — Frontend (parallel, each renders a slice against the Wave-0 type, using
 fixtures until backend lands):**
-- **FE1** Sprint Health strip (Row 1)
-- **FE2** Needs-Attention panel (Row 2 right) — clickable signals → filtered issue/PR
-  lists, reusing existing drawer/modal
-- **FE3** Burn-up chart (Row 2 left) — recharts line, ideal vs actual, "tracking since"
-- **FE4** Epic cards v2 (Row 3) — SP, done SP, risk chips
-- **FE5** Team Workload & Flow table (Row 4) — non-leaderboard styling
+- **FE1** "On Track?" strip (Row 1) — completion vs time
+- **FE2** Needs-Attention panel (Row 2 right) — stale-led, clickable → filtered lists
+- **FE3** Completion-over-time / burn-up chart (Row 2 left) — recharts, ideal vs actual
+- **FE4** Load Distribution row (Row 3) — **elevated**; non-leaderboard styling
+- **FE5** Epic cards v2 (Row 4) — tickets/done/stalled chips
 - **FE6** PR-Flow section (Row 5 area) — replaces "PRs Created"
 - **FE7** Delivery Hygiene section (Row 5)
 - **FE8** Header/filters + manager insight cards + drill-down wiring
@@ -207,14 +221,15 @@ remove superseded sections, connect drill-downs, verify against the live backend
 
 ### Testing
 
-Pure aggregation modules (B3–B6) built with **TDD** (unit tests for risk scoring, pace,
-workload, PR-flow/hygiene). Frontend components get light render tests. Wave 3 verifies
-end-to-end against the running backend.
+Pure aggregation modules (B3–B6) built with **TDD** (unit tests for risk, pace,
+load distribution, PR-flow/hygiene). Frontend components get light render tests.
+Wave 3 verifies end-to-end against the running backend.
 
 ## 8. Out of scope (v1)
 
-- Blocked-ticket detection (needs a chosen Jira signal).
+- Explicit blocked-ticket detection (stalled is the proxy).
+- Story-point–driven metrics as anything more than a secondary label.
 - True time-in-status / cycle time (needs changelog).
 - Sprint-membership history for exact scope-creep (needs sprint-field changelog).
 - Stale-branch detection.
-- Server-side caching (noted as a future improvement given added payload).
+- Server-side caching (future improvement given added payload).
