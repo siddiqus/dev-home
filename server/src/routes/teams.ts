@@ -15,6 +15,32 @@ import {
 
 const router = Router();
 
+/** Memoized story points field id detection (null if not found or errors). */
+let cachedStoryPointsFieldId: string | null | undefined = undefined;
+async function getStoryPointsFieldId(): Promise<string | null> {
+  if (cachedStoryPointsFieldId !== undefined) {
+    return cachedStoryPointsFieldId as string | null;
+  }
+  try {
+    const jira = createJiraClient();
+    const { data } = await jira.get("/field");
+    // Prefer custom fields whose schema.custom contains "story" or whose name matches /story point/i
+    const field = (data || []).find(
+      (f: any) =>
+        f.custom &&
+        (f.name?.toLowerCase().includes("story point") ||
+          f.schema?.custom?.toLowerCase().includes("story-points") ||
+          f.schema?.custom?.toLowerCase().includes("storypointestimate") ||
+          f.schema?.custom?.toLowerCase().includes("gh-sprint-storypointsfield")),
+    );
+    cachedStoryPointsFieldId = field?.id || null;
+    return cachedStoryPointsFieldId as string | null;
+  } catch {
+    cachedStoryPointsFieldId = null;
+    return null;
+  }
+}
+
 /** GET /api/teams — list teams with member counts. */
 router.get("/", (_req: Request, res: Response) => {
   const db = getDb();
@@ -138,10 +164,12 @@ const MEMBER_PRS_QUERY = `
     search(query: $q, type: ISSUE, first: 30) {
       nodes {
         ... on PullRequest {
-          number title url state createdAt
+          number title url state createdAt mergedAt
           author { login }
           repository { nameWithOwner }
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+          reviews(first: 10) { nodes { submittedAt state } }
+          reviewRequests(first: 1) { totalCount }
         }
       }
     }
@@ -166,16 +194,41 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
         const q = `author:${m.githubUsername} type:pr created:>=${since}`;
         try {
           const data = await graphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
-          return (data.search.nodes || []).map((n: any) => ({
-            number: n.number,
-            title: n.title,
-            repo_full_name: n.repository?.nameWithOwner || "",
-            html_url: n.url,
-            state: (n.state || "").toLowerCase(),
-            checks_status: n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
-            author: n.author?.login || m.githubUsername,
-            created_at: n.createdAt,
-          })) as RawPR[];
+          return (data.search.nodes || []).map((n: any) => {
+            // Reviews: compute earliest submittedAt and rollup state
+            const reviews = n.reviews?.nodes || [];
+            let first_review_at: string | null = null;
+            let review_state: string | null = null;
+            if (reviews.length > 0) {
+              const sorted = [...reviews].sort(
+                (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime(),
+              );
+              first_review_at = sorted[0].submittedAt;
+              // Rollup: CHANGES_REQUESTED > APPROVED > COMMENTED
+              const hasChanges = reviews.some((r: any) => r.state === "CHANGES_REQUESTED");
+              const hasApproved = reviews.some((r: any) => r.state === "APPROVED");
+              if (hasChanges) review_state = "CHANGES_REQUESTED";
+              else if (hasApproved) review_state = "APPROVED";
+              else review_state = "COMMENTED";
+            } else if ((n.reviewRequests?.totalCount || 0) > 0) {
+              review_state = "REVIEW_REQUIRED";
+            }
+
+            return {
+              number: n.number,
+              title: n.title,
+              repo_full_name: n.repository?.nameWithOwner || "",
+              html_url: n.url,
+              state: (n.state || "").toLowerCase(),
+              checks_status: n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
+              author: n.author?.login || m.githubUsername,
+              created_at: n.createdAt,
+              merged_at: n.mergedAt || null,
+              first_review_at,
+              review_state,
+              review_requested: (n.reviewRequests?.totalCount || 0) > 0,
+            };
+          }) as RawPR[];
         } catch {
           return [] as RawPR[];
         }
@@ -187,7 +240,7 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
 }
 
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
-function mapAgileIssues(rawIssues: any[]): RawIssue[] {
+function mapAgileIssues(rawIssues: any[], storyPointsFieldId: string | null): RawIssue[] {
   return rawIssues.map((issue: any) => ({
     key: issue.key,
     summary: issue.fields?.summary || "",
@@ -197,11 +250,15 @@ function mapAgileIssues(rawIssues: any[]): RawIssue[] {
     assigneeName: issue.fields?.assignee?.displayName || null,
     epicKey: issue.fields?.epic?.key || null,
     epicName: issue.fields?.epic?.name || null,
+    createdAt: issue.fields?.created || null,
+    updatedAt: issue.fields?.updated || null,
+    dueDate: issue.fields?.duedate || null,
+    storyPoints: storyPointsFieldId ? (issue.fields?.[storyPointsFieldId] ?? null) : null,
   }));
 }
 
 /** Map platform JQL issues (epic derived from `parent`). */
-function mapJqlIssues(rawIssues: any[]): RawIssue[] {
+function mapJqlIssues(rawIssues: any[], storyPointsFieldId: string | null): RawIssue[] {
   return rawIssues.map((issue: any) => {
     const parent = issue.fields?.parent;
     const parentIsEpic = parent?.fields?.issuetype?.name?.toLowerCase() === "epic";
@@ -214,6 +271,10 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
       assigneeName: issue.fields?.assignee?.displayName || null,
       epicKey: parentIsEpic ? parent.key : null,
       epicName: parentIsEpic ? parent.fields?.summary || parent.key : null,
+      createdAt: issue.fields?.created || null,
+      updatedAt: issue.fields?.updated || null,
+      dueDate: issue.fields?.duedate || null,
+      storyPoints: storyPointsFieldId ? (issue.fields?.[storyPointsFieldId] ?? null) : null,
     };
   });
 }
@@ -273,6 +334,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
               state: s.state,
               startDate: s.startDate,
               endDate: s.endDate,
+              goal: s.goal || undefined,
             });
           }
           if (sprintData.isLast || (sprintData.values || []).length < maxResults) break;
@@ -291,26 +353,32 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
           null;
 
         if (currentSprint) {
+          const storyPointsFieldId = await getStoryPointsFieldId();
+          let fieldsParam = "summary,status,assignee,epic,created,updated,duedate";
+          if (storyPointsFieldId) fieldsParam += `,${storyPointsFieldId}`;
           const { data: issueData } = await agile.get(
             `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
-            { params: { fields: "summary,status,assignee,epic", maxResults: 100 } },
+            { params: { fields: fieldsParam, maxResults: 100 } },
           );
           // Include every ticket in the sprint — assigned, unassigned, and
           // assigned to people outside this team's roster — so the counts and
           // the progress bar reflect the sprint as a whole. Per-member workload
           // still narrows to the roster in computeWorkload.
-          issues = mapAgileIssues(issueData.issues || []);
+          issues = mapAgileIssues(issueData.issues || [], storyPointsFieldId);
         }
       } else {
         const jira = createJiraClient();
+        const storyPointsFieldId = await getStoryPointsFieldId();
         const idList = accountIds.map((a) => `"${a}"`).join(", ");
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
+        const fieldsArray = ["summary", "status", "assignee", "parent", "created", "updated", "duedate"];
+        if (storyPointsFieldId) fieldsArray.push(storyPointsFieldId);
         const { data } = await jira.post("/search/jql", {
           jql,
-          fields: ["summary", "status", "assignee", "parent"],
+          fields: fieldsArray,
           maxResults: 100,
         });
-        issues = mapJqlIssues(data.issues || []);
+        issues = mapJqlIssues(data.issues || [], storyPointsFieldId);
       }
     } catch (err: any) {
       errors.push(`Jira: ${err.message || "failed to load issues"}`);

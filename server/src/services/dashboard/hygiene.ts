@@ -15,17 +15,39 @@ import type { EnrichedIssue, Hygiene, Ref } from "./types";
 export function computeHygiene(
   issues: EnrichedIssue[],
   prs: RawPR[],
-  sprintKeys: Set<string>,
+  _sprintKeys: Set<string>,
 ): Hygiene {
-  // TODO(BE-prflow): implement the four buckets.
   const prRef = (p: RawPR): Ref => ({ kind: "pr", repo: p.repo_full_name, number: p.number });
+  const issueRef = (i: EnrichedIssue): Ref => ({ kind: "issue", key: i.key });
+
+  // prNoJira: PRs with no parseable Jira key
   const prNoJira = prs.filter((p) => !extractTicketKey(p.title)).map(prRef);
-  void issues;
-  void sprintKeys;
+
+  // jiraNoPR: in-progress issues with no linked PR
+  const jiraNoPR = issues
+    .filter((i) => i.statusCategory === "indeterminate" && i.linkedPRs.length === 0)
+    .map(issueRef);
+
+  // mergedNotDone: issues with a merged PR but not in done status
+  const mergedNotDone = issues
+    .filter((i) => {
+      if (i.statusCategory === "done") return false;
+      return i.linkedPRs.some((pr) => pr.mergedAt);
+    })
+    .map(issueRef);
+
+  // doneNoMerged: done issues with no merged PR (includes done issues with zero PRs)
+  const doneNoMerged = issues
+    .filter((i) => {
+      if (i.statusCategory !== "done") return false;
+      return !i.linkedPRs.some((pr) => pr.mergedAt);
+    })
+    .map(issueRef);
+
   return {
     prNoJira,
-    jiraNoPR: [],
-    mergedNotDone: [],
-    doneNoMerged: [],
+    jiraNoPR,
+    mergedNotDone,
+    doneNoMerged,
   };
 }

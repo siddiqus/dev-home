@@ -15,19 +15,62 @@ export function buildNeedsAttention(
   issues: EnrichedIssue[],
   offBoardPRs: OffBoardPRRef[],
 ): NeedsAttention {
-  // TODO(BE-risk): populate each bucket from issue.flags; offBoard from args.
   const issueRef = (key: string): Ref => ({ kind: "issue", key });
-  const empty: NeedsAttention = {
-    stale: [],
-    waitingReview: [],
-    failingCI: [],
-    noLinkedPR: [],
-    offBoard: offBoardPRs.map((p) => ({ kind: "pr", repo: p.repo_full_name, number: p.number })),
-    scopeCreep: [],
-    unassigned: [],
-    noEpic: [],
+  const prRef = (repo: string, number: number): Ref => ({ kind: "pr", repo, number });
+
+  const stale: Ref[] = [];
+  const waitingReview: Ref[] = [];
+  const failingCI: Ref[] = [];
+  const noLinkedPR: Ref[] = [];
+  const scopeCreep: Ref[] = [];
+  const unassigned: Ref[] = [];
+  const noEpic: Ref[] = [];
+
+  // Dedupe PRs by repo+number
+  const seenWaitingReview = new Set<string>();
+  const seenFailingCI = new Set<string>();
+
+  for (const issue of issues) {
+    if (issue.flags.stale) {
+      stale.push(issueRef(issue.key));
+    }
+    if (issue.flags.inProgressNoPR) {
+      noLinkedPR.push(issueRef(issue.key));
+    }
+    if (issue.flags.addedAfterStart) {
+      scopeCreep.push(issueRef(issue.key));
+    }
+    if (issue.flags.unassigned) {
+      unassigned.push(issueRef(issue.key));
+    }
+    if (issue.flags.noEpic) {
+      noEpic.push(issueRef(issue.key));
+    }
+
+    // Extract PR refs with deduplication
+    for (const pr of issue.linkedPRs) {
+      const prKey = `${pr.repo_full_name}:${pr.number}`;
+      if (pr.waitingReview && !seenWaitingReview.has(prKey)) {
+        waitingReview.push(prRef(pr.repo_full_name, pr.number));
+        seenWaitingReview.add(prKey);
+      }
+      if (pr.checks_status === "FAILURE" && !seenFailingCI.has(prKey)) {
+        failingCI.push(prRef(pr.repo_full_name, pr.number));
+        seenFailingCI.add(prKey);
+      }
+    }
+  }
+
+  const offBoard = offBoardPRs.map((p) => prRef(p.repo_full_name, p.number));
+
+  return {
+    stale,
+    waitingReview,
+    failingCI,
+    noLinkedPR,
+    offBoard,
+    scopeCreep,
+    unassigned,
+    noEpic,
   };
-  void issues;
-  void issueRef;
-  return empty;
 }

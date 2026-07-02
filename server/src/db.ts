@@ -221,6 +221,22 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
     `);
   },
+
+  // 14 – create sprint_snapshots table
+  (d) => {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS sprint_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sprint_id INTEGER NOT NULL,
+        snapshot_date TEXT NOT NULL,
+        done_count INTEGER NOT NULL,
+        total_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(sprint_id, snapshot_date)
+      );
+      CREATE INDEX IF NOT EXISTS idx_sprint_snapshots_sprint ON sprint_snapshots(sprint_id);
+    `);
+  },
 ];
 
 function runMigrations(d: Database.Database): void {
@@ -271,6 +287,16 @@ function ensureCoreTables(d: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+    CREATE TABLE IF NOT EXISTS sprint_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sprint_id INTEGER NOT NULL,
+      snapshot_date TEXT NOT NULL,
+      done_count INTEGER NOT NULL,
+      total_count INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(sprint_id, snapshot_date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_sprint_snapshots_sprint ON sprint_snapshots(sprint_id);
   `);
 }
 

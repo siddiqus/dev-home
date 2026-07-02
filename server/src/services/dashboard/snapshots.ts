@@ -22,28 +22,64 @@ export interface SnapshotRow {
  * @param today ISO date (YYYY-MM-DD) — passed in for determinism/testability.
  */
 export function recordSnapshot(
-  _db: Database.Database,
-  _sprintId: number,
-  _doneCount: number,
-  _totalCount: number,
-  _today: string,
+  db: Database.Database,
+  sprintId: number,
+  doneCount: number,
+  totalCount: number,
+  today: string,
 ): void {
-  // TODO(BE-snapshot): INSERT OR REPLACE INTO sprint_snapshots (...).
+  db.prepare(
+    `INSERT INTO sprint_snapshots (sprint_id, snapshot_date, done_count, total_count)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(sprint_id, snapshot_date)
+     DO UPDATE SET done_count = excluded.done_count, total_count = excluded.total_count`
+  ).run(sprintId, today, doneCount, totalCount);
 }
 
 /** Compute the straight ideal line (0 → totalCount) across the point dates. */
 export function buildIdealLine(rows: SnapshotRow[]): BurnupPoint[] {
-  // TODO(BE-snapshot): map rows to points with an interpolated ideal.
-  return rows.map((r) => ({
-    date: r.date,
-    doneCount: r.doneCount,
-    totalCount: r.totalCount,
-    ideal: 0,
-  }));
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const finalTotalCount = rows[rows.length - 1].totalCount;
+
+  return rows.map((r, i) => {
+    let ideal: number;
+    if (rows.length === 1) {
+      ideal = finalTotalCount;
+    } else {
+      ideal = Math.round((finalTotalCount * i) / (rows.length - 1));
+    }
+    return {
+      date: r.date,
+      doneCount: r.doneCount,
+      totalCount: r.totalCount,
+      ideal,
+    };
+  });
 }
 
-export function getBurnup(_db: Database.Database, sprint: SprintInfo | null): Burnup {
-  // TODO(BE-snapshot): SELECT rows for sprint.id ordered by date; buildIdealLine.
-  void sprint;
-  return { trackingSince: null, points: [] };
+export function getBurnup(db: Database.Database, sprint: SprintInfo | null): Burnup {
+  if (!sprint) {
+    return { trackingSince: null, points: [] };
+  }
+
+  const rows = db
+    .prepare(
+      `SELECT snapshot_date as date, done_count as doneCount, total_count as totalCount
+       FROM sprint_snapshots
+       WHERE sprint_id = ?
+       ORDER BY snapshot_date`
+    )
+    .all(sprint.id) as SnapshotRow[];
+
+  if (rows.length === 0) {
+    return { trackingSince: null, points: [] };
+  }
+
+  const points = buildIdealLine(rows);
+  const trackingSince = rows[0].date;
+
+  return { trackingSince, points };
 }
