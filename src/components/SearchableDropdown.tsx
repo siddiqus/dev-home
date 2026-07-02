@@ -21,6 +21,21 @@ interface SearchableDropdownProps {
   triggerIcon?: React.ReactNode;
   onDeleteItem?: (value: string) => void;
   loading?: boolean;
+  /**
+   * Called on every keystroke in the search box. Provide this when results are
+   * fetched from a server as the user types — the parent owns `items` and the
+   * built-in client-side filter is skipped so already-matched results aren't
+   * re-filtered away.
+   */
+  onSearchChange?: (search: string) => void;
+  /** Hides the "All" clear option — for single-select pickers where "none" isn't meaningful. */
+  hideAllOption?: boolean;
+  /**
+   * Label to show for the current selection when it isn't present in `items`.
+   * Needed for server-driven dropdowns where `items` are cleared after selection,
+   * so the collapsed trigger would otherwise fall back to showing the raw `value`.
+   */
+  selectedLabel?: string;
 }
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -33,6 +48,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   triggerIcon,
   onDeleteItem,
   loading = false,
+  onSearchChange,
+  hideAllOption = false,
+  selectedLabel: selectedLabelOverride,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -40,16 +58,21 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
-    if (!search) return items;
+    // When search is server-driven, `items` are already the matches — don't
+    // re-filter by label locally.
+    if (onSearchChange || !search) return items;
     const lower = search.toLowerCase();
     return items.filter((item) => item.label.toLowerCase().includes(lower));
-  }, [items, search]);
+  }, [items, search, onSearchChange]);
 
   const selectedLabel = useMemo(() => {
     if (!value) return allLabel;
     const item = items.find((i) => i.value === value);
-    return item ? item.label : value;
-  }, [items, value, allLabel]);
+    if (item) return item.label;
+    // `items` may not contain the selection (server-driven results get cleared
+    // after picking) — prefer the caller-supplied label over the raw value.
+    return selectedLabelOverride || value;
+  }, [items, value, allLabel, selectedLabelOverride]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -64,7 +87,13 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   const handleSelect = (val: string) => {
     onChange(val);
     setSearch("");
+    onSearchChange?.("");
     setOpen(false);
+  };
+
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    onSearchChange?.(val);
   };
 
   return (
@@ -95,7 +124,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             size="sm"
             placeholder={placeholder}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             onClick={(e) => e.stopPropagation()}
             style={{
               border: "none",
@@ -118,6 +147,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               e.stopPropagation();
               onChange("");
               setSearch("");
+              onSearchChange?.("");
               setOpen(false);
             }}
           />
@@ -147,12 +177,14 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             </div>
           ) : (
             <>
-              <div
-                className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
-                onMouseDown={() => handleSelect("")}
-              >
-                {allLabel}
-              </div>
+              {!hideAllOption && (
+                <div
+                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
+                  onMouseDown={() => handleSelect("")}
+                >
+                  {allLabel}
+                </div>
+              )}
               {filtered.map((item) => (
                 <div
                   key={item.value}

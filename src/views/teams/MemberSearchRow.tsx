@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { searchJiraUsers } from "../../services/teams";
 import { apiClient } from "../../services/config";
+import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import type { JiraUserResult } from "../../types/teams";
 
 interface GhMember {
@@ -18,17 +19,13 @@ interface Props {
 }
 
 export function MemberSearchRow({ onAdd }: Props) {
-  const [jiraQuery, setJiraQuery] = useState("");
   const [jiraResults, setJiraResults] = useState<JiraUserResult[]>([]);
   const [selectedJira, setSelectedJira] = useState<JiraUserResult | null>(null);
 
-  const [ghQuery, setGhQuery] = useState("");
-  const [ghResults, setGhResults] = useState<GhMember[]>([]);
+  const [ghMembers, setGhMembers] = useState<GhMember[]>([]);
   const [selectedGh, setSelectedGh] = useState<GhMember | null>(null);
-  const ghMembersCache = useRef<GhMember[] | null>(null);
 
   const runJiraSearch = async (q: string) => {
-    setJiraQuery(q);
     if (q.trim().length < 2) return setJiraResults([]);
     try {
       setJiraResults(await searchJiraUsers(q));
@@ -37,77 +34,62 @@ export function MemberSearchRow({ onAdd }: Props) {
     }
   };
 
-  const runGhSearch = async (q: string) => {
-    setGhQuery(q);
-    if (q.trim().length < 1) return setGhResults([]);
-    try {
-      if (!ghMembersCache.current) {
-        const { data } = await apiClient.get("/github/org-members");
-        ghMembersCache.current = data.members || [];
-      }
-      const cached = ghMembersCache.current ?? [];
-      setGhResults(
-        cached.filter((m) => m.login.toLowerCase().includes(q.toLowerCase())).slice(0, 10),
-      );
-    } catch {
-      setGhResults([]);
-    }
-  };
+  // GitHub org members are a bounded static list — load once and let the
+  // dropdown filter client-side.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get("/github/org-members")
+      .then(({ data }) => {
+        if (!cancelled) setGhMembers(data.members || []);
+      })
+      .catch(() => {
+        if (!cancelled) setGhMembers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const jiraItems: DropdownItem[] = useMemo(
+    () =>
+      jiraResults.map((u) => ({
+        value: u.accountId,
+        label: u.emailAddress ? `${u.displayName} · ${u.emailAddress}` : u.displayName,
+        icon: u.avatarUrl,
+      })),
+    [jiraResults],
+  );
+
+  const ghItems: DropdownItem[] = useMemo(
+    () => ghMembers.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),
+    [ghMembers],
+  );
 
   const canAdd = selectedJira && selectedGh;
 
   return (
     <div className="d-flex gap-2 align-items-start flex-wrap">
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <input
-          className="form-control form-control-sm"
-          placeholder="Search Jira user…"
-          value={selectedJira ? selectedJira.displayName : jiraQuery}
-          onChange={(e) => {
-            setSelectedJira(null);
-            runJiraSearch(e.target.value);
-          }}
-        />
-        {!selectedJira &&
-          jiraResults.map((u) => (
-            <div
-              key={u.accountId}
-              className="p-1 small"
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                setSelectedJira(u);
-                setJiraResults([]);
-              }}
-            >
-              {u.displayName} {u.emailAddress ? `· ${u.emailAddress}` : ""}
-            </div>
-          ))}
-      </div>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <input
-          className="form-control form-control-sm"
-          placeholder="Search GitHub member…"
-          value={selectedGh ? selectedGh.login : ghQuery}
-          onChange={(e) => {
-            setSelectedGh(null);
-            runGhSearch(e.target.value);
-          }}
-        />
-        {!selectedGh &&
-          ghResults.map((m) => (
-            <div
-              key={m.login}
-              className="p-1 small"
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                setSelectedGh(m);
-                setGhResults([]);
-              }}
-            >
-              {m.login}
-            </div>
-          ))}
-      </div>
+      <SearchableDropdown
+        items={jiraItems}
+        value={selectedJira?.accountId || ""}
+        selectedLabel={selectedJira?.emailAddress || selectedJira?.displayName}
+        onChange={(v) => setSelectedJira(jiraResults.find((u) => u.accountId === v) || null)}
+        onSearchChange={runJiraSearch}
+        placeholder="Search Jira user…"
+        allLabel="Select Jira user"
+        hideAllOption
+        width={350}
+      />
+      <SearchableDropdown
+        items={ghItems}
+        value={selectedGh?.login || ""}
+        onChange={(v) => setSelectedGh(ghMembers.find((m) => m.login === v) || null)}
+        placeholder="Search GitHub member…"
+        allLabel="Select GitHub member"
+        hideAllOption
+        width={220}
+      />
       <button
         className="btn btn-sm btn-primary"
         disabled={!canAdd}
@@ -121,8 +103,7 @@ export function MemberSearchRow({ onAdd }: Props) {
           });
           setSelectedJira(null);
           setSelectedGh(null);
-          setJiraQuery("");
-          setGhQuery("");
+          setJiraResults([]);
         }}
       >
         Add

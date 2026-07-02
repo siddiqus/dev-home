@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { IconChartBar } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
@@ -9,15 +9,28 @@ import { EmptyState } from "../../components/EmptyState";
 
 interface Props {
   jiraBaseUrl?: string;
+  /** Pre-select this team when navigating in from the teams list. */
+  initialTeamId?: number | null;
 }
 
-export function TeamDashboardView({ jiraBaseUrl }: Props) {
+export function TeamDashboardView({ jiraBaseUrl, initialTeamId }: Props) {
   const { teams } = useTeams(true);
-  const [teamId, setTeamId] = useState<number | null>(null);
+  const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "board">("list");
   const offBoardRef = useRef<HTMLDivElement | null>(null);
+
+  // This view stays mounted while the app only toggles the active tab, so a new
+  // navigation target arrives as a prop change — reflect it (and reset the
+  // dependent sprint/member filters) when it points at a different team.
+  useEffect(() => {
+    if (initialTeamId != null && initialTeamId !== teamId) {
+      setTeamId(initialTeamId);
+      setSprintId(null);
+      setMemberFilter(null);
+    }
+  }, [initialTeamId]);
 
   const { dashboard, loading, error } = useTeamDashboard(teamId, sprintId);
 

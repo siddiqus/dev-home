@@ -70,6 +70,12 @@ export default function App() {
       prevTabRef.current = activeTab;
     }
   }, [activeTab]);
+  // Team id to pre-select when navigating into the team dashboard from a team row.
+  const [dashboardTeamId, setDashboardTeamId] = useState<number | null>(null);
+  const openTeamDashboard = (teamId: number) => {
+    setDashboardTeamId(teamId);
+    setActiveTab("team-dashboard");
+  };
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "light";
   });
@@ -611,9 +617,9 @@ export default function App() {
                       onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
-                  {effectiveTab === "teams" && <TeamsView />}
+                  {effectiveTab === "teams" && <TeamsView onOpenDashboard={openTeamDashboard} />}
                   {effectiveTab === "team-dashboard" && (
-                    <TeamDashboardView jiraBaseUrl={jiraBaseUrl} />
+                    <TeamDashboardView jiraBaseUrl={jiraBaseUrl} initialTeamId={dashboardTeamId} />
                   )}
                   {effectiveTab === "notes" && (
                     <PersonalNotes
