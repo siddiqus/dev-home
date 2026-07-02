@@ -16,7 +16,6 @@ import { computePace, computeScope } from "../services/dashboard/pace";
 import { computeLoadDistribution, computeLoadBalance } from "../services/dashboard/load";
 import { computePrFlow } from "../services/dashboard/prFlow";
 import { computeHygiene } from "../services/dashboard/hygiene";
-import { buildInsights } from "../services/dashboard/insights";
 import { recordSnapshot, getBurnup } from "../services/dashboard/snapshots";
 import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
 import type { SprintInfo, Burnup } from "../services/dashboard/types";
@@ -443,7 +442,6 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
   );
   const prFlow = computePrFlow(prs, enrichedIssues, now);
   const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
-  const insights = buildInsights({ pace, scope, needsAttention, prFlow, loadBalance, hygiene });
 
   // Burn-up: snapshot today's completion, then read the accrued history.
   let burnup: Burnup = { trackingSince: null, points: [] };
@@ -482,7 +480,6 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     prFlow,
     hygiene,
     burnup,
-    insights,
     syncedAt: now.toISOString(),
     errors,
   });

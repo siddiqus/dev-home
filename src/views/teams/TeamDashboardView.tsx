@@ -17,9 +17,6 @@ import type { JiraIssue, GitHubPR } from "../../types";
 import type { LinkedPR, Ref } from "../../types/teams";
 // --- Sprint cockpit ---
 import { SprintMetaBar } from "./cockpit/SprintMetaBar";
-import { InsightCards } from "./cockpit/InsightCards";
-import { OnTrackStrip } from "./cockpit/OnTrackStrip";
-import { CompletionChart } from "./cockpit/CompletionChart";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
 import { LoadDistribution } from "./cockpit/LoadDistribution";
 import { EpicCards } from "./cockpit/EpicCards";
@@ -178,49 +175,28 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
             sprint={selectedSprint}
             pace={dashboard.pace}
             lastSynced={dashboard.syncedAt ?? null}
+            jiraBaseUrl={jiraBaseUrl}
+            boardId={dashboard.team.board?.id ?? null}
           />
 
-          {/* Manager insight cards */}
-          {dashboard.insights.length > 0 && (
-            <div className="mb-3">
-              <InsightCards insights={dashboard.insights} />
-            </div>
-          )}
-
-          {/* Row 1 — Are we on track? */}
-          <OnTrackStrip
-            pace={dashboard.pace}
-            scope={dashboard.scope}
-            offBoardCount={dashboard.counts.offBoardPRs}
-          />
+          <div className="mb-3">
+            <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
+          </div>
 
           {/* Row 2 — Completion over time + Needs Attention */}
           <div className="row g-3 mb-3">
             <div className="col-lg-7">
-              <div className="border rounded p-2 h-100">
-                <CompletionChart burnup={dashboard.burnup} />
-              </div>
+              <LoadDistribution
+                workload={dashboard.workload}
+                loadBalance={dashboard.loadBalance}
+                onOpenRef={openRef}
+              />
             </div>
             <div className="col-lg-5">
               <NeedsAttentionPanel needsAttention={dashboard.needsAttention} onOpenRef={openRef} />
             </div>
           </div>
 
-          {/* Row 3 — Load distribution */}
-          <div className="mb-3">
-            <LoadDistribution
-              workload={dashboard.workload}
-              loadBalance={dashboard.loadBalance}
-              onOpenRef={openRef}
-            />
-          </div>
-
-          {/* Row 4 — Epic progress */}
-          <div className="mb-3">
-            <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
-          </div>
-
-          {/* Row 5 — PR flow + Delivery hygiene */}
           <div className="row g-3 mb-3">
             <div className="col-lg-7">
               <div className="border rounded p-2 h-100">
@@ -230,45 +206,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
             <div className="col-lg-5">
               <DeliveryHygiene hygiene={dashboard.hygiene} onOpenRef={openRef} />
             </div>
-          </div>
-
-          {/* Sprint issues */}
-          <div className="border rounded p-2 mb-3">
-            <div className="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
-              <div className="small text-muted">SPRINT ISSUES · {dashboard.issues.length}</div>
-              <div className="d-flex align-items-center gap-3 flex-wrap">
-                <SprintProgressBar progress={dashboard.progress} />
-                <div className="btn-group btn-group-sm">
-                  <button
-                    className={`btn btn-outline-secondary ${view === "list" ? "active" : ""}`}
-                    onClick={() => setView("list")}
-                  >
-                    List
-                  </button>
-                  <button
-                    className={`btn btn-outline-secondary ${view === "board" ? "active" : ""}`}
-                    onClick={() => setView("board")}
-                  >
-                    Board
-                  </button>
-                </div>
-              </div>
-            </div>
-            {view === "list" ? (
-              <SprintIssueTable
-                issues={dashboard.issues}
-                jiraBaseUrl={jiraBaseUrl}
-                onIssueClick={openIssue}
-                onPRClick={openPR}
-              />
-            ) : (
-              <ReadOnlyBoard
-                issues={dashboard.issues}
-                jiraBaseUrl={jiraBaseUrl}
-                onIssueClick={openIssue}
-                onPRClick={openPR}
-              />
-            )}
           </div>
 
           {/* Off-board PRs — full list */}

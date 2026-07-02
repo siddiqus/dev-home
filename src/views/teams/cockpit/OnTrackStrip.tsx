@@ -1,25 +1,19 @@
-import type { SprintPace, ScopeChange } from "../../../types/teams";
+import type { SprintPace } from "../../../types/teams";
 
 interface Props {
   pace: SprintPace;
-  scope: ScopeChange;
-  offBoardCount: number;
 }
 
-/**
- * Row 1 "Are we on track?" — horizontal strip of compact cards showing sprint
- * health metrics (completion vs time, remaining work, scope change, off-board PRs).
- */
-export function OnTrackStrip({ pace, scope, offBoardCount }: Props) {
+export function OnTrackStrip({ pace }: Props) {
   const donePctWhole = Math.round(pace.donePct * 100);
   const elapsedPctWhole = Math.round(pace.elapsedPct * 100);
   const isBehind = pace.behindPace;
 
   return (
-    <div className="d-flex gap-2 mb-3">
+    <div className="d-flex gap-2">
       {/* 1. Hero: Completion vs Time */}
-      <div className="flex-fill border rounded p-2" style={{ minWidth: 0 }}>
-        <div className="d-flex align-items-center gap-2 mb-1">
+      <div className="flex-fill" style={{ minWidth: 160 }}>
+        <div className="d-flex align-items-center gap-2 mb-2">
           <span className="fw-semibold" style={{ fontSize: "0.9375rem" }}>
             {donePctWhole}% done · {elapsedPctWhole}% elapsed
           </span>
@@ -29,9 +23,6 @@ export function OnTrackStrip({ pace, scope, offBoardCount }: Props) {
           >
             {isBehind ? "Behind pace" : "On track"}
           </span>
-        </div>
-        <div className="small text-muted mb-2">
-          Day {pace.dayOfSprint} of {pace.sprintLength}
         </div>
         {/* Dual mini-bar: done vs elapsed */}
         <div className="d-flex gap-1">
@@ -67,28 +58,14 @@ export function OnTrackStrip({ pace, scope, offBoardCount }: Props) {
       </div>
 
       {/* 2. Remaining */}
-      <div className="flex-fill border rounded p-2 text-center" style={{ minWidth: 0 }}>
+      <div
+        className="text-center ps-3 d-flex flex-column justify-content-center"
+        style={{ borderLeft: "1px solid rgba(125,125,125,.2)", minWidth: 84 }}
+      >
         <div className="h5 mb-0">
           {pace.remainingCount} <span className="text-muted small">of {pace.totalCount}</span>
         </div>
         <div className="small text-muted">tickets left</div>
-      </div>
-
-      {/* 3. Scope change */}
-      <div
-        className={`flex-fill border rounded p-2 text-center ${scope.addedCount > 0 ? "bg-warning bg-opacity-10" : ""}`}
-        style={{ minWidth: 0 }}
-      >
-        <div className={`h5 mb-0 ${scope.addedCount > 0 ? "text-warning" : "text-muted"}`}>
-          +{scope.addedCount}
-        </div>
-        <div className="small text-muted">added after start</div>
-      </div>
-
-      {/* 4. Off-board PRs */}
-      <div className="flex-fill border rounded p-2 text-center" style={{ minWidth: 0 }}>
-        <div className="h5 mb-0">{offBoardCount}</div>
-        <div className="small text-muted">not linked to sprint</div>
       </div>
     </div>
   );
