@@ -7,6 +7,7 @@
  * STUB: implement rules with TDD per spec §5.
  */
 import type {
+  Hygiene,
   Insight,
   LoadBalance,
   NeedsAttention,
@@ -21,6 +22,7 @@ export interface InsightInput {
   needsAttention: NeedsAttention;
   prFlow: PrFlow;
   loadBalance: LoadBalance;
+  hygiene?: Hygiene;
 }
 
 export function buildInsights(input: InsightInput): Insight[] {
@@ -85,6 +87,16 @@ export function buildInsights(input: InsightInput): Insight[] {
       severity: "info",
       title: "Epic Drift",
       detail: `${input.needsAttention.noEpic.length} tickets without epic`,
+    });
+  }
+
+  // Done mismatch — PRs merged but the Jira ticket isn't marked done
+  if (input.hygiene && input.hygiene.mergedNotDone.length > 0) {
+    insights.push({
+      key: "done-mismatch",
+      severity: "warn",
+      title: "Done Mismatch",
+      detail: `${input.hygiene.mergedNotDone.length} merged PRs with Jira not marked done`,
     });
   }
 

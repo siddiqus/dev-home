@@ -3,15 +3,23 @@ import { getDb } from "../db";
 import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
 import {
-  linkPRsToIssues,
   partitionOffBoardPRs,
   groupByEpic,
-  computeWorkload,
   computeSprintProgress,
   type RawIssue,
   type RawPR,
   type RosterEntry,
 } from "../services/teamAggregation";
+import { enrichIssue, groupPRsByTicket } from "../services/dashboard/risk";
+import { buildNeedsAttention } from "../services/dashboard/attention";
+import { computePace, computeScope } from "../services/dashboard/pace";
+import { computeLoadDistribution, computeLoadBalance } from "../services/dashboard/load";
+import { computePrFlow } from "../services/dashboard/prFlow";
+import { computeHygiene } from "../services/dashboard/hygiene";
+import { buildInsights } from "../services/dashboard/insights";
+import { recordSnapshot, getBurnup } from "../services/dashboard/snapshots";
+import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
+import type { SprintInfo, Burnup } from "../services/dashboard/types";
 
 const router = Router();
 
@@ -395,13 +403,51 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     }
   }
 
-  // --- Aggregate ---
+  // --- Aggregate (sprint cockpit) ---
+  const now = new Date();
+  const config = DEFAULT_COCKPIT_CONFIG;
+  const sprintInfo: SprintInfo | null = currentSprint
+    ? {
+        id: currentSprint.id,
+        startDate: currentSprint.startDate ?? null,
+        endDate: currentSprint.endDate ?? null,
+      }
+    : null;
+
   const sprintKeys = new Set(issues.map((i) => i.key));
-  const issuesWithPRs = linkPRsToIssues(issues, prs);
+  // Enrich each issue with its linked PRs, flags, and risk score.
+  const prIndex = groupPRsByTicket(prs);
+  const enrichedIssues = issues.map((i) =>
+    enrichIssue(i, prIndex.get(i.key) || [], sprintInfo, now, config),
+  );
+  const staleKeys = new Set(enrichedIssues.filter((i) => i.flags.stale).map((i) => i.key));
+
   const offBoardPRs = partitionOffBoardPRs(prs, sprintKeys);
-  const epics = groupByEpic(issues);
-  const workload = computeWorkload(roster, issues, prs);
+  const epics = groupByEpic(issues, staleKeys);
+  const workload = computeLoadDistribution(roster, enrichedIssues, prs, now);
+  const loadBalance = computeLoadBalance(workload);
   const progress = computeSprintProgress(issues);
+  const pace = computePace(enrichedIssues, sprintInfo, now, config);
+  const scope = computeScope(enrichedIssues, sprintInfo);
+  const needsAttention = buildNeedsAttention(
+    enrichedIssues,
+    offBoardPRs.map((p) => ({ repo_full_name: p.repo_full_name, number: p.number })),
+  );
+  const prFlow = computePrFlow(prs, enrichedIssues, now);
+  const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
+  const insights = buildInsights({ pace, scope, needsAttention, prFlow, loadBalance, hygiene });
+
+  // Burn-up: snapshot today's completion, then read the accrued history.
+  let burnup: Burnup = { trackingSince: null, points: [] };
+  if (currentSprint) {
+    try {
+      const today = now.toISOString().slice(0, 10);
+      recordSnapshot(db, currentSprint.id, pace.doneCount, pace.totalCount, today);
+      burnup = getBurnup(db, sprintInfo);
+    } catch (err: any) {
+      errors.push(`Burn-up: ${err.message || "snapshot failed"}`);
+    }
+  }
 
   res.json({
     team: {
@@ -412,7 +458,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     sprint: currentSprint,
     sprints,
     epics,
-    issues: issuesWithPRs,
+    issues: enrichedIssues,
     workload,
     progress,
     offBoardPRs,
@@ -421,6 +467,14 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
       epics: epics.length,
       offBoardPRs: offBoardPRs.length,
     },
+    pace,
+    scope,
+    needsAttention,
+    loadBalance,
+    prFlow,
+    hygiene,
+    burnup,
+    insights,
     errors,
   });
 });
