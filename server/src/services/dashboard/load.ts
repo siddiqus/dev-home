@@ -24,9 +24,7 @@ export function computeLoadDistribution(
 
   return roster.map((r) => {
     const memberIssues = issues.filter((i) => i.assigneeAccountId === r.accountId);
-    const memberPRs = prs.filter(
-      (p) => p.author.toLowerCase() === r.githubUsername.toLowerCase(),
-    );
+    const memberPRs = prs.filter((p) => p.author.toLowerCase() === r.githubUsername.toLowerCase());
 
     // Status breakdown
     const byStatus = emptyByStatus();

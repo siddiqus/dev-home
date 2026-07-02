@@ -116,7 +116,17 @@ export function partitionOffBoardPRs(prs: RawPR[], sprintKeys: Set<string>) {
  * issue keys currently considered stalled — used to surface a per-epic risk chip.
  */
 export function groupByEpic(issues: RawIssue[], staleKeys?: Set<string>) {
-  const map = new Map<string | null, { key: string | null; name: string; total: number; done: number; stalled: number; issueKeys: string[] }>();
+  const map = new Map<
+    string | null,
+    {
+      key: string | null;
+      name: string;
+      total: number;
+      done: number;
+      stalled: number;
+      issueKeys: string[];
+    }
+  >();
   for (const issue of issues) {
     const epicKey = issue.epicKey ?? null;
     const bucketKey = epicKey;

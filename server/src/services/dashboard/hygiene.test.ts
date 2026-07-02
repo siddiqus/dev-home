@@ -11,10 +11,46 @@ describe("computeHygiene", () => {
 
   it("returns prNoJira refs for PRs with no ticket key", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo1", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "no ticket here", repo_full_name: "org/repo2", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T11:00:00Z" },
-      { number: 3, title: "[PROJ-3] baz", repo_full_name: "org/repo3", html_url: "", state: "open", checks_status: null, author: "charlie", created_at: "2026-07-01T12:00:00Z" },
-      { number: 4, title: "another no ticket", repo_full_name: "org/repo4", html_url: "", state: "merged", checks_status: null, author: "dave", created_at: "2026-06-30T08:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo1",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "no ticket here",
+        repo_full_name: "org/repo2",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
+      {
+        number: 3,
+        title: "[PROJ-3] baz",
+        repo_full_name: "org/repo3",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-07-01T12:00:00Z",
+      },
+      {
+        number: 4,
+        title: "another no ticket",
+        repo_full_name: "org/repo4",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "dave",
+        created_at: "2026-06-30T08:00:00Z",
+      },
     ];
     const result = computeHygiene([], prs, sprintKeys);
     expect(result.prNoJira).toEqual([
@@ -41,7 +77,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -53,14 +98,37 @@ describe("computeHygiene", () => {
         assigneeName: "Bob",
         epicKey: null,
         epicName: null,
-        linkedPRs: [{ number: 1, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", createdAt: null, mergedAt: null, reviewState: null, waitingReview: false }],
+        linkedPRs: [
+          {
+            number: 1,
+            title: "PROJ-2 bar",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "open",
+            checks_status: null,
+            author: "bob",
+            createdAt: null,
+            mergedAt: null,
+            reviewState: null,
+            waitingReview: false,
+          },
+        ],
         createdAt: null,
         updatedAt: null,
         dueDate: null,
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -79,7 +147,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: true, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: true,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -98,7 +175,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
@@ -121,7 +207,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "alice", createdAt: null, mergedAt: "2026-06-30T12:00:00Z", reviewState: null, waitingReview: false },
+          {
+            number: 1,
+            title: "PROJ-1 foo",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "merged",
+            checks_status: null,
+            author: "alice",
+            createdAt: null,
+            mergedAt: "2026-06-30T12:00:00Z",
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -129,7 +227,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -142,7 +249,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "bob", createdAt: null, mergedAt: "2026-06-29T12:00:00Z", reviewState: null, waitingReview: false },
+          {
+            number: 2,
+            title: "PROJ-2 bar",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "merged",
+            checks_status: null,
+            author: "bob",
+            createdAt: null,
+            mergedAt: "2026-06-29T12:00:00Z",
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -150,7 +269,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -163,7 +291,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "charlie", createdAt: null, mergedAt: null, reviewState: null, waitingReview: false },
+          {
+            number: 3,
+            title: "PROJ-3 baz",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "open",
+            checks_status: null,
+            author: "charlie",
+            createdAt: null,
+            mergedAt: null,
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -171,14 +311,21 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: true, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: true,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
     const result = computeHygiene(issues, [], sprintKeys);
-    expect(result.mergedNotDone).toEqual([
-      { kind: "issue", key: "PROJ-1" },
-    ]);
+    expect(result.mergedNotDone).toEqual([{ kind: "issue", key: "PROJ-1" }]);
   });
 
   it("returns doneNoMerged refs for done issues with no merged PR", () => {
@@ -193,7 +340,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", createdAt: null, mergedAt: null, reviewState: null, waitingReview: false },
+          {
+            number: 1,
+            title: "PROJ-1 foo",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "open",
+            checks_status: null,
+            author: "alice",
+            createdAt: null,
+            mergedAt: null,
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -201,7 +360,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -214,7 +382,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "bob", createdAt: null, mergedAt: "2026-06-29T12:00:00Z", reviewState: null, waitingReview: false },
+          {
+            number: 2,
+            title: "PROJ-2 bar",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "merged",
+            checks_status: null,
+            author: "bob",
+            createdAt: null,
+            mergedAt: "2026-06-29T12:00:00Z",
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -222,7 +402,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -241,7 +430,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
@@ -270,20 +468,45 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
     const result = computeHygiene(issues, [], sprintKeys);
-    expect(result.doneNoMerged).toEqual([
-      { kind: "issue", key: "PROJ-5" },
-    ]);
+    expect(result.doneNoMerged).toEqual([{ kind: "issue", key: "PROJ-5" }]);
   });
 
   it("computes all hygiene buckets together", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo1", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "no ticket", repo_full_name: "org/repo2", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T11:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo1",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "no ticket",
+        repo_full_name: "org/repo2",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
     ];
     const issues: EnrichedIssue[] = [
       {
@@ -302,7 +525,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -315,7 +547,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 10, title: "PROJ-2 merged", repo_full_name: "org/repo3", html_url: "", state: "merged", checks_status: null, author: "bob", createdAt: null, mergedAt: "2026-06-30T12:00:00Z", reviewState: null, waitingReview: false },
+          {
+            number: 10,
+            title: "PROJ-2 merged",
+            repo_full_name: "org/repo3",
+            html_url: "",
+            state: "merged",
+            checks_status: null,
+            author: "bob",
+            createdAt: null,
+            mergedAt: "2026-06-30T12:00:00Z",
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -323,7 +567,16 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -336,7 +589,19 @@ describe("computeHygiene", () => {
         epicKey: null,
         epicName: null,
         linkedPRs: [
-          { number: 11, title: "PROJ-3 open", repo_full_name: "org/repo4", html_url: "", state: "open", checks_status: null, author: "charlie", createdAt: null, mergedAt: null, reviewState: null, waitingReview: false },
+          {
+            number: 11,
+            title: "PROJ-3 open",
+            repo_full_name: "org/repo4",
+            html_url: "",
+            state: "open",
+            checks_status: null,
+            author: "charlie",
+            createdAt: null,
+            mergedAt: null,
+            reviewState: null,
+            waitingReview: false,
+          },
         ],
         createdAt: null,
         updatedAt: null,
@@ -344,24 +609,25 @@ describe("computeHygiene", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
 
     const result = computeHygiene(issues, prs, sprintKeys);
 
-    expect(result.prNoJira).toEqual([
-      { kind: "pr", repo: "org/repo2", number: 2 },
-    ]);
-    expect(result.jiraNoPR).toEqual([
-      { kind: "issue", key: "PROJ-1" },
-    ]);
-    expect(result.mergedNotDone).toEqual([
-      { kind: "issue", key: "PROJ-2" },
-    ]);
-    expect(result.doneNoMerged).toEqual([
-      { kind: "issue", key: "PROJ-3" },
-    ]);
+    expect(result.prNoJira).toEqual([{ kind: "pr", repo: "org/repo2", number: 2 }]);
+    expect(result.jiraNoPR).toEqual([{ kind: "issue", key: "PROJ-1" }]);
+    expect(result.mergedNotDone).toEqual([{ kind: "issue", key: "PROJ-2" }]);
+    expect(result.doneNoMerged).toEqual([{ kind: "issue", key: "PROJ-3" }]);
   });
 });

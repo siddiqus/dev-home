@@ -17,9 +17,7 @@ export function EpicCards({ epics, onOpenRef }: Props) {
 
   return (
     <div className="border rounded p-2">
-      <div className="small text-muted mb-2">
-        Epics · {epics.length}
-      </div>
+      <div className="small text-muted mb-2">Epics · {epics.length}</div>
       <div className="d-flex gap-2 flex-wrap">
         {epics.map((epic) => {
           const isNoEpic = epic.key === null;
@@ -45,7 +43,10 @@ export function EpicCards({ epics, onOpenRef }: Props) {
               <div className="text-muted mb-1">
                 {epic.done}/{epic.total} done
               </div>
-              <div style={{ height: 5, background: "rgba(125,125,125,.2)", borderRadius: 3 }} className="mb-1">
+              <div
+                style={{ height: 5, background: "rgba(125,125,125,.2)", borderRadius: 3 }}
+                className="mb-1"
+              >
                 <div
                   style={{
                     height: 5,

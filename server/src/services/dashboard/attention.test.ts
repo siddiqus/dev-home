@@ -42,11 +42,7 @@ function makeIssue(
   };
 }
 
-function makePR(
-  number: number,
-  repo: string,
-  overrides: Partial<LinkedPR> = {},
-): LinkedPR {
+function makePR(number: number, repo: string, overrides: Partial<LinkedPR> = {}): LinkedPR {
   return {
     number,
     title: "test PR",

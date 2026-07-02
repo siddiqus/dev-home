@@ -6,7 +6,7 @@ import dashboardFixture from "../__fixtures__/dashboardFixture";
 describe("PrFlowSection", () => {
   it("renders all metric cards with correct values from fixture", () => {
     const { prFlow } = dashboardFixture;
-    const { container } = render(<PrFlowSection prFlow={prFlow} />);
+    render(<PrFlowSection prFlow={prFlow} />);
 
     // Check title
     expect(screen.getByText("PR FLOW")).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe("PrFlowSection", () => {
     // Check Failing Checks (1, should have danger emphasis)
     const allOnes = screen.getAllByText("1");
     const failingChecksValue = allOnes.find((el) =>
-      el.parentElement?.textContent?.includes("Failing Checks")
+      el.parentElement?.textContent?.includes("Failing Checks"),
     );
     expect(failingChecksValue).toBeInTheDocument();
     expect(failingChecksValue).toHaveClass("text-danger");
@@ -39,7 +39,7 @@ describe("PrFlowSection", () => {
 
     // Check PRs w/o Jira (1, should have warning emphasis)
     const noJiraValue = allOnes.find((el) =>
-      el.parentElement?.textContent?.includes("PRs w/o Jira")
+      el.parentElement?.textContent?.includes("PRs w/o Jira"),
     );
     expect(noJiraValue).toBeInTheDocument();
     expect(noJiraValue).toHaveClass("text-warning");
@@ -48,7 +48,7 @@ describe("PrFlowSection", () => {
 
     // Check Jira w/o PR (1, should have warning emphasis)
     const jiraNoPRValue = allOnes.find((el) =>
-      el.parentElement?.textContent?.includes("Jira w/o PR")
+      el.parentElement?.textContent?.includes("Jira w/o PR"),
     );
     expect(jiraNoPRValue).toBeInTheDocument();
     expect(jiraNoPRValue).toHaveClass("text-warning");
@@ -77,7 +77,7 @@ describe("PrFlowSection", () => {
       noJira: 0,
       jiraNoPR: 0,
     };
-    const { container } = render(<PrFlowSection prFlow={prFlowClean} />);
+    render(<PrFlowSection prFlow={prFlowClean} />);
 
     // All zero values should be text-body (no danger or warning)
     const zeroValues = screen.getAllByText("0");
@@ -85,7 +85,7 @@ describe("PrFlowSection", () => {
 
     // Check Failing Checks
     const failingChecksValue = zeroValues.find((el) =>
-      el.parentElement?.textContent?.includes("Failing Checks")
+      el.parentElement?.textContent?.includes("Failing Checks"),
     );
     expect(failingChecksValue).toHaveClass("text-body");
     expect(failingChecksValue).not.toHaveClass("text-danger");
@@ -93,7 +93,7 @@ describe("PrFlowSection", () => {
 
     // Check PRs w/o Jira
     const noJiraValue = zeroValues.find((el) =>
-      el.parentElement?.textContent?.includes("PRs w/o Jira")
+      el.parentElement?.textContent?.includes("PRs w/o Jira"),
     );
     expect(noJiraValue).toHaveClass("text-body");
     expect(noJiraValue).not.toHaveClass("text-warning");
@@ -101,7 +101,7 @@ describe("PrFlowSection", () => {
 
     // Check Jira w/o PR
     const jiraNoPRValue = zeroValues.find((el) =>
-      el.parentElement?.textContent?.includes("Jira w/o PR")
+      el.parentElement?.textContent?.includes("Jira w/o PR"),
     );
     expect(jiraNoPRValue).toHaveClass("text-body");
     expect(jiraNoPRValue).not.toHaveClass("text-warning");

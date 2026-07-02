@@ -4,9 +4,7 @@ import type { SnapshotRow } from "./snapshots";
 
 describe("buildIdealLine", () => {
   it("single row: ideal equals totalCount", () => {
-    const rows: SnapshotRow[] = [
-      { date: "2026-07-01", doneCount: 5, totalCount: 20 },
-    ];
+    const rows: SnapshotRow[] = [{ date: "2026-07-01", doneCount: 5, totalCount: 20 }];
     const points = buildIdealLine(rows);
     expect(points).toHaveLength(1);
     expect(points[0]).toEqual({
@@ -40,11 +38,11 @@ describe("buildIdealLine", () => {
     expect(points).toHaveLength(5);
 
     // ideal at index i = round(32 * i / (5-1)) = 32 * i / 4
-    expect(points[0].ideal).toBe(0);   // 0
-    expect(points[1].ideal).toBe(8);   // 32 / 4 = 8
-    expect(points[2].ideal).toBe(16);  // 32 * 2 / 4 = 16
-    expect(points[3].ideal).toBe(24);  // 32 * 3 / 4 = 24
-    expect(points[4].ideal).toBe(32);  // 32 * 4 / 4 = 32
+    expect(points[0].ideal).toBe(0); // 0
+    expect(points[1].ideal).toBe(8); // 32 / 4 = 8
+    expect(points[2].ideal).toBe(16); // 32 * 2 / 4 = 16
+    expect(points[3].ideal).toBe(24); // 32 * 3 / 4 = 24
+    expect(points[4].ideal).toBe(32); // 32 * 4 / 4 = 32
   });
 
   it("ideal endpoints: starts at 0, ends at final totalCount", () => {

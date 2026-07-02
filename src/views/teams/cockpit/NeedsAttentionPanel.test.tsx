@@ -7,7 +7,12 @@ import type { NeedsAttention } from "../../../types/teams";
 describe("NeedsAttentionPanel", () => {
   it("renders signal rows with correct counts", () => {
     const onOpenRef = vi.fn();
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} onOpenRef={onOpenRef} />);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        onOpenRef={onOpenRef}
+      />,
+    );
 
     expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(screen.getByText("Stale")).toBeInTheDocument();
@@ -22,7 +27,12 @@ describe("NeedsAttentionPanel", () => {
   it("expands a row to reveal refs when clicked", () => {
     const onOpenRef = vi.fn();
 
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} onOpenRef={onOpenRef} />);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        onOpenRef={onOpenRef}
+      />,
+    );
 
     const staleRow = screen.getByText("Stale").closest("div");
     expect(staleRow).toBeInTheDocument();
@@ -35,7 +45,12 @@ describe("NeedsAttentionPanel", () => {
   it("calls onOpenRef with the correct ref when a ref is clicked", () => {
     const onOpenRef = vi.fn();
 
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} onOpenRef={onOpenRef} />);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        onOpenRef={onOpenRef}
+      />,
+    );
 
     const staleRow = screen.getByText("Stale").closest("div");
     fireEvent.click(staleRow!);
@@ -66,7 +81,12 @@ describe("NeedsAttentionPanel", () => {
   it("formats PR refs correctly", () => {
     const onOpenRef = vi.fn();
 
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} onOpenRef={onOpenRef} />);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        onOpenRef={onOpenRef}
+      />,
+    );
 
     const waitingReviewRow = screen.getByText("Waiting review > 24h").closest("div");
     fireEvent.click(waitingReviewRow!);
@@ -76,7 +96,12 @@ describe("NeedsAttentionPanel", () => {
 
   it("hides rows with count 0", () => {
     const onOpenRef = vi.fn();
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} onOpenRef={onOpenRef} />);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        onOpenRef={onOpenRef}
+      />,
+    );
 
     expect(screen.queryByText("No linked PR")).not.toBeInTheDocument();
   });

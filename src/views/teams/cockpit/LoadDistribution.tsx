@@ -16,18 +16,7 @@ const STATUS_COLORS = {
 
 const STATUS_ORDER = ["new", "indeterminate", "inReview", "done"] as const;
 
-// Risk level color mapping using Bootstrap semantic colors
-function getRiskColor(level: RiskLevel): string {
-  switch (level) {
-    case "normal":
-      return "text-success";
-    case "attention":
-      return "text-warning";
-    case "high":
-      return "text-danger";
-  }
-}
-
+// Risk level → Bootstrap semantic color for the risk chip.
 function getRiskBadgeVariant(level: RiskLevel): string {
   switch (level) {
     case "normal":
@@ -97,7 +86,10 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef }: Props) {
                 <span className="text-muted">
                   PRs: {w.prOpen}/{w.prMerged}
                 </span>
-                <span className={`badge bg-${getRiskBadgeVariant(w.riskLevel)}`} style={{ fontSize: "0.6875rem" }}>
+                <span
+                  className={`badge bg-${getRiskBadgeVariant(w.riskLevel)}`}
+                  style={{ fontSize: "0.6875rem" }}
+                >
                   {w.riskLevel}
                 </span>
               </div>

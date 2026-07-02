@@ -18,13 +18,38 @@ export function NeedsAttentionPanel({ needsAttention, onOpenRef }: Props) {
 
   const rows: SignalRow[] = [
     { key: "stale", label: "Stale", severity: "danger", refs: needsAttention.stale },
-    { key: "waitingReview", label: "Waiting review > 24h", severity: "warning", refs: needsAttention.waitingReview },
+    {
+      key: "waitingReview",
+      label: "Waiting review > 24h",
+      severity: "warning",
+      refs: needsAttention.waitingReview,
+    },
     { key: "failingCI", label: "Failing CI", severity: "danger", refs: needsAttention.failingCI },
-    { key: "noLinkedPR", label: "No linked PR", severity: "secondary", refs: needsAttention.noLinkedPR },
-    { key: "unassigned", label: "Unassigned", severity: "secondary", refs: needsAttention.unassigned },
+    {
+      key: "noLinkedPR",
+      label: "No linked PR",
+      severity: "secondary",
+      refs: needsAttention.noLinkedPR,
+    },
+    {
+      key: "unassigned",
+      label: "Unassigned",
+      severity: "secondary",
+      refs: needsAttention.unassigned,
+    },
     { key: "noEpic", label: "No epic", severity: "secondary", refs: needsAttention.noEpic },
-    { key: "scopeCreep", label: "Scope creep", severity: "warning", refs: needsAttention.scopeCreep },
-    { key: "offBoard", label: "Off-board PRs", severity: "secondary", refs: needsAttention.offBoard },
+    {
+      key: "scopeCreep",
+      label: "Scope creep",
+      severity: "warning",
+      refs: needsAttention.scopeCreep,
+    },
+    {
+      key: "offBoard",
+      label: "Off-board PRs",
+      severity: "secondary",
+      refs: needsAttention.offBoard,
+    },
   ];
 
   const visibleRows = rows.filter((row) => row.refs.length > 0);
@@ -62,9 +87,7 @@ export function NeedsAttentionPanel({ needsAttention, onOpenRef }: Props) {
       <div className="h6 mb-3">Needs Attention</div>
 
       {allClear ? (
-        <div className="text-muted small">
-          All clear — nothing needs attention
-        </div>
+        <div className="text-muted small">All clear — nothing needs attention</div>
       ) : (
         <div className="d-flex flex-column gap-2">
           {visibleRows.map((row) => (

@@ -27,9 +27,7 @@ describe("InsightCards", () => {
     expect(cards.length).toBeGreaterThan(0);
 
     // Find the critical card by matching its content
-    const criticalCard = Array.from(cards).find((card) =>
-      card.textContent?.includes("Stale Work"),
-    );
+    const criticalCard = Array.from(cards).find((card) => card.textContent?.includes("Stale Work"));
     expect(criticalCard).toBeDefined();
     expect(criticalCard?.classList.contains("border-danger")).toBe(true);
 

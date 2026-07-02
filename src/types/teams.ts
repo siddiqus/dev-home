@@ -60,9 +60,7 @@ export interface LinkedPR {
 // ---------------------------------------------------------------------------
 
 /** Lightweight pointer used in drill-down arrays so panels don't duplicate objects. */
-export type Ref =
-  | { kind: "issue"; key: string }
-  | { kind: "pr"; repo: string; number: number };
+export type Ref = { kind: "issue"; key: string } | { kind: "pr"; repo: string; number: number };
 
 export type RiskLevel = "normal" | "attention" | "high";
 

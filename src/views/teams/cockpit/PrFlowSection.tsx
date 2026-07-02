@@ -11,11 +11,12 @@ interface MetricCardProps {
 }
 
 function MetricCard({ value, label, emphasis }: MetricCardProps) {
-  const valueClass = emphasis === "danger"
-    ? "text-danger fw-bold"
-    : emphasis === "warning"
-    ? "text-warning fw-bold"
-    : "text-body";
+  const valueClass =
+    emphasis === "danger"
+      ? "text-danger fw-bold"
+      : emphasis === "warning"
+        ? "text-warning fw-bold"
+        : "text-body";
 
   return (
     <div className="border rounded p-2 text-center" style={{ flex: "1 1 0", minWidth: 0 }}>
@@ -26,9 +27,7 @@ function MetricCard({ value, label, emphasis }: MetricCardProps) {
 }
 
 export function PrFlowSection({ prFlow }: Props) {
-  const avgFirstReview = prFlow.avgFirstReviewH !== null
-    ? prFlow.avgFirstReviewH.toFixed(1)
-    : "—";
+  const avgFirstReview = prFlow.avgFirstReviewH !== null ? prFlow.avgFirstReviewH.toFixed(1) : "—";
 
   const failingEmphasis = prFlow.failingChecks > 0 ? "danger" : null;
   const noJiraEmphasis = prFlow.noJira > 0 ? "warning" : null;
@@ -47,16 +46,8 @@ export function PrFlowSection({ prFlow }: Props) {
           label="Failing Checks"
           emphasis={failingEmphasis}
         />
-        <MetricCard
-          value={prFlow.noJira}
-          label="PRs w/o Jira"
-          emphasis={noJiraEmphasis}
-        />
-        <MetricCard
-          value={prFlow.jiraNoPR}
-          label="Jira w/o PR"
-          emphasis={jiraNoPREmphasis}
-        />
+        <MetricCard value={prFlow.noJira} label="PRs w/o Jira" emphasis={noJiraEmphasis} />
+        <MetricCard value={prFlow.jiraNoPR} label="Jira w/o PR" emphasis={jiraNoPREmphasis} />
       </div>
     </div>
   );

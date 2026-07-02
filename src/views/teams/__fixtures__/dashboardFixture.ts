@@ -16,12 +16,38 @@ export const dashboardFixture: TeamDashboard = {
     goal: "Ship the sprint cockpit",
   },
   sprints: [
-    { id: 1001, name: "Sprint 24", state: "active", startDate: "2026-06-26T00:00:00.000Z", endDate: "2026-07-10T00:00:00.000Z" },
-    { id: 1000, name: "Sprint 23", state: "closed", startDate: "2026-06-12T00:00:00.000Z", endDate: "2026-06-26T00:00:00.000Z" },
+    {
+      id: 1001,
+      name: "Sprint 24",
+      state: "active",
+      startDate: "2026-06-26T00:00:00.000Z",
+      endDate: "2026-07-10T00:00:00.000Z",
+    },
+    {
+      id: 1000,
+      name: "Sprint 23",
+      state: "closed",
+      startDate: "2026-06-12T00:00:00.000Z",
+      endDate: "2026-06-26T00:00:00.000Z",
+    },
   ],
   epics: [
-    { key: "PLAT-100", name: "Cockpit", total: 8, done: 3, stalled: 2, issueKeys: ["PLAT-101", "PLAT-102"] },
-    { key: "PLAT-200", name: "Auth revamp", total: 5, done: 4, stalled: 0, issueKeys: ["PLAT-201"] },
+    {
+      key: "PLAT-100",
+      name: "Cockpit",
+      total: 8,
+      done: 3,
+      stalled: 2,
+      issueKeys: ["PLAT-101", "PLAT-102"],
+    },
+    {
+      key: "PLAT-200",
+      name: "Auth revamp",
+      total: 5,
+      done: 4,
+      stalled: 0,
+      issueKeys: ["PLAT-201"],
+    },
     { key: null, name: "No epic", total: 3, done: 0, stalled: 1, issueKeys: ["PLAT-301"] },
   ],
   issues: [
@@ -65,7 +91,11 @@ export const dashboardFixture: TeamDashboard = {
         prWaitingReview: true,
         inProgressNoPR: false,
       },
-      risk: { score: 7, level: "high", reasons: ["stale", "PR failing CI", "PR waiting review", "added after start"] },
+      risk: {
+        score: 7,
+        level: "high",
+        reasons: ["stale", "PR failing CI", "PR waiting review", "added after start"],
+      },
     },
     {
       key: "PLAT-201",
@@ -226,9 +256,24 @@ export const dashboardFixture: TeamDashboard = {
     ],
   },
   insights: [
-    { key: "behind-pace", severity: "warn", title: "Behind Pace", detail: "43% elapsed, 33% of tickets done." },
-    { key: "stale-work", severity: "critical", title: "Stale Work", detail: "1 ticket has had no movement > 2 days." },
-    { key: "review-bottleneck", severity: "warn", title: "Review Bottleneck", detail: "1 PR waiting for review > 24h." },
+    {
+      key: "behind-pace",
+      severity: "warn",
+      title: "Behind Pace",
+      detail: "43% elapsed, 33% of tickets done.",
+    },
+    {
+      key: "stale-work",
+      severity: "critical",
+      title: "Stale Work",
+      detail: "1 ticket has had no movement > 2 days.",
+    },
+    {
+      key: "review-bottleneck",
+      severity: "warn",
+      title: "Review Bottleneck",
+      detail: "1 PR waiting for review > 24h.",
+    },
   ],
   errors: [],
 };

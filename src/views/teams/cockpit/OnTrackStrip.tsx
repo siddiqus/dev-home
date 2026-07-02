@@ -79,9 +79,7 @@ export function OnTrackStrip({ pace, scope, offBoardCount }: Props) {
         className={`flex-fill border rounded p-2 text-center ${scope.addedCount > 0 ? "bg-warning bg-opacity-10" : ""}`}
         style={{ minWidth: 0 }}
       >
-        <div
-          className={`h5 mb-0 ${scope.addedCount > 0 ? "text-warning" : "text-muted"}`}
-        >
+        <div className={`h5 mb-0 ${scope.addedCount > 0 ? "text-warning" : "text-muted"}`}>
           +{scope.addedCount}
         </div>
         <div className="small text-muted">added after start</div>

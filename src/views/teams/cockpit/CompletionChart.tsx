@@ -1,4 +1,13 @@
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ReferenceLine } from "recharts";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+} from "recharts";
 import type { Burnup } from "../../../types/teams";
 
 interface Props {
@@ -45,10 +54,7 @@ export function CompletionChart({ burnup }: Props) {
             }}
             labelFormatter={(val) => `Date: ${val}`}
           />
-          <Legend
-            wrapperStyle={{ fontSize: "0.75rem" }}
-            iconType="line"
-          />
+          <Legend wrapperStyle={{ fontSize: "0.75rem" }} iconType="line" />
           {/* Scope reference line */}
           {scope > 0 && (
             <ReferenceLine

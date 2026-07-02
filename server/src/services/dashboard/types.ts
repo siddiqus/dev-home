@@ -23,9 +23,7 @@ export interface IssueFlags {
   inProgressNoPR: boolean;
 }
 
-export type Ref =
-  | { kind: "issue"; key: string }
-  | { kind: "pr"; repo: string; number: number };
+export type Ref = { kind: "issue"; key: string } | { kind: "pr"; repo: string; number: number };
 
 /** A PR as attached to an issue (mapped from RawPR, with cockpit enrichment). */
 export interface LinkedPR {

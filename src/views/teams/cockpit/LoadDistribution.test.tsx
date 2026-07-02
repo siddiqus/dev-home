@@ -10,7 +10,7 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-      />
+      />,
     );
 
     expect(screen.getByText("Tashfia")).toBeInTheDocument();
@@ -22,7 +22,7 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-      />
+      />,
     );
 
     // Tashfia has stalledCount: 2
@@ -36,7 +36,7 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-      />
+      />,
     );
 
     // Tashfia has riskLevel: "high"
@@ -51,7 +51,7 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-      />
+      />,
     );
 
     expect(screen.queryByText(/Uneven load/)).not.toBeInTheDocument();
@@ -59,12 +59,7 @@ describe("LoadDistribution", () => {
 
   it("shows uneven load caption when imbalance >= 3", () => {
     const highImbalance: LoadBalance = { max: 10, min: 3, imbalance: 7 };
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={highImbalance}
-      />
-    );
+    render(<LoadDistribution workload={dashboardFixture.workload} loadBalance={highImbalance} />);
 
     expect(screen.getByText(/Uneven load · 7 ticket spread/)).toBeInTheDocument();
   });
@@ -77,7 +72,7 @@ describe("LoadDistribution", () => {
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
         onOpenRef={onOpenRef}
-      />
+      />,
     );
 
     // Tashfia's stalest is { kind: "issue", key: "PLAT-101" }
@@ -88,12 +83,7 @@ describe("LoadDistribution", () => {
   });
 
   it("renders empty state when workload is empty", () => {
-    render(
-      <LoadDistribution
-        workload={[]}
-        loadBalance={{ max: 0, min: 0, imbalance: 0 }}
-      />
-    );
+    render(<LoadDistribution workload={[]} loadBalance={{ max: 0, min: 0, imbalance: 0 }} />);
 
     expect(screen.getByText("No team members")).toBeInTheDocument();
   });
@@ -106,7 +96,7 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-      />
+      />,
     );
 
     const names = screen.getAllByText(/^(Tashfia|Nadman)$/);

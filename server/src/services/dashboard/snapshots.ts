@@ -32,7 +32,7 @@ export function recordSnapshot(
     `INSERT INTO sprint_snapshots (sprint_id, snapshot_date, done_count, total_count)
      VALUES (?, ?, ?, ?)
      ON CONFLICT(sprint_id, snapshot_date)
-     DO UPDATE SET done_count = excluded.done_count, total_count = excluded.total_count`
+     DO UPDATE SET done_count = excluded.done_count, total_count = excluded.total_count`,
   ).run(sprintId, today, doneCount, totalCount);
 }
 
@@ -70,7 +70,7 @@ export function getBurnup(db: Database.Database, sprint: SprintInfo | null): Bur
       `SELECT snapshot_date as date, done_count as doneCount, total_count as totalCount
        FROM sprint_snapshots
        WHERE sprint_id = ?
-       ORDER BY snapshot_date`
+       ORDER BY snapshot_date`,
     )
     .all(sprint.id) as SnapshotRow[];
 

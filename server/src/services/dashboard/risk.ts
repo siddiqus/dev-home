@@ -29,9 +29,7 @@ function mapLinkedPR(pr: RawPR, now: Date, config: CockpitConfig): LinkedPR {
     ? (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60)
     : 0;
   const waitingReview =
-    pr.state === "open" &&
-    !pr.first_review_at &&
-    hoursSinceCreation > config.waitingReviewHours;
+    pr.state === "open" && !pr.first_review_at && hoursSinceCreation > config.waitingReviewHours;
 
   return {
     number: pr.number,
@@ -83,8 +81,7 @@ export function enrichIssue(
     !!sprint?.startDate &&
     new Date(issue.createdAt) > new Date(sprint.startDate);
   const dueSoon = issue.dueDate
-    ? new Date(issue.dueDate).getTime() <=
-      now.getTime() + config.dueSoonDays * 24 * 60 * 60 * 1000
+    ? new Date(issue.dueDate).getTime() <= now.getTime() + config.dueSoonDays * 24 * 60 * 60 * 1000
     : false;
   const prFailingCI = linkedPRs.some((pr) => pr.checks_status === "FAILURE");
   const prWaitingReview = linkedPRs.some((pr) => pr.waitingReview);

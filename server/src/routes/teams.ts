@@ -379,7 +379,15 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
         const storyPointsFieldId = await getStoryPointsFieldId();
         const idList = accountIds.map((a) => `"${a}"`).join(", ");
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
-        const fieldsArray = ["summary", "status", "assignee", "parent", "created", "updated", "duedate"];
+        const fieldsArray = [
+          "summary",
+          "status",
+          "assignee",
+          "parent",
+          "created",
+          "updated",
+          "duedate",
+        ];
         if (storyPointsFieldId) fieldsArray.push(storyPointsFieldId);
         const { data } = await jira.post("/search/jql", {
           jql,

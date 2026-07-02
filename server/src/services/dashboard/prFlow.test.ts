@@ -11,9 +11,36 @@ describe("computePrFlow", () => {
 
   it("counts open PRs (state === open)", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T11:00:00Z" },
-      { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "closed", checks_status: null, author: "charlie", created_at: "2026-06-30T09:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
+      {
+        number: 3,
+        title: "PROJ-3 baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "closed",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-06-30T09:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.open).toBe(2);
@@ -21,9 +48,37 @@ describe("computePrFlow", () => {
 
   it("counts merged PRs (state === merged OR truthy merged_at)", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "alice", created_at: "2026-06-30T08:00:00Z" },
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "closed", checks_status: null, author: "bob", created_at: "2026-06-29T08:00:00Z", merged_at: "2026-06-29T12:00:00Z" },
-      { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "closed", checks_status: null, author: "charlie", created_at: "2026-06-28T08:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-06-30T08:00:00Z",
+      },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "closed",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-06-29T08:00:00Z",
+        merged_at: "2026-06-29T12:00:00Z",
+      },
+      {
+        number: 3,
+        title: "PROJ-3 baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "closed",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-06-28T08:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.merged).toBe(2);
@@ -32,9 +87,29 @@ describe("computePrFlow", () => {
   it("computes avgFirstReviewH from first_review_at - created_at", () => {
     const prs: RawPR[] = [
       // first_review_at 2h after created → 2 hours
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z", first_review_at: "2026-07-01T12:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+        first_review_at: "2026-07-01T12:00:00Z",
+      },
       // first_review_at 4h after created → 4 hours
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "bob", created_at: "2026-06-30T08:00:00Z", first_review_at: "2026-06-30T12:00:00Z" },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-06-30T08:00:00Z",
+        first_review_at: "2026-06-30T12:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     // (2 + 4) / 2 = 3.0
@@ -43,8 +118,26 @@ describe("computePrFlow", () => {
 
   it("returns null for avgFirstReviewH when no PRs have first_review_at", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T11:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.avgFirstReviewH).toBeNull();
@@ -53,11 +146,38 @@ describe("computePrFlow", () => {
   it("computes avgAgeDays only from open PRs (now - created_at)", () => {
     const prs: RawPR[] = [
       // open, 1 day old
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T12:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T12:00:00Z",
+      },
       // open, 2 days old
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-06-30T12:00:00Z" },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-06-30T12:00:00Z",
+      },
       // merged, 10 days old → ignored
-      { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "charlie", created_at: "2026-06-22T12:00:00Z" },
+      {
+        number: 3,
+        title: "PROJ-3 baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-06-22T12:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     // (1 + 2) / 2 = 1.5
@@ -66,7 +186,16 @@ describe("computePrFlow", () => {
 
   it("returns 0 for avgAgeDays when no open PRs", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "alice", created_at: "2026-06-30T08:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-06-30T08:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.avgAgeDays).toBe(0);
@@ -74,10 +203,46 @@ describe("computePrFlow", () => {
 
   it("counts failingChecks (open PRs with checks_status === FAILURE)", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: "FAILURE", author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: "SUCCESS", author: "bob", created_at: "2026-07-01T11:00:00Z" },
-      { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: "FAILURE", author: "charlie", created_at: "2026-07-01T12:00:00Z" },
-      { number: 4, title: "PROJ-4 qux", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: "FAILURE", author: "dave", created_at: "2026-06-30T08:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: "FAILURE",
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "PROJ-2 bar",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: "SUCCESS",
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
+      {
+        number: 3,
+        title: "PROJ-3 baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: "FAILURE",
+        author: "charlie",
+        created_at: "2026-07-01T12:00:00Z",
+      },
+      {
+        number: 4,
+        title: "PROJ-4 qux",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: "FAILURE",
+        author: "dave",
+        created_at: "2026-06-30T08:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.failingChecks).toBe(2);
@@ -85,10 +250,46 @@ describe("computePrFlow", () => {
 
   it("counts noJira (PRs with no extractable ticket key)", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "alice", created_at: "2026-07-01T10:00:00Z" },
-      { number: 2, title: "no ticket here", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T11:00:00Z" },
-      { number: 3, title: "[PROJ-3] baz", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "charlie", created_at: "2026-07-01T12:00:00Z" },
-      { number: 4, title: "another no ticket", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "dave", created_at: "2026-06-30T08:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+      },
+      {
+        number: 2,
+        title: "no ticket here",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T11:00:00Z",
+      },
+      {
+        number: 3,
+        title: "[PROJ-3] baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-07-01T12:00:00Z",
+      },
+      {
+        number: 4,
+        title: "another no ticket",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "dave",
+        created_at: "2026-06-30T08:00:00Z",
+      },
     ];
     const result = computePrFlow(prs, [], now);
     expect(result.noJira).toBe(2);
@@ -112,7 +313,16 @@ describe("computePrFlow", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -124,14 +334,37 @@ describe("computePrFlow", () => {
         assigneeName: "Bob",
         epicKey: null,
         epicName: null,
-        linkedPRs: [{ number: 1, title: "PROJ-2 bar", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", createdAt: null, mergedAt: null, reviewState: null, waitingReview: false }],
+        linkedPRs: [
+          {
+            number: 1,
+            title: "PROJ-2 bar",
+            repo_full_name: "org/repo",
+            html_url: "",
+            state: "open",
+            checks_status: null,
+            author: "bob",
+            createdAt: null,
+            mergedAt: null,
+            reviewState: null,
+            waitingReview: false,
+          },
+        ],
         createdAt: null,
         updatedAt: null,
         dueDate: null,
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -150,7 +383,16 @@ describe("computePrFlow", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: true, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: false },
+        flags: {
+          unassigned: true,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: false,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
       {
@@ -169,7 +411,16 @@ describe("computePrFlow", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
@@ -179,9 +430,39 @@ describe("computePrFlow", () => {
 
   it("computes all metrics together", () => {
     const prs: RawPR[] = [
-      { number: 1, title: "PROJ-1 foo", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: "FAILURE", author: "alice", created_at: "2026-07-01T10:00:00Z", first_review_at: "2026-07-01T12:00:00Z" },
-      { number: 2, title: "no ticket", repo_full_name: "org/repo", html_url: "", state: "open", checks_status: null, author: "bob", created_at: "2026-07-01T08:00:00Z" },
-      { number: 3, title: "PROJ-3 baz", repo_full_name: "org/repo", html_url: "", state: "merged", checks_status: null, author: "charlie", created_at: "2026-06-30T08:00:00Z", first_review_at: "2026-06-30T10:00:00Z", merged_at: "2026-06-30T12:00:00Z" },
+      {
+        number: 1,
+        title: "PROJ-1 foo",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: "FAILURE",
+        author: "alice",
+        created_at: "2026-07-01T10:00:00Z",
+        first_review_at: "2026-07-01T12:00:00Z",
+      },
+      {
+        number: 2,
+        title: "no ticket",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "open",
+        checks_status: null,
+        author: "bob",
+        created_at: "2026-07-01T08:00:00Z",
+      },
+      {
+        number: 3,
+        title: "PROJ-3 baz",
+        repo_full_name: "org/repo",
+        html_url: "",
+        state: "merged",
+        checks_status: null,
+        author: "charlie",
+        created_at: "2026-06-30T08:00:00Z",
+        first_review_at: "2026-06-30T10:00:00Z",
+        merged_at: "2026-06-30T12:00:00Z",
+      },
     ];
     const issues: EnrichedIssue[] = [
       {
@@ -200,7 +481,16 @@ describe("computePrFlow", () => {
         storyPoints: null,
         ageDays: 0,
         daysSinceUpdate: 0,
-        flags: { unassigned: false, noEpic: false, stale: false, addedAfterStart: false, dueSoon: false, prFailingCI: false, prWaitingReview: false, inProgressNoPR: true },
+        flags: {
+          unassigned: false,
+          noEpic: false,
+          stale: false,
+          addedAfterStart: false,
+          dueSoon: false,
+          prFailingCI: false,
+          prWaitingReview: false,
+          inProgressNoPR: true,
+        },
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];

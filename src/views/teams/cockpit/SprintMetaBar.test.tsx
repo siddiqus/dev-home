@@ -52,7 +52,11 @@ describe("SprintMetaBar", () => {
 
   it("does not render last synced when not provided", () => {
     render(
-      <SprintMetaBar sprint={dashboardFixture.sprint} pace={dashboardFixture.pace} lastSynced={null} />,
+      <SprintMetaBar
+        sprint={dashboardFixture.sprint}
+        pace={dashboardFixture.pace}
+        lastSynced={null}
+      />,
     );
 
     expect(screen.queryByText(/Last synced/)).not.toBeInTheDocument();
@@ -61,9 +65,7 @@ describe("SprintMetaBar", () => {
   it("handles sprint without goal gracefully", () => {
     const sprintNoGoal = { ...dashboardFixture.sprint!, goal: undefined };
 
-    render(
-      <SprintMetaBar sprint={sprintNoGoal} pace={dashboardFixture.pace} lastSynced={null} />,
-    );
+    render(<SprintMetaBar sprint={sprintNoGoal} pace={dashboardFixture.pace} lastSynced={null} />);
 
     expect(screen.getByText("Sprint 24")).toBeInTheDocument();
     expect(screen.getByText("Day 6 of 14")).toBeInTheDocument();
