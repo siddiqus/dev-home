@@ -1,20 +1,23 @@
-import { useState, useRef, useEffect } from "react";
-import { IconChartBar } from "@tabler/icons-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { IconChartBar, IconUsersGroup, IconRun } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
 import { WorkloadBars } from "./WorkloadBars";
 import { SprintIssueTable } from "./SprintIssueTable";
 import { ReadOnlyBoard } from "./ReadOnlyBoard";
 import { EmptyState } from "../../components/EmptyState";
+import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 
 interface Props {
+  /** True once backend config (and thus the resolved API port) is ready. */
+  configured: boolean;
   jiraBaseUrl?: string;
   /** Pre-select this team when navigating in from the teams list. */
   initialTeamId?: number | null;
 }
 
-export function TeamDashboardView({ jiraBaseUrl, initialTeamId }: Props) {
-  const { teams } = useTeams(true);
+export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Props) {
+  const { teams } = useTeams(configured);
   const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
@@ -39,40 +42,51 @@ export function TeamDashboardView({ jiraBaseUrl, initialTeamId }: Props) {
       ? dashboard.issues.filter((i) => i.assigneeAccountId === memberFilter)
       : dashboard?.issues || [];
 
+  const teamItems: DropdownItem[] = useMemo(
+    () => teams.map((t) => ({ value: String(t.id), label: t.name })),
+    [teams],
+  );
+
+  const sprintItems: DropdownItem[] = useMemo(
+    () =>
+      (dashboard?.sprints || []).map((s) => ({
+        value: String(s.id),
+        label: `${s.name} (${s.state})`,
+      })),
+    [dashboard?.sprints],
+  );
+
+  // The active/default sprint, shown when the user hasn't picked one explicitly.
+  const selectedSprintId = sprintId ?? dashboard?.sprint?.id ?? null;
+
   return (
     <div className="p-3">
       <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
-        <select
-          className="form-select form-select-sm"
-          style={{ maxWidth: 220 }}
-          value={teamId ?? ""}
-          onChange={(e) => {
-            setTeamId(e.target.value ? parseInt(e.target.value, 10) : null);
+        <SearchableDropdown
+          items={teamItems}
+          value={teamId != null ? String(teamId) : ""}
+          onChange={(v) => {
+            setTeamId(v ? parseInt(v, 10) : null);
             setSprintId(null);
             setMemberFilter(null);
           }}
-        >
-          <option value="">Select a team…</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search teams…"
+          allLabel="Select a team…"
+          triggerIcon={<IconUsersGroup size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+          width={220}
+        />
 
         {dashboard && dashboard.sprints.length > 0 && (
-          <select
-            className="form-select form-select-sm"
-            style={{ maxWidth: 240 }}
-            value={sprintId ?? dashboard.sprint?.id ?? ""}
-            onChange={(e) => setSprintId(e.target.value ? parseInt(e.target.value, 10) : null)}
-          >
-            {dashboard.sprints.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.state})
-              </option>
-            ))}
-          </select>
+          <SearchableDropdown
+            items={sprintItems}
+            value={selectedSprintId != null ? String(selectedSprintId) : ""}
+            onChange={(v) => setSprintId(v ? parseInt(v, 10) : null)}
+            placeholder="Search sprints…"
+            allLabel="Sprint"
+            hideAllOption
+            triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+            width={240}
+          />
         )}
       </div>
 

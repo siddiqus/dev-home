@@ -617,9 +617,15 @@ export default function App() {
                       onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
-                  {effectiveTab === "teams" && <TeamsView onOpenDashboard={openTeamDashboard} />}
+                  {effectiveTab === "teams" && (
+                    <TeamsView configured={configured} onOpenDashboard={openTeamDashboard} />
+                  )}
                   {effectiveTab === "team-dashboard" && (
-                    <TeamDashboardView jiraBaseUrl={jiraBaseUrl} initialTeamId={dashboardTeamId} />
+                    <TeamDashboardView
+                      configured={configured}
+                      jiraBaseUrl={jiraBaseUrl}
+                      initialTeamId={dashboardTeamId}
+                    />
                   )}
                   {effectiveTab === "notes" && (
                     <PersonalNotes

@@ -8,12 +8,14 @@ import { EmptyState } from "../../components/EmptyState";
 import type { Team } from "../../types/teams";
 
 interface Props {
+  /** True once backend config (and thus the resolved API port) is ready. */
+  configured: boolean;
   /** Navigate to the team dashboard, pre-selecting the given team. */
   onOpenDashboard?: (teamId: number) => void;
 }
 
-export function TeamsView({ onOpenDashboard }: Props) {
-  const { teams, loading, error, refresh } = useTeams(true);
+export function TeamsView({ configured, onOpenDashboard }: Props) {
+  const { teams, loading, error, refresh } = useTeams(configured);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Team | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

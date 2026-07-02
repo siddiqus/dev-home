@@ -256,16 +256,34 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     try {
       if (team.jira_board_id) {
         const agile = createJiraAgileClient();
-        const { data: sprintData } = await agile.get(`/board/${team.jira_board_id}/sprint`, {
-          params: { state: "active,closed", maxResults: 50 },
+        // Paginate: a board can carry hundreds of sprints and the Agile API
+        // returns them oldest-first, so the active/recent ones we care about
+        // sit at the END. Fetching a single un-paginated page would miss them.
+        let startAt = 0;
+        const maxResults = 50;
+        while (sprints.length < 200) {
+          const { data: sprintData } = await agile.get(`/board/${team.jira_board_id}/sprint`, {
+            params: { state: "active", startAt, maxResults },
+          });
+          for (const s of sprintData.values || []) {
+            sprints.push({
+              id: s.id,
+              name: s.name,
+              state: s.state,
+              startDate: s.startDate,
+              endDate: s.endDate,
+            });
+          }
+          if (sprintData.isLast || (sprintData.values || []).length < maxResults) break;
+          startAt += maxResults;
+        }
+        // Active first, then closed by most recent end date — so the default
+        // selection and the dropdown both lead with the current sprint.
+        sprints.sort((a, b) => {
+          if (a.state === "active" && b.state !== "active") return -1;
+          if (b.state === "active" && a.state !== "active") return 1;
+          return new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
         });
-        sprints = (sprintData.values || []).map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          state: s.state,
-          startDate: s.startDate,
-          endDate: s.endDate,
-        }));
         currentSprint =
           sprints.find((s) => s.id === requestedSprintId) ||
           sprints.find((s) => s.state === "active") ||
