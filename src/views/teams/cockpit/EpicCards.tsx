@@ -1,4 +1,3 @@
-import React from "react";
 import type { DashboardEpic, Ref } from "../../../types/teams";
 
 interface Props {

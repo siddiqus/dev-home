@@ -1,4 +1,4 @@
-import type { WorkloadEntry, TeamDashboard } from "../../types/teams";
+import type { WorkloadEntry } from "../../types/teams";
 
 interface Props {
   workload: WorkloadEntry[];
@@ -114,39 +114,6 @@ function TicketBars({ workload, onSelectMember, selectedAccountId }: Props) {
           <span style={{ width: 24, textAlign: "right" }}>{w.ticketCount}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-/**
- * Whole-sprint progress bar: one stacked To Do / In Progress / Done bar for the
- * entire sprint, plus a "% done" label. Mirrors the per-member `TicketBars`, but
- * segments scale by the sprint's own total so the track always fills 100%.
- */
-export function SprintProgressBar({ progress }: { progress: TeamDashboard["progress"] }) {
-  const { total, done } = progress;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  return (
-    <div className="d-flex align-items-center gap-2" style={{ minWidth: 220 }}>
-      <div
-        className="d-flex flex-fill"
-        style={{ background: "rgba(125,125,125,.15)", borderRadius: 3, overflow: "hidden" }}
-      >
-        {STATUS_ORDER.map((k) => (
-          <div
-            key={k}
-            title={`${STATUS_LABELS[k]}: ${progress[k]}`}
-            style={{
-              width: `${total ? (progress[k] / total) * 100 : 0}%`,
-              height: 12,
-              background: STATUS_COLORS[k],
-            }}
-          />
-        ))}
-      </div>
-      <span className="small text-muted" style={{ whiteSpace: "nowrap" }}>
-        {pct}% done
-      </span>
     </div>
   );
 }

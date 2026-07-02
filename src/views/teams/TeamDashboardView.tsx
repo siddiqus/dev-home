@@ -2,9 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { IconChartBar, IconUsersGroup, IconRun } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
-import { SprintProgressBar } from "./WorkloadBars";
-import { SprintIssueTable } from "./SprintIssueTable";
-import { ReadOnlyBoard } from "./ReadOnlyBoard";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import { JiraIssueDrawer } from "../../components/JiraIssueDrawer";
@@ -35,7 +32,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
   const { teams } = useTeams(configured);
   const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
-  const [view, setView] = useState<"list" | "board">("list");
 
   // This view stays mounted while the app only toggles the active tab, so a new
   // navigation target arrives as a prop change — reflect it (and reset the
