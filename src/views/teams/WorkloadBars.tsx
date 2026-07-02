@@ -110,7 +110,7 @@ function TicketBars({ workload, onSelectMember, selectedAccountId }: Props) {
 export function WorkloadBars(props: Props) {
   return (
     <div className="d-flex gap-3">
-      <div className="flex-fill border rounded p-2">
+      <div className="border rounded p-2" style={{ flex: "1 1 0", minWidth: 0 }}>
         <div className="small text-muted mb-1 d-flex justify-content-between">
           <span>ASSIGNED TICKETS</span>
           <span style={{ fontSize: "0.6875rem" }}>
@@ -121,7 +121,7 @@ export function WorkloadBars(props: Props) {
         </div>
         <TicketBars {...props} />
       </div>
-      <div className="flex-fill border rounded p-2">
+      <div className="border rounded p-2" style={{ flex: "1 1 0", minWidth: 0 }}>
         <div className="small text-muted mb-1">PRs CREATED (2 wk)</div>
         <SimpleBars {...props} metric="prCount" color="#a06bff" />
       </div>
