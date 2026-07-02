@@ -371,7 +371,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
           // Include every ticket in the sprint — assigned, unassigned, and
           // assigned to people outside this team's roster — so the counts and
           // the progress bar reflect the sprint as a whole. Per-member workload
-          // still narrows to the roster in computeWorkload.
+          // still narrows to the roster in computeLoadDistribution.
           issues = mapAgileIssues(issueData.issues || [], storyPointsFieldId);
         }
       } else {
@@ -483,6 +483,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     hygiene,
     burnup,
     insights,
+    syncedAt: now.toISOString(),
     errors,
   });
 });

@@ -252,5 +252,7 @@ export interface TeamDashboard {
   hygiene: Hygiene;
   burnup: Burnup;
   insights: Insight[];
+  /** ISO timestamp of when the backend assembled this payload. */
+  syncedAt?: string;
   errors: string[];
 }

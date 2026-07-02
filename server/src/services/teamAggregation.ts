@@ -60,33 +60,6 @@ export interface RosterEntry {
 }
 
 /**
- * Attach linked PRs to each issue. A PR links to an issue if the ticket key
- * parsed from its title equals the issue key.
- */
-export function linkPRsToIssues(issues: RawIssue[], prs: RawPR[]) {
-  const byKey = new Map<string, RawPR[]>();
-  for (const pr of prs) {
-    const key = extractTicketKey(pr.title);
-    if (!key) continue;
-    const list = byKey.get(key) || [];
-    list.push(pr);
-    byKey.set(key, list);
-  }
-  return issues.map((issue) => ({
-    ...issue,
-    linkedPRs: (byKey.get(issue.key) || []).map((pr) => ({
-      number: pr.number,
-      title: pr.title,
-      repo_full_name: pr.repo_full_name,
-      html_url: pr.html_url,
-      state: pr.state,
-      checks_status: pr.checks_status,
-      author: pr.author,
-    })),
-  }));
-}
-
-/**
  * Partition PRs into "off-board": PRs whose ticket key is NOT in the sprint
  * issue set (includes PRs with no ticket, and tickets from other projects).
  * `sprintKeys` is the set of issue keys currently in scope.
@@ -180,24 +153,4 @@ export function computeSprintProgress(issues: RawIssue[]) {
   const byStatus = emptyByStatus();
   for (const i of issues) byStatus[classifyStatus(i)] += 1;
   return { total: issues.length, ...byStatus };
-}
-
-/** Per-member ticket + PR counts and status breakdown. */
-export function computeWorkload(roster: RosterEntry[], issues: RawIssue[], prs: RawPR[]) {
-  return roster.map((r) => {
-    const memberIssues = issues.filter((i) => i.assigneeAccountId === r.accountId);
-    const byStatus = emptyByStatus();
-    for (const i of memberIssues) byStatus[classifyStatus(i)] += 1;
-    const prCount = prs.filter(
-      (p) => p.author.toLowerCase() === r.githubUsername.toLowerCase(),
-    ).length;
-    return {
-      accountId: r.accountId,
-      displayName: r.displayName,
-      githubUsername: r.githubUsername,
-      ticketCount: memberIssues.length,
-      prCount,
-      byStatus,
-    };
-  });
 }

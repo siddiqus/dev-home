@@ -63,10 +63,16 @@ export function enrichIssue(
 ): EnrichedIssue {
   // Age/staleness
   const ageDays = issue.createdAt
-    ? Math.floor((now.getTime() - new Date(issue.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(issue.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+      )
     : 0;
   const daysSinceUpdate = issue.updatedAt
-    ? Math.floor((now.getTime() - new Date(issue.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(issue.updatedAt).getTime()) / (1000 * 60 * 60 * 24)),
+      )
     : 0;
 
   // Map linked PRs with waitingReview computation

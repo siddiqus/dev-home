@@ -443,14 +443,13 @@ describe("computeHygiene", () => {
         risk: { score: 0, level: "normal", reasons: [] },
       },
     ];
+    // PROJ-1 (done, open PR) is flagged; PROJ-3 (done, zero PRs) is NOT — we only
+    // flag done issues that actually have linked PRs (2-week PR window caveat).
     const result = computeHygiene(issues, [], sprintKeys);
-    expect(result.doneNoMerged).toEqual([
-      { kind: "issue", key: "PROJ-1" },
-      { kind: "issue", key: "PROJ-3" },
-    ]);
+    expect(result.doneNoMerged).toEqual([{ kind: "issue", key: "PROJ-1" }]);
   });
 
-  it("handles edge cases: done issue with zero PRs", () => {
+  it("does NOT flag a done issue with zero linked PRs (2-week window noise)", () => {
     const issues: EnrichedIssue[] = [
       {
         key: "PROJ-5",
@@ -482,7 +481,7 @@ describe("computeHygiene", () => {
       },
     ];
     const result = computeHygiene(issues, [], sprintKeys);
-    expect(result.doneNoMerged).toEqual([{ kind: "issue", key: "PROJ-5" }]);
+    expect(result.doneNoMerged).toEqual([]);
   });
 
   it("computes all hygiene buckets together", () => {

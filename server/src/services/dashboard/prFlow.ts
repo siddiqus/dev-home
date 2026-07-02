@@ -16,30 +16,34 @@ export function computePrFlow(prs: RawPR[], issues: EnrichedIssue[], now: Date):
     (i) => i.statusCategory === "indeterminate" && i.linkedPRs.length === 0,
   ).length;
 
-  // avgFirstReviewH: mean hours from created_at to first_review_at for PRs that have it
-  const prsWithReview = prs.filter((p) => p.first_review_at);
-  let avgFirstReviewH: number | null = null;
-  if (prsWithReview.length > 0) {
-    const totalHours = prsWithReview.reduce((sum, p) => {
+  // avgFirstReviewH: mean hours from created_at to first_review_at (valid dates only)
+  const reviewHours = prs
+    .map((p) => {
+      if (!p.first_review_at) return null;
       const created = new Date(p.created_at).getTime();
-      const reviewed = new Date(p.first_review_at!).getTime();
-      const hours = (reviewed - created) / (1000 * 60 * 60);
-      return sum + hours;
-    }, 0);
-    avgFirstReviewH = Math.round((totalHours / prsWithReview.length) * 10) / 10;
-  }
+      const reviewed = new Date(p.first_review_at).getTime();
+      if (isNaN(created) || isNaN(reviewed)) return null;
+      return (reviewed - created) / (1000 * 60 * 60);
+    })
+    .filter((h): h is number => h !== null);
+  const avgFirstReviewH =
+    reviewHours.length > 0
+      ? Math.round((reviewHours.reduce((a, b) => a + b, 0) / reviewHours.length) * 10) / 10
+      : null;
 
-  // avgAgeDays: mean age in days for open PRs only
-  const openPRs = prs.filter((p) => p.state === "open");
-  let avgAgeDays = 0;
-  if (openPRs.length > 0) {
-    const totalDays = openPRs.reduce((sum, p) => {
+  // avgAgeDays: mean age in days for open PRs (valid created_at only)
+  const openAges = prs
+    .filter((p) => p.state === "open")
+    .map((p) => {
       const created = new Date(p.created_at).getTime();
-      const days = (now.getTime() - created) / (1000 * 60 * 60 * 24);
-      return sum + days;
-    }, 0);
-    avgAgeDays = Math.round((totalDays / openPRs.length) * 10) / 10;
-  }
+      if (isNaN(created)) return null;
+      return (now.getTime() - created) / (1000 * 60 * 60 * 24);
+    })
+    .filter((d): d is number => d !== null);
+  const avgAgeDays =
+    openAges.length > 0
+      ? Math.round((openAges.reduce((a, b) => a + b, 0) / openAges.length) * 10) / 10
+      : 0;
 
   // failingChecks: open PRs with checks_status === 'FAILURE'
   const failingChecks = prs.filter(

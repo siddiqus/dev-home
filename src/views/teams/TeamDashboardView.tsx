@@ -174,7 +174,11 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
           )}
 
           {/* Sprint meta */}
-          <SprintMetaBar sprint={selectedSprint} pace={dashboard.pace} />
+          <SprintMetaBar
+            sprint={selectedSprint}
+            pace={dashboard.pace}
+            lastSynced={dashboard.syncedAt ?? null}
+          />
 
           {/* Manager insight cards */}
           {dashboard.insights.length > 0 && (

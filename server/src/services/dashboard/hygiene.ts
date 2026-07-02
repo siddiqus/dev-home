@@ -3,7 +3,7 @@
  *  - prNoJira:     PRs with no parseable Jira key
  *  - jiraNoPR:     in-progress issues with no linked PR
  *  - mergedNotDone: issues with a merged PR but not in a done status
- *  - doneNoMerged: done issues with no merged PR
+ *  - doneNoMerged: done issues that have linked PRs but none merged
  * Pure.
  *
  * STUB: implement with TDD per spec §5/§6.
@@ -36,10 +36,13 @@ export function computeHygiene(
     })
     .map(issueRef);
 
-  // doneNoMerged: done issues with no merged PR (includes done issues with zero PRs)
+  // doneNoMerged: done issues that have linked PRs but none merged. We require at
+  // least one linked PR because the PR fetch is a 2-week window — "done with zero
+  // linked PRs" is dominated by tickets whose PR merged outside the window (noise).
   const doneNoMerged = issues
     .filter((i) => {
       if (i.statusCategory !== "done") return false;
+      if (i.linkedPRs.length === 0) return false;
       return !i.linkedPRs.some((pr) => pr.mergedAt);
     })
     .map(issueRef);
