@@ -243,6 +243,38 @@ function runMigrations(d: Database.Database): void {
 }
 
 // ---------------------------------------------------------------------------
+// Idempotent safety net
+// ---------------------------------------------------------------------------
+// The versioned migration runner skips entirely once schema_version reaches
+// MIGRATIONS.length, so it cannot repair a database that ended up missing a
+// table (e.g. an interrupted migration that still advanced the version). These
+// CREATE ... IF NOT EXISTS statements run on every startup: a no-op on a healthy
+// DB, and self-healing for one that lost a table. Keep this limited to
+// create-if-not-exists of whole tables/indexes — never destructive DDL.
+function ensureCoreTables(d: Database.Database): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS teams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      jira_board_id INTEGER,
+      jira_board_name TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS team_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      team_id INTEGER NOT NULL,
+      display_name TEXT NOT NULL,
+      jira_account_id TEXT NOT NULL,
+      jira_email TEXT,
+      github_username TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+  `);
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -257,6 +289,7 @@ export function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
 
   runMigrations(db);
+  ensureCoreTables(db);
 
   return db;
 }
