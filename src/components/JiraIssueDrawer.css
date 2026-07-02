@@ -1,5 +1,9 @@
 .jira-issue-drawer.offcanvas-end {
   width: 40vw;
+  /* backdrop={false} means no dimming behind the panel, so give the panel its
+     own edge — a themed border + shadow — to separate it from the page. */
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
 }
 
 .jira-issue-drawer .jira-drawer-header {
@@ -60,14 +64,14 @@
   flex-shrink: 0;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--color-border);
 }
 
 .jira-issue-drawer .jira-drawer-linked-prs {
   flex-shrink: 0;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--color-border);
 }
 
 .jira-issue-drawer .modal-body-section-header {
