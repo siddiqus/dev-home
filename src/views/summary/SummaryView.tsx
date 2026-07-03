@@ -196,8 +196,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10);
 
-  // Combine jira comments + github mentions, sort by date, take 5
-  const allMentions = [
+  // Combine jira comments + github mentions
+  const combinedMentions = [
     ...jiraComments.map((c) => ({
       id: `jc-${c.id}`,
       title: `${c.author.displayName} on ${c.issueKey}`,
@@ -212,7 +212,28 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       url: m.html_url,
       time: m.created_at,
     })),
-  ]
+  ];
+
+  // Group mentions with identical titles into a single row, keeping the latest
+  // occurrence for the link/time and tracking how many collapsed into it.
+  const mentionGroups = new Map<string, (typeof combinedMentions)[number] & { count: number }>();
+  for (const m of combinedMentions) {
+    const existing = mentionGroups.get(m.title);
+    if (!existing) {
+      mentionGroups.set(m.title, { ...m, count: 1 });
+    } else {
+      existing.count += 1;
+      if (new Date(m.time).getTime() > new Date(existing.time).getTime()) {
+        existing.id = m.id;
+        existing.url = m.url;
+        existing.subtitle = m.subtitle;
+        existing.time = m.time;
+      }
+    }
+  }
+
+  // Sort grouped mentions by latest activity, take 5
+  const allMentions = [...mentionGroups.values()]
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
     .slice(0, 5);
 
@@ -410,6 +431,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 title={m.title}
                 subtitle={m.subtitle}
                 time={m.time}
+                badge={m.count > 1 ? String(m.count) : undefined}
+                badgeVariant="purple"
               />
             ))
           ) : (
