@@ -48,15 +48,24 @@ async function getStoryPointsFieldId(): Promise<string | null> {
   }
 }
 
-/** GET /api/teams — list teams with member counts. */
+/** GET /api/teams — list teams with member counts and names. */
 router.get("/", (_req: Request, res: Response) => {
   const db = getDb();
-  const teams = db
+  const rows = db
     .prepare(
-      `SELECT t.*, (SELECT COUNT(*) FROM team_members m WHERE m.team_id = t.id) AS member_count
+      `SELECT t.*,
+         (SELECT COUNT(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
+         (SELECT json_group_array(json_object('name', m.display_name))
+            FROM (SELECT display_name FROM team_members
+                  WHERE team_id = t.id ORDER BY display_name COLLATE NOCASE) m
+         ) AS members
        FROM teams t ORDER BY t.name COLLATE NOCASE`,
     )
-    .all();
+    .all() as Array<Record<string, unknown>>;
+  const teams = rows.map((row) => ({
+    ...row,
+    members: row.members ? JSON.parse(row.members as string) : [],
+  }));
   res.json({ teams });
 });
 

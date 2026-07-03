@@ -24,5 +24,4 @@ echo "Bumped to ${NEW_VERSION}"
 git add package.json server/package.json
 git commit -m "${NEW_VERSION}"
 git push origin master
-yarn ghtag
 yarn tag:push

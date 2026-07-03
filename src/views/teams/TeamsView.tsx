@@ -75,10 +75,10 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
         <Table hover className="align-middle">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Jira board</th>
-              <th style={{ width: 120 }}>Members</th>
-              <th style={{ width: 1 }} />
+              <th style={{ width: 220 }}>Name</th>
+              <th style={{ width: 200 }}>Jira board</th>
+              <th style={{ width: 250 }}>Members</th>
+              <th style={{ width: 280 }} />
             </tr>
           </thead>
           <tbody>
@@ -86,7 +86,13 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
               <tr key={t.id} onClick={() => openEdit(t)} style={{ cursor: "pointer" }}>
                 <td style={{ fontWeight: 500 }}>{t.name}</td>
                 <td>{t.jira_board_name || <span className="text-secondary-custom">—</span>}</td>
-                <td>{t.member_count ?? 0}</td>
+                <td>
+                  {t.members && t.members.length > 0 ? (
+                    t.members.map((m) => m.name).join(", ")
+                  ) : (
+                    <span className="text-secondary-custom">—</span>
+                  )}
+                </td>
                 <td>
                   <div
                     className="d-flex gap-2 justify-content-end"

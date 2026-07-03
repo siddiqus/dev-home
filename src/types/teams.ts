@@ -13,6 +13,8 @@ export interface Team {
   jira_board_id: number | null;
   jira_board_name: string | null;
   member_count?: number;
+  /** Member names for the teams list. Object shape is forward-compatible for future fields. */
+  members?: Array<{ name: string }>;
 }
 
 export interface JiraUserResult {
