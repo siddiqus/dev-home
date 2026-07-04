@@ -214,7 +214,9 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       fullscreen
       className="description-modal description-modal--fullscreen"
     >
-      <Modal.Header closeButton />
+      <Modal.Header>
+        <br />
+      </Modal.Header>
 
       <Modal.Body className="modal-tab-content">
         <div
