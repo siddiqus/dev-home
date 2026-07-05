@@ -66,6 +66,17 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
   const selectedSprint =
     dashboard?.sprints.find((s) => s.id === selectedSprintId) ?? dashboard?.sprint ?? null;
 
+  const staleDaysMap = useMemo(() => {
+    if (!dashboard) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const issue of dashboard.issues) {
+      if (issue.flags.stale) {
+        map.set(issue.key, issue.daysSinceUpdate);
+      }
+    }
+    return map;
+  }, [dashboard]);
+
   // --- Detail modals (Jira drawer + PR description modal) ---
   // Every cockpit panel drills down through a single `openRef` handler; the
   // modals are rendered once here at the dashboard level. Each ref only carries
@@ -76,13 +87,16 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
   // A full-page overlay while a detail record is being fetched, so the click
   // gives immediate feedback before the drawer/modal can open.
   const [detailLoading, setDetailLoading] = useState(false);
+  const [drawerStaleDays, setDrawerStaleDays] = useState<number | undefined>(undefined);
 
   const openIssue = useCallback(
     (key: string) => {
       setDrawerIssue(null);
       // Linked PRs live on the dashboard row, not the fetched Jira issue.
       // Epics aren't in `issues`, so they resolve to an empty list.
-      setDrawerPRs(dashboard?.issues.find((i) => i.key === key)?.linkedPRs ?? []);
+      const match = dashboard?.issues.find((i) => i.key === key);
+      setDrawerPRs(match?.linkedPRs ?? []);
+      setDrawerStaleDays(match?.flags.stale ? match.daysSinceUpdate : undefined);
       setDetailLoading(true);
       fetchIssuesByKeys([key])
         .then((issues) => {
@@ -185,10 +199,15 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
                 workload={dashboard.workload}
                 loadBalance={dashboard.loadBalance}
                 onOpenRef={openRef}
+                staleDays={staleDaysMap}
               />
             </div>
             <div className="col-lg-5">
-              <NeedsAttentionPanel needsAttention={dashboard.needsAttention} onOpenRef={openRef} />
+              <NeedsAttentionPanel
+                needsAttention={dashboard.needsAttention}
+                onOpenRef={openRef}
+                staleDays={staleDaysMap}
+              />
             </div>
           </div>
 
@@ -252,6 +271,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
         onHide={() => setDrawerIssue(null)}
         baseUrl={jiraBaseUrl}
         linkedPRs={drawerPRs}
+        staleDays={drawerStaleDays}
       />
 
       <DescriptionModal
