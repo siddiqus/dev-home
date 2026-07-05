@@ -103,4 +103,30 @@ describe("LoadDistribution", () => {
     expect(names[0]).toHaveTextContent("Tashfia");
     expect(names[1]).toHaveTextContent("Nadman");
   });
+
+  it("shows day count on stalest link when staleDays map is provided", () => {
+    const staleDaysMap = new Map([["PLAT-101", 4]]);
+    render(
+      <LoadDistribution
+        workload={dashboardFixture.workload}
+        loadBalance={dashboardFixture.loadBalance}
+        staleDays={staleDaysMap}
+      />,
+    );
+
+    expect(screen.getByText(/stalest: PLAT-101/)).toBeInTheDocument();
+    expect(screen.getByText(/4d/)).toBeInTheDocument();
+  });
+
+  it("renders stalest link without day count when staleDays map is absent", () => {
+    render(
+      <LoadDistribution
+        workload={dashboardFixture.workload}
+        loadBalance={dashboardFixture.loadBalance}
+      />,
+    );
+
+    expect(screen.getByText("stalest: PLAT-101")).toBeInTheDocument();
+    expect(screen.queryByText(/\dd$/)).not.toBeInTheDocument();
+  });
 });

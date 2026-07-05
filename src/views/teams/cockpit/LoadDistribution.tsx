@@ -1,9 +1,11 @@
 import type { WorkloadEntry, LoadBalance, Ref, RiskLevel } from "../../../types/teams";
+import { staleTone } from "./staleTone";
 
 interface Props {
   workload: WorkloadEntry[];
   loadBalance: LoadBalance;
   onOpenRef?: (ref: Ref) => void;
+  staleDays?: Map<string, number>;
 }
 
 // Import the same status colors from WorkloadBars for consistency
@@ -28,7 +30,7 @@ function getRiskBadgeVariant(level: RiskLevel): string {
   }
 }
 
-export function LoadDistribution({ workload, loadBalance, onOpenRef }: Props) {
+export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }: Props) {
   // Sort workload to surface who needs help: by riskLevel (desc), stalledCount (desc), wip (desc)
   const riskOrder = { high: 3, attention: 2, normal: 1 };
   const sorted = [...workload].sort((a, b) => {
@@ -119,17 +121,25 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef }: Props) {
               </div>
             </div>
 
-            {w.stalest && (
-              <div className="mt-1">
-                <button
-                  className="btn btn-link btn-sm p-0 text-decoration-none"
-                  style={{ fontSize: "0.7rem" }}
-                  onClick={() => onOpenRef?.(w.stalest!)}
-                >
-                  stalest: {w.stalest.kind === "issue" ? w.stalest.key : `PR #${w.stalest.number}`}
-                </button>
-              </div>
-            )}
+            {w.stalest &&
+              (() => {
+                const days = w.stalest.kind === "issue" ? staleDays?.get(w.stalest.key) : undefined;
+                return (
+                  <div className="mt-1">
+                    <button
+                      className="btn btn-link btn-sm p-0 text-decoration-none"
+                      style={{ fontSize: "0.7rem" }}
+                      onClick={() => onOpenRef?.(w.stalest!)}
+                    >
+                      stalest:{" "}
+                      {w.stalest.kind === "issue" ? w.stalest.key : `PR #${w.stalest.number}`}
+                      {days != null && (
+                        <span style={{ color: staleTone(days), marginLeft: 4 }}>· {days}d</span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })()}
           </div>
         ))}
       </div>
