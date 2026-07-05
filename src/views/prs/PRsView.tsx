@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { IconFold, IconFoldDown } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
-import { PRTable } from "../../components/PRTable";
+import { PRTable, PRTableHandle } from "../../components/PRTable";
 import "./PRsView.css";
 
 type PRSubTab = "open" | "merged";
@@ -51,6 +52,9 @@ export const PRsView: React.FC<PRsViewProps> = ({
     localStorage.setItem("dev-home-prs-subtab", tab);
   };
 
+  const prTableRef = useRef<PRTableHandle>(null);
+  const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
+
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
 
@@ -87,10 +91,22 @@ export const PRsView: React.FC<PRsViewProps> = ({
             Recently Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
           </button>
         </div>
+        {subTab === "open" && groupState.hasGroups && (
+          <button
+            type="button"
+            className="pr-table-collapse-btn"
+            onClick={() => prTableRef.current?.toggleCollapseAll()}
+            title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+          >
+            {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+            {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+        )}
       </div>
 
       {subTab === "open" && (
         <PRTable
+          ref={prTableRef}
           prs={openPRs}
           loading={loading}
           jiraIssues={jiraIssues}
@@ -100,6 +116,9 @@ export const PRsView: React.FC<PRsViewProps> = ({
           claudeSessions={claudeSessions}
           onClaudeAction={onClaudeAction}
           onViewClaudeSession={onViewClaudeSession}
+          onCollapseStateChange={(hasGroups, allCollapsed) =>
+            setGroupState({ hasGroups, allCollapsed })
+          }
         />
       )}
       {subTab === "merged" && (

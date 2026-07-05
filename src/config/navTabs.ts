@@ -32,15 +32,6 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    key: "jira",
-    label: "JIRA",
-    tabs: [
-      { key: "jira", label: "My Issues" },
-      { key: "jira-search", label: "Issue Search" },
-      { key: "jira-mentions", label: "Mentions" },
-    ],
-  },
-  {
     key: "github",
     label: "GitHub",
     tabs: [
@@ -48,6 +39,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "reviews", label: "Reviews" },
       { key: "github-mentions", label: "Comments" },
       { key: "org-prs", label: "Org PRs" },
+    ],
+  },
+  {
+    key: "jira",
+    label: "JIRA",
+    tabs: [
+      { key: "jira", label: "My Issues" },
+      { key: "jira-search", label: "Issue Search" },
+      { key: "jira-mentions", label: "Mentions" },
     ],
   },
   {

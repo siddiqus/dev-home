@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useCallback,
+} from "react";
 import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -8,6 +15,8 @@ import {
   IconChevronRight,
   IconChevronDown,
   IconExternalLink,
+  IconFold,
+  IconFoldDown,
 } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
@@ -55,6 +64,7 @@ interface PRTableProps {
     customPrompt?: string,
   ) => void;
   onViewClaudeSession?: (sessionId: string) => void;
+  onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
 }
 
 /** Column definitions per variant. */
@@ -262,17 +272,27 @@ function renderCell(
   }
 }
 
-export const PRTable: React.FC<PRTableProps> = ({
-  prs,
-  loading,
-  jiraIssues = [],
-  jiraBaseUrl = "",
-  variant,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
-}) => {
+export interface PRTableHandle {
+  hasGroups: boolean;
+  allCollapsed: boolean;
+  toggleCollapseAll: () => void;
+}
+
+export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
+  {
+    prs,
+    loading,
+    jiraIssues = [],
+    jiraBaseUrl = "",
+    variant,
+    claudeEnabled,
+    claudeSessions,
+    onClaudeAction,
+    onViewClaudeSession,
+    onCollapseStateChange,
+  },
+  ref,
+) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -324,9 +344,47 @@ export const PRTable: React.FC<PRTableProps> = ({
   };
 
   const groups = groupByTicket(prs);
+  const groupTickets = groups
+    .filter((g) => g.ticket !== null && g.prs.length > 1)
+    .map((g) => g.ticket!);
+  const hasGroups = groupTickets.length > 0;
+  const allCollapsed = hasGroups && groupTickets.every((t) => collapsed.has(t));
+
+  const toggleCollapseAll = useCallback(() => {
+    if (allCollapsed) {
+      setCollapsed(new Set());
+    } else {
+      setCollapsed(new Set(groupTickets));
+    }
+  }, [allCollapsed, groupTickets]);
+
+  useImperativeHandle(ref, () => ({ hasGroups, allCollapsed, toggleCollapseAll }), [
+    hasGroups,
+    allCollapsed,
+    toggleCollapseAll,
+  ]);
+
+  useEffect(() => {
+    onCollapseStateChange?.(hasGroups, allCollapsed);
+  }, [hasGroups, allCollapsed, onCollapseStateChange]);
+
+  const showInlineToolbar = hasGroups && !onCollapseStateChange;
 
   return (
     <>
+      {showInlineToolbar && (
+        <div className="pr-table-toolbar">
+          <button
+            type="button"
+            className="pr-table-collapse-btn"
+            onClick={toggleCollapseAll}
+            title={allCollapsed ? "Expand all groups" : "Collapse all groups"}
+          >
+            {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+            {allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+        </div>
+      )}
       <Table hover style={{ tableLayout: "fixed" }}>
         <colgroup>
           {columns.map((col) => (
@@ -465,4 +523,4 @@ export const PRTable: React.FC<PRTableProps> = ({
       />
     </>
   );
-};
+});

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
-import { IconRefresh, IconFilter } from "@tabler/icons-react";
+import { IconRefresh, IconFilter, IconFold, IconFoldDown } from "@tabler/icons-react";
 import "../prs/PRsView.css";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
@@ -15,7 +15,7 @@ import {
   OrgMember,
   OrgRepo,
 } from "../../services/github";
-import { PRTable } from "../../components/PRTable";
+import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { DropdownItem } from "../../components/SearchableDropdown";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { SavedFiltersDropdown, SavedFilter } from "../../components/SavedFiltersDropdown";
@@ -107,6 +107,9 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   onClaudeAction,
   onViewClaudeSession,
 }) => {
+  const orgPrTableRef = useRef<PRTableHandle>(null);
+  const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
+
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
   const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
@@ -511,6 +514,17 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
           </button>
         </div>
+        {orgSubTab === "open" && groupState.hasGroups && (
+          <button
+            type="button"
+            className="pr-table-collapse-btn"
+            onClick={() => orgPrTableRef.current?.toggleCollapseAll()}
+            title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+          >
+            {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+            {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+        )}
       </div>
 
       {authors.length === 0 && selectedRepos.length === 0 ? (
@@ -538,6 +552,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                 }}
               >
                 <PRTable
+                  ref={orgPrTableRef}
                   prs={prs}
                   loading={loading}
                   jiraBaseUrl={jiraBaseUrl}
@@ -547,6 +562,9 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                   claudeSessions={claudeSessions}
                   onClaudeAction={onClaudeAction}
                   onViewClaudeSession={onViewClaudeSession}
+                  onCollapseStateChange={(hasGroups, allCollapsed) =>
+                    setGroupState({ hasGroups, allCollapsed })
+                  }
                 />
               </div>
 
