@@ -6,6 +6,7 @@ import { IconExternalLink, IconGitPullRequest } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
 import { Avatar } from "./primitives/Avatar";
+import { staleTone } from "../views/teams/cockpit/staleTone";
 import "./JiraIssueDrawer.css";
 
 interface JiraIssueDrawerProps {
@@ -15,6 +16,7 @@ interface JiraIssueDrawerProps {
   baseUrl?: string;
   /** PRs linked to this issue, shown at the bottom of the drawer. */
   linkedPRs?: LinkedPR[];
+  staleDays?: number;
 }
 
 export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
@@ -23,6 +25,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
   onHide,
   baseUrl,
   linkedPRs,
+  staleDays,
 }) => {
   const url = issue && baseUrl ? `${baseUrl.replace(/\/$/, "")}/browse/${issue.key}` : undefined;
 
@@ -110,6 +113,15 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
             </span>
           )}
         </div>
+
+        {staleDays != null && staleDays > 0 && (
+          <div className="jira-drawer-assignee">
+            <div className="modal-body-section-header">Staleness</div>
+            <span style={{ fontSize: "0.8125rem", color: staleTone(staleDays) }}>
+              No update in {staleDays} days
+            </span>
+          </div>
+        )}
 
         {linkedPRs && linkedPRs.length > 0 && (
           <div className="jira-drawer-linked-prs">
