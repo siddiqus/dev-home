@@ -35,7 +35,8 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "jira",
     label: "JIRA",
     tabs: [
-      { key: "jira", label: "JIRA Tasks" },
+      { key: "jira", label: "My Issues" },
+      { key: "jira-search", label: "Issue Search" },
       { key: "jira-mentions", label: "Mentions" },
     ],
   },

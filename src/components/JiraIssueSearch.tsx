@@ -7,6 +7,7 @@ import {
   IconBookmark,
   IconFilter,
   IconAlertTriangle,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import { EmptyState } from "./EmptyState";
@@ -82,6 +83,23 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
       const filters = await fetchRemoteJiraFilters();
       setRemoteFilters(filters);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ filters, ts: Date.now() }));
+    } catch {
+      // silent
+    } finally {
+      setLoadingRemoteFilters(false);
+    }
+  }, []);
+
+  const forceRefreshRemoteFilters = useCallback(async () => {
+    localStorage.removeItem("dev-home-jira-remote-filters");
+    setLoadingRemoteFilters(true);
+    try {
+      const filters = await fetchRemoteJiraFilters();
+      setRemoteFilters(filters);
+      localStorage.setItem(
+        "dev-home-jira-remote-filters",
+        JSON.stringify({ filters, ts: Date.now() }),
+      );
     } catch {
       // silent
     } finally {
@@ -205,6 +223,21 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
           triggerIcon={<IconFilter size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
           loading={loadingRemoteFilters}
         />
+        <button
+          className="btn btn-sm btn-icon-only"
+          onClick={forceRefreshRemoteFilters}
+          disabled={loadingRemoteFilters}
+          title="Refresh JIRA filters"
+          style={{
+            padding: "4px",
+            lineHeight: 1,
+            border: "none",
+            background: "none",
+            opacity: 0.5,
+          }}
+        >
+          <IconRefresh size={14} className={loadingRemoteFilters ? "spin" : ""} />
+        </button>
       </div>
 
       {/* JQL input area */}

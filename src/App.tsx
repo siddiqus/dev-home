@@ -12,6 +12,7 @@ import {
   IconColumns3,
   IconNotes,
   IconSubtask,
+  IconSearch,
   IconAt,
   IconGitPullRequest,
   IconEye,
@@ -29,7 +30,8 @@ import { useNotes } from "./hooks/useNotes";
 import { useFocus } from "./hooks/useFocus";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
-import { JiraTasksView } from "./views/jira/JiraTasksView";
+import { JiraTasks } from "./components/JiraTasks";
+import { JiraIssueSearch } from "./components/JiraIssueSearch";
 import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
 import { GitHubMentionsView } from "./views/mentions/GitHubMentionsView";
 import { PRTable } from "./components/PRTable";
@@ -374,6 +376,7 @@ export default function App() {
                 board: { icon: IconColumns3, count: undefined },
                 notes: { icon: IconNotes, count: unresolvedNotes.length },
                 jira: { icon: IconSubtask, count: assignedJiraIssues.length },
+                "jira-search": { icon: IconSearch, count: undefined },
                 "jira-mentions": { icon: IconAt, count: jiraComments.length },
                 prs: { icon: IconGitPullRequest, count: openPRs.length },
                 reviews: { icon: IconEye, count: reviewRequests.length },
@@ -562,12 +565,13 @@ export default function App() {
                     />
                   )}
                   {effectiveTab === "jira" && (
-                    <JiraTasksView
+                    <JiraTasks
                       issues={assignedJiraIssues}
                       loading={loading}
                       baseUrl={jiraBaseUrl}
                     />
                   )}
+                  {effectiveTab === "jira-search" && <JiraIssueSearch baseUrl={jiraBaseUrl} />}
                   {effectiveTab === "jira-mentions" && (
                     <JiraMentionsView
                       jiraComments={jiraComments}
