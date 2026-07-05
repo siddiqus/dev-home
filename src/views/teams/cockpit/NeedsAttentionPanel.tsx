@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { NeedsAttention, Ref } from "../../../types/teams";
+import { staleTone } from "./staleTone";
 
 interface Props {
   needsAttention: NeedsAttention;
   onOpenRef?: (ref: Ref) => void;
+  staleDays?: Map<string, number>;
 }
 
 interface SignalRow {
@@ -13,7 +15,7 @@ interface SignalRow {
   refs: Ref[];
 }
 
-export function NeedsAttentionPanel({ needsAttention, onOpenRef }: Props) {
+export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays }: Props) {
   const [expandedRow, setExpandedRow] = useState<keyof NeedsAttention | null>(null);
 
   const rows: SignalRow[] = [
@@ -103,18 +105,32 @@ export function NeedsAttentionPanel({ needsAttention, onOpenRef }: Props) {
 
               {expandedRow === row.key && (
                 <div className="mt-2 ms-3 d-flex flex-wrap gap-2">
-                  {row.refs.map((ref, idx) => (
-                    <button
-                      key={idx}
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRefClick(ref);
-                      }}
-                    >
-                      {formatRef(ref)}
-                    </button>
-                  ))}
+                  {row.refs.map((ref, idx) => {
+                    const days =
+                      row.key === "stale" && ref.kind === "issue"
+                        ? staleDays?.get(ref.key)
+                        : undefined;
+                    return (
+                      <button
+                        key={idx}
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRefClick(ref);
+                        }}
+                      >
+                        {formatRef(ref)}
+                        {days != null && (
+                          <span
+                            className="ms-1"
+                            style={{ color: staleTone(days), fontSize: "0.75rem" }}
+                          >
+                            · No update {days}d
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -105,4 +105,30 @@ describe("NeedsAttentionPanel", () => {
 
     expect(screen.queryByText("No linked PR")).not.toBeInTheDocument();
   });
+
+  it("shows staleness detail on stale chips when staleDays map is provided", () => {
+    const staleDaysMap = new Map([["PLAT-101", 4]]);
+    render(
+      <NeedsAttentionPanel
+        needsAttention={dashboardFixture.needsAttention}
+        staleDays={staleDaysMap}
+      />,
+    );
+
+    const staleRow = screen.getByText("Stale").closest("div");
+    fireEvent.click(staleRow!);
+
+    expect(screen.getByText(/No update/)).toBeInTheDocument();
+    expect(screen.getByText(/4d/)).toBeInTheDocument();
+  });
+
+  it("renders stale chips without staleness detail when staleDays map is absent", () => {
+    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} />);
+
+    const staleRow = screen.getByText("Stale").closest("div");
+    fireEvent.click(staleRow!);
+
+    expect(screen.getByText("PLAT-101")).toBeInTheDocument();
+    expect(screen.queryByText(/No update/)).not.toBeInTheDocument();
+  });
 });
