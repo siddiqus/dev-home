@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
+import axios from "axios";
 import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
+import { getConfig } from "../config";
 
 const router = Router();
 
@@ -15,13 +17,45 @@ router.get("/users/search", async (req: Request, res: Response) => {
     return;
   }
   const jira = createJiraClient();
-  const { data } = await jira.get("/user/search", { params: { query: q, maxResults: 20 } });
-  const users = (data || []).map((u: any) => ({
+  const mapUser = (u: any) => ({
     accountId: u.accountId,
     displayName: u.displayName,
     emailAddress: u.emailAddress || null,
     avatarUrl: u.avatarUrls?.["24x24"] || "",
-  }));
+  });
+
+  const requests: Promise<any[]>[] = [
+    jira.get("/user/search", { params: { query: q, maxResults: 20 } }).then((r) => r.data || []),
+  ];
+  if (q.includes("@")) {
+    // The v3 `query` param often misses users whose email visibility is
+    // private. Fall back to the v2 endpoint which still supports searching
+    // by email via the `username` param on Jira Cloud.
+    const config = getConfig();
+    const credentials = Buffer.from(`${config.jiraEmail}:${config.jiraApiToken}`).toString(
+      "base64",
+    );
+    requests.push(
+      axios
+        .get(`${config.jiraBaseUrl}/rest/api/2/user/search`, {
+          params: { username: q, maxResults: 20 },
+          headers: { Authorization: `Basic ${credentials}`, Accept: "application/json" },
+        })
+        .then((r) => r.data || [])
+        .catch(() => []),
+    );
+  }
+  const results = await Promise.all(requests);
+  const seen = new Set<string>();
+  const users: any[] = [];
+  for (const batch of results) {
+    for (const u of batch) {
+      if (!seen.has(u.accountId)) {
+        seen.add(u.accountId);
+        users.push(mapUser(u));
+      }
+    }
+  }
   res.json({ users });
 });
 
