@@ -277,6 +277,13 @@ export default function App() {
   }, [configured]);
 
   const claudeSessions = useClaudeSessions(claudeEnabled);
+  const [claudeError, setClaudeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!claudeError) return;
+    const timer = setTimeout(() => setClaudeError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [claudeError]);
 
   const handleClaudeAction = async (
     pr: {
@@ -289,7 +296,7 @@ export default function App() {
     action: ClaudeAction,
     customPrompt?: string,
   ) => {
-    const sessionId = await claudeSessions.create({
+    const result = await claudeSessions.create({
       prNumber: pr.number,
       repoFullName: pr.repo_full_name,
       prTitle: pr.title,
@@ -298,7 +305,11 @@ export default function App() {
       headBranch: pr.headBranch,
       baseBranch: pr.baseBranch,
     });
-    if (sessionId) setActiveTab("claude");
+    if ("sessionId" in result) {
+      setActiveTab("claude");
+    } else {
+      setClaudeError(result.error);
+    }
   };
 
   const [viewClaudeSessionId, setViewClaudeSessionId] = useState<string | null>(null);
@@ -677,6 +688,14 @@ export default function App() {
         onEdit={editNote}
         jiraBaseUrl={jiraBaseUrl}
       />
+
+      {claudeError && (
+        <div className="claude-error-toast">
+          <IconSparkles size={14} />
+          <span>{claudeError}</span>
+          <button onClick={() => setClaudeError(null)}>&times;</button>
+        </div>
+      )}
     </>
   );
 }

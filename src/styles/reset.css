@@ -117,3 +117,38 @@ a,
 .container-fluid {
   max-width: 100%;
 }
+
+/* Claude error toast */
+.claude-error-toast {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-status-danger-bg, #f8d7da);
+  color: var(--color-status-danger-text, #842029);
+  border: 1px solid var(--color-status-danger-border, #f5c2c7);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  z-index: 9999;
+  animation: fadeIn 200ms ease;
+  max-width: 500px;
+}
+
+.claude-error-toast button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.claude-error-toast button:hover {
+  opacity: 1;
+}

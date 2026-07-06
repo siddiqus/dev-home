@@ -20,7 +20,7 @@ interface UseClaudeSessionsReturn {
     customPrompt?: string;
     headBranch?: string;
     baseBranch?: string;
-  }) => Promise<string | null>;
+  }) => Promise<{ sessionId: string } | { error: string }>;
   cancel: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   refresh: () => void;
@@ -66,14 +66,18 @@ export function useClaudeSessions(enabled: boolean): UseClaudeSessionsReturn {
       customPrompt?: string;
       headBranch?: string;
       baseBranch?: string;
-    }): Promise<string | null> => {
+    }): Promise<{ sessionId: string } | { error: string }> => {
       try {
         const result = await createClaudeSession(opts);
         await refresh();
-        return result.sessionId;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create session");
-        return null;
+        return { sessionId: result.sessionId };
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
+        const message =
+          axiosErr?.response?.data?.error ||
+          (err instanceof Error ? err.message : "Failed to create session");
+        setError(message);
+        return { error: message };
       }
     },
     [refresh],
