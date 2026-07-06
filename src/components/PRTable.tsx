@@ -1,11 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from "react";
 import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -294,16 +287,23 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
-  // Reset collapse state when the PR data changes (e.g. after refresh)
-  const prevPrsRef = useRef(prs);
-  useEffect(() => {
-    if (prevPrsRef.current !== prs) {
-      prevPrsRef.current = prs;
-      setCollapsed(new Set());
+  const storageKey = `dev-home-pr-collapsed-${variant}`;
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
     }
-  }, [prs]);
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...collapsed]));
+    } catch {
+      /* quota exceeded */
+    }
+  }, [collapsed, storageKey]);
 
   const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
   const config = VARIANT_CONFIG[variant];
