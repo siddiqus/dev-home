@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { IconFold, IconFoldDown } from "@tabler/icons-react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { IconFold, IconFoldDown, IconSearch, IconX } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
+import { extractTicket } from "../../utils/tickets";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import "./PRsView.css";
 
@@ -55,6 +56,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const prTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
 
@@ -74,6 +77,27 @@ export const PRsView: React.FC<PRsViewProps> = ({
     loadMergedPRs();
   }, [loadMergedPRs, refreshKey]);
 
+  const filterPRs = useCallback(
+    (prs: GitHubPR[]) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return prs;
+      return prs.filter((pr) => {
+        if (pr.title.toLowerCase().includes(q)) return true;
+        const ticket = extractTicket(pr.title);
+        if (ticket && ticket.toLowerCase().includes(q)) return true;
+        const ticketTitle = ticket
+          ? jiraIssues?.find((i) => i.key.toUpperCase() === ticket.toUpperCase())?.summary
+          : undefined;
+        if (ticketTitle && ticketTitle.toLowerCase().includes(q)) return true;
+        return false;
+      });
+    },
+    [searchQuery, jiraIssues],
+  );
+
+  const filteredOpenPRs = useMemo(() => filterPRs(openPRs), [filterPRs, openPRs]);
+  const filteredMergedPRs = useMemo(() => filterPRs(mergedPRs), [filterPRs, mergedPRs]);
+
   return (
     <div className="prs-view">
       <div className="prs-subtab-bar">
@@ -91,23 +115,40 @@ export const PRsView: React.FC<PRsViewProps> = ({
             Recently Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
           </button>
         </div>
-        {subTab === "open" && groupState.hasGroups && (
-          <button
-            type="button"
-            className="pr-table-collapse-btn"
-            onClick={() => prTableRef.current?.toggleCollapseAll()}
-            title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
-          >
-            {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-            {groupState.allCollapsed ? "Expand all" : "Collapse all"}
-          </button>
-        )}
+        <div className="prs-subtab-bar-right">
+          <div className="prs-search-wrapper">
+            <IconSearch size={14} className="prs-search-icon" />
+            <input
+              type="text"
+              className="prs-search-input"
+              placeholder="Search PRs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button type="button" className="prs-search-clear" onClick={() => setSearchQuery("")}>
+                <IconX size={12} />
+              </button>
+            )}
+          </div>
+          {subTab === "open" && groupState.hasGroups && (
+            <button
+              type="button"
+              className="pr-table-collapse-btn"
+              onClick={() => prTableRef.current?.toggleCollapseAll()}
+              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+            >
+              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          )}
+        </div>
       </div>
 
       {subTab === "open" && (
         <PRTable
           ref={prTableRef}
-          prs={openPRs}
+          prs={filteredOpenPRs}
           loading={loading}
           jiraIssues={jiraIssues}
           variant="my-prs"
@@ -123,7 +164,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
       )}
       {subTab === "merged" && (
         <PRTable
-          prs={mergedPRs}
+          prs={filteredMergedPRs}
           loading={mergedPRsLoading}
           variant="recently-merged"
           jiraBaseUrl={jiraBaseUrl}

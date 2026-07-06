@@ -309,26 +309,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const config = VARIANT_CONFIG[variant];
   const { columns } = config;
 
-  if (loading && prs.length === 0) {
-    if (isMergedVariant) return null;
-    return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <Spinner animation="border" variant="secondary" />
-      </div>
-    );
-  }
-
-  if (prs.length === 0) {
-    if (isMergedVariant) return null;
-    return (
-      <EmptyState
-        icon={config.emptyIcon}
-        title={config.emptyTitle}
-        description={config.emptyDescription}
-      />
-    );
-  }
-
   const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
 
   const toggleGroup = (ticket: string) => {
@@ -367,6 +347,26 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   useEffect(() => {
     onCollapseStateChange?.(hasGroups, allCollapsed);
   }, [hasGroups, allCollapsed, onCollapseStateChange]);
+
+  if (loading && prs.length === 0) {
+    if (isMergedVariant) return null;
+    return (
+      <div className="d-flex justify-content-center align-items-center py-5">
+        <Spinner animation="border" variant="secondary" />
+      </div>
+    );
+  }
+
+  if (prs.length === 0) {
+    if (isMergedVariant) return null;
+    return (
+      <EmptyState
+        icon={config.emptyIcon}
+        title={config.emptyTitle}
+        description={config.emptyDescription}
+      />
+    );
+  }
 
   const showInlineToolbar = hasGroups && !onCollapseStateChange;
 
