@@ -234,6 +234,7 @@ export function createSession(opts: {
   };
 
   let stdoutBuffer = "";
+  let lastAssistantText = "";
 
   const onStdout = (chunk: Buffer) => {
     stdoutBuffer += chunk.toString();
@@ -247,8 +248,10 @@ export function createSession(opts: {
         if (event.type === "assistant" && event.message?.content) {
           for (const block of event.message.content) {
             if (block.type === "text" && block.text) {
+              lastAssistantText = block.text;
               broadcastEntry("stdout", block.text, { kind: "text" });
             } else if (block.type === "tool_use") {
+              lastAssistantText = "";
               broadcastEntry(
                 "stdout",
                 `[Tool: ${block.name}] ${JSON.stringify(block.input).slice(0, 200)}`,
@@ -264,7 +267,9 @@ export function createSession(opts: {
             }
           }
         } else if (event.type === "result" && event.result) {
-          broadcastEntry("stdout", event.result, { kind: "result" });
+          if (event.result !== lastAssistantText) {
+            broadcastEntry("stdout", event.result, { kind: "result" });
+          }
         }
       } catch {
         broadcastEntry("stdout", line, { kind: "raw" });
