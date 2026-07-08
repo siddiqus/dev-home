@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import Modal from "react-bootstrap/Modal";
-import Form from "react-bootstrap/Form";
-import { IconSearch, IconCheck, IconListSearch } from "@tabler/icons-react";
+import { IconCheck, IconListSearch } from "@tabler/icons-react";
 import type { FocusableItem, FocusableGroup } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { EmptyState } from "../../components/EmptyState";
+import { SearchInput } from "../../components/SearchInput";
 
 interface TaskPickerProps {
   items: FocusableItem[];
@@ -31,7 +31,7 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -71,17 +71,12 @@ export const TaskPicker: React.FC<TaskPickerProps> = ({
           <Modal.Title as="h5">Focus on a task</Modal.Title>
         </Modal.Header>
         <Modal.Body className="pomodoro-task-picker-body">
-          <div className="pomodoro-task-picker-search">
-            <IconSearch size={16} className="pomodoro-task-picker-search-icon" />
-            <Form.Control
-              ref={searchInputRef}
-              type="search"
-              placeholder="Search tasks…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
+          <SearchInput
+            ref={searchInputRef}
+            value={query}
+            onChange={setQuery}
+            placeholder="Search tasks…"
+          />
 
           <button
             type="button"

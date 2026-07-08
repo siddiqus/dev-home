@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { IconFold, IconFoldDown, IconSearch, IconX } from "@tabler/icons-react";
+import { IconFold, IconFoldDown } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicket } from "../../utils/tickets";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
+import { SearchInput } from "../../components/SearchInput";
 import "./PRsView.css";
 
 type PRSubTab = "open" | "merged";
@@ -116,21 +117,12 @@ export const PRsView: React.FC<PRsViewProps> = ({
           </button>
         </div>
         <div className="prs-subtab-bar-right">
-          <div className="prs-search-wrapper">
-            <IconSearch size={14} className="prs-search-icon" />
-            <input
-              type="text"
-              className="prs-search-input"
-              placeholder="Search PRs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button type="button" className="prs-search-clear" onClick={() => setSearchQuery("")}>
-                <IconX size={12} />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search PRs..."
+            expandOnFocus
+          />
           {subTab === "open" && groupState.hasGroups && (
             <button
               type="button"

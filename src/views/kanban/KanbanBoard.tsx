@@ -22,7 +22,7 @@ import { SearchableDropdown, DropdownItem } from "../../components/SearchableDro
 import { getReferenceUrl } from "../../utils/text";
 import { KanbanCard } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
-import { KanbanSearch } from "./KanbanSearch";
+import { SearchInput } from "../../components/SearchInput";
 import "./kanban.css";
 
 const FILTER_ITEMS: DropdownItem[] = [
@@ -311,7 +311,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   return (
     <>
       <div className="kanban-toolbar">
-        <KanbanSearch value={searchQuery} onChange={setSearchQuery} />
+        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tiles..." />
         <SearchableDropdown
           items={FILTER_ITEMS}
           value={typeFilter}

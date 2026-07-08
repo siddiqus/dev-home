@@ -91,6 +91,7 @@ export interface GitHubPR {
   checks: CheckRunInfo[];
   review_status: string | null;
   merged_at?: string;
+  in_merge_queue?: boolean;
 }
 
 export interface GitHubComment {

@@ -169,21 +169,8 @@
   padding: 1.25rem 1.5rem 1.5rem;
 }
 
-.pomodoro-task-picker-search {
-  position: relative;
-}
-
-.pomodoro-task-picker-search .form-control {
-  padding-left: 2.25rem;
-}
-
-.pomodoro-task-picker-search-icon {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-muted);
-  pointer-events: none;
+.pomodoro-task-picker-body .search-input-wrapper {
+  margin-bottom: var(--space-2);
 }
 
 .pomodoro-task-picker-empty {

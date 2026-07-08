@@ -53,11 +53,23 @@ export function getNoteDisplayTitle(note: Note): string {
 
 export function deriveTitleFromContent(content: string | undefined, maxLength = 80): string {
   if (!content) return "Untitled note";
-  const plain = content
-    .replace(/^#{1,6}\s+/gm, "")
+
+  let firstLine = "";
+  let start = 0;
+  while (start < content.length) {
+    let nl = content.indexOf("\n", start);
+    if (nl === -1) nl = content.length;
+    if (content.slice(start, nl).trim()) {
+      firstLine = content.slice(start, nl);
+      break;
+    }
+    start = nl + 1;
+  }
+
+  const plain = firstLine
+    .replace(/^#{1,6}\s+/, "")
     .replace(/[*_~`]/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\n+/g, " ")
     .trim();
   if (!plain) return "Untitled note";
   if (plain.length <= maxLength) return plain;

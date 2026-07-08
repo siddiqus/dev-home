@@ -2,61 +2,6 @@
    Kanban Board
    ============================================ */
 
-/* --- Kanban search --- */
-
-.kanban-search-wrapper {
-  position: relative;
-  margin-bottom: 10px;
-  max-width: 320px;
-}
-
-.kanban-search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-secondary);
-  pointer-events: none;
-}
-
-.kanban-search-input {
-  width: 100%;
-  padding: 6px 32px 6px 30px;
-  background-color: var(--color-bg-panel);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: 0.8125rem;
-  outline: none;
-  transition: border-color 150ms ease;
-}
-
-.kanban-search-input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.kanban-search-input:focus {
-  border-color: var(--color-accent);
-}
-
-.kanban-search-clear {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-}
-
-.kanban-search-clear:hover {
-  color: var(--color-text-primary);
-}
-
 /* --- Kanban toolbar --- */
 
 .kanban-toolbar {
@@ -66,8 +11,8 @@
   margin-bottom: 10px;
 }
 
-.kanban-toolbar .kanban-search-wrapper {
-  margin-bottom: 0;
+.kanban-toolbar .search-input-wrapper {
+  max-width: 320px;
 }
 
 /* --- Kanban board layout --- */

@@ -222,7 +222,9 @@ function renderCell(
       return (
         <td key={col}>
           <div className="d-flex align-items-center gap-2">
-            {pr.draft ? (
+            {pr.in_merge_queue ? (
+              <Badge variant="purple">In Merge Queue</Badge>
+            ) : pr.draft ? (
               <Badge variant="neutral">Draft</Badge>
             ) : (
               <Badge variant="success">Open</Badge>
