@@ -6,6 +6,8 @@ import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicket } from "../../utils/tickets";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { SearchInput } from "../../components/SearchInput";
+import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
+import { DropdownItem } from "../../components/SearchableDropdown";
 import "./PRsView.css";
 
 type PRSubTab = "open" | "merged";
@@ -58,9 +60,21 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
 
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
+
+  // Repo filter options derived from loaded PRs (union of open + merged) so the
+  // dropdown stays stable when switching sub-tabs. Label is the short repo name.
+  const repoItems = useMemo<DropdownItem[]>(() => {
+    const names = new Set<string>();
+    for (const pr of openPRs) names.add(pr.repo_full_name);
+    for (const pr of mergedPRs) names.add(pr.repo_full_name);
+    return Array.from(names)
+      .sort((a, b) => a.localeCompare(b))
+      .map((full) => ({ value: full, label: full.split("/").pop() || full }));
+  }, [openPRs, mergedPRs]);
 
   const loadMergedPRs = useCallback(async () => {
     if (!configured) return;
@@ -81,8 +95,11 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const filterPRs = useCallback(
     (prs: GitHubPR[]) => {
       const q = searchQuery.trim().toLowerCase();
-      if (!q) return prs;
+      const repoSet = selectedRepos.length > 0 ? new Set(selectedRepos) : null;
+      if (!q && !repoSet) return prs;
       return prs.filter((pr) => {
+        if (repoSet && !repoSet.has(pr.repo_full_name)) return false;
+        if (!q) return true;
         if (pr.title.toLowerCase().includes(q)) return true;
         const ticket = extractTicket(pr.title);
         if (ticket && ticket.toLowerCase().includes(q)) return true;
@@ -93,7 +110,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
         return false;
       });
     },
-    [searchQuery, jiraIssues],
+    [searchQuery, selectedRepos, jiraIssues],
   );
 
   const filteredOpenPRs = useMemo(() => filterPRs(openPRs), [filterPRs, openPRs]);
@@ -122,6 +139,14 @@ export const PRsView: React.FC<PRsViewProps> = ({
             onChange={setSearchQuery}
             placeholder="Search PRs..."
             expandOnFocus
+          />
+          <MultiSelectDropdown
+            items={repoItems}
+            values={selectedRepos}
+            onChange={setSelectedRepos}
+            placeholder="Filter repos..."
+            allLabel="All repos"
+            width={200}
           />
           {subTab === "open" && groupState.hasGroups && (
             <button

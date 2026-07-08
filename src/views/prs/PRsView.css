@@ -6,7 +6,7 @@
 .prs-subtab-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
 
@@ -46,5 +46,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 1;
+}
+
+/* Pin the collapse/expand button to the far right so search + repo filter
+   stay anchored left and don't shift when the button mounts/unmounts. */
+.prs-subtab-bar-right .pr-table-collapse-btn {
+  margin-left: auto;
 }
 
