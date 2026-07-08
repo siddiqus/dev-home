@@ -4,14 +4,14 @@
  *
  * STUB: implement metrics with TDD per spec §5.
  */
-import { extractTicketKey } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../teamAggregation";
 import type { RawPR } from "../teamAggregation";
 import type { EnrichedIssue, PrFlow } from "./types";
 
 export function computePrFlow(prs: RawPR[], issues: EnrichedIssue[], now: Date): PrFlow {
   const open = prs.filter((p) => p.state === "open").length;
   const merged = prs.filter((p) => p.state === "merged" || !!p.merged_at).length;
-  const noJira = prs.filter((p) => !extractTicketKey(p.title)).length;
+  const noJira = prs.filter((p) => !extractTicketKey(prSource(p))).length;
   const jiraNoPR = issues.filter(
     (i) => i.statusCategory === "indeterminate" && i.linkedPRs.length === 0,
   ).length;

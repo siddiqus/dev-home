@@ -3,19 +3,18 @@
  * issues + GitHub PRs (already fetched), produce the composed dashboard shapes.
  */
 
-/** Extract a Jira key from a PR title: "PROJ-123 ..." or "[PROJ-123]". */
-export function extractTicketKey(title: string): string | null {
-  const startMatch = title.match(/^([A-Z]+-\d+)/i);
-  if (startMatch) return startMatch[1].toUpperCase();
-  const bracketMatch = title.match(/\[([a-zA-Z]+-\d+)\]/i);
-  if (bracketMatch) return bracketMatch[1].toUpperCase();
-  return null;
-}
+import {
+  extractTicketKey as extractTicketKeyShared,
+  projectOfKey as projectOfKeyShared,
+  type TicketSource,
+} from "../../../shared/tickets";
 
-/** Project key portion of a Jira key, e.g. "CCP-12" -> "CCP". */
-export function projectOfKey(key: string): string {
-  const m = key.match(/^([A-Z]+)-\d+$/i);
-  return m ? m[1].toUpperCase() : "";
+/** Re-export the shared ticket parser. */
+export { extractTicketKey, projectOfKey, type TicketSource } from "../../../shared/tickets";
+
+/** Convert a RawPR to a TicketSource for the parser. */
+export function prSource(pr: RawPR): TicketSource {
+  return { title: pr.title, branch: pr.head_ref, body: pr.body };
 }
 
 export interface RawPR {
@@ -35,6 +34,10 @@ export interface RawPR {
   review_state?: string | null;
   /** True when the PR has requested reviewers (review has been asked for). */
   review_requested?: boolean;
+  /** PR head branch name, for ticket-key extraction. */
+  head_ref?: string;
+  /** PR body, for ticket-key extraction. */
+  body?: string;
 }
 
 export interface RawIssue {
@@ -67,7 +70,7 @@ export interface RosterEntry {
 export function partitionOffBoardPRs(prs: RawPR[], sprintKeys: Set<string>) {
   const offBoard = [];
   for (const pr of prs) {
-    const key = extractTicketKey(pr.title);
+    const key = extractTicketKeyShared(prSource(pr));
     if (key && sprintKeys.has(key)) continue; // in-sprint, skip
     offBoard.push({
       number: pr.number,
@@ -77,7 +80,7 @@ export function partitionOffBoardPRs(prs: RawPR[], sprintKeys: Set<string>) {
       author: pr.author,
       state: pr.state,
       ticketKey: key,
-      ticketProject: key ? projectOfKey(key) : null,
+      ticketProject: key ? projectOfKeyShared(key) : null,
     });
   }
   return offBoard;

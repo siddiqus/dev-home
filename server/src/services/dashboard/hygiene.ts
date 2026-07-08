@@ -8,7 +8,7 @@
  *
  * STUB: implement with TDD per spec §5/§6.
  */
-import { extractTicketKey } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../teamAggregation";
 import type { RawPR } from "../teamAggregation";
 import type { EnrichedIssue, Hygiene, Ref } from "./types";
 
@@ -21,7 +21,7 @@ export function computeHygiene(
   const issueRef = (i: EnrichedIssue): Ref => ({ kind: "issue", key: i.key });
 
   // prNoJira: PRs with no parseable Jira key
-  const prNoJira = prs.filter((p) => !extractTicketKey(p.title)).map(prRef);
+  const prNoJira = prs.filter((p) => !extractTicketKey(prSource(p))).map(prRef);
 
   // jiraNoPR: in-progress issues with no linked PR
   const jiraNoPR = issues

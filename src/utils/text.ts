@@ -1,4 +1,5 @@
 import { Note } from "../types";
+import { TICKET_KEY_REGEX } from "../../shared/tickets";
 
 export function truncateText(text: string, maxLength: number): string {
   if (!text) return "";
@@ -41,7 +42,7 @@ export function getNoteDisplayTitle(note: Note): string {
     return formatGitHubTitle(note.reference_id || "") || deriveTitleFromContent(note.content);
   }
   if (note.type === "jira_ticket") {
-    const keyMatch = note.reference_id?.match(/([A-Z][A-Z0-9]+-\d+)/);
+    const keyMatch = note.reference_id?.match(TICKET_KEY_REGEX);
     return keyMatch ? keyMatch[1] : note.reference_id || deriveTitleFromContent(note.content);
   }
   if (note.type === "link") {

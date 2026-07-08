@@ -180,7 +180,7 @@ const MEMBER_PRS_QUERY = `
     search(query: $q, type: ISSUE, first: 30) {
       nodes {
         ... on PullRequest {
-          number title url state createdAt mergedAt
+          number title url state createdAt mergedAt headRefName body
           author { login }
           repository { nameWithOwner }
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
@@ -243,6 +243,8 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
               first_review_at,
               review_state,
               review_requested: (n.reviewRequests?.totalCount || 0) > 0,
+              head_ref: n.headRefName || "",
+              body: n.body || "",
             };
           }) as RawPR[];
         } catch {

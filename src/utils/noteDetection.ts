@@ -1,9 +1,8 @@
 import { NoteType } from "../types";
+import { TICKET_KEY_REGEX } from "../../shared/tickets";
 
 // Matches a full JIRA URL like https://org.atlassian.net/browse/PROJ-123 (with optional query/fragment)
 const JIRA_URL_PATTERN = /\bhttps?:\/\/[^\s/]+\/browse\/([A-Z][A-Z0-9]+-\d+)\b[^\s)>]*/;
-// Matches a bare JIRA key like PROJ-123
-const JIRA_KEY_PATTERN = /\b([A-Z][A-Z0-9]+-\d+)\b/;
 // Matches a GitHub URL (repo or PR, with optional query/fragment)
 const GITHUB_PATTERN = /\bhttps?:\/\/github\.com\/[^\s/]+\/[^\s/]+(?:\/pull\/\d+)?\b[^\s)>]*/;
 // Matches any generic URL
@@ -23,9 +22,9 @@ export function detectNote(text: string): { type: NoteType; referenceId: string;
   }
 
   // Check for bare JIRA key (e.g. PROJ-123)
-  const jiraKeyMatch = JIRA_KEY_PATTERN.exec(text);
+  const jiraKeyMatch = TICKET_KEY_REGEX.exec(text);
   if (jiraKeyMatch) {
-    return { type: "jira_ticket", referenceId: jiraKeyMatch[1], content: text };
+    return { type: "jira_ticket", referenceId: jiraKeyMatch[1].toUpperCase(), content: text };
   }
 
   // Check for any other URL

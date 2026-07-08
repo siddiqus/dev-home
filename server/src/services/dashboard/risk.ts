@@ -5,7 +5,7 @@
  * STUB: returns a well-formed but naive enrichment. Implement flags + scoring
  * per docs/superpowers/specs/2026-07-02-sprint-cockpit-design.md (§5) with TDD.
  */
-import { extractTicketKey } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../teamAggregation";
 import type { RawPR, RawIssue } from "../teamAggregation";
 import type { EnrichedIssue, LinkedPR, SprintInfo } from "./types";
 import { type CockpitConfig, RISK_WEIGHTS, riskLevelFor } from "./config";
@@ -14,7 +14,7 @@ import { type CockpitConfig, RISK_WEIGHTS, riskLevelFor } from "./config";
 export function groupPRsByTicket(prs: RawPR[]): Map<string, RawPR[]> {
   const byKey = new Map<string, RawPR[]>();
   for (const pr of prs) {
-    const key = extractTicketKey(pr.title);
+    const key = extractTicketKey(prSource(pr));
     if (!key) continue;
     const list = byKey.get(key) || [];
     list.push(pr);

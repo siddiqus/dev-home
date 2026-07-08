@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
 import { fetchAssignedIssues, fetchIssuesByKeys, fetchRecentMentions } from "../services/jira";
 import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
-import { extractTicket } from "../utils/tickets";
+import { extractTicketKey, sourceFromPR } from "../utils/tickets";
 
 const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
@@ -131,7 +131,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       const missingKeys = [
         ...new Set(
           allPRs
-            .map((pr) => extractTicket(pr.title))
+            .map((pr) => extractTicketKey(sourceFromPR(pr)))
             .filter((k): k is string => k !== null && !knownKeys.has(k.toUpperCase())),
         ),
       ];

@@ -3,7 +3,7 @@ import { IconFold, IconFoldDown } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
-import { extractTicket } from "../../utils/tickets";
+import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { SearchInput } from "../../components/SearchInput";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
@@ -101,7 +101,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
         if (repoSet && !repoSet.has(pr.repo_full_name)) return false;
         if (!q) return true;
         if (pr.title.toLowerCase().includes(q)) return true;
-        const ticket = extractTicket(pr.title);
+        const ticket = extractTicketKey(sourceFromPR(pr));
         if (ticket && ticket.toLowerCase().includes(q)) return true;
         const ticketTitle = ticket
           ? jiraIssues?.find((i) => i.key.toUpperCase() === ticket.toUpperCase())?.summary
@@ -162,33 +162,31 @@ export const PRsView: React.FC<PRsViewProps> = ({
         </div>
       </div>
 
-      <div style={{ overflowY: "scroll", maxHeight: "calc(100vh - 200px)" }}>
-        {subTab === "open" && (
-          <PRTable
-            ref={prTableRef}
-            prs={filteredOpenPRs}
-            loading={loading}
-            jiraIssues={jiraIssues}
-            variant="my-prs"
-            jiraBaseUrl={jiraBaseUrl}
-            claudeEnabled={claudeEnabled}
-            claudeSessions={claudeSessions}
-            onClaudeAction={onClaudeAction}
-            onViewClaudeSession={onViewClaudeSession}
-            onCollapseStateChange={(hasGroups, allCollapsed) =>
-              setGroupState({ hasGroups, allCollapsed })
-            }
-          />
-        )}
-        {subTab === "merged" && (
-          <PRTable
-            prs={filteredMergedPRs}
-            loading={mergedPRsLoading}
-            variant="recently-merged"
-            jiraBaseUrl={jiraBaseUrl}
-          />
-        )}
-      </div>
+      {subTab === "open" && (
+        <PRTable
+          ref={prTableRef}
+          prs={filteredOpenPRs}
+          loading={loading}
+          jiraIssues={jiraIssues}
+          variant="my-prs"
+          jiraBaseUrl={jiraBaseUrl}
+          claudeEnabled={claudeEnabled}
+          claudeSessions={claudeSessions}
+          onClaudeAction={onClaudeAction}
+          onViewClaudeSession={onViewClaudeSession}
+          onCollapseStateChange={(hasGroups, allCollapsed) =>
+            setGroupState({ hasGroups, allCollapsed })
+          }
+        />
+      )}
+      {subTab === "merged" && (
+        <PRTable
+          prs={filteredMergedPRs}
+          loading={mergedPRsLoading}
+          variant="recently-merged"
+          jiraBaseUrl={jiraBaseUrl}
+        />
+      )}
     </div>
   );
 };

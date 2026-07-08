@@ -1,16 +1,15 @@
 import { GitHubPR } from "../types";
+import { extractTicketKey, type TicketSource } from "../../shared/tickets";
 
 /**
- * Extract a Jira ticket key from a PR title.
- * Matches "PROJ-123 ..." at the start or "[PROJ-123]" anywhere in the title.
+ * Convert a GitHubPR to a TicketSource for the shared parser.
  */
-export function extractTicket(title: string): string | null {
-  const startMatch = title.match(/^([A-Z]+-\d+)/i);
-  if (startMatch) return startMatch[1].toUpperCase();
-  const bracketMatch = title.match(/\[([a-zA-Z]+-\d+)\]/i);
-  if (bracketMatch) return bracketMatch[1].toUpperCase();
-  return null;
+export function sourceFromPR(pr: GitHubPR): TicketSource {
+  return { title: pr.title, branch: pr.head?.ref, body: pr.body };
 }
+
+// Re-export extractTicketKey so other modules can import it from here
+export { extractTicketKey };
 
 /**
  * Group PRs by their Jira ticket key, preserving updated_at DESC order.
@@ -27,7 +26,7 @@ export function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: Gi
   const nullTicketPRs: GitHubPR[] = [];
 
   for (const pr of sorted) {
-    const ticket = extractTicket(pr.title);
+    const ticket = extractTicketKey(sourceFromPR(pr));
     if (ticket === null) {
       nullTicketPRs.push(pr);
     } else {
@@ -51,7 +50,7 @@ export function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: Gi
   let nullIdx = 0;
 
   for (const pr of sorted) {
-    const ticket = extractTicket(pr.title);
+    const ticket = extractTicketKey(sourceFromPR(pr));
     if (ticket === null) {
       // Emit this individual null-ticket PR
       if (nullIdx < nullTicketPRs.length && nullTicketPRs[nullIdx] === pr) {
