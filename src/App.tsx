@@ -22,6 +22,8 @@ import {
   IconSparkles,
   IconUsersGroup,
   IconChartBar,
+  IconSun,
+  IconMoon,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -371,6 +373,15 @@ export default function App() {
               />
             )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
+            <button
+              type="button"
+              className="top-bar-icon-btn"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+            </button>
           </div>
         </Container>
       </Navbar>
