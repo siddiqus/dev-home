@@ -69,25 +69,48 @@ export function useKanban({
     return m;
   }, [notes]);
 
-  // Load kanban items from backend
-  const loadItems = useCallback(async () => {
-    if (!active) return;
+  // Load kanban items from backend. Returns whether the load succeeded so the
+  // caller can decide whether to retry.
+  //
+  // IMPORTANT: initialLoadDone is set ONLY on success. A failed read must not
+  // unlock auto-populate below — otherwise it diffs live sources (PRs/reviews/
+  // notes, which are seeded from cache and non-empty immediately on refresh)
+  // against an empty board and re-creates every item, producing a storm of
+  // POST /api/kanban calls and resetting manual column placement to defaults.
+  const loadItems = useCallback(async (): Promise<boolean> => {
+    if (!active) return false;
     setLoading(true);
     try {
       const items = await fetchKanbanItems();
       setKanbanItems(items);
       initialLoadDone.current = true;
+      return true;
     } catch {
-      // silently ignore load errors
-      initialLoadDone.current = true;
+      // Leave initialLoadDone false so auto-populate stays gated on a real load.
+      return false;
     } finally {
       setLoading(false);
     }
   }, [active]);
 
+  // Initial load with bounded retry. A transient failure (e.g. the backend /
+  // dynamic API port not ready on a fresh app reload) must not leave the board
+  // unloaded, since auto-populate only runs after a successful load.
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    if (!active) return;
+    let cancelled = false;
+    let attempt = 0;
+    const run = async () => {
+      const ok = await loadItems();
+      if (ok || cancelled || attempt >= 5) return;
+      attempt += 1;
+      setTimeout(run, Math.min(1000 * attempt, 5000));
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, loadItems]);
 
   // Auto-populate: ensure all source items exist on the board
   // Runs after initial kanban load completes AND source data is available.

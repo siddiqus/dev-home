@@ -9,6 +9,7 @@ export function FindInPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const searchingRef = useRef(false);
+  const lastForwardRef = useRef(true);
 
   const close = useCallback(() => {
     setVisible(false);
@@ -21,6 +22,7 @@ export function FindInPage() {
   const navigate = useCallback(
     (forward: boolean) => {
       if (query) {
+        lastForwardRef.current = forward;
         searchingRef.current = true;
         window.electronAPI?.findInPage(query, forward, true);
       }
@@ -31,6 +33,7 @@ export function FindInPage() {
   // Start a new search (query changed, so findNext=false)
   const startSearch = useCallback((text: string) => {
     if (text) {
+      lastForwardRef.current = true;
       searchingRef.current = true;
       window.electronAPI?.findInPage(text, true, false);
     } else {
@@ -73,7 +76,23 @@ export function FindInPage() {
   // Listen for find results — re-focus input since findInPage can steal focus
   useEffect(() => {
     const cleanup = window.electronAPI?.onFindResult((result) => {
-      setMatchInfo({ current: result.activeMatchOrdinal, total: result.matches });
+      // The find bar lives inside the searched page, so findInPage counts the
+      // query text in our own input as a match. The input's value is exactly
+      // the query, so it contributes exactly one phantom match — discount it.
+      const selfMatch = inputRef.current?.value ? 1 : 0;
+      const total = Math.max(0, result.matches - selfMatch);
+      const current = result.activeMatchOrdinal;
+
+      // FindInPage is rendered last in the DOM, so the phantom match sorts last.
+      // If navigation lands on it (current > total), skip past it in the same
+      // direction so the user never sees "N+1 of N" or a highlight on their
+      // own input. Exactly one phantom exists, so this resolves in one hop.
+      if (total > 0 && current > total) {
+        window.electronAPI?.findInPage(inputRef.current?.value ?? "", lastForwardRef.current, true);
+        return;
+      }
+
+      setMatchInfo({ current, total });
       searchingRef.current = false;
       // findInPage may select matched text elsewhere and steal focus from our input.
       // Restore focus + cursor to end so the user can keep typing.
@@ -131,9 +150,14 @@ export function FindInPage() {
         }}
       />
       {matchInfo && query && (
-        <span className="find-bar-count">
-          {matchInfo.total === 0 ? "No results" : `${matchInfo.current} of ${matchInfo.total}`}
-        </span>
+        // Rendered as CSS generated content (::after) so find-in-page can't match
+        // the count text itself (e.g. searching a digit or "of" would self-match).
+        <span
+          className="find-bar-count"
+          data-count={
+            matchInfo.total === 0 ? "No results" : `${matchInfo.current} of ${matchInfo.total}`
+          }
+        />
       )}
       <button
         className="find-bar-btn"

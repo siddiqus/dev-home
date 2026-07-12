@@ -43,6 +43,11 @@
   padding: 0 var(--space-1);
 }
 
+/* Rendered as generated content so find-in-page cannot match the count text. */
+.find-bar-count::after {
+  content: attr(data-count);
+}
+
 .find-bar-btn {
   display: flex;
   align-items: center;

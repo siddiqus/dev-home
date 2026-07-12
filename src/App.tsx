@@ -347,7 +347,6 @@ export default function App() {
 
   return (
     <>
-      <FindInPage />
       {/* Thin top bar -- draggable for Electron, with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container
@@ -707,6 +706,9 @@ export default function App() {
           <button onClick={() => setClaudeError(null)}>&times;</button>
         </div>
       )}
+
+      {/* Rendered last so its own input isn't the first find-in-page match (see FindInPage) */}
+      <FindInPage />
     </>
   );
 }
