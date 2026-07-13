@@ -3,7 +3,7 @@ import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } 
 import { fetchAssignedIssues, fetchIssuesByKeys, fetchRecentMentions } from "../services/jira";
 import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
 import { extractTicketKey, sourceFromPR } from "../utils/tickets";
-import { DataSource, isRemoteSource, remoteSources } from "../config/tabData";
+import { DataSource, isRemoteSource } from "../config/tabData";
 
 const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
@@ -69,7 +69,6 @@ interface UseDashboardReturn {
   openPRsLoading: boolean;
   reviewRequestsLoading: boolean;
   error: string | null;
-  loadedSources: Set<DataSource>;
   ensure: (sources: DataSource[], opts?: { force?: boolean }) => void;
   refresh: (sources?: DataSource[]) => void;
   refreshKey: number;
@@ -102,13 +101,6 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Reactive mirror of loadedRef: which sources have a count to show. Drives
-  // sidebar badges so a count stays visible across tab switches. Seeded from the
-  // cache so last-known counts show immediately on reload (even before this
-  // session fetches). loadedRef stays empty, so ensure() still fetches fresh.
-  const [loadedSources, setLoadedSources] = useState<Set<DataSource>>(
-    () => new Set<DataSource>(cachedRef.current ? remoteSources : []),
-  );
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -123,18 +115,6 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   // Whether any source has ever finished loading, used to drive the aggregate
   // `loading` flag (true while at least one requested source is in-flight).
   const anyInFlight = () => inFlightRef.current.size > 0;
-
-  // Mark a source loaded in both the ref (sync, for ensure gating) and state
-  // (reactive, for badges). Idempotent — no state churn once already loaded.
-  const markLoaded = (source: DataSource) => {
-    loadedRef.current.add(source);
-    setLoadedSources((prev) => {
-      if (prev.has(source)) return prev;
-      const next = new Set(prev);
-      next.add(source);
-      return next;
-    });
-  };
 
   // Latest per-source data, kept in refs so cross-source enrichment/dedup and
   // cache writes always see current values regardless of React batching.
@@ -251,7 +231,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       setJiraIssues(data);
       setAssignedJiraIssues(data);
       dataRef.current.jiraIssues = data;
-      markLoaded("jiraIssues");
+      loadedRef.current.add("jiraIssues");
       setSourceError("jiraIssues", null);
       persistCache();
       // Enrich once the second of {openPRs, jiraIssues} has arrived.
@@ -271,7 +251,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       if (signal.aborted) return;
       setJiraComments(data);
       dataRef.current.jiraComments = data;
-      markLoaded("jiraComments");
+      loadedRef.current.add("jiraComments");
       setSourceError("jiraComments", null);
       persistCache();
     } catch (err) {
@@ -291,7 +271,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       dataRef.current.openPRs = prs;
       // Store PR comments; merged with notification mentions in deduplicateMentions.
       prCommentsRef.current = prComments;
-      markLoaded("openPRs");
+      loadedRef.current.add("openPRs");
       setSourceError("openPRs", null);
       persistCache();
       // Enrich once the second of {openPRs, jiraIssues} has arrived.
@@ -313,7 +293,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       if (signal.aborted) return;
       setReviewRequests(data);
       dataRef.current.reviewRequests = data;
-      markLoaded("reviewRequests");
+      loadedRef.current.add("reviewRequests");
       setSourceError("reviewRequests", null);
       persistCache();
       // Review requests are an input to the mention dedup.
@@ -334,7 +314,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       // Store notification mentions; merged with PR comments in deduplicateMentions.
       notificationMentionsRef.current = data;
       haveNotificationMentionsRef.current = true;
-      markLoaded("githubMentions");
+      loadedRef.current.add("githubMentions");
       setSourceError("githubMentions", null);
       // deduplicateMentions writes githubMentions state + cache; if its other
       // inputs aren't ready yet it no-ops and the merge runs when they arrive.
@@ -460,7 +440,6 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     openPRsLoading,
     reviewRequestsLoading,
     error,
-    loadedSources,
     ensure,
     refresh,
     refreshKey,

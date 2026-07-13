@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
-import Badge from "react-bootstrap/Badge";
 import Alert from "react-bootstrap/Alert";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -147,7 +146,6 @@ export default function App() {
     openPRsLoading,
     reviewRequestsLoading,
     error,
-    loadedSources,
     ensure,
     refresh,
     refreshKey,
@@ -421,37 +419,22 @@ export default function App() {
           <nav className="sidebar">
             {(() => {
               // Runtime per-tab metadata (icons + live counts) keyed by tab key.
-              const tabMeta: Record<string, { icon: Icon; count?: number }> = {
-                summary: { icon: IconLayoutDashboard, count: undefined },
-                focus: { icon: IconTarget, count: undefined },
-                board: { icon: IconColumns3, count: undefined },
-                notes: { icon: IconNotes, count: undefined },
-                jira: {
-                  icon: IconSubtask,
-                  count: loadedSources.has("jiraIssues") ? assignedJiraIssues.length : undefined,
-                },
-                "jira-search": { icon: IconSearch, count: undefined },
-                "jira-mentions": {
-                  icon: IconAt,
-                  count: loadedSources.has("jiraComments") ? jiraComments.length : undefined,
-                },
-                prs: {
-                  icon: IconGitPullRequest,
-                  count: loadedSources.has("openPRs") ? openPRs.length : undefined,
-                },
-                reviews: {
-                  icon: IconEye,
-                  count: loadedSources.has("reviewRequests") ? reviewRequests.length : undefined,
-                },
-                "github-mentions": {
-                  icon: IconAt,
-                  count: loadedSources.has("githubMentions") ? githubMentions.length : undefined,
-                },
-                "org-prs": { icon: IconBuilding, count: undefined },
-                teams: { icon: IconUsersGroup, count: undefined },
-                "team-dashboard": { icon: IconChartBar, count: undefined },
-                pomodoro: { icon: IconClock, count: undefined },
-                claude: { icon: IconSparkles, count: claudeSessions.activeCount || undefined },
+              const tabMeta: Record<string, { icon: Icon }> = {
+                summary: { icon: IconLayoutDashboard },
+                focus: { icon: IconTarget },
+                board: { icon: IconColumns3 },
+                notes: { icon: IconNotes },
+                jira: { icon: IconSubtask },
+                "jira-search": { icon: IconSearch },
+                "jira-mentions": { icon: IconAt },
+                prs: { icon: IconGitPullRequest },
+                reviews: { icon: IconEye },
+                "github-mentions": { icon: IconAt },
+                "org-prs": { icon: IconBuilding },
+                teams: { icon: IconUsersGroup },
+                "team-dashboard": { icon: IconChartBar },
+                pomodoro: { icon: IconClock },
+                claude: { icon: IconSparkles },
               };
 
               // Tabs whose visibility depends on runtime config.
@@ -487,11 +470,6 @@ export default function App() {
                         >
                           <Icon size={18} />
                           <span className="sidebar-tab-label">{tab.label}</span>
-                          {meta.count !== undefined && meta.count > 0 && (
-                            <Badge bg="secondary" pill className="sidebar-badge">
-                              {meta.count}
-                            </Badge>
-                          )}
                         </button>
                       );
                     })}
