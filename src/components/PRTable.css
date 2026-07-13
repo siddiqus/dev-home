@@ -38,12 +38,17 @@
 
 .pr-table > thead > tr > th {
   position: sticky;
-  top: 0;
+  /* The scroll container (.main-content) has var(--space-3) top padding and
+     sticky pins to its content-box top, so top:0 would leave that padding as a
+     gap above the header. Offset by -var(--space-3) to pin flush to the top. */
+  top: calc(-1 * var(--space-3));
   z-index: 3;
-  /* Opaque so body rows don't show through when pinned. Border is drawn with an
-     inset shadow because a th's own border can drop out while sticky. */
+  /* Opaque so body rows don't show through when pinned. */
   background-color: var(--color-bg-app);
-  box-shadow: inset 0 -1px 0 var(--color-border-subtle);
+  /* Crisp 1px separator line plus a soft drop shadow below the pinned header. */
+  box-shadow:
+    inset 0 -1px 0 var(--color-border-subtle),
+    var(--shadow-md);
 }
 
 /* ============================================
