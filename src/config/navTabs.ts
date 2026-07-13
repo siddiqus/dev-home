@@ -35,7 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "github",
     label: "GitHub",
     tabs: [
-      { key: "prs", label: "Pull Requests" },
+      { key: "prs", label: "My PRs" },
       { key: "reviews", label: "Reviews" },
       { key: "github-mentions", label: "Comments" },
       { key: "org-prs", label: "Org PRs" },
