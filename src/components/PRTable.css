@@ -30,6 +30,23 @@
 }
 
 /* ============================================
+   Sticky column headers
+   Pins the header row to the top of the scroll
+   container (.main-content) so column context is
+   kept while scrolling long / sectioned lists.
+   ============================================ */
+
+.pr-table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  /* Opaque so body rows don't show through when pinned. Border is drawn with an
+     inset shadow because a th's own border can drop out while sticky. */
+  background-color: var(--color-bg-app);
+  box-shadow: inset 0 -1px 0 var(--color-border-subtle);
+}
+
+/* ============================================
    Cell overflow handling
    ============================================ */
 

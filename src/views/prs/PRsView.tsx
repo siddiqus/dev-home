@@ -4,7 +4,8 @@ import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
-import { PRTable, PRTableHandle } from "../../components/PRTable";
+import { PRTable } from "../../components/PRTable";
+import { PRSections, PRSectionsHandle } from "../../components/PRSections";
 import { SearchInput } from "../../components/SearchInput";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { DropdownItem } from "../../components/SearchableDropdown";
@@ -56,8 +57,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
     localStorage.setItem("dev-home-prs-subtab", tab);
   };
 
-  const prTableRef = useRef<PRTableHandle>(null);
-  const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
+  const prSectionsRef = useRef<PRSectionsHandle>(null);
+  const [sectionState, setSectionState] = useState({ visibleSectionCount: 0, allCollapsed: false });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
@@ -148,34 +149,33 @@ export const PRsView: React.FC<PRsViewProps> = ({
             allLabel="All repos"
             width={200}
           />
-          {subTab === "open" && groupState.hasGroups && (
+          {subTab === "open" && sectionState.visibleSectionCount > 1 && (
             <button
               type="button"
               className="pr-table-collapse-btn"
-              onClick={() => prTableRef.current?.toggleCollapseAll()}
-              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+              onClick={() => prSectionsRef.current?.toggleCollapseAll()}
+              title={sectionState.allCollapsed ? "Expand all sections" : "Collapse all sections"}
             >
-              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+              {sectionState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+              {sectionState.allCollapsed ? "Expand all" : "Collapse all"}
             </button>
           )}
         </div>
       </div>
 
       {subTab === "open" && (
-        <PRTable
-          ref={prTableRef}
+        <PRSections
+          ref={prSectionsRef}
           prs={filteredOpenPRs}
           loading={loading}
           jiraIssues={jiraIssues}
-          variant="my-prs"
           jiraBaseUrl={jiraBaseUrl}
           claudeEnabled={claudeEnabled}
           claudeSessions={claudeSessions}
           onClaudeAction={onClaudeAction}
           onViewClaudeSession={onViewClaudeSession}
-          onCollapseStateChange={(hasGroups, allCollapsed) =>
-            setGroupState({ hasGroups, allCollapsed })
+          onCollapseStateChange={(visibleSectionCount, allCollapsed) =>
+            setSectionState({ visibleSectionCount, allCollapsed })
           }
         />
       )}

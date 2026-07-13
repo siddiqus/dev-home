@@ -1,0 +1,62 @@
+.pr-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.pr-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.pr-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms ease;
+}
+
+.pr-section-header:hover {
+  background: var(--color-bg-hover);
+}
+
+.pr-section-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.pr-section-icon {
+  flex-shrink: 0;
+}
+
+.pr-section-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.pr-section-count {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  min-width: 22px;
+  text-align: center;
+}
+
+/* The inner PRTable already spaces itself; the section gap provides separation. */
+.pr-section .table {
+  margin-bottom: 0;
+}

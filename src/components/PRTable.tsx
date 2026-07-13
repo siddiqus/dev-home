@@ -58,6 +58,11 @@ interface PRTableProps {
   ) => void;
   onViewClaudeSession?: (sessionId: string) => void;
   onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
+  /** Set false to hide the inline "collapse all groups" toolbar (e.g. inside PRSections). */
+  showGroupToolbar?: boolean;
+  /** Extra scope appended to the ticket-collapse localStorage key so multiple
+      tables of the same variant (one per section) don't clobber each other. */
+  storageKeyScope?: string;
 }
 
 /** Column definitions per variant. */
@@ -285,11 +290,13 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     onClaudeAction,
     onViewClaudeSession,
     onCollapseStateChange,
+    showGroupToolbar = true,
+    storageKeyScope,
   },
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  const storageKey = `dev-home-pr-collapsed-${variant}`;
+  const storageKey = `dev-home-pr-collapsed-${variant}${storageKeyScope ? `-${storageKeyScope}` : ""}`;
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -370,7 +377,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     );
   }
 
-  const showInlineToolbar = hasGroups && !onCollapseStateChange;
+  const showInlineToolbar = hasGroups && !onCollapseStateChange && showGroupToolbar;
 
   return (
     <>
@@ -387,7 +394,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
           </button>
         </div>
       )}
-      <Table hover style={{ tableLayout: "fixed" }}>
+      <Table className="pr-table" hover style={{ tableLayout: "fixed" }}>
         <colgroup>
           {columns.map((col) => (
             <col key={col} style={{ width: COLUMN_WIDTHS[variant]?.[col] }} />
