@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { IconChevronRight, IconChevronDown } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
@@ -116,9 +117,16 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
     toggleCollapseAll,
   ]);
 
+  // Keep the latest callback in a ref so the notify-effect depends only on the
+  // reported values, not the callback's identity. Depending on the callback
+  // (which callers pass inline) would re-run the effect every render and, since
+  // it sets parent state, spin an infinite render loop.
+  const onCollapseStateChangeRef = useRef(onCollapseStateChange);
+  onCollapseStateChangeRef.current = onCollapseStateChange;
+
   useEffect(() => {
-    onCollapseStateChange?.(visibleSectionCount, allCollapsed);
-  }, [visibleSectionCount, allCollapsed, onCollapseStateChange]);
+    onCollapseStateChangeRef.current?.(visibleSectionCount, allCollapsed);
+  }, [visibleSectionCount, allCollapsed]);
 
   // No PRs yet: delegate to a single PRTable so its spinner / empty-state render.
   if (prs.length === 0) {
