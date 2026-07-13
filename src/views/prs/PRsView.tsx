@@ -125,7 +125,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
             className={`prs-subtab${subTab === "open" ? " active" : ""}`}
             onClick={() => handleSubTab("open")}
           >
-            Open PRs{!loading && ` (${filteredOpenPRs.length})`}
+            Open PRs{(openPRs.length > 0 || !loading) && ` (${filteredOpenPRs.length})`}
           </button>
           <button
             className={`prs-subtab${subTab === "merged" ? " active" : ""}`}
