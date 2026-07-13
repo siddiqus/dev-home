@@ -61,6 +61,7 @@ import type { ClaudeAction } from "./types/claude";
 import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS } from "./config/navTabs";
+import { sourcesFor } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle } from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
@@ -105,6 +106,33 @@ export default function App() {
     githubOrg,
     saveSettings,
   } = useConfig();
+
+  const [claudeEnabled, setClaudeEnabled] = useState(false);
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+  useEffect(() => {
+    window.electronAPI?.getSettings().then((s) => {
+      setClaudeEnabled(!!s?.claudeEnabled);
+      setHiddenTabs(s?.hiddenTabs ?? []);
+    });
+  }, [configured]);
+
+  // If config isn't loaded yet, show settings first. If the active tab has been
+  // hidden via settings, fall back to summary.
+  const effectiveTab =
+    !configured && !configLoading
+      ? "settings"
+      : activeTab !== "settings" && hiddenTabs.includes(activeTab)
+        ? "summary"
+        : activeTab;
+
+  // Data sources the current tab needs (src/config/tabData.ts). Drives lazy
+  // loading, per-tab hook gating, sidebar badges, and the scoped Refresh button.
+  const boardEnabled = !hiddenTabs.includes("board");
+  const activeSources = useMemo(
+    () => new Set(sourcesFor(effectiveTab, { boardEnabled })),
+    [effectiveTab, boardEnabled],
+  );
+
   const {
     jiraIssues,
     assignedJiraIssues,
@@ -119,6 +147,8 @@ export default function App() {
     openPRsLoading,
     reviewRequestsLoading,
     error,
+    loadedSources,
+    ensure,
     refresh,
     refreshKey,
   } = useDashboard(configured);
@@ -134,7 +164,7 @@ export default function App() {
     unpinNote,
     removeNote,
     refresh: refreshNotes,
-  } = useNotes(configured);
+  } = useNotes(configured && activeSources.has("notes"));
   const kanbanNotes = useMemo(
     () =>
       unresolvedNotes.filter((n) => {
@@ -150,7 +180,7 @@ export default function App() {
     moveItem: kanbanMoveItem,
     refresh: refreshKanban,
   } = useKanban({
-    active: configured,
+    active: configured && activeSources.has("kanban"),
     openPRs,
     reviewRequests,
     notes: kanbanNotes,
@@ -166,7 +196,7 @@ export default function App() {
     snooze: snoozeFocusItem,
     dismiss: dismissFocusItem,
   } = useFocus({
-    active: configured,
+    active: configured && activeSources.has("focusState"),
     openPRs,
     reviewRequests,
     jiraIssues,
@@ -175,6 +205,24 @@ export default function App() {
     notes: unresolvedNotes,
     jiraBaseUrl,
   });
+
+  // Lazily load the remote sources the active tab needs. Idempotent: sources
+  // already loaded (or in flight) are skipped. Local sources (notes/kanban/
+  // focusState) are gated via the hooks above.
+  useEffect(() => {
+    if (!configured) return;
+    ensure(sourcesFor(effectiveTab, { boardEnabled }));
+  }, [configured, effectiveTab, boardEnabled, ensure]);
+
+  // Refresh only the currently viewed tab's data (plus its local sources), and
+  // bump refreshKey so self-fetching views (PRs, Org PRs) reload too.
+  const handleRefresh = useCallback(() => {
+    const sources = sourcesFor(effectiveTab, { boardEnabled });
+    refresh(sources);
+    if (sources.includes("notes")) refreshNotes();
+    if (sources.includes("kanban")) refreshKanban();
+  }, [effectiveTab, boardEnabled, refresh, refreshNotes, refreshKanban]);
+
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
 
   // Build focusable items for the Pomodoro picker from every loaded source.
@@ -269,15 +317,6 @@ export default function App() {
 
   const pomodoro = usePomodoro({ focusableItems });
 
-  const [claudeEnabled, setClaudeEnabled] = useState(false);
-  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
-  useEffect(() => {
-    window.electronAPI?.getSettings().then((s) => {
-      setClaudeEnabled(!!s?.claudeEnabled);
-      setHiddenTabs(s?.hiddenTabs ?? []);
-    });
-  }, [configured]);
-
   const claudeSessions = useClaudeSessions(claudeEnabled);
   const [claudeError, setClaudeError] = useState<string | null>(null);
 
@@ -336,15 +375,6 @@ export default function App() {
   }, []);
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
-  // If config is not yet loaded, show settings first
-  // If the active tab has been hidden via settings, fall back to summary
-  const effectiveTab =
-    !configured && !configLoading
-      ? "settings"
-      : activeTab !== "settings" && hiddenTabs.includes(activeTab)
-        ? "summary"
-        : activeTab;
-
   return (
     <>
       {/* Thin top bar -- draggable for Electron, with app name and refresh */}
@@ -395,13 +425,28 @@ export default function App() {
                 summary: { icon: IconLayoutDashboard, count: undefined },
                 focus: { icon: IconTarget, count: undefined },
                 board: { icon: IconColumns3, count: undefined },
-                notes: { icon: IconNotes, count: unresolvedNotes.length },
-                jira: { icon: IconSubtask, count: assignedJiraIssues.length },
+                notes: { icon: IconNotes, count: undefined },
+                jira: {
+                  icon: IconSubtask,
+                  count: loadedSources.has("jiraIssues") ? assignedJiraIssues.length : undefined,
+                },
                 "jira-search": { icon: IconSearch, count: undefined },
-                "jira-mentions": { icon: IconAt, count: jiraComments.length },
-                prs: { icon: IconGitPullRequest, count: openPRs.length },
-                reviews: { icon: IconEye, count: reviewRequests.length },
-                "github-mentions": { icon: IconAt, count: githubMentions.length },
+                "jira-mentions": {
+                  icon: IconAt,
+                  count: loadedSources.has("jiraComments") ? jiraComments.length : undefined,
+                },
+                prs: {
+                  icon: IconGitPullRequest,
+                  count: loadedSources.has("openPRs") ? openPRs.length : undefined,
+                },
+                reviews: {
+                  icon: IconEye,
+                  count: loadedSources.has("reviewRequests") ? reviewRequests.length : undefined,
+                },
+                "github-mentions": {
+                  icon: IconAt,
+                  count: loadedSources.has("githubMentions") ? githubMentions.length : undefined,
+                },
                 "org-prs": { icon: IconBuilding, count: undefined },
                 teams: { icon: IconUsersGroup, count: undefined },
                 "team-dashboard": { icon: IconChartBar, count: undefined },
@@ -460,11 +505,7 @@ export default function App() {
               <button
                 type="button"
                 className="sidebar-footer-btn"
-                onClick={() => {
-                  refresh();
-                  refreshNotes();
-                  refreshKanban();
-                }}
+                onClick={handleRefresh}
                 disabled={loading}
                 title="Refresh"
               >
