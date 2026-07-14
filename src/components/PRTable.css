@@ -63,57 +63,51 @@
 }
 
 /* ============================================
-   Ticket group header (PRTable)
+   Ticket clusters (multi-PR ticket grouping)
    ============================================ */
 
-.ticket-group-header {
+/* Uniform left gutter on the first column so the cluster rail has room and every
+   title lines up — clustered members, single-PR rows, and no-ticket rows alike.
+   (Beats Bootstrap's cell padding via specificity.) */
+.pr-table th:first-child,
+.pr-table td:first-child {
+  padding-left: 20px;
+}
+
+/* Slim cluster header: chevron + ticket chip (Jira link) + summary + count. */
+.ticket-cluster-header {
   cursor: pointer;
   user-select: none;
 }
 
-.ticket-group-header:hover > td {
+.ticket-cluster-header > td {
+  background-color: var(--color-accent-bg-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 5px var(--space-3) !important;
+  padding-left: 10px !important;
+}
+
+.ticket-cluster-header:hover > td {
   background-color: var(--color-bg-hover);
 }
 
-.ticket-group-header > td {
-  background-color: var(--color-bg-elevated);
-  border-bottom: 1px solid var(--color-border-subtle);
-  padding: 6px var(--space-3) !important;
-}
-
-.ticket-group-chevron {
+.ticket-cluster-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 6px;
+  margin-right: 4px;
   color: var(--color-text-muted);
   vertical-align: middle;
 }
 
-.ticket-group-label {
-  font-family: var(--font-mono);
+.ticket-cluster-summary {
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  margin-left: var(--space-2);
   vertical-align: middle;
 }
 
-.ticket-group-link {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 6px;
-  color: var(--color-text-muted);
-  vertical-align: middle;
-  transition: color 0.15s;
-}
-
-.ticket-group-link:hover {
-  color: var(--color-accent);
-}
-
-.ticket-group-count {
+.ticket-cluster-count {
   font-size: 0.6875rem;
   color: var(--color-text-muted);
   margin-left: var(--space-2);
@@ -121,10 +115,55 @@
   vertical-align: middle;
 }
 
-.ticket-group-title {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--color-text-secondary);
-  margin-left: var(--space-2);
+/* Ticket chip = the Jira link. Shown on cluster headers and single-PR rows so a
+   ticket's key is always visible, whether it has one PR or many. */
+.ticket-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-accent);
+  background: var(--color-accent-bg-subtle);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+  text-decoration: none;
   vertical-align: middle;
+}
+
+a.ticket-chip:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+/* Cluster member rows: a short left rail scopes each cluster. No full-row tint,
+   so two clusters stacked back-to-back never blur together. */
+.ticket-cluster-member > td:first-child {
+  position: relative;
+}
+
+.ticket-cluster-member > td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+/* Title cell: optional ticket chip + the truncating PR link on one line. */
+.pr-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-title-cell .text-truncate-custom {
+  min-width: 0;
 }

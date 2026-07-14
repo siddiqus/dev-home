@@ -193,7 +193,13 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
         const isCollapsed = collapsed.has(section.id);
         const Icon = section.icon;
         return (
-          <section className="pr-section" key={section.id}>
+          <section
+            className="pr-section"
+            key={section.id}
+            style={
+              { ["--section-accent" as string]: `var(${section.colorVar})` } as React.CSSProperties
+            }
+          >
             <button
               type="button"
               className="pr-section-header"
@@ -207,12 +213,7 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
                   <IconChevronDown size={16} stroke={2} />
                 )}
               </span>
-              <Icon
-                size={16}
-                stroke={1.8}
-                className="pr-section-icon"
-                style={{ color: `var(${section.colorVar})` }}
-              />
+              <Icon size={16} stroke={1.8} className="pr-section-icon" />
               <span className="pr-section-label">{section.label}</span>
               <span className="pr-section-count">{bucket.length}</span>
             </button>

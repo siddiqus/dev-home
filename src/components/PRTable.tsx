@@ -14,7 +14,6 @@ import {
   IconBuilding,
   IconChevronRight,
   IconChevronDown,
-  IconExternalLink,
   IconFold,
   IconFoldDown,
 } from "@tabler/icons-react";
@@ -135,10 +134,10 @@ const HEADER_LABELS: Record<string, string> = {
 
 const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   "my-prs": {
-    title: "30%",
+    title: "33%",
     repo: "22%",
     branch: "20%",
-    status: "16%",
+    status: "14%",
     created: "6%",
     updated: "6%",
   },
@@ -174,27 +173,45 @@ const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
   },
 };
 
+/** Ticket key rendered as a Jira link (or a plain chip when no Jira base URL). */
+function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: string }) {
+  if (!jiraBaseUrl) return <span className="ticket-chip">{ticket}</span>;
+  return (
+    <a
+      className="ticket-chip"
+      href={`${jiraBaseUrl.replace(/\/+$/, "")}/browse/${ticket}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {ticket}
+    </a>
+  );
+}
+
 /** Render a single cell by column key. */
 function renderCell(
   col: string,
   pr: GitHubPR,
-  opts: { isGrouped: boolean; isFirstColumn: boolean },
+  opts: { chip?: React.ReactNode } = {},
 ): React.ReactNode {
-  const indentStyle = opts.isGrouped && opts.isFirstColumn ? { paddingLeft: 30 } : undefined;
   switch (col) {
     case "title":
       return (
-        <td key={col} className="cell-truncate" style={indentStyle}>
-          <a
-            href={pr.html_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-truncate-custom d-block"
-            style={{ fontWeight: 500 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {pr.title}
-          </a>
+        <td key={col} className="cell-truncate">
+          <span className="pr-title-cell">
+            {opts.chip}
+            <a
+              href={pr.html_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-truncate-custom"
+              style={{ fontWeight: 500 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {pr.title}
+            </a>
+          </span>
         </td>
       );
     case "repo":
@@ -436,42 +453,27 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
         </thead>
         <tbody>
           {groups.map((group, groupIdx) => {
-            const isGroup = group.ticket !== null && group.prs.length > 1;
-            const isCollapsed = isGroup && collapsed.has(group.ticket!);
+            const isCluster = group.ticket !== null && group.prs.length > 1;
+            const isCollapsed = isCluster && collapsed.has(group.ticket!);
+            const singleTicket =
+              group.ticket !== null && group.prs.length === 1 ? group.ticket : null;
+            const summary = group.ticket ? ticketTitles.get(group.ticket.toUpperCase()) : undefined;
             const groupKey = group.ticket ?? `ungrouped-${groupIdx}`;
             return (
               <React.Fragment key={groupKey}>
-                {isGroup && (
-                  <tr className="ticket-group-header" onClick={() => toggleGroup(group.ticket!)}>
+                {isCluster && (
+                  <tr className="ticket-cluster-header" onClick={() => toggleGroup(group.ticket!)}>
                     <td colSpan={columns.length + (claudeEnabled && onClaudeAction ? 1 : 0)}>
-                      <span className="ticket-group-chevron">
+                      <span className="ticket-cluster-chevron">
                         {isCollapsed ? (
                           <IconChevronRight size={14} stroke={2} />
                         ) : (
                           <IconChevronDown size={14} stroke={2} />
                         )}
                       </span>
-                      <span className="ticket-group-label">{group.ticket}</span>
-
-                      {ticketTitles.get(group.ticket!.toUpperCase()) && (
-                        <span className="ticket-group-title">
-                          {ticketTitles.get(group.ticket!.toUpperCase())}
-                        </span>
-                      )}
-
-                      <span className="ticket-group-count">{group.prs.length} PRs</span>
-
-                      {jiraBaseUrl && (
-                        <a
-                          href={`${jiraBaseUrl.replace(/\/+$/, "")}/browse/${group.ticket}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ticket-group-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <IconExternalLink size={14} stroke={1.5} />
-                        </a>
-                      )}
+                      <TicketChip ticket={group.ticket!} jiraBaseUrl={jiraBaseUrl} />
+                      {summary && <span className="ticket-cluster-summary">{summary}</span>}
+                      <span className="ticket-cluster-count">{group.prs.length} PRs</span>
                     </td>
                   </tr>
                 )}
@@ -479,13 +481,17 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                   group.prs.map((pr) => (
                     <tr
                       key={pr.id}
+                      className={isCluster ? "ticket-cluster-member" : undefined}
                       onClick={() => setSelectedPR(pr)}
-                      style={{
-                        cursor: "pointer",
-                      }}
+                      style={{ cursor: "pointer" }}
                     >
                       {columns.map((col, colIdx) =>
-                        renderCell(col, pr, { isGrouped: !!isGroup, isFirstColumn: colIdx === 0 }),
+                        renderCell(col, pr, {
+                          chip:
+                            colIdx === 0 && singleTicket ? (
+                              <TicketChip ticket={singleTicket} jiraBaseUrl={jiraBaseUrl} />
+                            ) : undefined,
+                        }),
                       )}
                       {claudeEnabled && onClaudeAction && (
                         <td>
