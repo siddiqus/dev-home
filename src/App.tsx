@@ -261,7 +261,7 @@ export default function App() {
       push({
         id: issue.key,
         group: "jira",
-        title: `${issue.key} ${issue.fields?.summary || issue.summary || ""}`.trim(),
+        title: `${issue.key} ${issue.summary || ""}`.trim(),
         sourceBadge: "JIRA",
         sourceBadgeVariant: "info",
         url: jiraBase ? `${jiraBase}/browse/${issue.key}` : "",

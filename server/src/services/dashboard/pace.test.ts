@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computePace, computeScope } from "./pace";
+import { computePace } from "./pace";
 import { DEFAULT_COCKPIT_CONFIG } from "./config";
 import type { EnrichedIssue, SprintInfo } from "./types";
 
@@ -160,83 +160,5 @@ describe("computePace", () => {
     const pace = computePace([makeIssue()], sprint, now, DEFAULT_COCKPIT_CONFIG);
     expect(pace.elapsedPct).toBe(1);
     expect(pace.dayOfSprint).toBe(9); // min(sprintLength, dayOfSprint)
-  });
-
-  it("includes committedSP and doneSP when story points present", () => {
-    const issues = [
-      makeIssue({ statusCategory: "done", storyPoints: 5 }),
-      makeIssue({ statusCategory: "done", storyPoints: 3 }),
-      makeIssue({ statusCategory: "indeterminate", storyPoints: 8 }),
-      makeIssue({ statusCategory: "new", storyPoints: 2 }),
-    ];
-    const pace = computePace(issues, null, new Date(), DEFAULT_COCKPIT_CONFIG);
-    expect(pace.committedSP).toBe(18);
-    expect(pace.doneSP).toBe(8);
-  });
-
-  it("omits SP fields when no issues have story points", () => {
-    const issues = [
-      makeIssue({ statusCategory: "done" }),
-      makeIssue({ statusCategory: "indeterminate" }),
-    ];
-    const pace = computePace(issues, null, new Date(), DEFAULT_COCKPIT_CONFIG);
-    expect(pace.committedSP).toBeUndefined();
-    expect(pace.doneSP).toBeUndefined();
-  });
-
-  it("includes SP when at least one issue has story points", () => {
-    const issues = [
-      makeIssue({ statusCategory: "done", storyPoints: 5 }),
-      makeIssue({ statusCategory: "done", storyPoints: null }),
-      makeIssue({ statusCategory: "indeterminate", storyPoints: null }),
-    ];
-    const pace = computePace(issues, null, new Date(), DEFAULT_COCKPIT_CONFIG);
-    // total = 5, done = 5
-    expect(pace.committedSP).toBe(5);
-    expect(pace.doneSP).toBe(5);
-  });
-});
-
-describe("computeScope", () => {
-  it("counts issues with addedAfterStart flag", () => {
-    const issues = [
-      makeIssue({ flags: { ...makeIssue().flags, addedAfterStart: true } }),
-      makeIssue({ flags: { ...makeIssue().flags, addedAfterStart: true } }),
-      makeIssue({ flags: { ...makeIssue().flags, addedAfterStart: false } }),
-      makeIssue(),
-    ];
-    const scope = computeScope(issues, null);
-    expect(scope.addedCount).toBe(2);
-  });
-
-  it("returns zero when no scope creep", () => {
-    const issues = [makeIssue(), makeIssue()];
-    const scope = computeScope(issues, null);
-    expect(scope.addedCount).toBe(0);
-  });
-
-  it("includes addedSP when story points present on added issues", () => {
-    const issues = [
-      makeIssue({ storyPoints: 5, flags: { ...makeIssue().flags, addedAfterStart: true } }),
-      makeIssue({ storyPoints: 3, flags: { ...makeIssue().flags, addedAfterStart: true } }),
-      makeIssue({ storyPoints: 8 }),
-    ];
-    const scope = computeScope(issues, null);
-    expect(scope.addedCount).toBe(2);
-    expect(scope.addedSP).toBe(8);
-  });
-
-  it("omits addedSP when no story points present", () => {
-    const issues = [
-      makeIssue({ flags: { ...makeIssue().flags, addedAfterStart: true } }),
-      makeIssue(),
-    ];
-    const scope = computeScope(issues, null);
-    expect(scope.addedSP).toBeUndefined();
-  });
-
-  it("handles empty list", () => {
-    const scope = computeScope([], null);
-    expect(scope.addedCount).toBe(0);
   });
 });

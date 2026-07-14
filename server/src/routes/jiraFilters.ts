@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getDb } from "../db";
 import { createJiraClient } from "../clients/jiraApiClient";
-import { adfToMarkdown } from "../utils/adf";
 
 const router = Router();
 
@@ -117,7 +116,6 @@ router.post("/search", async (req: Request, res: Response) => {
     "project",
     "created",
     "updated",
-    "description",
   ];
   const maxResults = 50;
 
@@ -154,8 +152,6 @@ router.post("/search", async (req: Request, res: Response) => {
     },
     created: issue.fields?.created,
     updated: issue.fields?.updated,
-    self: issue.self,
-    description: adfToMarkdown(issue.fields?.description),
   }));
 
   res.json({

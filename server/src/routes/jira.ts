@@ -21,7 +21,6 @@ router.get("/issues", async (_req: Request, res: Response) => {
     "project",
     "created",
     "updated",
-    "description",
   ];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
@@ -51,8 +50,6 @@ router.get("/issues", async (_req: Request, res: Response) => {
     },
     created: issue.fields?.created,
     updated: issue.fields?.updated,
-    self: issue.self,
-    description: adfToMarkdown(issue.fields?.description),
   }));
 
   res.json({ issues });
@@ -111,7 +108,6 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
     },
     created: issue.fields?.created,
     updated: issue.fields?.updated,
-    self: issue.self,
     description: adfToMarkdown(issue.fields?.description),
     issueType: {
       name: issue.fields?.issuetype?.name || null,
@@ -166,7 +162,6 @@ router.get("/mentions", async (_req: Request, res: Response) => {
           },
           created: comment.created,
           updated: comment.updated,
-          self: comment.self,
           issueKey: issue.key,
           issueSummary: issue.fields?.summary,
         }));

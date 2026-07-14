@@ -77,13 +77,6 @@ export interface SprintPace {
   remainingCount: number;
   donePct: number;
   behindPace: boolean;
-  committedSP?: number;
-  doneSP?: number;
-}
-
-export interface ScopeChange {
-  addedCount: number;
-  addedSP?: number;
 }
 
 export interface NeedsAttention {
@@ -119,8 +112,6 @@ export interface WorkloadEntry {
   prReviewing: number;
   prMerged: number;
   riskLevel: RiskLevel;
-  sp?: number;
-  doneSP?: number;
 }
 
 export interface PrFlow {

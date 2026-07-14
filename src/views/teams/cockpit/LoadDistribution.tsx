@@ -8,7 +8,7 @@ interface Props {
   staleDays?: Map<string, number>;
 }
 
-// Import the same status colors from WorkloadBars for consistency
+// Status colors for the per-member workload bars.
 const STATUS_COLORS = {
   new: "#6e7781",
   indeterminate: "#4c8dff",

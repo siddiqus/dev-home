@@ -19,9 +19,6 @@ export function computeLoadDistribution(
   prs: RawPR[],
   _now: Date,
 ): WorkloadEntry[] {
-  // Check if any issue has non-null storyPoints to determine if we should include SP fields
-  const hasSP = issues.some((i) => i.storyPoints !== null);
-
   return roster.map((r) => {
     const memberIssues = issues.filter((i) => i.assigneeAccountId === r.accountId);
     const memberPRs = prs.filter((p) => p.author.toLowerCase() === r.githubUsername.toLowerCase());
@@ -67,7 +64,6 @@ export function computeLoadDistribution(
       }
     }
 
-    // Optional SP fields
     const entry: WorkloadEntry = {
       accountId: r.accountId,
       displayName: r.displayName,
@@ -85,15 +81,6 @@ export function computeLoadDistribution(
       prMerged,
       riskLevel,
     };
-
-    if (hasSP) {
-      const sp = memberIssues.reduce((acc, i) => acc + (i.storyPoints || 0), 0);
-      const doneSP = memberIssues
-        .filter((i) => i.statusCategory === "done")
-        .reduce((acc, i) => acc + (i.storyPoints || 0), 0);
-      entry.sp = sp;
-      entry.doneSP = doneSP;
-    }
 
     return entry;
   });

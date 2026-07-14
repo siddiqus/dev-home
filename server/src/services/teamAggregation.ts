@@ -146,14 +146,3 @@ export function classifyStatus(issue: RawIssue): StatusBucket {
   }
   return /review/i.test(issue.status) ? "inReview" : "new";
 }
-
-function emptyByStatus() {
-  return { new: 0, indeterminate: 0, inReview: 0, done: 0 };
-}
-
-/** Whole-sprint status rollup for the sprint progress bar. */
-export function computeSprintProgress(issues: RawIssue[]) {
-  const byStatus = emptyByStatus();
-  for (const i of issues) byStatus[classifyStatus(i)] += 1;
-  return { total: issues.length, ...byStatus };
-}

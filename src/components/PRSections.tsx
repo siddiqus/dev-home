@@ -12,6 +12,7 @@ import { GitHubPR, JiraIssue } from "../types";
 import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import { PRTable } from "./PRTable";
 import { OPEN_PR_SECTIONS, groupPRsBySection, OpenPRSection } from "../utils/prCategories";
+import { groupByTicket } from "../utils/tickets";
 import "./PRSections.css";
 
 interface PRSectionsProps {
@@ -33,17 +34,22 @@ interface PRSectionsProps {
     customPrompt?: string,
   ) => void;
   onViewClaudeSession?: (sessionId: string) => void;
-  /** Reports the number of visible (non-empty) sections and whether all are collapsed. */
-  onCollapseStateChange?: (visibleSectionCount: number, allCollapsed: boolean) => void;
+  /** Reports whether any collapsible Jira ticket groups exist across the section
+      tables, and whether all of them are currently collapsed. */
+  onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
 }
 
 export interface PRSectionsHandle {
-  visibleSectionCount: number;
+  /** Whether any collapsible Jira ticket group exists across all section tables. */
+  hasGroups: boolean;
+  /** Whether every Jira ticket group across all section tables is collapsed. */
   allCollapsed: boolean;
+  /** Collapse all Jira ticket groups (or expand them all if already collapsed). */
   toggleCollapseAll: () => void;
 }
 
 const STORAGE_KEY = "dev-home-myprs-section-collapsed";
+const TICKET_STORAGE_KEY = "dev-home-myprs-ticket-collapsed";
 
 /**
  * Splits the "My PRs" open list into state-based collapsible sections (Ready to
@@ -82,14 +88,30 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
     }
   }, [collapsed]);
 
+  // Collapsed Jira ticket groups, shared across every section's table. Ticket
+  // keys are globally unique, so one set drives all tables uniformly.
+  const [collapsedTickets, setCollapsedTickets] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(TICKET_STORAGE_KEY);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TICKET_STORAGE_KEY, JSON.stringify([...collapsedTickets]));
+    } catch {
+      /* quota exceeded */
+    }
+  }, [collapsedTickets]);
+
   const grouped = useMemo(() => groupPRsBySection(prs), [prs]);
   const visibleSections = useMemo(
     () => OPEN_PR_SECTIONS.filter((s) => grouped[s.id].length > 0),
     [grouped],
   );
-
-  const visibleSectionCount = visibleSections.length;
-  const allCollapsed = visibleSectionCount > 0 && visibleSections.every((s) => collapsed.has(s.id));
 
   const toggleSection = (id: OpenPRSection) => {
     setCollapsed((prev) => {
@@ -103,16 +125,39 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
     });
   };
 
-  const toggleCollapseAll = useCallback(() => {
-    if (allCollapsed) {
-      setCollapsed(new Set());
-    } else {
-      setCollapsed(new Set(visibleSections.map((s) => s.id)));
+  // All collapsible ticket groups (>1 PR) across every visible section. These are
+  // the groups the "collapse/expand all" button acts on.
+  const allGroupTickets = useMemo(() => {
+    const tickets = new Set<string>();
+    for (const section of visibleSections) {
+      for (const group of groupByTicket(grouped[section.id])) {
+        if (group.ticket && group.prs.length > 1) tickets.add(group.ticket);
+      }
     }
-  }, [allCollapsed, visibleSections]);
+    return tickets;
+  }, [visibleSections, grouped]);
 
-  useImperativeHandle(ref, () => ({ visibleSectionCount, allCollapsed, toggleCollapseAll }), [
-    visibleSectionCount,
+  const hasGroups = allGroupTickets.size > 0;
+  const allCollapsed = hasGroups && [...allGroupTickets].every((t) => collapsedTickets.has(t));
+
+  const toggleTicket = useCallback((ticket: string) => {
+    setCollapsedTickets((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticket)) {
+        next.delete(ticket);
+      } else {
+        next.add(ticket);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleCollapseAll = useCallback(() => {
+    setCollapsedTickets(allCollapsed ? new Set() : new Set(allGroupTickets));
+  }, [allCollapsed, allGroupTickets]);
+
+  useImperativeHandle(ref, () => ({ hasGroups, allCollapsed, toggleCollapseAll }), [
+    hasGroups,
     allCollapsed,
     toggleCollapseAll,
   ]);
@@ -125,8 +170,8 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
   onCollapseStateChangeRef.current = onCollapseStateChange;
 
   useEffect(() => {
-    onCollapseStateChangeRef.current?.(visibleSectionCount, allCollapsed);
-  }, [visibleSectionCount, allCollapsed]);
+    onCollapseStateChangeRef.current?.(hasGroups, allCollapsed);
+  }, [hasGroups, allCollapsed]);
 
   // No PRs yet: delegate to a single PRTable so its spinner / empty-state render.
   if (prs.length === 0) {
@@ -184,6 +229,8 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
                 onViewClaudeSession={onViewClaudeSession}
                 showGroupToolbar={false}
                 storageKeyScope={section.id}
+                collapsedGroups={collapsedTickets}
+                onToggleGroup={toggleTicket}
               />
             )}
           </section>

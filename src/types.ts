@@ -31,13 +31,16 @@ export interface JiraIssue {
   };
   created: string;
   updated: string;
-  self: string;
-  description: string;
+  /**
+   * Full issue description (ADF converted to markdown). Only populated by the
+   * bulk endpoint; the assigned-issues list and filter search omit it and it is
+   * lazy-loaded on demand when a single issue's drawer/modal is opened.
+   */
+  description?: string;
   issueType?: {
     name: string | null;
     iconUrl: string | null;
   };
-  fields: Record<string, any>;
 }
 
 export interface JiraComment {
@@ -53,7 +56,6 @@ export interface JiraComment {
   };
   created: string;
   updated: string;
-  self: string;
   issueKey: string;
   issueSummary: string;
 }
@@ -85,7 +87,6 @@ export interface GitHubPR {
     ref: string;
   };
   body: string;
-  repository_url: string;
   repo_full_name: string;
   checks_status: string | null;
   checks: CheckRunInfo[];
@@ -104,37 +105,10 @@ export interface GitHubComment {
     login: string;
     avatar_url: string;
   };
-  issue_url: string;
   pr_number: number;
   repo_full_name: string;
   context_title: string;
   reason: string;
-}
-
-export interface ConversationComment {
-  id: number;
-  html_url: string;
-  body: string;
-  created_at: string;
-  updated_at: string;
-  user: { login: string; avatar_url: string };
-}
-
-export interface ReviewComment {
-  id: number;
-  html_url: string;
-  body: string;
-  created_at: string;
-  updated_at: string;
-  user: { login: string; avatar_url: string };
-  path: string;
-  line: number | null;
-  is_resolved: boolean;
-}
-
-export interface PRCommentsResponse {
-  conversation: ConversationComment[];
-  review: ReviewComment[];
 }
 
 export type GitHubReviewRequest = GitHubPR;

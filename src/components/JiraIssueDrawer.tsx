@@ -1,10 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
+import Spinner from "react-bootstrap/Spinner";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { IconExternalLink, IconGitPullRequest } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
+import { fetchIssuesByKeys } from "../services/jira";
 import { Avatar } from "./primitives/Avatar";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import "./JiraIssueDrawer.css";
@@ -28,6 +30,47 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
   staleDays,
 }) => {
   const url = issue && baseUrl ? `${baseUrl.replace(/\/$/, "")}/browse/${issue.key}` : undefined;
+
+  // The assigned-issues list and filter search omit the (heavy) description, so
+  // lazy-load it via the bulk endpoint the first time an issue's drawer opens.
+  // Team dashboard passes issues already enriched with a description, in which
+  // case we use it directly and never fetch. Fetched descriptions are cached
+  // per key so reopening the same issue doesn't refetch.
+  const [descCache, setDescCache] = useState<Record<string, string>>({});
+  const [descLoading, setDescLoading] = useState(false);
+  const requestedKeys = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!show || !issue) return;
+    // Description already present (e.g. team dashboard) — use it, don't fetch.
+    if (issue.description) return;
+    const key = issue.key;
+    // Already fetched (cached) or fetch already in flight for this key.
+    if (key in descCache || requestedKeys.current.has(key)) return;
+
+    requestedKeys.current.add(key);
+    setDescLoading(true);
+    let cancelled = false;
+    fetchIssuesByKeys([key])
+      .then((issues) => {
+        if (cancelled) return;
+        setDescCache((prev) => ({ ...prev, [key]: issues[0]?.description || "" }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Fall back to empty so the UI shows "No description provided."
+        setDescCache((prev) => ({ ...prev, [key]: "" }));
+      })
+      .finally(() => {
+        if (!cancelled) setDescLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [show, issue, descCache]);
+
+  const description = issue?.description || (issue ? descCache[issue.key] : undefined);
+  const isDescLoading = descLoading && !description;
 
   // With backdrop={false} the list stays interactive, so there is no overlay to
   // catch outside clicks. Close the drawer when a click lands outside the panel.
@@ -85,9 +128,14 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
       <Offcanvas.Body className="jira-drawer-body">
         <div className="jira-drawer-content">
           <div className="modal-body-section-header">Description</div>
-          {issue?.description ? (
+          {isDescLoading ? (
+            <div className="d-flex align-items-center gap-2 text-secondary-custom">
+              <Spinner animation="border" size="sm" variant="secondary" />
+              <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
+            </div>
+          ) : description ? (
             <div className="markdown-body">
-              <ReactMarkdown remarkPlugins={[remarkBreaks]}>{issue.description}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkBreaks]}>{description}</ReactMarkdown>
             </div>
           ) : (
             <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>

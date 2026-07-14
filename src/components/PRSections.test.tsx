@@ -1,6 +1,7 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { createRef } from "react";
 import { describe, it, expect, beforeEach } from "vitest";
-import { PRSections } from "./PRSections";
+import { PRSections, type PRSectionsHandle } from "./PRSections";
 import type { GitHubPR } from "../types";
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
@@ -17,7 +18,6 @@ function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
     head: { ref: "feature" },
     base: { ref: "main" },
     body: "",
-    repository_url: "https://api.github.com/repos/o/r",
     repo_full_name: "o/r",
     checks_status: null,
     checks: [],
@@ -91,5 +91,51 @@ describe("PRSections", () => {
   it("shows the empty state when there are no PRs", () => {
     render(<PRSections loading={false} prs={[]} />);
     expect(screen.getByText("No open pull requests")).toBeInTheDocument();
+  });
+
+  it("collapse-all toggles Jira ticket groups (not sections), hiding grouped rows", () => {
+    const ref = createRef<PRSectionsHandle>();
+    render(
+      <PRSections
+        ref={ref}
+        loading={false}
+        prs={[
+          makePR({
+            id: 101,
+            number: 101,
+            title: "grouped one",
+            head: { ref: "PROJ-1-a" },
+            review_status: "APPROVED",
+            checks_status: "SUCCESS",
+          }),
+          makePR({
+            id: 102,
+            number: 102,
+            title: "grouped two",
+            head: { ref: "PROJ-1-b" },
+            review_status: "APPROVED",
+            checks_status: "SUCCESS",
+          }),
+        ]}
+      />,
+    );
+
+    // Two PRs sharing ticket PROJ-1 form a collapsible group inside the section.
+    expect(ref.current?.hasGroups).toBe(true);
+    expect(screen.getByText("PROJ-1")).toBeInTheDocument();
+    expect(screen.getByText("grouped one")).toBeInTheDocument();
+    expect(screen.getByText("grouped two")).toBeInTheDocument();
+
+    // Collapse-all hides the grouped PR rows but keeps the section + group header.
+    act(() => ref.current?.toggleCollapseAll());
+    expect(ref.current?.allCollapsed).toBe(true);
+    expect(screen.getByText("Ready to merge")).toBeInTheDocument();
+    expect(screen.getByText("PROJ-1")).toBeInTheDocument();
+    expect(screen.queryByText("grouped one")).not.toBeInTheDocument();
+    expect(screen.queryByText("grouped two")).not.toBeInTheDocument();
+
+    // Toggling again expands the group back.
+    act(() => ref.current?.toggleCollapseAll());
+    expect(screen.getByText("grouped one")).toBeInTheDocument();
   });
 });

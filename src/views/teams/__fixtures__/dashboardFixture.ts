@@ -171,8 +171,6 @@ export const dashboardFixture: TeamDashboard = {
       prReviewing: 1,
       prMerged: 1,
       riskLevel: "high",
-      sp: 12,
-      doneSP: 3,
     },
     {
       accountId: "u2",
@@ -190,11 +188,8 @@ export const dashboardFixture: TeamDashboard = {
       prReviewing: 0,
       prMerged: 1,
       riskLevel: "normal",
-      sp: 10,
-      doneSP: 6,
     },
   ],
-  progress: { total: 12, new: 3, indeterminate: 4, inReview: 1, done: 4 },
   offBoardPRs: [
     {
       number: 88,
@@ -207,7 +202,6 @@ export const dashboardFixture: TeamDashboard = {
       ticketProject: null,
     },
   ],
-  counts: { sprintIssues: 12, epics: 3, offBoardPRs: 1 },
   pace: {
     dayOfSprint: 6,
     sprintLength: 14,
@@ -217,10 +211,7 @@ export const dashboardFixture: TeamDashboard = {
     remainingCount: 8,
     donePct: 0.33,
     behindPace: true,
-    committedSP: 34,
-    doneSP: 12,
   },
-  scope: { addedCount: 2, addedSP: 5 },
   needsAttention: {
     stale: [{ kind: "issue", key: "PLAT-101" }],
     waitingReview: [{ kind: "pr", repo: "acme/web", number: 12 }],
@@ -255,26 +246,6 @@ export const dashboardFixture: TeamDashboard = {
       { date: "2026-07-02", doneCount: 4, totalCount: 12, ideal: 6 },
     ],
   },
-  insights: [
-    {
-      key: "behind-pace",
-      severity: "warn",
-      title: "Behind Pace",
-      detail: "43% elapsed, 33% of tickets done.",
-    },
-    {
-      key: "stale-work",
-      severity: "critical",
-      title: "Stale Work",
-      detail: "1 ticket has had no movement > 2 days.",
-    },
-    {
-      key: "review-bottleneck",
-      severity: "warn",
-      title: "Review Bottleneck",
-      detail: "1 PR waiting for review > 24h.",
-    },
-  ],
   errors: [],
 };
 

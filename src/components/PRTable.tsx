@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  useCallback,
+  useRef,
+} from "react";
 import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -63,6 +70,12 @@ interface PRTableProps {
   /** Extra scope appended to the ticket-collapse localStorage key so multiple
       tables of the same variant (one per section) don't clobber each other. */
   storageKeyScope?: string;
+  /** Controlled ticket-collapse: when provided, the parent owns which ticket
+      groups are collapsed (e.g. PRSections drives one shared set across all its
+      section tables). Falls back to internal, localStorage-backed state when omitted. */
+  collapsedGroups?: Set<string>;
+  /** Called when a ticket group header is clicked, in controlled mode. */
+  onToggleGroup?: (ticket: string) => void;
 }
 
 /** Column definitions per variant. */
@@ -292,12 +305,17 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     onCollapseStateChange,
     showGroupToolbar = true,
     storageKeyScope,
+    collapsedGroups,
+    onToggleGroup,
   },
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const storageKey = `dev-home-pr-collapsed-${variant}${storageKeyScope ? `-${storageKeyScope}` : ""}`;
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+  // Controlled when the parent supplies `collapsedGroups`; otherwise the table
+  // owns its own localStorage-backed collapse state.
+  const isControlled = collapsedGroups !== undefined;
+  const [internalCollapsed, setInternalCollapsed] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(storageKey);
       return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -305,14 +323,16 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
       return new Set();
     }
   });
+  const collapsed = collapsedGroups ?? internalCollapsed;
 
   useEffect(() => {
+    if (isControlled) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify([...collapsed]));
+      localStorage.setItem(storageKey, JSON.stringify([...internalCollapsed]));
     } catch {
       /* quota exceeded */
     }
-  }, [collapsed, storageKey]);
+  }, [internalCollapsed, storageKey, isControlled]);
 
   const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
   const config = VARIANT_CONFIG[variant];
@@ -321,7 +341,11 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
 
   const toggleGroup = (ticket: string) => {
-    setCollapsed((prev) => {
+    if (onToggleGroup) {
+      onToggleGroup(ticket);
+      return;
+    }
+    setInternalCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(ticket)) {
         next.delete(ticket);
@@ -340,11 +364,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const allCollapsed = hasGroups && groupTickets.every((t) => collapsed.has(t));
 
   const toggleCollapseAll = useCallback(() => {
-    if (allCollapsed) {
-      setCollapsed(new Set());
-    } else {
-      setCollapsed(new Set(groupTickets));
-    }
+    setInternalCollapsed(allCollapsed ? new Set() : new Set(groupTickets));
   }, [allCollapsed, groupTickets]);
 
   useImperativeHandle(ref, () => ({ hasGroups, allCollapsed, toggleCollapseAll }), [
@@ -353,9 +373,14 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     toggleCollapseAll,
   ]);
 
+  // Depend only on the reported values, not the callback identity (callers pass
+  // it inline), so re-notifying can't spin a render loop. See PRSections.
+  const onCollapseStateChangeRef = useRef(onCollapseStateChange);
+  onCollapseStateChangeRef.current = onCollapseStateChange;
+
   useEffect(() => {
-    onCollapseStateChange?.(hasGroups, allCollapsed);
-  }, [hasGroups, allCollapsed, onCollapseStateChange]);
+    onCollapseStateChangeRef.current?.(hasGroups, allCollapsed);
+  }, [hasGroups, allCollapsed]);
 
   if (loading && prs.length === 0) {
     if (isMergedVariant) return null;

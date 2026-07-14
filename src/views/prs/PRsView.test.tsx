@@ -17,7 +17,6 @@ function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
     head: { ref: "feature" },
     base: { ref: "main" },
     body: "",
-    repository_url: "https://api.github.com/repos/o/r",
     repo_full_name: "o/r",
     checks_status: null,
     checks: [],

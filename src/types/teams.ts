@@ -137,9 +137,6 @@ export interface WorkloadEntry {
   prReviewing: number;
   prMerged: number;
   riskLevel: RiskLevel;
-  /** Optional story-point rollups (secondary). */
-  sp?: number;
-  doneSP?: number;
 }
 
 export interface OffBoardPR {
@@ -157,7 +154,7 @@ export interface OffBoardPR {
 // Cockpit sprint-level aggregates
 // ---------------------------------------------------------------------------
 
-/** Completion measured against elapsed time — TICKET-COUNT based (SP optional). */
+/** Completion measured against elapsed time — TICKET-COUNT based. */
 export interface SprintPace {
   dayOfSprint: number;
   sprintLength: number;
@@ -169,13 +166,6 @@ export interface SprintPace {
   /** 0..1 fraction of tickets done. */
   donePct: number;
   behindPace: boolean;
-  committedSP?: number;
-  doneSP?: number;
-}
-
-export interface ScopeChange {
-  addedCount: number;
-  addedSP?: number;
 }
 
 export interface NeedsAttention {
@@ -226,15 +216,6 @@ export interface Burnup {
   points: BurnupPoint[];
 }
 
-export type InsightSeverity = "info" | "warn" | "critical";
-
-export interface Insight {
-  key: string;
-  severity: InsightSeverity;
-  title: string;
-  detail: string;
-}
-
 export interface TeamDashboard {
   team: { id: number; name: string; board: { id: number; name: string } | null };
   sprint: SprintResult | null;
@@ -242,18 +223,14 @@ export interface TeamDashboard {
   epics: DashboardEpic[];
   issues: DashboardIssue[];
   workload: WorkloadEntry[];
-  progress: { total: number; new: number; indeterminate: number; inReview: number; done: number };
   offBoardPRs: OffBoardPR[];
-  counts: { sprintIssues: number; epics: number; offBoardPRs: number };
   // --- cockpit aggregates ---
   pace: SprintPace;
-  scope: ScopeChange;
   needsAttention: NeedsAttention;
   loadBalance: LoadBalance;
   prFlow: PrFlow;
   hygiene: Hygiene;
   burnup: Burnup;
-  insights: Insight[];
   /** ISO timestamp of when the backend assembled this payload. */
   syncedAt?: string;
   errors: string[];

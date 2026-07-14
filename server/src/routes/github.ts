@@ -37,7 +37,7 @@ const SEARCH_PRS_QUERY = `
           body
           headRefName
           baseRefName
-          repository { nameWithOwner url }
+          repository { nameWithOwner }
           mergeQueueEntry { id }
           commits(last: 1) {
             nodes {
@@ -90,7 +90,7 @@ const SEARCH_MY_PRS_QUERY = `
           body
           headRefName
           baseRefName
-          repository { nameWithOwner url }
+          repository { nameWithOwner }
           commits(last: 1) {
             nodes {
               commit {
@@ -119,8 +119,7 @@ const SEARCH_MY_PRS_QUERY = `
           reviews(last: 20) {
             nodes {
               state
-              author { login avatarUrl }
-              submittedAt
+              author { login }
             }
           }
           comments(last: 50) {
@@ -223,7 +222,6 @@ function mapGraphQLPr(node: any) {
       ref: node.baseRefName || "",
     },
     body: node.body || "",
-    repository_url: `https://api.github.com/repos/${node.repository?.nameWithOwner || ""}`,
     repo_full_name: node.repository?.nameWithOwner || "",
     checks_status: rollup?.state || null,
     checks: contextNodes.map(mapCheckContext),
@@ -413,7 +411,6 @@ async function fetchCommentsInBatches(
                 login: comment.user?.login || "",
                 avatar_url: comment.user?.avatar_url || "",
               },
-              issue_url: comment.issue_url || "",
               pr_number: extractSubjectNumber(notification.subject?.url),
               repo_full_name: notification.repository?.full_name || "",
               context_title: notification.subject?.title || "",
@@ -519,45 +516,6 @@ function extractOwnPRComments(prNodes: any[], username: string): any[] {
 }
 
 /**
- * GraphQL query for fetching all comments on a single PR.
- */
-const PR_COMMENTS_QUERY = `
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      pullRequest(number: $number) {
-        comments(last: 100) {
-          nodes {
-            databaseId
-            url
-            body
-            createdAt
-            updatedAt
-            author { login avatarUrl }
-          }
-        }
-        reviewThreads(last: 100) {
-          nodes {
-            isResolved
-            comments(last: 10) {
-              nodes {
-                databaseId
-                url
-                body
-                createdAt
-                updatedAt
-                author { login avatarUrl }
-                path
-                line
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-/**
  * GraphQL query for org PRs with cursor-based pagination.
  */
 const SEARCH_ORG_PRS_QUERY = `
@@ -581,7 +539,7 @@ const SEARCH_ORG_PRS_QUERY = `
           body
           headRefName
           baseRefName
-          repository { nameWithOwner url }
+          repository { nameWithOwner }
           mergeQueueEntry { id }
           commits(last: 1) {
             nodes {
@@ -610,8 +568,7 @@ const SEARCH_ORG_PRS_QUERY = `
           reviews(last: 20) {
             nodes {
               state
-              author { login avatarUrl }
-              submittedAt
+              author { login }
             }
           }
         }
@@ -696,7 +653,7 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
       body
       headRefName
       baseRefName
-      repository { nameWithOwner url }
+      repository { nameWithOwner }
       mergeQueueEntry { id }
       commits(last: 1) {
         nodes {
@@ -725,8 +682,7 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
       reviews(last: 20) {
         nodes {
           state
-          author { login avatarUrl }
-          submittedAt
+          author { login }
         }
       }
     }
@@ -880,7 +836,7 @@ const SEARCH_MERGED_PRS_QUERY = `
           body
           headRefName
           baseRefName
-          repository { nameWithOwner url }
+          repository { nameWithOwner }
         }
       }
     }
@@ -957,98 +913,6 @@ router.get("/job-logs", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/github/prs/:owner/:repo/:number/comments
- * Fetch all comments on a single PR (conversation + review threads).
- * Returns { conversation: ConversationComment[], review: ReviewComment[] }
- */
-router.get("/prs/:owner/:repo/:number/comments", async (req: Request, res: Response) => {
-  const { owner, repo } = req.params;
-  const number = parseInt(req.params.number, 10);
-
-  if (!owner || !repo || isNaN(number)) {
-    res.status(400).json({ error: "owner, repo, and number are required" });
-    return;
-  }
-
-  try {
-    const result = await graphql<{
-      repository: {
-        pullRequest: {
-          comments: { nodes: any[] };
-          reviewThreads: { nodes: any[] };
-        };
-      };
-    }>(PR_COMMENTS_QUERY, { owner, repo, number });
-
-    const pr = result.repository?.pullRequest;
-    if (!pr) {
-      res.status(404).json({ error: "Pull request not found" });
-      return;
-    }
-
-    // Extract conversation comments (non-bot)
-    const conversationComments = (pr.comments?.nodes || [])
-      .filter((c: any) => !isBot(c.author?.login || ""))
-      .map((c: any) => ({
-        id: c.databaseId,
-        html_url: c.url,
-        body: c.body || "",
-        created_at: c.createdAt,
-        updated_at: c.updatedAt,
-        user: {
-          login: c.author?.login || "",
-          avatar_url: c.author?.avatarUrl || "",
-        },
-      }));
-
-    // Extract review comments (non-bot) and flatten threads
-    const reviewComments: any[] = [];
-    for (const thread of pr.reviewThreads?.nodes || []) {
-      const isResolved = thread.isResolved || false;
-      for (const c of thread.comments?.nodes || []) {
-        if (isBot(c.author?.login || "")) continue;
-        reviewComments.push({
-          id: c.databaseId,
-          html_url: c.url,
-          body: c.body || "",
-          created_at: c.createdAt,
-          updated_at: c.updatedAt,
-          user: {
-            login: c.author?.login || "",
-            avatar_url: c.author?.avatarUrl || "",
-          },
-          path: c.path || "",
-          line: c.line || null,
-          is_resolved: isResolved,
-        });
-      }
-    }
-
-    // Sort conversation comments chronologically (oldest first)
-    conversationComments.sort(
-      (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-
-    // Sort review comments: unresolved first (chronological), then resolved (chronological)
-    reviewComments.sort((a: any, b: any) => {
-      if (a.is_resolved !== b.is_resolved) {
-        return a.is_resolved ? 1 : -1;
-      }
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
-
-    res.json({
-      conversation: conversationComments,
-      review: reviewComments,
-    });
-  } catch (err: any) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data?.message || err.message || "Failed to fetch comments";
-    res.status(status).json({ error: message });
-  }
-});
-
 const SINGLE_PR_QUERY = `
   query SinglePR($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -1065,7 +929,7 @@ const SINGLE_PR_QUERY = `
         body
         headRefName
         baseRefName
-        repository { nameWithOwner url }
+        repository { nameWithOwner }
         mergeQueueEntry { id }
         commits(last: 1) {
           nodes {
@@ -1083,7 +947,7 @@ const SINGLE_PR_QUERY = `
           }
         }
         reviews(last: 20) {
-          nodes { state author { login avatarUrl } submittedAt }
+          nodes { state author { login } }
         }
       }
     }

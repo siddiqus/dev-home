@@ -167,6 +167,8 @@ interface DescriptionModalProps {
   title: string;
   subtitle?: string;
   description: string;
+  /** When true and no description is available yet, show a loading spinner in the body. */
+  loading?: boolean;
   url?: string;
   checks?: CheckRunInfo[];
   activeSessions?: ClaudeSession[];
@@ -182,6 +184,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   title,
   subtitle,
   description,
+  loading,
   url,
   checks,
   activeSessions,
@@ -262,7 +265,12 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         <Row className="g-0 modal-split-layout">
           <Col md={hasChecks ? 6 : hasActiveSessions ? 8 : 12} className="modal-description-col">
             <div className="modal-body-section-header">Description</div>
-            {description ? (
+            {loading && !description ? (
+              <div className="d-flex align-items-center gap-2 text-secondary-custom">
+                <Spinner animation="border" size="sm" variant="secondary" />
+                <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
+              </div>
+            ) : description ? (
               <div className="markdown-body">
                 <ReactMarkdown remarkPlugins={[remarkBreaks]}>{description}</ReactMarkdown>
               </div>

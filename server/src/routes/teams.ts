@@ -5,14 +5,13 @@ import { graphql } from "../clients/githubGraphqlClient";
 import {
   partitionOffBoardPRs,
   groupByEpic,
-  computeSprintProgress,
   type RawIssue,
   type RawPR,
   type RosterEntry,
 } from "../services/teamAggregation";
 import { enrichIssue, groupPRsByTicket } from "../services/dashboard/risk";
 import { buildNeedsAttention } from "../services/dashboard/attention";
-import { computePace, computeScope } from "../services/dashboard/pace";
+import { computePace } from "../services/dashboard/pace";
 import { computeLoadDistribution, computeLoadBalance } from "../services/dashboard/load";
 import { computePrFlow } from "../services/dashboard/prFlow";
 import { computeHygiene } from "../services/dashboard/hygiene";
@@ -21,32 +20,6 @@ import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
 import type { SprintInfo, Burnup } from "../services/dashboard/types";
 
 const router = Router();
-
-/** Memoized story points field id detection (null if not found or errors). */
-let cachedStoryPointsFieldId: string | null | undefined = undefined;
-async function getStoryPointsFieldId(): Promise<string | null> {
-  if (cachedStoryPointsFieldId !== undefined) {
-    return cachedStoryPointsFieldId as string | null;
-  }
-  try {
-    const jira = createJiraClient();
-    const { data } = await jira.get("/field");
-    // Prefer custom fields whose schema.custom contains "story" or whose name matches /story point/i
-    const field = (data || []).find(
-      (f: any) =>
-        f.custom &&
-        (f.name?.toLowerCase().includes("story point") ||
-          f.schema?.custom?.toLowerCase().includes("story-points") ||
-          f.schema?.custom?.toLowerCase().includes("storypointestimate") ||
-          f.schema?.custom?.toLowerCase().includes("gh-sprint-storypointsfield")),
-    );
-    cachedStoryPointsFieldId = field?.id || null;
-    return cachedStoryPointsFieldId as string | null;
-  } catch {
-    cachedStoryPointsFieldId = null;
-    return null;
-  }
-}
 
 /** GET /api/teams — list teams with member counts and names. */
 router.get("/", (_req: Request, res: Response) => {
@@ -258,7 +231,7 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
 }
 
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
-function mapAgileIssues(rawIssues: any[], storyPointsFieldId: string | null): RawIssue[] {
+function mapAgileIssues(rawIssues: any[]): RawIssue[] {
   return rawIssues.map((issue: any) => ({
     key: issue.key,
     summary: issue.fields?.summary || "",
@@ -271,12 +244,11 @@ function mapAgileIssues(rawIssues: any[], storyPointsFieldId: string | null): Ra
     createdAt: issue.fields?.created || null,
     updatedAt: issue.fields?.updated || null,
     dueDate: issue.fields?.duedate || null,
-    storyPoints: storyPointsFieldId ? (issue.fields?.[storyPointsFieldId] ?? null) : null,
   }));
 }
 
 /** Map platform JQL issues (epic derived from `parent`). */
-function mapJqlIssues(rawIssues: any[], storyPointsFieldId: string | null): RawIssue[] {
+function mapJqlIssues(rawIssues: any[]): RawIssue[] {
   return rawIssues.map((issue: any) => {
     const parent = issue.fields?.parent;
     const parentIsEpic = parent?.fields?.issuetype?.name?.toLowerCase() === "epic";
@@ -292,7 +264,6 @@ function mapJqlIssues(rawIssues: any[], storyPointsFieldId: string | null): RawI
       createdAt: issue.fields?.created || null,
       updatedAt: issue.fields?.updated || null,
       dueDate: issue.fields?.duedate || null,
-      storyPoints: storyPointsFieldId ? (issue.fields?.[storyPointsFieldId] ?? null) : null,
     };
   });
 }
@@ -371,9 +342,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
           null;
 
         if (currentSprint) {
-          const storyPointsFieldId = await getStoryPointsFieldId();
-          let fieldsParam = "summary,status,assignee,epic,created,updated,duedate";
-          if (storyPointsFieldId) fieldsParam += `,${storyPointsFieldId}`;
+          const fieldsParam = "summary,status,assignee,epic,created,updated,duedate";
           const { data: issueData } = await agile.get(
             `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
             { params: { fields: fieldsParam, maxResults: 100 } },
@@ -382,11 +351,10 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
           // assigned to people outside this team's roster — so the counts and
           // the progress bar reflect the sprint as a whole. Per-member workload
           // still narrows to the roster in computeLoadDistribution.
-          issues = mapAgileIssues(issueData.issues || [], storyPointsFieldId);
+          issues = mapAgileIssues(issueData.issues || []);
         }
       } else {
         const jira = createJiraClient();
-        const storyPointsFieldId = await getStoryPointsFieldId();
         const idList = accountIds.map((a) => `"${a}"`).join(", ");
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
         const fieldsArray = [
@@ -398,13 +366,12 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
           "updated",
           "duedate",
         ];
-        if (storyPointsFieldId) fieldsArray.push(storyPointsFieldId);
         const { data } = await jira.post("/search/jql", {
           jql,
           fields: fieldsArray,
           maxResults: 100,
         });
-        issues = mapJqlIssues(data.issues || [], storyPointsFieldId);
+        issues = mapJqlIssues(data.issues || []);
       }
     } catch (err: any) {
       errors.push(`Jira: ${err.message || "failed to load issues"}`);
@@ -444,9 +411,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
   const epics = groupByEpic(issues, staleKeys);
   const workload = computeLoadDistribution(roster, enrichedIssues, prs, now);
   const loadBalance = computeLoadBalance(workload);
-  const progress = computeSprintProgress(issues);
   const pace = computePace(enrichedIssues, sprintInfo, now, config);
-  const scope = computeScope(enrichedIssues, sprintInfo);
   const needsAttention = buildNeedsAttention(
     enrichedIssues,
     offBoardPRs.map((p) => ({ repo_full_name: p.repo_full_name, number: p.number })),
@@ -477,15 +442,8 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     epics,
     issues: enrichedIssues,
     workload,
-    progress,
     offBoardPRs,
-    counts: {
-      sprintIssues: issues.length,
-      epics: epics.length,
-      offBoardPRs: offBoardPRs.length,
-    },
     pace,
-    scope,
     needsAttention,
     loadBalance,
     prFlow,

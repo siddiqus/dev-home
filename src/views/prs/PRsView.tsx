@@ -58,7 +58,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
   };
 
   const prSectionsRef = useRef<PRSectionsHandle>(null);
-  const [sectionState, setSectionState] = useState({ visibleSectionCount: 0, allCollapsed: false });
+  const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
@@ -131,7 +131,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
             className={`prs-subtab${subTab === "merged" ? " active" : ""}`}
             onClick={() => handleSubTab("merged")}
           >
-            Recently Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
+            Recently Merged{(mergedPRs.length > 0 || !mergedPRsLoading) && ` (${mergedPRs.length})`}
           </button>
         </div>
         <div className="prs-subtab-bar-right">
@@ -149,15 +149,15 @@ export const PRsView: React.FC<PRsViewProps> = ({
             allLabel="All repos"
             width={200}
           />
-          {subTab === "open" && sectionState.visibleSectionCount > 1 && (
+          {subTab === "open" && groupState.hasGroups && (
             <button
               type="button"
               className="pr-table-collapse-btn"
               onClick={() => prSectionsRef.current?.toggleCollapseAll()}
-              title={sectionState.allCollapsed ? "Expand all sections" : "Collapse all sections"}
+              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
             >
-              {sectionState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-              {sectionState.allCollapsed ? "Expand all" : "Collapse all"}
+              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
             </button>
           )}
         </div>
@@ -174,8 +174,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
           claudeSessions={claudeSessions}
           onClaudeAction={onClaudeAction}
           onViewClaudeSession={onViewClaudeSession}
-          onCollapseStateChange={(visibleSectionCount, allCollapsed) =>
-            setSectionState({ visibleSectionCount, allCollapsed })
+          onCollapseStateChange={(hasGroups, allCollapsed) =>
+            setGroupState({ hasGroups, allCollapsed })
           }
         />
       )}

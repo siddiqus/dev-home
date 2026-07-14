@@ -1,10 +1,8 @@
 /**
- * Sprint completion vs elapsed time (TICKET-COUNT based) + scope change.
+ * Sprint completion vs elapsed time (TICKET-COUNT based).
  * Pure — `now` is a parameter.
- *
- * STUB: implement elapsedPct/donePct/behindPace and scope-added counts with TDD.
  */
-import type { EnrichedIssue, ScopeChange, SprintInfo, SprintPace } from "./types";
+import type { EnrichedIssue, SprintInfo, SprintPace } from "./types";
 import type { CockpitConfig } from "./config";
 
 export function computePace(
@@ -40,9 +38,7 @@ export function computePace(
 
   const behindPace = donePct < elapsedPct - config.behindPaceTolerance;
 
-  // Optional story points
-  const hasSP = issues.some((i) => i.storyPoints !== null);
-  const result: SprintPace = {
+  return {
     dayOfSprint,
     sprintLength,
     elapsedPct,
@@ -52,27 +48,4 @@ export function computePace(
     donePct,
     behindPace,
   };
-
-  if (hasSP) {
-    result.committedSP = issues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
-    result.doneSP = issues
-      .filter((i) => i.statusCategory === "done")
-      .reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
-  }
-
-  return result;
-}
-
-export function computeScope(issues: EnrichedIssue[], _sprint: SprintInfo | null): ScopeChange {
-  const addedIssues = issues.filter((i) => i.flags.addedAfterStart);
-  const addedCount = addedIssues.length;
-
-  const hasSP = addedIssues.some((i) => i.storyPoints !== null);
-  const result: ScopeChange = { addedCount };
-
-  if (hasSP) {
-    result.addedSP = addedIssues.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0);
-  }
-
-  return result;
 }
