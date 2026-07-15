@@ -6,7 +6,6 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import Table from "react-bootstrap/Table";
 import Spinner from "react-bootstrap/Spinner";
 import {
   IconGitPullRequest,
@@ -20,21 +19,11 @@ import {
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { groupByTicket } from "../utils/tickets";
-import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
-import { Badge, BadgeVariant } from "./primitives/Badge";
-import { BranchTag } from "./primitives/BranchTag";
-import { Avatar } from "./primitives/Avatar";
-import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
+import { PRCard, PRCardFields } from "./PRCard";
 import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import "./PRTable.css";
-
-const REVIEW_STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
-  APPROVED: { label: "Approved", variant: "success" },
-  CHANGES_REQUESTED: { label: "Changes Requested", variant: "danger" },
-  REVIEWED: { label: "Reviewed", variant: "warning" },
-};
 
 type PRTableVariant =
   | "my-prs"
@@ -66,6 +55,10 @@ interface PRTableProps {
   onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
   /** Set false to hide the inline "collapse all groups" toolbar (e.g. inside PRSections). */
   showGroupToolbar?: boolean;
+  /** True when rendered inside an outer container that already provides the card
+      chrome (PRSections' section card). Skips PRTable's own container card so the
+      PR rows sit directly inside the section — no card-within-a-card nesting. */
+  embedded?: boolean;
   /** Extra scope appended to the ticket-collapse localStorage key so multiple
       tables of the same variant (one per section) don't clobber each other. */
   storageKeyScope?: string;
@@ -77,103 +70,79 @@ interface PRTableProps {
   onToggleGroup?: (ticket: string) => void;
 }
 
-/** Column definitions per variant. */
-const VARIANT_CONFIG: Record<
+/** Which card fields each variant shows. */
+const VARIANT_FIELDS: Record<PRTableVariant, PRCardFields> = {
+  "my-prs": {
+    showAuthor: false,
+    showBranch: true,
+    showStatus: true,
+    showChecks: true,
+    timestamps: "open",
+  },
+  "review-requests": {
+    showAuthor: true,
+    showBranch: false,
+    showStatus: false,
+    showChecks: true,
+    timestamps: "open",
+  },
+  "org-prs": {
+    showAuthor: true,
+    showBranch: true,
+    showStatus: true,
+    showChecks: true,
+    timestamps: "open",
+  },
+  "recently-merged": {
+    showAuthor: false,
+    showBranch: true,
+    showStatus: false,
+    showChecks: false,
+    timestamps: "merged",
+  },
+  "recently-merged-org": {
+    showAuthor: true,
+    showBranch: true,
+    showStatus: false,
+    showChecks: false,
+    timestamps: "merged",
+  },
+};
+
+/** Empty-state metadata per variant. */
+const EMPTY_STATE: Record<
   PRTableVariant,
-  {
-    columns: string[];
-    emptyIcon: React.ReactNode;
-    emptyTitle: string;
-    emptyDescription: string;
-  }
+  { icon: React.ReactNode; title: string; description: string }
 > = {
   "my-prs": {
-    columns: ["title", "repo", "branch", "status", "created", "updated"],
-    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
-    emptyTitle: "No open pull requests",
-    emptyDescription: "You don't have any open pull requests at the moment.",
+    icon: <IconGitPullRequest size={40} stroke={1.5} />,
+    title: "No open pull requests",
+    description: "You don't have any open pull requests at the moment.",
   },
   "review-requests": {
-    columns: ["title", "repo", "author", "checks", "created", "updated"],
-    emptyIcon: <IconEye size={40} stroke={1.5} />,
-    emptyTitle: "No review requests",
-    emptyDescription: "No one has requested your review on any pull requests.",
+    icon: <IconEye size={40} stroke={1.5} />,
+    title: "No review requests",
+    description: "No one has requested your review on any pull requests.",
   },
   "org-prs": {
-    columns: ["title", "repo", "branch", "author", "status", "created", "updated"],
-    emptyIcon: <IconBuilding size={40} stroke={1.5} />,
-    emptyTitle: "No org pull requests",
-    emptyDescription: "No open, non-draft pull requests found for this org.",
+    icon: <IconBuilding size={40} stroke={1.5} />,
+    title: "No org pull requests",
+    description: "No open, non-draft pull requests found for this org.",
   },
   "recently-merged": {
-    columns: ["title", "repo", "branch", "merged"],
-    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
-    emptyTitle: "No recently merged PRs",
-    emptyDescription: "No pull requests have been merged recently.",
+    icon: <IconGitPullRequest size={40} stroke={1.5} />,
+    title: "No recently merged PRs",
+    description: "No pull requests have been merged recently.",
   },
   "recently-merged-org": {
-    columns: ["title", "repo", "branch", "author", "merged"],
-    emptyIcon: <IconGitPullRequest size={40} stroke={1.5} />,
-    emptyTitle: "No recently merged PRs",
-    emptyDescription: "No pull requests have been merged recently.",
+    icon: <IconGitPullRequest size={40} stroke={1.5} />,
+    title: "No recently merged PRs",
+    description: "No pull requests have been merged recently.",
   },
 };
 
-const HEADER_LABELS: Record<string, string> = {
-  pr: "PR",
-  title: "Title",
-  repo: "Repository",
-  branch: "Branch",
-  author: "Author",
-  checks: "Checks",
-  status: "Status",
-  created: "Created",
-  updated: "Updated",
-  merged: "Merged at",
-};
-
-const COLUMN_WIDTHS: Record<PRTableVariant, Record<string, string>> = {
-  "my-prs": {
-    title: "33%",
-    repo: "22%",
-    branch: "20%",
-    status: "14%",
-    created: "6%",
-    updated: "6%",
-  },
-  "review-requests": {
-    title: "32%",
-    repo: "22%",
-    author: "16%",
-    checks: "10%",
-    created: "10%",
-    updated: "10%",
-  },
-  "org-prs": {
-    title: "24%",
-    repo: "20%",
-    branch: "18%",
-    author: "12%",
-    status: "14%",
-    created: "5%",
-    updated: "5%",
-  },
-  "recently-merged": {
-    title: "35%",
-    repo: "22%",
-    branch: "28%",
-    merged: "15%",
-  },
-  "recently-merged-org": {
-    title: "28%",
-    repo: "18%",
-    branch: "22%",
-    author: "15%",
-    merged: "17%",
-  },
-};
-
-/** Ticket key rendered as a Jira link (or a plain chip when no Jira base URL). */
+/** Ticket key rendered as a Jira link (or a plain chip when no Jira base URL).
+    Used on cluster headers, where the key labels the whole group. */
 function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: string }) {
   if (!jiraBaseUrl) return <span className="ticket-chip">{ticket}</span>;
   return (
@@ -187,119 +156,6 @@ function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: str
       {ticket}
     </a>
   );
-}
-
-/** Render a single cell by column key. */
-function renderCell(
-  col: string,
-  pr: GitHubPR,
-  opts: { chip?: React.ReactNode } = {},
-): React.ReactNode {
-  switch (col) {
-    case "title":
-      return (
-        <td key={col} className="cell-truncate">
-          <span className="pr-title-cell">
-            {opts.chip}
-            <a
-              href={pr.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-truncate-custom"
-              style={{ fontWeight: 500 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {pr.title}
-            </a>
-          </span>
-        </td>
-      );
-    case "repo":
-      return (
-        <td key={col} className="cell-truncate">
-          <Badge variant="neutral" className="fw-bold" size="md">
-            {pr.repo_full_name}
-          </Badge>
-        </td>
-      );
-    case "branch":
-      return (
-        <td key={col} className="cell-truncate">
-          <div className="d-flex align-items-center gap-1" style={{ minWidth: 0 }}>
-            <BranchTag name={pr.head.ref} />
-            {!["master", "main"].includes(pr.base.ref) && (
-              <>
-                <span className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-                  {"\u2192"}
-                </span>
-                <BranchTag name={pr.base.ref} />
-              </>
-            )}
-          </div>
-        </td>
-      );
-    case "author":
-      return (
-        <td key={col}>
-          <div className="d-flex align-items-center gap-2">
-            <Avatar src={pr.user.avatar_url} alt={pr.user.login} size="sm" />
-            <span style={{ fontSize: "0.8125rem" }}>{pr.user.login}</span>
-          </div>
-        </td>
-      );
-    case "checks":
-      return (
-        <td key={col}>
-          <ChecksStatusIcon status={pr.checks_status} />
-        </td>
-      );
-    case "status":
-      return (
-        <td key={col}>
-          <div className="d-flex align-items-center gap-2">
-            {pr.in_merge_queue ? (
-              <Badge variant="purple">In Merge Queue</Badge>
-            ) : pr.draft ? (
-              <Badge variant="neutral">Draft</Badge>
-            ) : (
-              <Badge variant="success">Open</Badge>
-            )}
-            <ChecksStatusIcon status={pr.checks_status} />
-            {pr.review_status && REVIEW_STATUS_CONFIG[pr.review_status] && (
-              <Badge variant={REVIEW_STATUS_CONFIG[pr.review_status].variant}>
-                {REVIEW_STATUS_CONFIG[pr.review_status].label}
-              </Badge>
-            )}
-          </div>
-        </td>
-      );
-    case "created":
-      return (
-        <td key={col}>
-          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-            {formatRelativeTime(pr.created_at)}
-          </span>
-        </td>
-      );
-    case "updated":
-      return (
-        <td key={col}>
-          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-            {formatRelativeTime(pr.updated_at)}
-          </span>
-        </td>
-      );
-    case "merged":
-      return (
-        <td key={col}>
-          <span className="text-secondary-custom" style={{ whiteSpace: "nowrap" }}>
-            {pr.merged_at ? formatRelativeTime(pr.merged_at) : "—"}
-          </span>
-        </td>
-      );
-    default:
-      return <td key={col} />;
-  }
 }
 
 export interface PRTableHandle {
@@ -321,6 +177,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     onViewClaudeSession,
     onCollapseStateChange,
     showGroupToolbar = true,
+    embedded = false,
     storageKeyScope,
     collapsedGroups,
     onToggleGroup,
@@ -352,8 +209,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   }, [internalCollapsed, storageKey, isControlled]);
 
   const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
-  const config = VARIANT_CONFIG[variant];
-  const { columns } = config;
+  const fields = VARIANT_FIELDS[variant];
 
   const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
 
@@ -410,13 +266,8 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
 
   if (prs.length === 0) {
     if (isMergedVariant) return null;
-    return (
-      <EmptyState
-        icon={config.emptyIcon}
-        title={config.emptyTitle}
-        description={config.emptyDescription}
-      />
-    );
+    const empty = EMPTY_STATE[variant];
+    return <EmptyState icon={empty.icon} title={empty.title} description={empty.description} />;
   }
 
   const showInlineToolbar = hasGroups && !onCollapseStateChange && showGroupToolbar;
@@ -436,92 +287,64 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
           </button>
         </div>
       )}
-      <Table className="pr-table" hover style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          {columns.map((col) => (
-            <col key={col} style={{ width: COLUMN_WIDTHS[variant]?.[col] }} />
-          ))}
-          {claudeEnabled && onClaudeAction && <col style={{ width: "80px" }} />}
-        </colgroup>
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col}>{HEADER_LABELS[col] || col}</th>
-            ))}
-            {claudeEnabled && onClaudeAction && <th />}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((group, groupIdx) => {
-            const isCluster = group.ticket !== null && group.prs.length > 1;
-            const isCollapsed = isCluster && collapsed.has(group.ticket!);
-            const singleTicket =
-              group.ticket !== null && group.prs.length === 1 ? group.ticket : null;
-            const summary = group.ticket ? ticketTitles.get(group.ticket.toUpperCase()) : undefined;
-            const groupKey = group.ticket ?? `ungrouped-${groupIdx}`;
-            return (
-              <React.Fragment key={groupKey}>
-                {isCluster && (
-                  <tr className="ticket-cluster-header" onClick={() => toggleGroup(group.ticket!)}>
-                    <td colSpan={columns.length + (claudeEnabled && onClaudeAction ? 1 : 0)}>
-                      <span className="ticket-cluster-chevron">
-                        {isCollapsed ? (
-                          <IconChevronRight size={14} stroke={2} />
-                        ) : (
-                          <IconChevronDown size={14} stroke={2} />
-                        )}
-                      </span>
-                      <TicketChip ticket={group.ticket!} jiraBaseUrl={jiraBaseUrl} />
-                      {summary && <span className="ticket-cluster-summary">{summary}</span>}
-                      <span className="ticket-cluster-count">{group.prs.length} PRs</span>
-                    </td>
-                  </tr>
-                )}
-                {!isCollapsed &&
-                  group.prs.map((pr) => (
-                    <tr
-                      key={pr.id}
-                      className={isCluster ? "ticket-cluster-member" : undefined}
-                      onClick={() => setSelectedPR(pr)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      {columns.map((col, colIdx) =>
-                        renderCell(col, pr, {
-                          chip:
-                            colIdx === 0 && singleTicket ? (
-                              <TicketChip ticket={singleTicket} jiraBaseUrl={jiraBaseUrl} />
-                            ) : undefined,
-                        }),
-                      )}
-                      {claudeEnabled && onClaudeAction && (
-                        <td>
-                          <ClaudeActionDropdown
-                            pr={pr}
-                            activeSessions={claudeSessions}
-                            onViewSession={onViewClaudeSession}
-                            onAction={(action, customPrompt) =>
-                              onClaudeAction(
-                                {
-                                  number: pr.number,
-                                  repo_full_name: pr.repo_full_name,
-                                  title: pr.title,
-                                  headBranch: pr.head.ref,
-                                  baseBranch: pr.base.ref,
-                                },
-                                action,
-                                customPrompt,
-                              )
-                            }
-                          />
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </Table>
+
+      <div className={embedded ? "pr-card-list" : "pr-list-card pr-card-list"}>
+        {groups.map((group, groupIdx) => {
+          const isCluster = group.ticket !== null && group.prs.length > 1;
+          const isCollapsed = isCluster && collapsed.has(group.ticket!);
+          const singleTicket =
+            group.ticket !== null && group.prs.length === 1 ? group.ticket : null;
+          const summary = group.ticket ? ticketTitles.get(group.ticket.toUpperCase()) : undefined;
+          const groupKey = group.ticket ?? `ungrouped-${groupIdx}`;
+          return (
+            <React.Fragment key={groupKey}>
+              {isCluster && (
+                <div
+                  className="pr-cluster-header"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleGroup(group.ticket!)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleGroup(group.ticket!);
+                    }
+                  }}
+                >
+                  <span className="pr-cluster-chevron">
+                    {isCollapsed ? (
+                      <IconChevronRight size={14} stroke={2} />
+                    ) : (
+                      <IconChevronDown size={14} stroke={2} />
+                    )}
+                  </span>
+                  <TicketChip ticket={group.ticket!} jiraBaseUrl={jiraBaseUrl} />
+                  {summary && <span className="pr-cluster-summary">{summary}</span>}
+                  <span className="pr-cluster-count" title={`${group.prs.length} PRs`}>
+                    {group.prs.length}
+                  </span>
+                </div>
+              )}
+              {!isCollapsed &&
+                group.prs.map((pr) => (
+                  <PRCard
+                    key={pr.id}
+                    pr={pr}
+                    fields={fields}
+                    jiraBaseUrl={jiraBaseUrl}
+                    singleTicket={singleTicket}
+                    clustered={isCluster}
+                    claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions}
+                    onClaudeAction={onClaudeAction}
+                    onViewClaudeSession={onViewClaudeSession}
+                    onOpen={setSelectedPR}
+                  />
+                ))}
+            </React.Fragment>
+          );
+        })}
+      </div>
 
       <DescriptionModal
         show={!!selectedPR}

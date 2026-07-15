@@ -18,6 +18,9 @@
   border-left: 3px solid var(--section-rail);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  /* Clip the embedded PR rows (and their hover backgrounds) to the rounded
+     corners — the section card is now the only container around the rows. */
+  overflow: hidden;
 }
 
 .pr-section-header {
@@ -67,9 +70,8 @@
   letter-spacing: 0.01em;
 }
 
-/* Pushed to the far right of the header. */
+/* Sits directly to the right of the section title. */
 .pr-section-count {
-  margin-left: auto;
   font-size: 0.6875rem;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -81,7 +83,3 @@
   text-align: center;
 }
 
-/* The table sits flush inside the card; drop its default bottom margin. */
-.pr-section .table {
-  margin-bottom: 0;
-}

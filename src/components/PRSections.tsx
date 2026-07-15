@@ -228,6 +228,7 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
                 claudeSessions={claudeSessions}
                 onClaudeAction={onClaudeAction}
                 onViewClaudeSession={onViewClaudeSession}
+                embedded
                 showGroupToolbar={false}
                 storageKeyScope={section.id}
                 collapsedGroups={collapsedTickets}

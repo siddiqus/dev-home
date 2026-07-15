@@ -30,99 +30,315 @@
 }
 
 /* ============================================
-   Sticky column headers
-   Pins the header row to the top of the scroll
-   container (.main-content) so column context is
-   kept while scrolling long / sectioned lists.
+   Row list + container
+   PRs render as flat rows separated by hairline dividers — never as nested
+   cards. The card chrome comes from the container:
+     - standalone tabs (Org / Reviews / Merged): `.pr-list-card` wraps the rows.
+     - My PRs: PRSections' section card is the container (PRTable is `embedded`,
+       so `.pr-list-card` is omitted) — avoids card-within-a-card.
    ============================================ */
 
-.pr-table > thead > tr > th {
-  position: sticky;
-  /* The scroll container (.main-content) has var(--space-3) top padding and
-     sticky pins to its content-box top, so top:0 would leave that padding as a
-     gap above the header. Offset by -var(--space-3) to pin flush to the top. */
-  top: calc(-1 * var(--space-3));
-  z-index: 3;
-  /* Opaque so body rows don't show through when pinned. */
-  background-color: var(--color-bg-app);
-  /* Crisp 1px separator line plus a soft drop shadow below the pinned header. */
-  box-shadow:
-    inset 0 -1px 0 var(--color-border-subtle),
-    var(--shadow-md);
+.pr-card-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hairline dividers between consecutive rows / cluster headers / members. The
+   first child never gets one, so it sits flush under the container top (or the
+   section header's own bottom border). */
+.pr-card-list > * + * {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pr-list-card {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  /* Clip row hover backgrounds to the rounded corners. */
+  overflow: hidden;
 }
 
 /* ============================================
-   Cell overflow handling
+   PR row
    ============================================ */
 
-.cell-truncate {
+.pr-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.pr-card:hover {
+  background: var(--color-bg-hover);
+}
+
+.pr-card:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.pr-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 1px;
+  color: var(--color-status-success);
+}
+
+.pr-card-icon--muted {
+  color: var(--color-text-secondary);
+}
+
+/* ---- left column ---- */
+.pr-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.pr-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.pr-card-ticket {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.pr-card-ticket:hover {
+  text-decoration: underline;
+}
+
+.pr-card-title-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 0;
+}
+
+.pr-card-ext {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  transition: color 120ms ease;
+}
+
+.pr-card-ext:hover {
+  color: var(--color-accent);
+}
+
+/* ---- meta line ---- */
+.pr-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.pr-card-sep {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.pr-card-repo {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  flex-shrink: 0;
+}
+
+.pr-card-author {
+  flex-shrink: 0;
+}
+
+.pr-card-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--color-text-secondary);
+}
+
+.pr-card-branch svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.pr-card-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-card-branch-arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ---- right column ---- */
+.pr-card-side {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.pr-card-side-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.pr-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.pr-card-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.pr-card-dot--success {
+  background: var(--color-status-success);
+}
+.pr-card-dot--danger {
+  background: var(--color-status-danger);
+}
+.pr-card-dot--warning {
+  background: var(--color-status-warning);
+}
+
+.pr-card-draft {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+}
+
+.pr-card-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.pr-card-tag--merge-queue {
+  color: var(--color-status-purple);
+  background: var(--color-status-purple-bg);
+}
+
+.pr-card-time {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 /* ============================================
    Ticket clusters (multi-PR ticket grouping)
+   A tinted header row, then member rows indented behind a short accent rail —
+   grouping without another nested box.
    ============================================ */
 
-/* Uniform left gutter on the first column so the cluster rail has room and every
-   title lines up — clustered members, single-PR rows, and no-ticket rows alike.
-   (Beats Bootstrap's cell padding via specificity.) */
-.pr-table th:first-child,
-.pr-table td:first-child {
-  padding-left: 20px;
-}
-
-/* Slim cluster header: chevron + ticket chip (Jira link) + summary + count. */
-.ticket-cluster-header {
+.pr-cluster-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 20px;
+  background-color: var(--color-accent-bg-subtle);
   cursor: pointer;
   user-select: none;
 }
 
-.ticket-cluster-header > td {
-  background-color: var(--color-accent-bg-subtle);
-  border-bottom: 1px solid var(--color-border-subtle);
-  padding: 5px var(--space-3) !important;
-  padding-left: 10px !important;
-}
-
-.ticket-cluster-header:hover > td {
+.pr-cluster-header:hover {
   background-color: var(--color-bg-hover);
 }
 
-.ticket-cluster-chevron {
+.pr-cluster-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 4px;
   color: var(--color-text-muted);
-  vertical-align: middle;
 }
 
-.ticket-cluster-summary {
-  font-size: 0.75rem;
+.pr-cluster-summary {
+  font-size: 0.85rem;
   color: var(--color-text-secondary);
-  margin-left: var(--space-2);
-  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.ticket-cluster-count {
+/* PR-count badge sitting next to the ticket title (mirrors .pr-section-count). */
+.pr-cluster-count {
+  flex-shrink: 0;
   font-size: 0.6875rem;
-  color: var(--color-text-muted);
-  margin-left: var(--space-2);
-  font-weight: 500;
-  vertical-align: middle;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
 }
 
-/* Ticket chip = the Jira link. Shown on cluster headers and single-PR rows so a
-   ticket's key is always visible, whether it has one PR or many. */
+/* Cluster member rows: indented, with a short accent rail in the left gutter. */
+.pr-card--clustered {
+  padding-left: 45px;
+}
+
+.pr-card--clustered::before {
+  content: "";
+  position: absolute;
+  left: 35px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+/* Ticket chip = the Jira link on cluster headers. */
 .ticket-chip {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -132,38 +348,10 @@
   border-radius: var(--radius-sm);
   padding: 0 6px;
   text-decoration: none;
-  vertical-align: middle;
+  cursor: pointer;
 }
 
 a.ticket-chip:hover {
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-}
-
-/* Cluster member rows: a short left rail scopes each cluster. No full-row tint,
-   so two clusters stacked back-to-back never blur together. */
-.ticket-cluster-member > td:first-child {
-  position: relative;
-}
-
-.ticket-cluster-member > td:first-child::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-}
-
-/* Title cell: optional ticket chip + the truncating PR link on one line. */
-.pr-title-cell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.pr-title-cell .text-truncate-custom {
-  min-width: 0;
 }
