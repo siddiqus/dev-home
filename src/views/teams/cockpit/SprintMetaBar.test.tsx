@@ -46,7 +46,7 @@ describe("SprintMetaBar", () => {
       />,
     );
 
-    expect(screen.getByText(/Last synced/)).toBeInTheDocument();
+    expect(screen.getByText(/Synced/)).toBeInTheDocument();
     expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
   });
 
@@ -59,7 +59,7 @@ describe("SprintMetaBar", () => {
       />,
     );
 
-    expect(screen.queryByText(/Last synced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Synced/)).not.toBeInTheDocument();
   });
 
   it("handles sprint without goal gracefully", () => {
