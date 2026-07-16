@@ -38,6 +38,7 @@ const SEARCH_PRS_QUERY = `
           headRefName
           baseRefName
           repository { nameWithOwner }
+          labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
           commits(last: 1) {
             nodes {
@@ -91,6 +92,7 @@ const SEARCH_MY_PRS_QUERY = `
           headRefName
           baseRefName
           repository { nameWithOwner }
+          labels(first: 10) { nodes { name color } }
           commits(last: 1) {
             nodes {
               commit {
@@ -228,6 +230,10 @@ function mapGraphQLPr(node: any) {
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
     in_merge_queue: !!node.mergeQueueEntry,
+    labels: (node.labels?.nodes || []).map((l: any) => ({
+      name: l.name || "",
+      color: l.color || "",
+    })),
   };
 }
 
@@ -540,6 +546,7 @@ const SEARCH_ORG_PRS_QUERY = `
           headRefName
           baseRefName
           repository { nameWithOwner }
+          labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
           commits(last: 1) {
             nodes {
@@ -654,6 +661,7 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
       headRefName
       baseRefName
       repository { nameWithOwner }
+      labels(first: 10) { nodes { name color } }
       mergeQueueEntry { id }
       commits(last: 1) {
         nodes {
@@ -837,6 +845,7 @@ const SEARCH_MERGED_PRS_QUERY = `
           headRefName
           baseRefName
           repository { nameWithOwner }
+          labels(first: 10) { nodes { name color } }
         }
       }
     }
@@ -930,6 +939,7 @@ const SINGLE_PR_QUERY = `
         headRefName
         baseRefName
         repository { nameWithOwner }
+        labels(first: 10) { nodes { name color } }
         mergeQueueEntry { id }
         commits(last: 1) {
           nodes {

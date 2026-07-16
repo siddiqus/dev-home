@@ -67,6 +67,12 @@ export interface CheckRunInfo {
   url: string | null;
 }
 
+export interface GitHubLabel {
+  name: string;
+  /** 6-char hex color from GitHub, without a leading "#". */
+  color: string;
+}
+
 export interface GitHubPR {
   id: number;
   number: number;
@@ -93,6 +99,7 @@ export interface GitHubPR {
   review_status: string | null;
   merged_at?: string;
   in_merge_queue?: boolean;
+  labels?: GitHubLabel[];
 }
 
 export interface GitHubComment {

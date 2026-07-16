@@ -196,4 +196,45 @@ describe("PRCard", () => {
     const link = screen.getByRole("link", { name: "PROJ-7" });
     expect(link).toHaveAttribute("href", "https://jira.example.com/browse/PROJ-7");
   });
+
+  it("renders label badges tinted with their GitHub color", () => {
+    render(
+      <PRCard
+        pr={makePR({ labels: [{ name: "bug", color: "d73a4a" }] })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    const badge = screen.getByText("bug");
+    expect(badge).toHaveClass("pr-card-label");
+    expect(badge).toHaveStyle({ backgroundColor: "#d73a4a" });
+  });
+
+  it("picks readable text: dark on light labels, light on dark labels", () => {
+    const { unmount } = render(
+      <PRCard
+        pr={makePR({ labels: [{ name: "light", color: "ffffff" }] })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    expect(screen.getByText("light")).toHaveStyle({ color: "#1b1f24" });
+    unmount();
+
+    render(
+      <PRCard
+        pr={makePR({ labels: [{ name: "dark", color: "000000" }] })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    expect(screen.getByText("dark")).toHaveStyle({ color: "#ffffff" });
+  });
+
+  it("renders no label badges when the PR has no labels", () => {
+    const { container } = render(
+      <PRCard pr={makePR({ labels: [] })} fields={FIELDS.full} onOpen={noop} />,
+    );
+    expect(container.querySelector(".pr-card-label")).toBeNull();
+  });
 });

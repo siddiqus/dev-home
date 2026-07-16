@@ -5,7 +5,7 @@ import {
   IconGitBranch,
   IconExternalLink,
 } from "@tabler/icons-react";
-import { GitHubPR } from "../types";
+import { GitHubPR, GitHubLabel } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
@@ -117,6 +117,42 @@ function BranchPill({ head, base }: { head: string; base: string }) {
   );
 }
 
+/**
+ * Style a label badge with its GitHub color, picking dark or light text based on
+ * the color's perceived luminance so the name stays readable on any background.
+ * Falls back to CSS defaults when the color is missing or malformed.
+ */
+function labelStyle(color: string): React.CSSProperties {
+  const hex = (color || "").replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return {};
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return {
+    backgroundColor: `#${hex}`,
+    color: luminance > 0.6 ? "#1b1f24" : "#ffffff",
+  };
+}
+
+/** Small colored pills for the PR's GitHub labels. */
+function PRLabels({ labels }: { labels: GitHubLabel[] }) {
+  return (
+    <span className="pr-card-labels">
+      {labels.map((label) => (
+        <span
+          key={label.name}
+          className="pr-card-label"
+          style={labelStyle(label.color)}
+          title={label.name}
+        >
+          {label.name}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 interface PRCardProps {
   pr: GitHubPR;
   fields: PRCardFields;
@@ -223,6 +259,7 @@ export function PRCard({
               <BranchPill head={pr.head.ref} base={pr.base.ref} />
             </>
           )}
+          {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
       </div>
 
