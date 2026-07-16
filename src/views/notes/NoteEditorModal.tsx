@@ -146,7 +146,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [show, handleDismiss]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!editor) return;
 
     const markdown = getMarkdown(editor);
@@ -180,7 +180,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     } finally {
       setSaving(false);
     }
-  };
+  }, [editor, titleText, isEditing, onEdit, note, onSave, handleClose]);
 
   // Compute reference URL: from existing note when editing, or live-detected from editor content
   const referenceUrl = useMemo(() => {
@@ -197,9 +197,26 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const hasContent = editorContent.trim().length > 0;
   const canSave = isEditing ? isDirty : hasContent;
 
+  // Cmd+Enter (macOS) / Ctrl+Enter (Windows/Linux) saves the note
+  useEffect(() => {
+    if (!show) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (canSave && !saving) handleSave();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [show, canSave, saving, handleSave]);
+
   const titlePlaceholder = useMemo(() => {
     return hasContent ? deriveTitleFromContent(editorContent) : "Untitled";
   }, [hasContent, editorContent]);
+
+  const isMac = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform);
+  const saveShortcutHint = isMac ? "⌘↵" : "Ctrl ↵";
 
   return (
     <Modal
@@ -269,9 +286,9 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                 Saving...
               </>
             ) : isEditing ? (
-              "Save Changes"
+              `Save Changes (${saveShortcutHint})`
             ) : (
-              "Add Note"
+              `Add Note (${saveShortcutHint})`
             )}
           </Button>
         )}
