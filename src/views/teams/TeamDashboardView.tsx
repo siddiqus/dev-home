@@ -1,9 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { IconChartBar, IconUsersGroup, IconRun } from "@tabler/icons-react";
+import {
+  IconChartBar,
+  IconUsersGroup,
+  IconRun,
+  IconGitPullRequest,
+  IconChevronRight,
+  IconChevronDown,
+} from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
+import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { JiraIssueDrawer } from "../../components/JiraIssueDrawer";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
@@ -11,7 +19,9 @@ import { fetchIssuesByKeys } from "../../services/jira";
 import { fetchPR } from "../../services/github";
 import { formatRelativeTime } from "../../utils/time";
 import type { JiraIssue, GitHubPR } from "../../types";
+import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import type { LinkedPR, Ref } from "../../types/teams";
+import { TeamPRsTab } from "./TeamPRsTab";
 // --- Sprint cockpit ---
 import { SprintMetaBar } from "./cockpit/SprintMetaBar";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
@@ -26,12 +36,47 @@ interface Props {
   jiraBaseUrl?: string;
   /** Pre-select this team when navigating in from the teams list. */
   initialTeamId?: number | null;
+  // --- Team PRs tab (threaded through to the PRTable, as in Org PRs) ---
+  jiraIssues?: JiraIssue[];
+  claudeEnabled?: boolean;
+  claudeSessions?: ClaudeSession[];
+  onClaudeAction?: (
+    pr: {
+      number: number;
+      repo_full_name: string;
+      title: string;
+      headBranch: string;
+      baseBranch: string;
+    },
+    action: ClaudeAction,
+    customPrompt?: string,
+  ) => void;
+  onViewClaudeSession?: (sessionId: string) => void;
 }
 
-export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Props) {
+export function TeamDashboardView({
+  configured,
+  jiraBaseUrl,
+  initialTeamId,
+  jiraIssues,
+  claudeEnabled,
+  claudeSessions,
+  onClaudeAction,
+  onViewClaudeSession,
+}: Props) {
   const { teams } = useTeams(configured);
   const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
+  // Top-level view: the Jira sprint cockpit, or the team's PRs.
+  const [tab, setTab] = useState<"sprint" | "prs">("sprint");
+  // Mount the PRs tab lazily on first open, then keep it alive so switching back
+  // doesn't refetch (it self-fetches on mount, gated on `active`).
+  const [prsEverOpened, setPrsEverOpened] = useState(false);
+  useEffect(() => {
+    if (tab === "prs") setPrsEverOpened(true);
+  }, [tab]);
+  // Off-board PRs is a secondary, noisy list — start collapsed.
+  const [offBoardCollapsed, setOffBoardCollapsed] = useState(true);
 
   // This view stays mounted while the app only toggles the active tab, so a new
   // navigation target arrives as a prop change — reflect it (and reset the
@@ -48,6 +93,11 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
   const teamItems: DropdownItem[] = useMemo(
     () => teams.map((t) => ({ value: String(t.id), label: t.name })),
     [teams],
+  );
+
+  const teamName = useMemo(
+    () => teams.find((t) => t.id === teamId)?.name ?? dashboard?.team.name ?? "",
+    [teams, teamId, dashboard?.team.name],
   );
 
   const sprintItems: DropdownItem[] = useMemo(
@@ -144,16 +194,29 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
           width={220}
         />
 
-        {dashboard && dashboard.sprints.length > 0 && (
-          <SearchableDropdown
-            items={sprintItems}
-            value={selectedSprintId != null ? String(selectedSprintId) : ""}
-            onChange={(v) => setSprintId(v ? parseInt(v, 10) : null)}
-            placeholder="Search sprints…"
-            allLabel="Sprint"
-            hideAllOption
-            triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-            width={400}
+        {teamId != null && (
+          <SegmentedTabs
+            className="inline-control"
+            activeKey={tab}
+            onChange={(k) => setTab(k as "sprint" | "prs")}
+            tabs={[
+              {
+                key: "sprint",
+                label: (
+                  <span className="d-inline-flex align-items-center gap-1">
+                    <IconRun size={14} /> Sprint
+                  </span>
+                ),
+              },
+              {
+                key: "prs",
+                label: (
+                  <span className="d-inline-flex align-items-center gap-1">
+                    <IconGitPullRequest size={14} /> PRs
+                  </span>
+                ),
+              },
+            ]}
           />
         )}
       </div>
@@ -167,102 +230,151 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId }: Pr
         />
       )}
 
-      {dashboard && (
-        <>
-          {dashboard.errors.length > 0 && (
-            <div className="alert alert-warning small">
-              <ul className="mb-0 ps-3">
-                {dashboard.errors.map((e, i) => (
-                  <li key={i}>{e}</li>
-                ))}
-              </ul>
+      {/* ---- Sprint tab: the Jira cockpit ---- */}
+      {teamId != null && (
+        <div className={tab === "sprint" ? "" : "d-none"}>
+          {dashboard && dashboard.sprints.length > 0 && (
+            <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
+              <SearchableDropdown
+                items={sprintItems}
+                value={selectedSprintId != null ? String(selectedSprintId) : ""}
+                onChange={(v) => setSprintId(v ? parseInt(v, 10) : null)}
+                placeholder="Search sprints…"
+                allLabel="Sprint"
+                hideAllOption
+                triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+                width={400}
+              />
             </div>
           )}
 
-          {/* Sprint meta */}
-          <SprintMetaBar
-            sprint={selectedSprint}
-            pace={dashboard.pace}
-            lastSynced={dashboard.syncedAt ?? null}
-            jiraBaseUrl={jiraBaseUrl}
-            boardId={dashboard.team.board?.id ?? null}
-          />
+          {dashboard && (
+            <>
+              {dashboard.errors.length > 0 && (
+                <div className="alert alert-warning small">
+                  <ul className="mb-0 ps-3">
+                    {dashboard.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-          <div className="mb-3">
-            <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
-          </div>
-
-          {/* Row 2 — Completion over time + Needs Attention */}
-          <div className="row g-3 mb-3">
-            <div className="col-lg-7">
-              <LoadDistribution
-                workload={dashboard.workload}
-                loadBalance={dashboard.loadBalance}
-                onOpenRef={openRef}
-                staleDays={staleDaysMap}
+              {/* Sprint meta */}
+              <SprintMetaBar
+                sprint={selectedSprint}
+                pace={dashboard.pace}
+                lastSynced={dashboard.syncedAt ?? null}
+                jiraBaseUrl={jiraBaseUrl}
+                boardId={dashboard.team.board?.id ?? null}
               />
-            </div>
-            <div className="col-lg-5">
-              <NeedsAttentionPanel
-                needsAttention={dashboard.needsAttention}
-                onOpenRef={openRef}
-                staleDays={staleDaysMap}
-              />
-            </div>
-          </div>
 
-          <div className="row g-3 mb-3">
-            <div className="col-lg-7">
-              <div className="border rounded p-2 h-100">
-                <PrFlowSection prFlow={dashboard.prFlow} />
+              <div className="mb-3">
+                <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
               </div>
-            </div>
-            <div className="col-lg-5">
-              <DeliveryHygiene hygiene={dashboard.hygiene} onOpenRef={openRef} />
-            </div>
-          </div>
 
-          {/* Off-board PRs — full list */}
-          <div className="border rounded p-2" style={{ background: "rgba(255,170,60,.06)" }}>
-            <div className="small text-muted mb-2">
-              ⚠ PRs OUTSIDE THE SPRINT · last 2 weeks · {dashboard.offBoardPRs.length}
-            </div>
-            {dashboard.offBoardPRs.length === 0 ? (
-              <div className="text-muted small">None.</div>
-            ) : (
-              <table className="table table-sm table-hover mb-0">
-                <tbody>
-                  {dashboard.offBoardPRs.map((pr) => (
-                    <tr
-                      key={`${pr.repo_full_name}#${pr.number}`}
-                      onClick={() => openPR(pr.repo_full_name, pr.number)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td>{pr.author}</td>
-                      <td>
-                        <a
-                          href={pr.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          #{pr.number} {pr.title}
-                        </a>
-                      </td>
-                      <td className="text-muted">
-                        {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
-                      </td>
-                      <td>{pr.state}</td>
-                    </tr>
+              {/* Row 2 — Completion over time + Needs Attention */}
+              <div className="row g-3 mb-3">
+                <div className="col-lg-7">
+                  <LoadDistribution
+                    workload={dashboard.workload}
+                    loadBalance={dashboard.loadBalance}
+                    onOpenRef={openRef}
+                    staleDays={staleDaysMap}
+                  />
+                </div>
+                <div className="col-lg-5">
+                  <NeedsAttentionPanel
+                    needsAttention={dashboard.needsAttention}
+                    onOpenRef={openRef}
+                    staleDays={staleDaysMap}
+                  />
+                </div>
+              </div>
+
+              <div className="row g-3 mb-3">
+                <div className="col-lg-7">
+                  <div className="border rounded p-2 h-100">
+                    <PrFlowSection prFlow={dashboard.prFlow} />
+                  </div>
+                </div>
+                <div className="col-lg-5">
+                  <DeliveryHygiene hygiene={dashboard.hygiene} onOpenRef={openRef} />
+                </div>
+              </div>
+
+              {/* Off-board PRs — full list */}
+              <div className="border rounded p-2" style={{ background: "rgba(255,170,60,.06)" }}>
+                <div
+                  className="small text-muted d-flex align-items-center gap-1"
+                  style={{ cursor: "pointer" }}
+                  role="button"
+                  onClick={() => setOffBoardCollapsed((c) => !c)}
+                >
+                  {offBoardCollapsed ? (
+                    <IconChevronRight size={14} />
+                  ) : (
+                    <IconChevronDown size={14} />
+                  )}
+                  ⚠ PRs OUTSIDE THE SPRINT · last 2 weeks · {dashboard.offBoardPRs.length}
+                </div>
+                {!offBoardCollapsed &&
+                  (dashboard.offBoardPRs.length === 0 ? (
+                    <div className="text-muted small mt-2">None.</div>
+                  ) : (
+                    <table className="table table-sm table-hover mb-0 mt-2">
+                      <tbody>
+                        {dashboard.offBoardPRs.map((pr) => (
+                          <tr
+                            key={`${pr.repo_full_name}#${pr.number}`}
+                            onClick={() => openPR(pr.repo_full_name, pr.number)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{pr.author}</td>
+                            <td>
+                              <a
+                                href={pr.html_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                #{pr.number} {pr.title}
+                              </a>
+                            </td>
+                            <td className="text-muted">
+                              {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
+                            </td>
+                            <td>{pr.state}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
-      <LoadingOverlay show={loading} label="Loading team data…" />
+      {/* ---- PRs tab: Org PRs, authors locked to the team ---- */}
+      {teamId != null && prsEverOpened && (
+        <div className={tab === "prs" ? "" : "d-none"}>
+          <TeamPRsTab
+            active={tab === "prs"}
+            configured={configured}
+            teamId={teamId}
+            teamName={teamName}
+            jiraBaseUrl={jiraBaseUrl}
+            jiraIssues={jiraIssues}
+            claudeEnabled={claudeEnabled}
+            claudeSessions={claudeSessions}
+            onClaudeAction={onClaudeAction}
+            onViewClaudeSession={onViewClaudeSession}
+          />
+        </div>
+      )}
+
+      <LoadingOverlay show={loading && tab === "sprint"} label="Loading team data…" />
       <LoadingOverlay show={detailLoading} label="Loading…" />
 
       <JiraIssueDrawer

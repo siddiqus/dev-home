@@ -137,6 +137,7 @@ a.pr-card-ticket:hover {
   display: inline-flex;
   align-items: center;
   color: var(--color-text-muted);
+  cursor: pointer;
   transition: color 120ms ease;
 }
 
@@ -193,6 +194,31 @@ a.pr-card-ticket:hover {
 .pr-card-branch-arrow {
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+/* ---- label badges ---- */
+.pr-card-labels {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pr-card-label {
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  /* Neutral fallback used only when a label has no/invalid color. */
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
 }
 
 /* ---- right column ---- */

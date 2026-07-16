@@ -669,6 +669,11 @@ export default function App() {
                       configured={configured}
                       jiraBaseUrl={jiraBaseUrl}
                       initialTeamId={dashboardTeamId}
+                      jiraIssues={jiraIssues}
+                      claudeEnabled={claudeEnabled}
+                      claudeSessions={claudeSessions.sessions}
+                      onClaudeAction={handleClaudeAction}
+                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "notes" && (

@@ -14,6 +14,8 @@ interface MultiSelectDropdownProps {
   allLabel: string;
   width?: number;
   loading?: boolean;
+  /** Icon shown at the left of the trigger. Defaults to a search icon. */
+  triggerIcon?: React.ReactNode;
 }
 
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -24,6 +26,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   allLabel,
   width = 240,
   loading = false,
+  triggerIcon = <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -107,7 +110,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           }
         }}
       >
-        <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
+        {triggerIcon}
         {open ? (
           <Form.Control
             ref={inputRef}
