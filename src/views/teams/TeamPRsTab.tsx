@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Spinner from "react-bootstrap/Spinner";
 import { IconRefresh, IconFold, IconFoldDown, IconLock } from "@tabler/icons-react";
-import "../prs/PRsView.css";
+import "./TeamPRsTab.css";
 import type { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import type { TeamMember } from "../../types/teams";
@@ -179,28 +179,25 @@ export function TeamPRsTab({
 
   return (
     <>
-      {/* Toolbar: locked-authors badge + sub-filters (left) + refresh (right) */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
+      {/* One toolbar: member/repo filters (left) · collapse + Open/Merged + refresh (right).
+          Authors are locked to the roster, signalled by the lock icon on the members
+          filter — so there's no separate sub-tab bar. */}
+      <div className="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span
-            className="d-inline-flex align-items-center gap-1 small"
-            style={{
-              color: "var(--color-text-secondary)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              padding: "4px 10px",
-            }}
-            title="Authors are locked to this team's members"
-          >
-            <IconLock size={13} style={{ opacity: 0.7 }} />
-            {teamName} ({memberItems.length})
-          </span>
           <MultiSelectDropdown
             items={memberItems}
             values={selectedMembers}
             onChange={setSelectedMembers}
             placeholder="Search members..."
             allLabel="All members"
+            triggerIcon={
+              <span
+                className="d-inline-flex"
+                title={`Authors locked to ${teamName} (${memberItems.length})`}
+              >
+                <IconLock size={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+              </span>
+            }
           />
           <MultiSelectDropdown
             items={repoItems}
@@ -214,6 +211,37 @@ export function TeamPRsTab({
           {(loading || mergedLoading || membersLoading) && (
             <Spinner animation="border" size="sm" variant="secondary" />
           )}
+          {subTab === "open" && groupState.hasGroups && (
+            <button
+              type="button"
+              className="pr-table-collapse-btn"
+              onClick={() => prTableRef.current?.toggleCollapseAll()}
+              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+            >
+              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          )}
+          <div className="pr-view-toggle" role="tablist" aria-label="PR state">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={subTab === "open"}
+              className={subTab === "open" ? "active" : ""}
+              onClick={() => setSubTab("open")}
+            >
+              Open{!loading && ` (${prs.length})`}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={subTab === "merged"}
+              className={subTab === "merged" ? "active" : ""}
+              onClick={() => setSubTab("merged")}
+            >
+              Merged{!mergedLoading && ` (${mergedPRs.length})`}
+            </button>
+          </div>
           <button
             type="button"
             className="pr-table-collapse-btn"
@@ -224,35 +252,6 @@ export function TeamPRsTab({
             <IconRefresh size={14} />
           </button>
         </div>
-      </div>
-
-      <div className="prs-subtab-bar">
-        <div className="prs-subtab-group">
-          <button
-            className={`prs-subtab${subTab === "open" ? " active" : ""}`}
-            onClick={() => setSubTab("open")}
-          >
-            Open PRs{!loading && ` (${prs.length})`}
-          </button>
-          <button
-            className={`prs-subtab${subTab === "merged" ? " active" : ""}`}
-            onClick={() => setSubTab("merged")}
-          >
-            Merged{!mergedLoading && ` (${mergedPRs.length})`}
-          </button>
-        </div>
-        {subTab === "open" && groupState.hasGroups && (
-          <button
-            type="button"
-            className="pr-table-collapse-btn"
-            style={{ marginLeft: "auto" }}
-            onClick={() => prTableRef.current?.toggleCollapseAll()}
-            title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
-          >
-            {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-            {groupState.allCollapsed ? "Expand all" : "Collapse all"}
-          </button>
-        )}
       </div>
 
       {!hasLinkedMembers && !membersLoading ? (
