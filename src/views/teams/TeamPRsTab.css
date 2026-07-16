@@ -1,3 +1,12 @@
+/* Right-cluster toolbar buttons (collapse, refresh) — pin to the 28px height of
+   the view toggle and the filter dropdowns so the whole row is uniform. Scoped
+   modifier layered on the shared .pr-table-collapse-btn so Org PRs is unaffected. */
+.pr-toolbar-btn {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Open/Merged view toggle — deliberately lighter than the Sprint/PRs nav pills
    so the two levels don't read as "tabs on tabs". Sits in the filter toolbar's
    right cluster alongside the collapse + refresh controls. */

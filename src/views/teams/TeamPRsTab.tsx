@@ -214,7 +214,7 @@ export function TeamPRsTab({
           {subTab === "open" && groupState.hasGroups && (
             <button
               type="button"
-              className="pr-table-collapse-btn"
+              className="pr-table-collapse-btn pr-toolbar-btn"
               onClick={() => prTableRef.current?.toggleCollapseAll()}
               title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
             >
@@ -244,7 +244,7 @@ export function TeamPRsTab({
           </div>
           <button
             type="button"
-            className="pr-table-collapse-btn"
+            className="pr-table-collapse-btn pr-toolbar-btn"
             onClick={refresh}
             disabled={loading || mergedLoading}
             title="Refresh"
