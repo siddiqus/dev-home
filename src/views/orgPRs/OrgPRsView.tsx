@@ -430,14 +430,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     [orgRepos],
   );
 
-  if (loading && prs.length === 0) {
-    return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <Spinner animation="border" variant="secondary" />
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Toolbar: filters (left) + subtabs + refresh (right) */}
