@@ -55,7 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Teams",
     tabs: [
       { key: "teams", label: "Manage Teams" },
-      { key: "team-dashboard", label: "Team Dashboard" },
+      // { key: "team-dashboard", label: "Team Dashboard" },
     ],
   },
   {
