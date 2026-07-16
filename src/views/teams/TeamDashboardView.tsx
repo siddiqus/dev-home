@@ -1,5 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { IconChartBar, IconUsersGroup, IconRun, IconGitPullRequest } from "@tabler/icons-react";
+import {
+  IconChartBar,
+  IconUsersGroup,
+  IconRun,
+  IconGitPullRequest,
+  IconChevronRight,
+  IconChevronDown,
+} from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
 import { EmptyState } from "../../components/EmptyState";
@@ -68,6 +75,8 @@ export function TeamDashboardView({
   useEffect(() => {
     if (tab === "prs") setPrsEverOpened(true);
   }, [tab]);
+  // Off-board PRs is a secondary, noisy list — start collapsed.
+  const [offBoardCollapsed, setOffBoardCollapsed] = useState(true);
 
   // This view stays mounted while the app only toggles the active tab, so a new
   // navigation target arrives as a prop change — reflect it (and reset the
@@ -187,6 +196,7 @@ export function TeamDashboardView({
 
         {teamId != null && (
           <SegmentedTabs
+            className="inline-control"
             activeKey={tab}
             onChange={(k) => setTab(k as "sprint" | "prs")}
             tabs={[
@@ -295,40 +305,51 @@ export function TeamDashboardView({
 
               {/* Off-board PRs — full list */}
               <div className="border rounded p-2" style={{ background: "rgba(255,170,60,.06)" }}>
-                <div className="small text-muted mb-2">
+                <div
+                  className="small text-muted d-flex align-items-center gap-1"
+                  style={{ cursor: "pointer" }}
+                  role="button"
+                  onClick={() => setOffBoardCollapsed((c) => !c)}
+                >
+                  {offBoardCollapsed ? (
+                    <IconChevronRight size={14} />
+                  ) : (
+                    <IconChevronDown size={14} />
+                  )}
                   ⚠ PRs OUTSIDE THE SPRINT · last 2 weeks · {dashboard.offBoardPRs.length}
                 </div>
-                {dashboard.offBoardPRs.length === 0 ? (
-                  <div className="text-muted small">None.</div>
-                ) : (
-                  <table className="table table-sm table-hover mb-0">
-                    <tbody>
-                      {dashboard.offBoardPRs.map((pr) => (
-                        <tr
-                          key={`${pr.repo_full_name}#${pr.number}`}
-                          onClick={() => openPR(pr.repo_full_name, pr.number)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>{pr.author}</td>
-                          <td>
-                            <a
-                              href={pr.html_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              #{pr.number} {pr.title}
-                            </a>
-                          </td>
-                          <td className="text-muted">
-                            {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
-                          </td>
-                          <td>{pr.state}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                {!offBoardCollapsed &&
+                  (dashboard.offBoardPRs.length === 0 ? (
+                    <div className="text-muted small mt-2">None.</div>
+                  ) : (
+                    <table className="table table-sm table-hover mb-0 mt-2">
+                      <tbody>
+                        {dashboard.offBoardPRs.map((pr) => (
+                          <tr
+                            key={`${pr.repo_full_name}#${pr.number}`}
+                            onClick={() => openPR(pr.repo_full_name, pr.number)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>{pr.author}</td>
+                            <td>
+                              <a
+                                href={pr.html_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                #{pr.number} {pr.title}
+                              </a>
+                            </td>
+                            <td className="text-muted">
+                              {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
+                            </td>
+                            <td>{pr.state}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ))}
               </div>
             </>
           )}

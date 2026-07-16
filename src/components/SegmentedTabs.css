@@ -22,7 +22,9 @@
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
   white-space: nowrap;
 }
 
@@ -34,4 +36,22 @@
 .segmented-tab.active {
   background: var(--color-accent-bg-subtle);
   color: var(--color-accent);
+}
+
+/* Inline variant: sit beside another 30px control (e.g. a SearchableDropdown)
+   on the same toolbar row. Pins the group to the standard 30px control height
+   and drops the block margin so the row stays vertically aligned. */
+.segmented-tab-bar.inline-control {
+  margin-bottom: 0;
+}
+
+.segmented-tab-bar.inline-control .segmented-tab-group {
+  height: 30px;
+}
+
+.segmented-tab-bar.inline-control .segmented-tab {
+  display: inline-flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
 }
