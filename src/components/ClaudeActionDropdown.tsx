@@ -98,7 +98,11 @@ export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({
           <IconSparkles size={"1rem"} />
         </Dropdown.Toggle>
 
-        <Dropdown.Menu className="claude-action-menu">
+        <Dropdown.Menu
+          className="claude-action-menu"
+          renderOnMount
+          popperConfig={{ strategy: "fixed" }}
+        >
           {prSessions.length > 0 && onViewSession && (
             <>
               {prSessions.map((s) => (
