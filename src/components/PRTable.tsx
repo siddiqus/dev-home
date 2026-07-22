@@ -185,6 +185,31 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+  // Transient "copied branch to clipboard" confirmation. Rendered as a fixed
+  // bottom toast so it never reflows the PR list when it shows/hides.
+  const [copiedBranch, setCopiedBranch] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopyBranch = useCallback((branch: string) => {
+    navigator.clipboard
+      ?.writeText(branch)
+      .then(() => {
+        setCopiedBranch(branch);
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopiedBranch(null), 2000);
+      })
+      .catch(() => {
+        /* clipboard unavailable (e.g. insecure context) — silently ignore */
+      });
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
   const storageKey = `dev-home-pr-collapsed-${variant}${storageKeyScope ? `-${storageKeyScope}` : ""}`;
   // Controlled when the parent supplies `collapsedGroups`; otherwise the table
   // owns its own localStorage-backed collapse state.
@@ -339,6 +364,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     onClaudeAction={onClaudeAction}
                     onViewClaudeSession={onViewClaudeSession}
                     onOpen={setSelectedPR}
+                    onCopyBranch={handleCopyBranch}
                   />
                 ))}
             </React.Fragment>
@@ -384,6 +410,12 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
             : undefined
         }
       />
+
+      {/* Copied-to-clipboard confirmation — fixed at the bottom so it doesn't
+          shift the PR list when it appears/disappears. */}
+      <div className={`pr-copy-toast ${copiedBranch ? "is-visible" : ""}`} role="status">
+        Copied branch name to clipboard
+      </div>
     </>
   );
 });

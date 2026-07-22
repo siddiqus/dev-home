@@ -4,6 +4,7 @@ import {
   IconGitPullRequestDraft,
   IconGitBranch,
   IconExternalLink,
+  IconCopy,
 } from "@tabler/icons-react";
 import { GitHubPR, GitHubLabel } from "../types";
 import { formatRelativeTime } from "../utils/time";
@@ -100,7 +101,15 @@ function renderTitleContent(
 }
 
 /** head → base branch pill; base is hidden when it's the default branch. */
-function BranchPill({ head, base }: { head: string; base: string }) {
+function BranchPill({
+  head,
+  base,
+  onCopy,
+}: {
+  head: string;
+  base: string;
+  onCopy?: (branch: string) => void;
+}) {
   const showBase = !["master", "main"].includes(base);
   return (
     <span className="pr-card-branch">
@@ -108,6 +117,20 @@ function BranchPill({ head, base }: { head: string; base: string }) {
       <span className="pr-card-branch-name" title={head}>
         {head}
       </span>
+      {onCopy && (
+        <button
+          type="button"
+          className="pr-card-branch-copy"
+          title="Copy branch name"
+          aria-label="Copy branch name"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy(head);
+          }}
+        >
+          <IconCopy size={12} stroke={1.8} />
+        </button>
+      )}
       {showBase && (
         <span className="pr-card-branch-arrow">
           {"→"} {base}
@@ -177,6 +200,8 @@ interface PRCardProps {
   onViewClaudeSession?: (sessionId: string) => void;
   /** Opens the PR description modal. */
   onOpen: (pr: GitHubPR) => void;
+  /** Copies the given head branch name to the clipboard (surfaces a toast). */
+  onCopyBranch?: (branch: string) => void;
 }
 
 export function PRCard({
@@ -190,6 +215,7 @@ export function PRCard({
   onClaudeAction,
   onViewClaudeSession,
   onOpen,
+  onCopyBranch,
 }: PRCardProps) {
   const status = fields.showStatus ? deriveStatus(pr) : null;
   const timeText =
@@ -256,7 +282,7 @@ export function PRCard({
           {fields.showBranch && (
             <>
               <span className="pr-card-sep">{"·"}</span>
-              <BranchPill head={pr.head.ref} base={pr.base.ref} />
+              <BranchPill head={pr.head.ref} base={pr.base.ref} onCopy={onCopyBranch} />
             </>
           )}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
