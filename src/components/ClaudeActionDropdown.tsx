@@ -1,13 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import Dropdown from "react-bootstrap/Dropdown";
-import Form from "react-bootstrap/Form";
-import Modal from "react-bootstrap/Modal";
-import Button from "react-bootstrap/Button";
 import {
   IconSearch,
   IconTool,
   IconFileDescription,
-  IconTerminal,
   IconSparkles,
   IconInfoCircle,
   IconPlayerPlay,
@@ -45,7 +41,6 @@ const ACTION_CONFIG: {
     icon: IconFileDescription,
     description: "Generate PR description & summary",
   },
-  { action: "custom", icon: IconTerminal, description: "Tell Claude what to do" },
 ];
 
 function getSuggestedAction(pr: GitHubPR): ClaudeAction | null {
@@ -61,8 +56,6 @@ export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({
   activeSessions,
   onViewSession,
 }) => {
-  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState("");
   const suggested = getSuggestedAction(pr);
 
   const prSessions =
@@ -71,116 +64,59 @@ export const ClaudeActionDropdown: React.FC<ClaudeActionDropdownProps> = ({
         s.prNumber === pr.number && s.repoFullName === pr.repo_full_name && s.status === "running",
     ) || [];
 
-  const handleAction = (action: ClaudeAction) => {
-    if (action === "custom") {
-      setShowCustomPrompt(true);
-    } else {
-      onAction(action);
-    }
-  };
-
-  const handleCustomSubmit = () => {
-    if (customPrompt.trim()) {
-      onAction("custom", customPrompt.trim());
-      setShowCustomPrompt(false);
-      setCustomPrompt("");
-    }
-  };
-
   return (
-    <>
-      <Dropdown onClick={(e) => e.stopPropagation()}>
-        <Dropdown.Toggle
-          size="sm"
-          variant={prSessions.length > 0 ? "success" : "outline-secondary"}
-          className="claude-action-toggle"
-        >
-          <IconSparkles size={"1rem"} />
-        </Dropdown.Toggle>
+    <Dropdown onClick={(e) => e.stopPropagation()}>
+      <Dropdown.Toggle
+        size="sm"
+        variant={prSessions.length > 0 ? "success" : "outline-secondary"}
+        className="claude-action-toggle"
+      >
+        <IconSparkles size={"1rem"} />
+      </Dropdown.Toggle>
 
-        <Dropdown.Menu
-          className="claude-action-menu"
-          renderOnMount
-          popperConfig={{ strategy: "fixed" }}
-        >
-          {prSessions.length > 0 && onViewSession && (
-            <>
-              {prSessions.map((s) => (
-                <Dropdown.Item
-                  key={s.id}
-                  onClick={() => onViewSession(s.id)}
-                  className="claude-action-item suggested"
-                >
-                  <IconPlayerPlay size={16} />
-                  <div className="claude-action-item-text">
-                    <div className="claude-action-item-label">
-                      {CLAUDE_ACTION_LABELS[s.action]} — Active
-                    </div>
-                    <div className="claude-action-item-description">View running session</div>
+      <Dropdown.Menu
+        className="claude-action-menu"
+        renderOnMount
+        popperConfig={{ strategy: "fixed" }}
+      >
+        {prSessions.length > 0 && onViewSession && (
+          <>
+            {prSessions.map((s) => (
+              <Dropdown.Item
+                key={s.id}
+                onClick={() => onViewSession(s.id)}
+                className="claude-action-item suggested"
+              >
+                <IconPlayerPlay size={16} />
+                <div className="claude-action-item-text">
+                  <div className="claude-action-item-label">
+                    {CLAUDE_ACTION_LABELS[s.action]} — Active
                   </div>
-                </Dropdown.Item>
-              ))}
-              <Dropdown.Divider />
-            </>
-          )}
-          <Dropdown.Header>Claude Actions</Dropdown.Header>
-          {ACTION_CONFIG.map(({ action, icon: Icon, description }) => (
-            <Dropdown.Item
-              key={action}
-              onClick={() => handleAction(action)}
-              className={`claude-action-item${suggested === action ? " suggested" : ""}`}
-            >
-              <Icon size={16} />
-              <div className="claude-action-item-text">
-                <div className="claude-action-item-label">
-                  {CLAUDE_ACTION_LABELS[action]}
-                  {suggested === action && (
-                    <span className="claude-suggested-badge">Suggested</span>
-                  )}
+                  <div className="claude-action-item-description">View running session</div>
                 </div>
-                <div className="claude-action-item-description">{description}</div>
-              </div>
-            </Dropdown.Item>
-          ))}
-        </Dropdown.Menu>
-      </Dropdown>
-
-      <Modal show={showCustomPrompt} onHide={() => setShowCustomPrompt(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title style={{ fontSize: "1rem" }}>Custom Claude Prompt</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="text-secondary-custom mb-2" style={{ fontSize: "0.8125rem" }}>
-            PR #{pr.number}: {pr.title} ({pr.repo_full_name})
-          </p>
-          <Form.Control
-            as="textarea"
-            rows={4}
-            placeholder="Tell Claude what to do with this PR..."
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                handleCustomSubmit();
-              }
-            }}
-          />
-          <Form.Text className="text-secondary-custom">Press Cmd+Enter to submit</Form.Text>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" size="sm" onClick={() => setShowCustomPrompt(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleCustomSubmit}
-            disabled={!customPrompt.trim()}
+              </Dropdown.Item>
+            ))}
+            <Dropdown.Divider />
+          </>
+        )}
+        <Dropdown.Header>Claude Actions</Dropdown.Header>
+        {ACTION_CONFIG.map(({ action, icon: Icon, description }) => (
+          <Dropdown.Item
+            key={action}
+            onClick={() => onAction(action)}
+            className={`claude-action-item${suggested === action ? " suggested" : ""}`}
           >
-            Run
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+            <Icon size={16} />
+            <div className="claude-action-item-text">
+              <div className="claude-action-item-label">
+                {CLAUDE_ACTION_LABELS[action]}
+                {suggested === action && <span className="claude-suggested-badge">Suggested</span>}
+              </div>
+              <div className="claude-action-item-description">{description}</div>
+            </div>
+          </Dropdown.Item>
+        ))}
+      </Dropdown.Menu>
+    </Dropdown>
   );
 };

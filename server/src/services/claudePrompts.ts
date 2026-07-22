@@ -94,7 +94,7 @@ function buildInvestigateCiPrompt(ctx: PromptContext): string {
   return `
 You are investigating CI failures on PR #${ctx.prNumber} in ${ctx.repoFullName}.
 
-This is a read-only analysis — do NOT make any code changes, commits, or pushes.
+This is a read-only analysis — do NOT make any code changes, commits, or pushes or updates to anything regarding this PR.
 
 ## Process
 
@@ -124,7 +124,7 @@ function buildExplainCommentsPrompt(ctx: PromptContext): string {
   return `
 You are explaining the review comments on PR #${ctx.prNumber} in ${ctx.repoFullName}.
 
-This is a read-only analysis — do NOT make any code changes or push anything.
+This is a read-only analysis — do NOT make any code changes, commits, or pushes or updates to anything regarding this PR.
 
 ## Process
 
@@ -146,9 +146,9 @@ This is a read-only analysis — do NOT make any code changes or push anything.
 
 function buildSummarizePrompt(ctx: PromptContext): string {
   return `
-You are generating a clear, structured PR description for PR #${ctx.prNumber} in ${ctx.repoFullName}.
+You are generating a clear, structured description for PR #${ctx.prNumber} in ${ctx.repoFullName}.
 
-This is a read-only task — do NOT make any code changes, commits, or pushes. The only write you perform is updating the PR description text on GitHub.
+This is a read-only task — do NOT make any code changes, commits, or pushes or updates to anything regarding this PR.
 
 ## Process
 
@@ -167,11 +167,6 @@ This is a read-only task — do NOT make any code changes, commits, or pushes. T
    **Testing** — How the changes were tested or should be tested
 
    **Breaking Changes** — If any, describe what breaks and provide migration steps
-
-4. Update the PR description on GitHub:
-   \`gh pr edit ${ctx.prNumber} --repo ${ctx.repoFullName} --body "..."\`
-
-This is a non-destructive action — it only updates the PR description, does not modify code.
 `.trim();
 }
 

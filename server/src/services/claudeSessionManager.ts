@@ -5,12 +5,7 @@ import { WebSocket } from "ws";
 import { buildPrompt } from "./claudePrompts";
 import { getDb } from "../db";
 
-export type ClaudeAction =
-  | "review"
-  | "explain_comments"
-  | "investigate_ci"
-  | "summarize"
-  | "custom";
+export type ClaudeAction = "review" | "explain_comments" | "investigate_ci" | "summarize";
 export type SessionStatus = "running" | "completed" | "cancelled" | "error";
 
 type OutputKind = "text" | "tool_use" | "tool_result" | "result" | "raw";

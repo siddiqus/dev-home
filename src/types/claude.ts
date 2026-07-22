@@ -1,9 +1,4 @@
-export type ClaudeAction =
-  | "review"
-  | "explain_comments"
-  | "investigate_ci"
-  | "summarize"
-  | "custom";
+export type ClaudeAction = "review" | "explain_comments" | "investigate_ci" | "summarize";
 
 export type ClaudeSessionStatus = "running" | "completed" | "cancelled" | "error";
 
@@ -70,5 +65,4 @@ export const CLAUDE_ACTION_LABELS: Record<ClaudeAction, string> = {
   explain_comments: "Explain Comments",
   investigate_ci: "Investigate CI Failures",
   summarize: "Summarize Changes",
-  custom: "Custom Prompt",
 };
