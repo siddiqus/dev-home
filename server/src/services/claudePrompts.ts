@@ -146,27 +146,42 @@ This is a read-only analysis — do NOT make any code changes, commits, or pushe
 
 function buildSummarizePrompt(ctx: PromptContext): string {
   return `
-You are generating a clear, structured description for PR #${ctx.prNumber} in ${ctx.repoFullName}.
+You are explaining PR #${ctx.prNumber} in ${ctx.repoFullName} to a reader who wants to understand what it actually does.
 
-This is a read-only task — do NOT make any code changes, commits, or pushes or updates to anything regarding this PR.
+This is a read-only analysis — do NOT make any code changes, commits, or pushes, and do NOT modify the PR itself (no description edits, comments, labels, or reviews). Your only output is the explanation you print back here.
 
-## Process
+## Gather context
 
-1. Analyze the full diff:
-   \`git diff ${ctx.baseBranch}...origin/${ctx.headBranch}\`
+1. Read the PR title and description:
+   \`gh pr view ${ctx.prNumber} --repo ${ctx.repoFullName}\`
 
-2. Review individual commits for context:
-   \`git log ${ctx.baseBranch}..origin/${ctx.headBranch} --oneline\`
+2. Read the actual code changes — this is the source of truth:
+   \`gh pr diff ${ctx.prNumber} --repo ${ctx.repoFullName}\`
 
-3. Generate a structured PR description with these sections:
+3. Skim the commit messages for intent:
+   \`git fetch origin ${ctx.headBranch}\` then \`git log ${ctx.baseBranch}..origin/${ctx.headBranch} --oneline\`
 
-   **Summary** — What changed and why (2-3 sentences)
+4. Create a worktree in the current ${ctx.cwd}, checkout the pr code and use the surrounding code context to summarize the changes including codebase context.
 
-   **Changes** — Bulleted list of key changes, grouped by area (e.g., frontend, backend, tests, config)
+## Your job
 
-   **Testing** — How the changes were tested or should be tested
+Go beyond restating the diff. Read the code changes and work out what they genuinely do, then explain it in simple, plain language a busy teammate can follow without knowing this codebase. Avoid jargon where a plain word works; when a technical term is unavoidable, say briefly what it means.
 
-   **Breaking Changes** — If any, describe what breaks and provide migration steps
+If the PR contains several distinct changes, break the explanation down per change. Otherwise treat it as one. For the change (or each distinct change), cover:
+
+**What is the change** — In plain terms, what was actually added, removed, or modified, and what the code does now.
+
+**Why is it there** — The problem it solves or the goal behind it. Use the title, description, and commits — but if they don't explain the "why", infer it from the code and clearly mark it as your inference.
+
+**Assumptions** — What the change takes for granted to work correctly (expected inputs, data shape, ordering, environment, that another system behaves a certain way, etc.). Call out anything that looks fragile.
+
+**Impact** — What this affects: behavior users will notice, other code or callers that depend on it, performance, data, and backward compatibility / breaking changes. Note anything to watch out for.
+
+## Notes
+
+- Base the explanation on the real code changes, not just the PR description — the description can be incomplete or out of date.
+- If part of the diff is unclear or you can't determine intent, say so plainly instead of guessing confidently.
+- Keep it concise and skimmable — short paragraphs and bullets, not walls of text.
 `.trim();
 }
 
