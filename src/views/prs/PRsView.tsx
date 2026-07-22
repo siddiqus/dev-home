@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { IconFold, IconFoldDown } from "@tabler/icons-react";
+import { IconFold, IconFoldDown, IconList, IconLayoutRows } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
-import { PRTable } from "../../components/PRTable";
+import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { PRSections, PRSectionsHandle } from "../../components/PRSections";
 import { SearchInput } from "../../components/SearchInput";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
@@ -12,6 +12,7 @@ import { DropdownItem } from "../../components/SearchableDropdown";
 import "./PRsView.css";
 
 type PRSubTab = "open" | "merged";
+type PRViewMode = "segments" | "flat";
 
 interface PRsViewProps {
   openPRs: GitHubPR[];
@@ -57,7 +58,19 @@ export const PRsView: React.FC<PRsViewProps> = ({
     localStorage.setItem("dev-home-prs-subtab", tab);
   };
 
+  // Open-PRs body layout: "segments" groups PRs into action buckets (Ready /
+  // Needs action / …); "flat" is a single Jira-clustered list.
+  const [viewMode, setViewMode] = useState<PRViewMode>(() => {
+    return (localStorage.getItem("dev-home-prs-view-mode") as PRViewMode) || "segments";
+  });
+
+  const handleViewMode = (mode: PRViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("dev-home-prs-view-mode", mode);
+  };
+
   const prSectionsRef = useRef<PRSectionsHandle>(null);
+  const prTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -149,22 +162,45 @@ export const PRsView: React.FC<PRsViewProps> = ({
             allLabel="All repos"
             width={200}
           />
-          {subTab === "open" && groupState.hasGroups && (
-            <button
-              type="button"
-              className="pr-table-collapse-btn"
-              onClick={() => prSectionsRef.current?.toggleCollapseAll()}
-              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
-            >
-              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
-            </button>
+          {subTab === "open" && (
+            <div className="prs-view-actions">
+              {groupState.hasGroups && (
+                <button
+                  type="button"
+                  className="pr-table-collapse-btn"
+                  onClick={() =>
+                    (viewMode === "flat" ? prTableRef : prSectionsRef).current?.toggleCollapseAll()
+                  }
+                  title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+                >
+                  {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+                  {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+                </button>
+              )}
+              <button
+                type="button"
+                className="prs-view-toggle-btn"
+                onClick={() => handleViewMode(viewMode === "segments" ? "flat" : "segments")}
+                title={
+                  viewMode === "segments" ? "Switch to flat list" : "Switch to action segments"
+                }
+                aria-label={
+                  viewMode === "segments" ? "Switch to flat list" : "Switch to action segments"
+                }
+              >
+                {viewMode === "segments" ? (
+                  <IconList size={16} stroke={1.8} />
+                ) : (
+                  <IconLayoutRows size={16} stroke={1.8} />
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
 
       <div className="prs-scroll-body">
-        {subTab === "open" && (
+        {subTab === "open" && viewMode === "segments" && (
           <PRSections
             ref={prSectionsRef}
             prs={filteredOpenPRs}
@@ -175,6 +211,24 @@ export const PRsView: React.FC<PRsViewProps> = ({
             claudeSessions={claudeSessions}
             onClaudeAction={onClaudeAction}
             onViewClaudeSession={onViewClaudeSession}
+            onCollapseStateChange={(hasGroups, allCollapsed) =>
+              setGroupState({ hasGroups, allCollapsed })
+            }
+          />
+        )}
+        {subTab === "open" && viewMode === "flat" && (
+          <PRTable
+            ref={prTableRef}
+            prs={filteredOpenPRs}
+            loading={loading}
+            variant="my-prs"
+            jiraIssues={jiraIssues}
+            jiraBaseUrl={jiraBaseUrl}
+            claudeEnabled={claudeEnabled}
+            claudeSessions={claudeSessions}
+            onClaudeAction={onClaudeAction}
+            onViewClaudeSession={onViewClaudeSession}
+            showGroupToolbar={false}
             onCollapseStateChange={(hasGroups, allCollapsed) =>
               setGroupState({ hasGroups, allCollapsed })
             }

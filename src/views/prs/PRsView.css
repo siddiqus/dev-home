@@ -69,8 +69,35 @@
   flex: 1;
 }
 
-/* Pin the collapse/expand button to the far right so search + repo filter
-   stay anchored left and don't shift when the button mounts/unmounts. */
-.prs-subtab-bar-right .pr-table-collapse-btn {
+/* Pin the view-toggle + collapse/expand buttons to the far right so search +
+   repo filter stay anchored left and don't shift as buttons mount/unmount. */
+.prs-view-actions {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Icon-only toggle switching the Open PRs body between action segments and a
+   flat list. Matches .pr-table-collapse-btn chrome but square (icon only). */
+.prs-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-panel);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.prs-view-toggle-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover, var(--color-border));
 }
