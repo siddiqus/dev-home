@@ -1,6 +1,17 @@
 .prs-view {
   display: flex;
   flex-direction: column;
+  /* Fill the content area so the filter bars stay fixed and only the PR list
+     scrolls. Mirrors the summary grid: viewport minus app header (46px) and
+     .main-content top/bottom padding (space-3 + space-6). */
+  height: calc(100vh - 46px - var(--space-3) - var(--space-6));
+  min-height: 0;
+}
+
+/* Fixed filter/toolbar rows at the top of the view (do not scroll). */
+.prs-toolbar,
+.prs-subtab-bar {
+  flex-shrink: 0;
 }
 
 .prs-subtab-bar {
@@ -8,6 +19,13 @@
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+
+/* Scrollable region holding the PR list — the only part that scrolls. */
+.prs-scroll-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .prs-subtab-group {
@@ -28,7 +46,9 @@
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
   white-space: nowrap;
 }
 
@@ -54,4 +74,3 @@
 .prs-subtab-bar-right .pr-table-collapse-btn {
   margin-left: auto;
 }
-

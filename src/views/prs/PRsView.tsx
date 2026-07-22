@@ -163,30 +163,32 @@ export const PRsView: React.FC<PRsViewProps> = ({
         </div>
       </div>
 
-      {subTab === "open" && (
-        <PRSections
-          ref={prSectionsRef}
-          prs={filteredOpenPRs}
-          loading={loading}
-          jiraIssues={jiraIssues}
-          jiraBaseUrl={jiraBaseUrl}
-          claudeEnabled={claudeEnabled}
-          claudeSessions={claudeSessions}
-          onClaudeAction={onClaudeAction}
-          onViewClaudeSession={onViewClaudeSession}
-          onCollapseStateChange={(hasGroups, allCollapsed) =>
-            setGroupState({ hasGroups, allCollapsed })
-          }
-        />
-      )}
-      {subTab === "merged" && (
-        <PRTable
-          prs={filteredMergedPRs}
-          loading={mergedPRsLoading}
-          variant="recently-merged"
-          jiraBaseUrl={jiraBaseUrl}
-        />
-      )}
+      <div className="prs-scroll-body">
+        {subTab === "open" && (
+          <PRSections
+            ref={prSectionsRef}
+            prs={filteredOpenPRs}
+            loading={loading}
+            jiraIssues={jiraIssues}
+            jiraBaseUrl={jiraBaseUrl}
+            claudeEnabled={claudeEnabled}
+            claudeSessions={claudeSessions}
+            onClaudeAction={onClaudeAction}
+            onViewClaudeSession={onViewClaudeSession}
+            onCollapseStateChange={(hasGroups, allCollapsed) =>
+              setGroupState({ hasGroups, allCollapsed })
+            }
+          />
+        )}
+        {subTab === "merged" && (
+          <PRTable
+            prs={filteredMergedPRs}
+            loading={mergedPRsLoading}
+            variant="recently-merged"
+            jiraBaseUrl={jiraBaseUrl}
+          />
+        )}
+      </div>
     </div>
   );
 };

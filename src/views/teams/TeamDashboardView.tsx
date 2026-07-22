@@ -22,6 +22,7 @@ import type { JiraIssue, GitHubPR } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import type { LinkedPR, Ref } from "../../types/teams";
 import { TeamPRsTab } from "./TeamPRsTab";
+import "./TeamDashboardView.css";
 // --- Sprint cockpit ---
 import { SprintMetaBar } from "./cockpit/SprintMetaBar";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
@@ -179,8 +180,8 @@ export function TeamDashboardView({
   );
 
   return (
-    <div className="p-3">
-      <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
+    <div className={`p-3${tab === "prs" ? " team-dashboard--pinned" : ""}`}>
+      <div className="d-flex gap-2 mb-3 align-items-center flex-wrap flex-shrink-0">
         <SearchableDropdown
           items={teamItems}
           value={teamId != null ? String(teamId) : ""}
@@ -358,7 +359,7 @@ export function TeamDashboardView({
 
       {/* ---- PRs tab: Org PRs, authors locked to the team ---- */}
       {teamId != null && prsEverOpened && (
-        <div className={tab === "prs" ? "" : "d-none"}>
+        <div className={tab === "prs" ? "team-dashboard-prs" : "d-none"}>
           <TeamPRsTab
             active={tab === "prs"}
             configured={configured}

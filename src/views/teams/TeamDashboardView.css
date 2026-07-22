@@ -1,0 +1,20 @@
+/* When the PRs tab is active the dashboard becomes a fixed-height flex column so
+   the team/top bar and the PR filter toolbar stay pinned while only the PR list
+   scrolls. The Sprint tab keeps its natural page scroll (root stays a plain
+   block), so this frame is applied only in PR mode. */
+.team-dashboard--pinned {
+  display: flex;
+  flex-direction: column;
+  /* viewport minus app header (46px) and .main-content top/bottom padding */
+  height: calc(100vh - 46px - var(--space-3) - var(--space-6));
+  min-height: 0;
+}
+
+/* PRs tab wrapper fills the remaining height; TeamPRsTab manages its own fixed
+   toolbar + scrolling list inside it. */
+.team-dashboard-prs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

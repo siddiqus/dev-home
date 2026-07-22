@@ -178,11 +178,11 @@ export function TeamPRsTab({
   const hasLinkedMembers = memberItems.length > 0;
 
   return (
-    <>
+    <div className="team-prs-tab">
       {/* One toolbar: member/repo filters (left) · collapse + Open/Merged + refresh (right).
           Authors are locked to the roster, signalled by the lock icon on the members
           filter — so there's no separate sub-tab bar. */}
-      <div className="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+      <div className="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap flex-shrink-0">
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <MultiSelectDropdown
             items={memberItems}
@@ -254,44 +254,46 @@ export function TeamPRsTab({
         </div>
       </div>
 
-      {!hasLinkedMembers && !membersLoading ? (
-        <EmptyState
-          icon={<IconLock size={32} />}
-          title="No GitHub-linked members"
-          description={`${teamName} has no members with a GitHub username set. Add usernames in Manage Teams to see their pull requests here.`}
-        />
-      ) : subTab === "open" ? (
-        <div
-          style={{
-            opacity: loading && prs.length > 0 ? 0.45 : 1,
-            pointerEvents: loading && prs.length > 0 ? "none" : "auto",
-            transition: "opacity 0.15s ease",
-          }}
-        >
-          <PRTable
-            ref={prTableRef}
-            prs={prs}
-            loading={loading}
-            jiraBaseUrl={jiraBaseUrl}
-            jiraIssues={jiraIssues}
-            variant="org-prs"
-            claudeEnabled={claudeEnabled}
-            claudeSessions={claudeSessions}
-            onClaudeAction={onClaudeAction}
-            onViewClaudeSession={onViewClaudeSession}
-            onCollapseStateChange={(hasGroups, allCollapsed) =>
-              setGroupState({ hasGroups, allCollapsed })
-            }
+      <div className="team-prs-scroll">
+        {!hasLinkedMembers && !membersLoading ? (
+          <EmptyState
+            icon={<IconLock size={32} />}
+            title="No GitHub-linked members"
+            description={`${teamName} has no members with a GitHub username set. Add usernames in Manage Teams to see their pull requests here.`}
           />
-        </div>
-      ) : (
-        <PRTable
-          prs={mergedPRs}
-          loading={mergedLoading}
-          variant="recently-merged-org"
-          jiraBaseUrl={jiraBaseUrl}
-        />
-      )}
-    </>
+        ) : subTab === "open" ? (
+          <div
+            style={{
+              opacity: loading && prs.length > 0 ? 0.45 : 1,
+              pointerEvents: loading && prs.length > 0 ? "none" : "auto",
+              transition: "opacity 0.15s ease",
+            }}
+          >
+            <PRTable
+              ref={prTableRef}
+              prs={prs}
+              loading={loading}
+              jiraBaseUrl={jiraBaseUrl}
+              jiraIssues={jiraIssues}
+              variant="org-prs"
+              claudeEnabled={claudeEnabled}
+              claudeSessions={claudeSessions}
+              onClaudeAction={onClaudeAction}
+              onViewClaudeSession={onViewClaudeSession}
+              onCollapseStateChange={(hasGroups, allCollapsed) =>
+                setGroupState({ hasGroups, allCollapsed })
+              }
+            />
+          </div>
+        ) : (
+          <PRTable
+            prs={mergedPRs}
+            loading={mergedLoading}
+            variant="recently-merged-org"
+            jiraBaseUrl={jiraBaseUrl}
+          />
+        )}
+      </div>
+    </div>
   );
 }

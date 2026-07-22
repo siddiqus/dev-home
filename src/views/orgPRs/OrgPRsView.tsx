@@ -431,9 +431,9 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   );
 
   return (
-    <>
+    <div className="prs-view">
       {/* Toolbar: filters (left) + subtabs + refresh (right) */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
+      <div className="prs-toolbar d-flex align-items-center justify-content-between mb-3">
         <div className="d-flex align-items-center gap-2">
           <MultiSelectDropdown
             items={authorItems}
@@ -519,79 +519,81 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
         )}
       </div>
 
-      {authors.length === 0 && selectedRepos.length === 0 ? (
-        <div
-          className="d-flex flex-column align-items-center justify-content-center py-5"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          <IconFilter size={32} stroke={1.2} style={{ marginBottom: 12, opacity: 0.5 }} />
-          <div style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>
-            Select a filter to view PRs
+      <div className="prs-scroll-body">
+        {authors.length === 0 && selectedRepos.length === 0 ? (
+          <div
+            className="d-flex flex-column align-items-center justify-content-center py-5"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <IconFilter size={32} stroke={1.2} style={{ marginBottom: 12, opacity: 0.5 }} />
+            <div style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>
+              Select a filter to view PRs
+            </div>
+            <div style={{ fontSize: "0.8125rem" }}>
+              Choose at least one author or repository above.
+            </div>
           </div>
-          <div style={{ fontSize: "0.8125rem" }}>
-            Choose at least one author or repository above.
-          </div>
-        </div>
-      ) : (
-        <>
-          {orgSubTab === "open" && (
-            <>
-              <div
-                style={{
-                  opacity: loading && prs.length > 0 ? 0.45 : 1,
-                  pointerEvents: loading && prs.length > 0 ? "none" : "auto",
-                  transition: "opacity 0.15s ease",
-                }}
-              >
-                <PRTable
-                  ref={orgPrTableRef}
-                  prs={prs}
-                  loading={loading}
-                  jiraBaseUrl={jiraBaseUrl}
-                  jiraIssues={jiraIssues}
-                  variant="org-prs"
-                  claudeEnabled={claudeEnabled}
-                  claudeSessions={claudeSessions}
-                  onClaudeAction={onClaudeAction}
-                  onViewClaudeSession={onViewClaudeSession}
-                  onCollapseStateChange={(hasGroups, allCollapsed) =>
-                    setGroupState({ hasGroups, allCollapsed })
-                  }
-                />
-              </div>
-
-              {hasNextPage && !isMultiMode && (
-                <div className="d-flex justify-content-center py-3">
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={fetchNextPage}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        Loading...
-                      </>
-                    ) : (
-                      "Load more"
-                    )}
-                  </Button>
+        ) : (
+          <>
+            {orgSubTab === "open" && (
+              <>
+                <div
+                  style={{
+                    opacity: loading && prs.length > 0 ? 0.45 : 1,
+                    pointerEvents: loading && prs.length > 0 ? "none" : "auto",
+                    transition: "opacity 0.15s ease",
+                  }}
+                >
+                  <PRTable
+                    ref={orgPrTableRef}
+                    prs={prs}
+                    loading={loading}
+                    jiraBaseUrl={jiraBaseUrl}
+                    jiraIssues={jiraIssues}
+                    variant="org-prs"
+                    claudeEnabled={claudeEnabled}
+                    claudeSessions={claudeSessions}
+                    onClaudeAction={onClaudeAction}
+                    onViewClaudeSession={onViewClaudeSession}
+                    onCollapseStateChange={(hasGroups, allCollapsed) =>
+                      setGroupState({ hasGroups, allCollapsed })
+                    }
+                  />
                 </div>
-              )}
-            </>
-          )}
 
-          {orgSubTab === "merged" && (
-            <PRTable
-              prs={mergedPRs}
-              loading={mergedPRsLoading}
-              variant="recently-merged-org"
-              jiraBaseUrl={jiraBaseUrl}
-            />
-          )}
-        </>
-      )}
-    </>
+                {hasNextPage && !isMultiMode && (
+                  <div className="d-flex justify-content-center py-3">
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={fetchNextPage}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Load more"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {orgSubTab === "merged" && (
+              <PRTable
+                prs={mergedPRs}
+                loading={mergedPRsLoading}
+                variant="recently-merged-org"
+                jiraBaseUrl={jiraBaseUrl}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 };
