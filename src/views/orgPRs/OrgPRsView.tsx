@@ -108,6 +108,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   onViewClaudeSession,
 }) => {
   const orgPrTableRef = useRef<PRTableHandle>(null);
+  const orgMergedTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
@@ -430,6 +431,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     [orgRepos],
   );
 
+  // A table is only mounted once at least one author/repo is selected; gate the
+  // collapse control on the same condition so it can't linger on the empty state.
+  const hasSelection = authors.length > 0 || selectedRepos.length > 0;
+
   return (
     <div className="prs-view">
       {/* Toolbar: filters (left) + subtabs + refresh (right) */}
@@ -440,14 +445,14 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             values={authors}
             onChange={handleAuthorsChange}
             placeholder="Search authors..."
-            allLabel="All authors"
+            allLabel="Select author(s)"
           />
           <MultiSelectDropdown
             items={repoItems}
             values={selectedRepos}
             onChange={handleReposChange}
             placeholder="Search repos..."
-            allLabel="All repos"
+            allLabel="Select repo(s)"
           />
           <div className="toolbar-divider" />
           <SavedFiltersDropdown
@@ -506,16 +511,23 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
           </button>
         </div>
-        {orgSubTab === "open" && groupState.hasGroups && (
-          <button
-            type="button"
-            className="pr-table-collapse-btn"
-            onClick={() => orgPrTableRef.current?.toggleCollapseAll()}
-            title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
-          >
-            {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
-            {groupState.allCollapsed ? "Expand all" : "Collapse all"}
-          </button>
+        {hasSelection && groupState.hasGroups && (
+          <div className="prs-view-actions">
+            <button
+              type="button"
+              className="pr-table-collapse-btn"
+              onClick={() =>
+                (orgSubTab === "open"
+                  ? orgPrTableRef
+                  : orgMergedTableRef
+                ).current?.toggleCollapseAll()
+              }
+              title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+            >
+              {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+              {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -585,10 +597,14 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
 
             {orgSubTab === "merged" && (
               <PRTable
+                ref={orgMergedTableRef}
                 prs={mergedPRs}
                 loading={mergedPRsLoading}
                 variant="recently-merged-org"
                 jiraBaseUrl={jiraBaseUrl}
+                onCollapseStateChange={(hasGroups, allCollapsed) =>
+                  setGroupState({ hasGroups, allCollapsed })
+                }
               />
             )}
           </>

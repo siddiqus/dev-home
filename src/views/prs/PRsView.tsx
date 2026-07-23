@@ -71,6 +71,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
 
   const prSectionsRef = useRef<PRSectionsHandle>(null);
   const prTableRef = useRef<PRTableHandle>(null);
+  const mergedTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -196,6 +197,19 @@ export const PRsView: React.FC<PRsViewProps> = ({
               </button>
             </div>
           )}
+          {subTab === "merged" && groupState.hasGroups && (
+            <div className="prs-view-actions">
+              <button
+                type="button"
+                className="pr-table-collapse-btn"
+                onClick={() => mergedTableRef.current?.toggleCollapseAll()}
+                title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
+              >
+                {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
+                {groupState.allCollapsed ? "Expand all" : "Collapse all"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -236,10 +250,14 @@ export const PRsView: React.FC<PRsViewProps> = ({
         )}
         {subTab === "merged" && (
           <PRTable
+            ref={mergedTableRef}
             prs={filteredMergedPRs}
             loading={mergedPRsLoading}
             variant="recently-merged"
             jiraBaseUrl={jiraBaseUrl}
+            onCollapseStateChange={(hasGroups, allCollapsed) =>
+              setGroupState({ hasGroups, allCollapsed })
+            }
           />
         )}
       </div>
