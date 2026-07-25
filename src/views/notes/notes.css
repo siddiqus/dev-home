@@ -2,6 +2,15 @@
    Notes view
    ============================================ */
 
+/* Unsaved-changes confirm dialog. Bootstrap's default modal-content has no
+   themed border, so it vanishes against the dark backdrop — give it the same
+   panel/border treatment as the other app modals. */
+.dismiss-confirm-modal .modal-content {
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
 /* Subtle hover background, matching table row hovers elsewhere */
 .note-card {
   height: 150px;
