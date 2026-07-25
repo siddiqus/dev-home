@@ -10,6 +10,7 @@ import { IconArrowLeft } from "@tabler/icons-react";
 import { AppSettings, loadSettingsFromStore, apiClient } from "../../services/config";
 import { BackendStatusCard } from "./BackendStatusCard";
 import { ThemePicker } from "./ThemePicker";
+import type { ThemePreference } from "../../hooks/useTheme";
 import { MenuItemsToggle } from "./MenuItemsToggle";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import "./settings.css";
@@ -22,8 +23,8 @@ interface SettingsViewProps {
   githubUsername: string;
   onBack: () => void;
   saveSettings: (settings: AppSettings) => Promise<void>;
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
+  theme: ThemePreference;
+  onSelectTheme: (theme: ThemePreference) => void;
 }
 
 const EMPTY_SETTINGS: AppSettings = {
@@ -49,7 +50,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onBack,
   saveSettings,
   theme,
-  onToggleTheme,
+  onSelectTheme,
 }) => {
   const [formState, setFormState] = useState<AppSettings>(EMPTY_SETTINGS);
   const [saving, setSaving] = useState(false);
@@ -265,7 +266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Appearance */}
       {activeSettingsTab === "appearance" && (
         <>
-          <ThemePicker theme={theme} onToggleTheme={onToggleTheme} />
+          <ThemePicker theme={theme} onSelectTheme={onSelectTheme} />
           <MenuItemsToggle formState={formState} setFormState={setFormState} />
         </>
       )}

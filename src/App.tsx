@@ -21,11 +21,10 @@ import {
   IconSparkles,
   IconUsersGroup,
   IconChartBar,
-  IconSun,
-  IconMoon,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
+import { useTheme } from "./hooks/useTheme";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useFocus } from "./hooks/useFocus";
@@ -80,21 +79,9 @@ export default function App() {
     setDashboardTeamId(teamId);
     setActiveTab("team-dashboard");
   };
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("dev-home-theme") as "dark" | "light") || "light";
-  });
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("dev-home-theme", next);
-    document.documentElement.setAttribute("data-theme", next);
-  };
-
-  // Set theme on mount
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+  // The topbar no longer has a theme toggle; useTheme() still runs to apply the
+  // stored/OS theme and keep it live. Settings' ThemePicker drives the choice.
+  const { preference: themePreference, setPreference: setThemePreference } = useTheme();
   const {
     configured,
     loading: configLoading,
@@ -400,15 +387,6 @@ export default function App() {
               />
             )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
-            <button
-              type="button"
-              className="top-bar-icon-btn"
-              onClick={toggleTheme}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
-            </button>
           </div>
         </Container>
       </Navbar>
@@ -547,8 +525,8 @@ export default function App() {
                   githubUsername={githubUsername}
                   onBack={() => setActiveTab(prevTabRef.current)}
                   saveSettings={handleSaveSettingsWrapped}
-                  theme={theme}
-                  onToggleTheme={toggleTheme}
+                  theme={themePreference}
+                  onSelectTheme={setThemePreference}
                 />
               ) : (
                 <div className="tab-content-area" key={effectiveTab}>

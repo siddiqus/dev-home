@@ -82,6 +82,19 @@
   background: #21262d;
 }
 
+/* System swatch: a diagonal light/dark split signals "follows the OS". */
+.theme-option-preview[data-preview="system"] {
+  background: linear-gradient(120deg, #f6f8fa 0 50%, #0d1117 50% 100%);
+}
+
+.theme-option-preview[data-preview="system"] .theme-preview-bar {
+  background: linear-gradient(120deg, #d1d9e0 0 50%, #161b22 50% 100%);
+}
+
+.theme-option-preview[data-preview="system"] .theme-preview-line {
+  background: linear-gradient(120deg, #d1d9e0 0 50%, #21262d 50% 100%);
+}
+
 .theme-option-label {
   display: flex;
   align-items: center;
@@ -90,6 +103,12 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-text-primary);
+}
+
+.theme-picker-hint {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
 }
 
 /* --- Saved confirmation toast ---
