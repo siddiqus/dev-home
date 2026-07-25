@@ -99,6 +99,12 @@ export interface GitHubPR {
   review_status: string | null;
   merged_at?: string;
   in_merge_queue?: boolean;
+  /** Newest non-bot discussion activity is from someone else — the viewer's turn. */
+  your_turn?: boolean;
+  /** Number of unresolved review threads on the PR. */
+  unresolved_thread_count?: number;
+  /** GitHub reports the branch as CONFLICTING against its base. */
+  has_conflict?: boolean;
   labels?: GitHubLabel[];
 }
 

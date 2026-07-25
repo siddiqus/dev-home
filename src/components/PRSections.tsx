@@ -233,6 +233,7 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
                 storageKeyScope={section.id}
                 collapsedGroups={collapsedTickets}
                 onToggleGroup={toggleTicket}
+                reasonChips
               />
             )}
           </section>

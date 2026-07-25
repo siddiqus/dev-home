@@ -8,6 +8,7 @@ import {
 } from "@tabler/icons-react";
 import { GitHubPR, GitHubLabel } from "../types";
 import { formatRelativeTime } from "../utils/time";
+import { RED_CHECK_STATUSES } from "../utils/prCategories";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import type { ClaudeAction, ClaudeSession } from "../types/claude";
@@ -40,6 +41,64 @@ function deriveStatus(pr: GitHubPR): { label: string; variant: StatusVariant } {
     default:
       return { label: "Awaiting review", variant: "warning" };
   }
+}
+
+type ReasonVariant = "danger" | "warning" | "info";
+
+interface ReasonChip {
+  key: string;
+  label: string;
+  variant: ReasonVariant;
+}
+
+/**
+ * The "why does this need action" chips for a needs-action PR row, ordered most
+ * blocking first: CI failure → merge conflict → non-approving review → your turn
+ * → unresolved threads. Only rendered for needs-action rows (see PRCard's
+ * `showReasonChips`), where at least one of the first three always applies — so
+ * an empty result never reaches the UI in practice.
+ */
+function deriveReasonChips(pr: GitHubPR): ReasonChip[] {
+  const chips: ReasonChip[] = [];
+
+  if (pr.checks_status && RED_CHECK_STATUSES.has(pr.checks_status)) {
+    chips.push({ key: "ci", label: "CI failed", variant: "danger" });
+  }
+  if (pr.has_conflict) {
+    chips.push({ key: "conflict", label: "Merge conflict", variant: "danger" });
+  }
+  if (pr.review_status === "CHANGES_REQUESTED") {
+    chips.push({ key: "review", label: "Changes requested", variant: "danger" });
+  } else if (pr.review_status === "REVIEWED") {
+    chips.push({ key: "review", label: "Reviewed", variant: "warning" });
+  }
+  if (pr.your_turn) {
+    chips.push({ key: "turn", label: "Your turn", variant: "info" });
+  }
+  if (pr.unresolved_thread_count && pr.unresolved_thread_count > 0) {
+    chips.push({
+      key: "threads",
+      label: `Unresolved (${pr.unresolved_thread_count})`,
+      variant: "warning",
+    });
+  }
+
+  return chips;
+}
+
+/** Unified reason-chip row shown on needs-action PR rows. */
+function ReasonChips({ pr }: { pr: GitHubPR }) {
+  const chips = deriveReasonChips(pr);
+  if (chips.length === 0) return null;
+  return (
+    <div className="pr-card-reasons">
+      {chips.map((chip) => (
+        <span key={chip.key} className={`pr-reason-chip pr-reason-chip--${chip.variant}`}>
+          {chip.label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /** Anchor to a Jira ticket, or a plain span when there's no Jira base URL. */
@@ -184,6 +243,9 @@ interface PRCardProps {
   singleTicket?: string | null;
   /** Member of a multi-PR ticket cluster — adds the indent rail. */
   clustered?: boolean;
+  /** Render the unified reason-chip row (needs-action rows only), replacing the
+      standalone status pill and CI icon with labeled chips. */
+  showReasonChips?: boolean;
   claudeEnabled?: boolean;
   claudeSessions?: ClaudeSession[];
   onClaudeAction?: (
@@ -210,6 +272,7 @@ export function PRCard({
   jiraBaseUrl,
   singleTicket,
   clustered,
+  showReasonChips,
   claudeEnabled,
   claudeSessions,
   onClaudeAction,
@@ -217,7 +280,9 @@ export function PRCard({
   onOpen,
   onCopyBranch,
 }: PRCardProps) {
-  const status = fields.showStatus ? deriveStatus(pr) : null;
+  // On needs-action rows the reason chips replace the standalone status pill (the
+  // review state becomes a chip). The CI status icon stays on every row.
+  const status = fields.showStatus && !showReasonChips ? deriveStatus(pr) : null;
   const timeText =
     fields.timestamps === "merged"
       ? pr.merged_at
@@ -291,6 +356,7 @@ export function PRCard({
 
       <div className="pr-card-side">
         <div className="pr-card-side-top">
+          {showReasonChips && <ReasonChips pr={pr} />}
           {status &&
             (status.variant === "draft" ? (
               <span className="pr-card-draft">Draft</span>

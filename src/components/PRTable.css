@@ -342,6 +342,38 @@ a.pr-card-ticket:hover {
   background: var(--color-status-purple-bg);
 }
 
+/* ---- needs-action reason chips ----
+   Sit inline on the right of the row (same line as the title), in place of the
+   standalone status pill. */
+.pr-card-reasons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-reason-chip {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.pr-reason-chip--danger {
+  color: var(--color-status-danger);
+  background: var(--color-status-danger-bg);
+}
+.pr-reason-chip--warning {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+}
+.pr-reason-chip--info {
+  color: var(--color-status-info);
+  background: var(--color-status-info-bg);
+}
+
 .pr-card-time {
   font-size: 0.75rem;
   color: var(--color-text-muted);

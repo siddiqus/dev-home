@@ -238,3 +238,68 @@ describe("PRCard", () => {
     expect(container.querySelector(".pr-card-label")).toBeNull();
   });
 });
+
+describe("PRCard reason chips", () => {
+  it("renders the applicable chips, most-blocking first", () => {
+    const { container } = render(
+      <PRCard
+        pr={makePR({
+          checks_status: "FAILURE",
+          has_conflict: true,
+          review_status: "CHANGES_REQUESTED",
+          your_turn: true,
+          unresolved_thread_count: 2,
+        })}
+        fields={FIELDS.full}
+        showReasonChips
+        onOpen={noop}
+      />,
+    );
+    const chips = [...container.querySelectorAll(".pr-reason-chip")].map((c) => c.textContent);
+    expect(chips).toEqual([
+      "CI failed",
+      "Merge conflict",
+      "Changes requested",
+      "Your turn",
+      "Unresolved (2)",
+    ]);
+  });
+
+  it("unifies the review reason into a chip, dropping the standalone status pill", () => {
+    const { container } = render(
+      <PRCard
+        pr={makePR({ review_status: "CHANGES_REQUESTED" })}
+        fields={FIELDS.full}
+        showReasonChips
+        onOpen={noop}
+      />,
+    );
+    expect(container.querySelector(".pr-card-status")).toBeNull();
+    expect(screen.getByText("Changes requested")).toHaveClass("pr-reason-chip");
+  });
+
+  it("uses warning styling for a plain review and shows the unresolved count", () => {
+    render(
+      <PRCard
+        pr={makePR({ review_status: "REVIEWED", unresolved_thread_count: 1 })}
+        fields={FIELDS.full}
+        showReasonChips
+        onOpen={noop}
+      />,
+    );
+    expect(screen.getByText("Reviewed")).toHaveClass("pr-reason-chip--warning");
+    expect(screen.getByText("Unresolved (1)")).toHaveClass("pr-reason-chip--warning");
+  });
+
+  it("falls back to the status pill (no chips) when showReasonChips is unset", () => {
+    const { container } = render(
+      <PRCard
+        pr={makePR({ checks_status: "FAILURE", review_status: "CHANGES_REQUESTED" })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    expect(container.querySelector(".pr-card-reasons")).toBeNull();
+    expect(screen.getByText("Changes requested")).toHaveClass("pr-card-status");
+  });
+});

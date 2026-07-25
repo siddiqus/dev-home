@@ -117,10 +117,12 @@ const SEARCH_MY_PRS_QUERY = `
               }
             }
           }
+          mergeable
           mergeQueueEntry { id }
           reviews(last: 20) {
             nodes {
               state
+              submittedAt
               author { login }
             }
           }
@@ -136,6 +138,7 @@ const SEARCH_MY_PRS_QUERY = `
           }
           reviewThreads(last: 50) {
             nodes {
+              isResolved
               comments(last: 10) {
                 nodes {
                   databaseId
@@ -199,9 +202,52 @@ function deriveReviewStatus(reviews: any[] | undefined): string | null {
 }
 
 /**
- * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
+ * Whether the ball is in the viewer's court: the newest non-bot discussion event
+ * on the PR (issue comment, review submission, or review-thread reply) was
+ * authored by someone other than the viewer. Returns false when there's no
+ * viewer or no activity. Only meaningful for the viewer's own PRs, and only when
+ * the query actually fetched comments/reviews/threads (other endpoints don't, so
+ * this collapses to false there). `isBot` is hoisted, so the later definition is
+ * fine here.
  */
-function mapGraphQLPr(node: any) {
+function deriveYourTurn(node: any, viewer?: string): boolean {
+  // Guards the `.map((n: any) => mapGraphQLPr(n))` call sites too, where the array index (a
+  // number) is passed as `viewer` — a non-string viewer means "unknown", so no
+  // "your turn" signal.
+  if (typeof viewer !== "string" || !viewer) return false;
+
+  let latestAt = 0;
+  let latestLogin = "";
+  const consider = (at: string | undefined, login: string | undefined) => {
+    if (!at || !login || isBot(login)) return;
+    const t = new Date(at).getTime();
+    if (Number.isNaN(t) || t < latestAt) return;
+    latestAt = t;
+    latestLogin = login;
+  };
+
+  for (const c of node.comments?.nodes || []) consider(c.createdAt, c.author?.login);
+  for (const r of node.reviews?.nodes || []) consider(r.submittedAt, r.author?.login);
+  for (const t of node.reviewThreads?.nodes || []) {
+    for (const c of t.comments?.nodes || []) consider(c.createdAt, c.author?.login);
+  }
+
+  if (!latestLogin) return false;
+  return latestLogin.toLowerCase() !== viewer.toLowerCase();
+}
+
+/** Count review threads still open (isResolved === false). */
+function countUnresolvedThreads(node: any): number {
+  const threads = node.reviewThreads?.nodes || [];
+  return threads.filter((t: any) => t.isResolved === false).length;
+}
+
+/**
+ * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
+ * `viewer` (the authenticated username) is only passed by the "my PRs" endpoint,
+ * where it drives the "your turn" signal; elsewhere it's omitted.
+ */
+function mapGraphQLPr(node: any, viewer?: string) {
   const rollup = node.commits?.nodes?.[0]?.commit?.statusCheckRollup;
   const contextNodes = rollup?.contexts?.nodes || [];
   return {
@@ -230,6 +276,9 @@ function mapGraphQLPr(node: any) {
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
     in_merge_queue: !!node.mergeQueueEntry,
+    your_turn: deriveYourTurn(node, viewer),
+    unresolved_thread_count: countUnresolvedThreads(node),
+    has_conflict: node.mergeable === "CONFLICTING",
     labels: (node.labels?.nodes || []).map((l: any) => ({
       name: l.name || "",
       color: l.color || "",
@@ -254,7 +303,9 @@ router.get("/prs", async (_req: Request, res: Response) => {
   });
 
   const nodes = result.search.nodes || [];
-  const prs = nodes.map(mapGraphQLPr).filter((pr: any) => pr.state === "open");
+  const prs = nodes
+    .map((n: any) => mapGraphQLPr(n, config.githubUsername))
+    .filter((pr: any) => pr.state === "open");
   const prComments = extractOwnPRComments(nodes, config.githubUsername);
 
   res.json({ prs, pr_comments: prComments });
@@ -274,7 +325,7 @@ router.get("/reviews", async (_req: Request, res: Response) => {
   });
 
   const reviews = (result.search.nodes || [])
-    .map(mapGraphQLPr)
+    .map((n: any) => mapGraphQLPr(n))
     .filter((pr: any) => pr.state === "open");
 
   res.json({ reviews });
@@ -620,7 +671,9 @@ router.get("/org-prs", async (req: Request, res: Response) => {
   });
 
   const nodes = result.search.nodes || [];
-  const prs = nodes.map(mapGraphQLPr).filter((pr: any) => pr.state === "open" && !pr.draft);
+  const prs = nodes
+    .map((n: any) => mapGraphQLPr(n))
+    .filter((pr: any) => pr.state === "open" && !pr.draft);
 
   res.json({ prs, pageInfo: result.search.pageInfo });
 });
@@ -722,7 +775,9 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
     allPrs.push(...nodes);
   }
 
-  let prs = allPrs.map(mapGraphQLPr).filter((pr: any) => pr.state === "open" && !pr.draft);
+  let prs = allPrs
+    .map((n: any) => mapGraphQLPr(n))
+    .filter((pr: any) => pr.state === "open" && !pr.draft);
 
   // Filter by author if specified
   if (author) {
@@ -889,7 +944,7 @@ router.get("/merged-prs", async (req: Request, res: Response) => {
     first: 20,
   });
 
-  const prs = (result.search.nodes || []).map(mapGraphQLPr);
+  const prs = (result.search.nodes || []).map((n: any) => mapGraphQLPr(n));
   res.json({ prs });
 });
 

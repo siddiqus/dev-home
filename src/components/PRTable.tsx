@@ -19,6 +19,7 @@ import {
 import { GitHubPR, JiraIssue } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { groupByTicket } from "../utils/tickets";
+import { categorizeOpenPR } from "../utils/prCategories";
 import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
 import { PRCard, PRCardFields } from "./PRCard";
@@ -68,6 +69,10 @@ interface PRTableProps {
   collapsedGroups?: Set<string>;
   /** Called when a ticket group header is clicked, in controlled mode. */
   onToggleGroup?: (ticket: string) => void;
+  /** Enable the unified reason-chip row; chips render only on rows that
+      categorize as "needs-action", so mixed lists (flat view) decorate the right
+      rows and section tables naturally scope chips to the needs-action section. */
+  reasonChips?: boolean;
 }
 
 /** Which card fields each variant shows. */
@@ -181,6 +186,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     storageKeyScope,
     collapsedGroups,
     onToggleGroup,
+    reasonChips,
   },
   ref,
 ) {
@@ -359,6 +365,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     jiraBaseUrl={jiraBaseUrl}
                     singleTicket={singleTicket}
                     clustered={isCluster}
+                    showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
                     claudeEnabled={claudeEnabled}
                     claudeSessions={claudeSessions}
                     onClaudeAction={onClaudeAction}

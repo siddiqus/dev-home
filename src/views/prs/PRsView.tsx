@@ -243,6 +243,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
             onClaudeAction={onClaudeAction}
             onViewClaudeSession={onViewClaudeSession}
             showGroupToolbar={false}
+            reasonChips
             onCollapseStateChange={(hasGroups, allCollapsed) =>
               setGroupState({ hasGroups, allCollapsed })
             }
