@@ -306,6 +306,10 @@ export function PRCard({
         onOpen(pr);
       }}
       onKeyDown={(e) => {
+        // Only the row itself opens the PR — ignore keys bubbling up from nested
+        // controls (copy button, GitHub link, branch copy) so activating them
+        // with the keyboard doesn't also open the modal.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen(pr);

@@ -77,6 +77,23 @@ describe("PRCard", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("copies the PR link without opening the PR (stopPropagation)", () => {
+    const onOpen = vi.fn();
+    const onCopyLink = vi.fn();
+    render(<PRCard pr={makePR()} fields={FIELDS.full} onOpen={onOpen} onCopyLink={onCopyLink} />);
+    fireEvent.click(screen.getByTitle("Copy PR link"));
+    expect(onCopyLink).toHaveBeenCalledWith("https://github.com/o/r/pull/42");
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("does not open the PR when activating the copy button via keyboard", () => {
+    const onOpen = vi.fn();
+    const onCopyLink = vi.fn();
+    render(<PRCard pr={makePR()} fields={FIELDS.full} onOpen={onOpen} onCopyLink={onCopyLink} />);
+    fireEvent.keyDown(screen.getByTitle("Copy PR link"), { key: "Enter" });
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("shows the branch (head only for the default base) when showBranch is set", () => {
     render(
       <PRCard pr={makePR({ head: { ref: "my-branch" } })} fields={FIELDS.full} onOpen={noop} />,
