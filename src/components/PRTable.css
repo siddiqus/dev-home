@@ -145,6 +145,27 @@ a.pr-card-ticket:hover {
   color: var(--color-accent);
 }
 
+.pr-card-copy-link {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+  transition: color 120ms ease;
+}
+
+.pr-card-copy-link:hover {
+  color: var(--color-accent);
+}
+
+.pr-card-copy-link:active {
+  transform: scale(0.9);
+}
+
 /* ---- meta line ---- */
 .pr-card-meta {
   display: flex;

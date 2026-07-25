@@ -191,23 +191,36 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  // Transient "copied branch to clipboard" confirmation. Rendered as a fixed
-  // bottom toast so it never reflows the PR list when it shows/hides.
-  const [copiedBranch, setCopiedBranch] = useState<string | null>(null);
+  // Transient "copied to clipboard" confirmation. Rendered as a fixed bottom
+  // toast so it never reflows the PR list when it shows/hides. The message stays
+  // set while the toast fades out; only `copyToastVisible` toggles the animation.
+  const [copyToastMsg, setCopyToastMsg] = useState("");
+  const [copyToastVisible, setCopyToastVisible] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleCopyBranch = useCallback((branch: string) => {
+  const copyToClipboard = useCallback((text: string, message: string) => {
     navigator.clipboard
-      ?.writeText(branch)
+      ?.writeText(text)
       .then(() => {
-        setCopiedBranch(branch);
+        setCopyToastMsg(message);
+        setCopyToastVisible(true);
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-        copyTimerRef.current = setTimeout(() => setCopiedBranch(null), 2000);
+        copyTimerRef.current = setTimeout(() => setCopyToastVisible(false), 2000);
       })
       .catch(() => {
         /* clipboard unavailable (e.g. insecure context) — silently ignore */
       });
   }, []);
+
+  const handleCopyBranch = useCallback(
+    (branch: string) => copyToClipboard(branch, "Copied branch name to clipboard"),
+    [copyToClipboard],
+  );
+
+  const handleCopyLink = useCallback(
+    (url: string) => copyToClipboard(url, "Copied PR link to clipboard"),
+    [copyToClipboard],
+  );
 
   useEffect(
     () => () => {
@@ -372,6 +385,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     onViewClaudeSession={onViewClaudeSession}
                     onOpen={setSelectedPR}
                     onCopyBranch={handleCopyBranch}
+                    onCopyLink={handleCopyLink}
                   />
                 ))}
             </React.Fragment>
@@ -420,8 +434,8 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
 
       {/* Copied-to-clipboard confirmation — fixed at the bottom so it doesn't
           shift the PR list when it appears/disappears. */}
-      <div className={`pr-copy-toast ${copiedBranch ? "is-visible" : ""}`} role="status">
-        Copied branch name to clipboard
+      <div className={`pr-copy-toast ${copyToastVisible ? "is-visible" : ""}`} role="status">
+        {copyToastMsg}
       </div>
     </>
   );

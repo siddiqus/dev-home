@@ -264,6 +264,8 @@ interface PRCardProps {
   onOpen: (pr: GitHubPR) => void;
   /** Copies the given head branch name to the clipboard (surfaces a toast). */
   onCopyBranch?: (branch: string) => void;
+  /** Copies the PR's GitHub URL to the clipboard (surfaces a toast). */
+  onCopyLink?: (url: string) => void;
 }
 
 export function PRCard({
@@ -279,6 +281,7 @@ export function PRCard({
   onViewClaudeSession,
   onOpen,
   onCopyBranch,
+  onCopyLink,
 }: PRCardProps) {
   // On needs-action rows the reason chips replace the standalone status pill (the
   // review state becomes a chip). The CI status icon stays on every row.
@@ -332,6 +335,20 @@ export function PRCard({
           >
             <IconExternalLink size={14} stroke={1.8} />
           </a>
+          {onCopyLink && (
+            <button
+              type="button"
+              className="pr-card-copy-link"
+              title="Copy PR link"
+              aria-label="Copy PR link"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyLink(pr.html_url);
+              }}
+            >
+              <IconCopy size={14} stroke={1.8} />
+            </button>
+          )}
         </div>
 
         <div className="pr-card-meta">
