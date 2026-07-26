@@ -275,6 +275,7 @@ function mapGraphQLPr(node: any, viewer?: string) {
     checks: contextNodes.map(mapCheckContext),
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
+    merged_by: node.mergedBy?.login || null,
     in_merge_queue: !!node.mergeQueueEntry,
     your_turn: deriveYourTurn(node, viewer),
     unresolved_thread_count: countUnresolvedThreads(node),
@@ -895,6 +896,7 @@ const SEARCH_MERGED_PRS_QUERY = `
           createdAt
           updatedAt
           mergedAt
+          mergedBy { login }
           author { login avatarUrl }
           body
           headRefName

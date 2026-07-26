@@ -191,6 +191,10 @@ a.pr-card-ticket:hover {
   flex-shrink: 0;
 }
 
+.pr-card-mergedby {
+  flex-shrink: 0;
+}
+
 .pr-card-branch {
   display: inline-flex;
   align-items: center;

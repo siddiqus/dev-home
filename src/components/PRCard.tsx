@@ -371,6 +371,12 @@ export function PRCard({
               <BranchPill head={pr.head.ref} base={pr.base.ref} onCopy={onCopyBranch} />
             </>
           )}
+          {fields.timestamps === "merged" && pr.merged_by && (
+            <>
+              <span className="pr-card-sep">{"·"}</span>
+              <span className="pr-card-mergedby">merged by {pr.merged_by}</span>
+            </>
+          )}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
       </div>

@@ -98,6 +98,8 @@ export interface GitHubPR {
   checks: CheckRunInfo[];
   review_status: string | null;
   merged_at?: string;
+  /** GitHub login of whoever merged the PR. Populated for merged variants only. */
+  merged_by?: string | null;
   in_merge_queue?: boolean;
   /** Newest non-bot discussion activity is from someone else — the viewer's turn. */
   your_turn?: boolean;

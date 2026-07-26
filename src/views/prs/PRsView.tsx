@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { IconFold, IconFoldDown, IconList, IconLayoutRows } from "@tabler/icons-react";
+import { IconFold, IconFoldDown, IconList, IconLayoutRows, IconX } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
@@ -76,6 +76,12 @@ export const PRsView: React.FC<PRsViewProps> = ({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+
+  const hasActiveFilters = searchQuery.trim() !== "" || selectedRepos.length > 0;
+  const clearFilters = useCallback(() => {
+    setSearchQuery("");
+    setSelectedRepos([]);
+  }, []);
 
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
@@ -163,6 +169,17 @@ export const PRsView: React.FC<PRsViewProps> = ({
             allLabel="All repos"
             width={200}
           />
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="pr-table-collapse-btn"
+              onClick={clearFilters}
+              title="Clear all filters"
+            >
+              <IconX size={14} />
+              Clear filters
+            </button>
+          )}
           {subTab === "open" && (
             <div className="prs-view-actions">
               {groupState.hasGroups && (
