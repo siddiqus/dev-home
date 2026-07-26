@@ -54,8 +54,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Index of the keyboard-highlighted option. When the "All" row is shown it
+  // occupies index 0 and items follow at 1..n; otherwise items start at 0.
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     // When search is server-driven, `items` are already the matches — don't
@@ -96,10 +100,68 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     onSearchChange?.(val);
   };
 
+  const openDropdown = () => {
+    setOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  // The "All" row (when shown) sits at index 0, so items are offset by one.
+  const allOffset = hideAllOption ? 0 : 1;
+
+  // Reset the highlight to the top whenever the list changes (open/close, typing)
+  // so arrow navigation always starts from a predictable spot.
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [search, open, items]);
+
+  // Keep the highlighted option scrolled into view as the user arrows through.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${highlightedIndex}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [highlightedIndex, open]);
+
+  // Arrow keys move the highlight, Enter selects it, Escape closes. Total option
+  // count is the filtered items plus the "All" row when it's shown.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (loading) return;
+    const total = filtered.length + allOffset;
+    if (total === 0) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % total);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i - 1 + total) % total);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!hideAllOption && highlightedIndex === 0) {
+        handleSelect("");
+      } else {
+        const item = filtered[highlightedIndex - allOffset];
+        if (item) handleSelect(item.value);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+    }
+  };
+
   return (
     <div ref={containerRef} style={{ position: "relative", width }}>
       <div
         className="d-flex align-items-center"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={0}
         style={{
           border: "1px solid var(--color-border)",
           borderRadius: 6,
@@ -110,9 +172,16 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           height: 30,
         }}
         onClick={() => {
-          setOpen(!open);
-          if (!open) {
-            setTimeout(() => inputRef.current?.focus(), 0);
+          if (open) {
+            setOpen(false);
+          } else {
+            openDropdown();
+          }
+        }}
+        onKeyDown={(e) => {
+          if (!open && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
+            e.preventDefault();
+            openDropdown();
           }
         }}
       >
@@ -126,6 +195,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
             style={{
               border: "none",
               boxShadow: "none",
@@ -156,6 +226,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 
       {open && (
         <div
+          ref={listRef}
           style={{
             position: "absolute",
             top: "100%",
@@ -179,16 +250,24 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             <>
               {!hideAllOption && (
                 <div
-                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""}`}
+                  data-index={0}
+                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${!value ? "fw-bold" : ""} ${
+                    highlightedIndex === 0 ? "searchable-dropdown-item--active" : ""
+                  }`}
+                  onMouseEnter={() => setHighlightedIndex(0)}
                   onMouseDown={() => handleSelect("")}
                 >
                   {allLabel}
                 </div>
               )}
-              {filtered.map((item) => (
+              {filtered.map((item, i) => (
                 <div
                   key={item.value}
-                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${value === item.value ? "fw-bold" : ""}`}
+                  data-index={i + allOffset}
+                  className={`searchable-dropdown-item d-flex align-items-center gap-2 px-3 py-2 ${value === item.value ? "fw-bold" : ""} ${
+                    highlightedIndex === i + allOffset ? "searchable-dropdown-item--active" : ""
+                  }`}
+                  onMouseEnter={() => setHighlightedIndex(i + allOffset)}
                   onMouseDown={() => handleSelect(item.value)}
                 >
                   {item.icon && (

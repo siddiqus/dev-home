@@ -30,8 +30,12 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Index of the keyboard-highlighted option. 0 is the "All" row; items follow
+  // at 1..filtered.length, matching the render order below.
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selectedSet = useMemo(() => new Set(values), [values]);
 
@@ -90,10 +94,60 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     setSearch("");
   };
 
+  const openDropdown = () => {
+    setOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  // Reset the highlight to the top whenever the list changes (open/close, typing)
+  // so arrow navigation always starts from a predictable spot.
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [search, open]);
+
+  // Keep the highlighted option scrolled into view as the user arrows through.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${highlightedIndex}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [highlightedIndex, open]);
+
+  // Arrow keys move the highlight, Enter activates it, Escape closes. Total option
+  // count is the "All" row plus the filtered items.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (loading) return;
+    const total = filtered.length + 1;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % total);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i - 1 + total) % total);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex === 0) {
+        handleClearAll();
+      } else {
+        const item = filtered[highlightedIndex - 1];
+        if (item) handleToggle(item.value);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setSearch("");
+      inputRef.current?.blur();
+    }
+  };
+
   return (
     <div ref={containerRef} style={{ position: "relative", width }}>
       <div
         className="d-flex align-items-center"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={0}
         style={{
           border: "1px solid var(--color-border)",
           borderRadius: 6,
@@ -104,9 +158,16 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           background: "var(--color-bg-input)",
         }}
         onClick={() => {
-          setOpen(!open);
-          if (!open) {
-            setTimeout(() => inputRef.current?.focus(), 0);
+          if (open) {
+            setOpen(false);
+          } else {
+            openDropdown();
+          }
+        }}
+        onKeyDown={(e) => {
+          if (!open && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
+            e.preventDefault();
+            openDropdown();
           }
         }}
       >
@@ -120,6 +181,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleKeyDown}
             style={{
               border: "none",
               boxShadow: "none",
@@ -160,6 +222,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
 
       {open && (
         <div
+          ref={listRef}
           style={{
             position: "absolute",
             top: "100%",
@@ -183,7 +246,11 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             <>
               {/* "All" option -- clears selection */}
               <div
-                className={`multi-select-item ${values.length === 0 ? "fw-bold" : ""}`}
+                data-index={0}
+                className={`multi-select-item ${values.length === 0 ? "fw-bold" : ""} ${
+                  highlightedIndex === 0 ? "multi-select-item--active" : ""
+                }`}
+                onMouseEnter={() => setHighlightedIndex(0)}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   handleClearAll();
@@ -195,10 +262,14 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                 {allLabel}
               </div>
 
-              {filtered.map((item) => (
+              {filtered.map((item, i) => (
                 <div
                   key={item.value}
-                  className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""}`}
+                  data-index={i + 1}
+                  className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""} ${
+                    highlightedIndex === i + 1 ? "multi-select-item--active" : ""
+                  }`}
+                  onMouseEnter={() => setHighlightedIndex(i + 1)}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleToggle(item.value);
