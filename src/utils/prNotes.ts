@@ -14,15 +14,15 @@ export function normalizeNoteRef(referenceId: string | null | undefined): string
 
   const trimmed = referenceId.trim();
 
-  // Already canonical owner/repo#number (match /^[^\s/]+\/[^\s/]+#\d+$/)
-  if (/^[^\s/]+\/[^\s/]+#\d+$/.test(trimmed)) {
+  // Already canonical owner/repo#number (match /^[\w.-]+\/[\w.-]+#\d+$/)
+  if (/^[\w.-]+\/[\w.-]+#\d+$/.test(trimmed)) {
     return trimmed;
   }
 
   // GitHub PR URL: https://github.com/<owner>/<repo>/pull/<n>
   // Tolerate: http or https; optional trailing /; trailing ?query and/or #fragment
   const githubPrPattern =
-    /^https?:\/\/github\.com\/([^\s/]+)\/([^\s/]+)\/pull\/(\d+)(?:\/)?(?:\?[^#]*)?(?:#.*)?$/;
+    /^https?:\/\/github\.com\/([^\s/]+)\/([^\s/]+)\/pull\/(\d+)(?:\/)?(?:\?[^#]*)?(?:#.*)?$/i;
   const match = trimmed.match(githubPrPattern);
 
   if (match) {

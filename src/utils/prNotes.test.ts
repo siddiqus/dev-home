@@ -54,6 +54,7 @@ describe("normalizeNoteRef", () => {
     expect(normalizeNoteRef("")).toBe(null);
     expect(normalizeNoteRef("   ")).toBe(null);
     expect(normalizeNoteRef("\t\n ")).toBe(null);
+    expect(normalizeNoteRef("\n")).toBe(null);
   });
 
   it("returns canonical owner/repo#number as-is (trimmed)", () => {
@@ -87,6 +88,14 @@ describe("normalizeNoteRef", () => {
   it("extracts owner/repo#number from http scheme", () => {
     expect(normalizeNoteRef("http://github.com/octo/repo/pull/42")).toBe("octo/repo#42");
     expect(normalizeNoteRef("http://github.com/owner/repo/pull/123/")).toBe("owner/repo#123");
+  });
+
+  it("extracts owner/repo#number from mixed-case domain", () => {
+    expect(normalizeNoteRef("https://GitHub.com/octo/repo/pull/42")).toBe("octo/repo#42");
+  });
+
+  it("returns null for malformed canonical refs", () => {
+    expect(normalizeNoteRef("octo//repo#42")).toBe(null);
   });
 
   it("returns null for bare GitHub repo URL without /pull/", () => {
