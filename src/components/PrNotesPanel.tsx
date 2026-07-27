@@ -49,13 +49,14 @@ function NoteEditor({ initialTitle = "", initialContent = "", onSave, onCancel }
       />
       <div className="pr-notes-editor-actions">
         <button
+          type="button"
           className="pr-notes-btn pr-notes-btn--primary"
           disabled={!canSave}
           onClick={() => onSave(content.trim(), title.trim())}
         >
           Save
         </button>
-        <button className="pr-notes-btn pr-notes-btn--secondary" onClick={onCancel}>
+        <button type="button" className="pr-notes-btn pr-notes-btn--secondary" onClick={onCancel}>
           Cancel
         </button>
       </div>
@@ -116,6 +117,7 @@ function PrNoteItem({
       <div className="pr-note-content">{note.content}</div>
       <div className="pr-note-actions">
         <button
+          type="button"
           className={`pr-note-action-btn ${isResolved ? "is-active" : ""}`}
           title={isResolved ? "Unresolve" : "Resolve"}
           onClick={() => (isResolved ? onUnresolve(note.id) : onResolve(note.id))}
@@ -123,16 +125,23 @@ function PrNoteItem({
           <IconCheck size={14} stroke={1.5} />
         </button>
         <button
+          type="button"
           className={`pr-note-action-btn ${isPinned ? "is-active" : ""}`}
           title={isPinned ? "Unpin" : "Pin"}
           onClick={() => (isPinned ? onUnpin(note.id) : onPin(note.id))}
         >
           {isPinned ? <IconPinFilled size={14} stroke={1.5} /> : <IconPin size={14} stroke={1.5} />}
         </button>
-        <button className="pr-note-action-btn" title="Edit" onClick={() => setIsEditing(true)}>
+        <button
+          type="button"
+          className="pr-note-action-btn"
+          title="Edit"
+          onClick={() => setIsEditing(true)}
+        >
           <IconPencil size={14} stroke={1.5} />
         </button>
         <button
+          type="button"
           className="pr-note-action-btn"
           title="Delete"
           onClick={() => {
@@ -190,8 +199,9 @@ export function PrNotesPanel({ pr }: PrNotesPanelProps) {
       <div className="modal-body-section-header">
         <span>Notes ({unresolvedCount})</span>
         <button
+          type="button"
           className="pr-notes-add-btn"
-          title="Add note"
+          title={showComposer ? "Close" : "Add note"}
           onClick={() => setShowComposer(!showComposer)}
         >
           {showComposer ? <IconX size={16} stroke={1.5} /> : <IconPlus size={16} stroke={1.5} />}
