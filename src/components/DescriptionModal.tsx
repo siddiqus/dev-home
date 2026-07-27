@@ -14,6 +14,7 @@ import { CLAUDE_ACTION_LABELS } from "../types/claude";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import { fetchJobLogs } from "../services/github";
+import { PrNotesPanel } from "./PrNotesPanel";
 import "./DescriptionModal.css";
 
 const CHECK_SORT_ORDER: Record<string, number> = {
@@ -32,6 +33,16 @@ const CHECK_SORT_ORDER: Record<string, number> = {
   CANCELLED: 3,
   STALE: 3,
 };
+
+function columnWidths(hasChecks: boolean, hasSessions: boolean, hasNotes: boolean) {
+  if (!hasNotes) {
+    return { desc: hasChecks ? 6 : hasSessions ? 8 : 12, checks: 6, sessions: 4, notes: 0 };
+  }
+  const optional = (hasChecks ? 1 : 0) + (hasSessions ? 1 : 0);
+  if (optional === 0) return { desc: 8, checks: 0, sessions: 0, notes: 4 };
+  if (optional === 1) return { desc: 5, checks: 4, sessions: 4, notes: 3 };
+  return { desc: 3, checks: 3, sessions: 3, notes: 3 };
+}
 
 function parseJobInfoFromUrl(
   url: string | null,
@@ -202,6 +213,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
   const hasChecks = !!sortedChecks;
   const hasActiveSessions = !!activeSessions && activeSessions.length > 0;
+  const hasNotes = !!pr;
+  const widths = columnWidths(hasChecks, hasActiveSessions, hasNotes);
   const [selectedCheck, setSelectedCheck] = useState<CheckRunInfo | null>(null);
 
   useEffect(() => {
@@ -263,7 +276,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         </div>
 
         <Row className="g-0 modal-split-layout">
-          <Col md={hasChecks ? 6 : hasActiveSessions ? 8 : 12} className="modal-description-col">
+          <Col md={widths.desc} className="modal-description-col">
             <div className="modal-body-section-header">Description</div>
             {loading && !description ? (
               <div className="d-flex align-items-center gap-2 text-secondary-custom">
@@ -281,7 +294,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             )}
           </Col>
           {hasChecks && (
-            <Col md={6} className="modal-checks-col">
+            <Col md={widths.checks} className="modal-checks-col">
               {selectedCheck ? (
                 <div className="checks-log-view">
                   <div className="checks-log-view-header">
@@ -324,7 +337,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             </Col>
           )}
           {hasActiveSessions && (
-            <Col md={4} className="modal-checks-col">
+            <Col md={widths.sessions} className="modal-checks-col">
               <div className="modal-body-section-header">Active Claude Sessions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {activeSessions!.map((s) => (
@@ -356,6 +369,11 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                   </div>
                 ))}
               </div>
+            </Col>
+          )}
+          {pr && (
+            <Col md={widths.notes} className="modal-notes-col">
+              <PrNotesPanel pr={pr} />
             </Col>
           )}
         </Row>
