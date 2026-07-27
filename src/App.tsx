@@ -28,6 +28,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useFocus } from "./hooks/useFocus";
+import { NotesProvider } from "./context/NotesContext";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
@@ -137,6 +138,7 @@ export default function App() {
     refresh,
     refreshKey,
   } = useDashboard(configured);
+  const notesApi = useNotes(configured);
   const {
     notes,
     unresolvedNotes,
@@ -149,7 +151,7 @@ export default function App() {
     unpinNote,
     removeNote,
     refresh: refreshNotes,
-  } = useNotes(configured && activeSources.has("notes"));
+  } = notesApi;
   const kanbanNotes = useMemo(
     () =>
       unresolvedNotes.filter((n) => {
@@ -361,7 +363,7 @@ export default function App() {
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   return (
-    <>
+    <NotesProvider value={notesApi}>
       {/* Thin top bar -- draggable for Electron, with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container
@@ -711,6 +713,6 @@ export default function App() {
 
       {/* Rendered last so its own input isn't the first find-in-page match (see FindInPage) */}
       <FindInPage />
-    </>
+    </NotesProvider>
   );
 }
