@@ -254,6 +254,29 @@ describe("PRCard", () => {
     );
     expect(container.querySelector(".pr-card-label")).toBeNull();
   });
+
+  it("shows note count badge when noteCount > 0", () => {
+    render(<PRCard pr={makePR()} fields={FIELDS.full} noteCount={2} onOpen={noop} />);
+    expect(screen.getByTitle("2 notes on this PR")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("shows singular note text for noteCount = 1", () => {
+    render(<PRCard pr={makePR()} fields={FIELDS.full} noteCount={1} onOpen={noop} />);
+    expect(screen.getByTitle("1 note on this PR")).toBeInTheDocument();
+  });
+
+  it("hides note badge when noteCount is 0", () => {
+    const { container } = render(
+      <PRCard pr={makePR()} fields={FIELDS.full} noteCount={0} onOpen={noop} />,
+    );
+    expect(container.querySelector(".pr-card-notes")).toBeNull();
+  });
+
+  it("hides note badge when noteCount is undefined", () => {
+    const { container } = render(<PRCard pr={makePR()} fields={FIELDS.full} onOpen={noop} />);
+    expect(container.querySelector(".pr-card-notes")).toBeNull();
+  });
 });
 
 describe("PRCard reason chips", () => {

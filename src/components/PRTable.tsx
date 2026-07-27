@@ -5,6 +5,7 @@ import React, {
   forwardRef,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import Spinner from "react-bootstrap/Spinner";
 import {
@@ -24,6 +25,8 @@ import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
 import { PRCard, PRCardFields } from "./PRCard";
 import type { ClaudeAction, ClaudeSession } from "../types/claude";
+import { useOptionalNotes } from "../context/NotesContext";
+import { normalizeNoteRef, prNoteKey } from "../utils/prNotes";
 import "./PRTable.css";
 
 type PRTableVariant =
@@ -257,6 +260,20 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
 
   const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
 
+  const notesCtx = useOptionalNotes();
+  const notes = notesCtx?.notes ?? [];
+
+  const noteCountByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of notes) {
+      if (n.resolved !== 0) continue;
+      const key = normalizeNoteRef(n.reference_id);
+      if (!key) continue;
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return m;
+  }, [notes]);
+
   const toggleGroup = (ticket: string) => {
     if (onToggleGroup) {
       onToggleGroup(ticket);
@@ -379,6 +396,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     singleTicket={singleTicket}
                     clustered={isCluster}
                     showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
+                    noteCount={noteCountByKey.get(prNoteKey(pr)) ?? 0}
                     claudeEnabled={claudeEnabled}
                     claudeSessions={claudeSessions}
                     onClaudeAction={onClaudeAction}

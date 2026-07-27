@@ -5,6 +5,7 @@ import {
   IconGitBranch,
   IconExternalLink,
   IconCopy,
+  IconNote,
 } from "@tabler/icons-react";
 import { GitHubPR, GitHubLabel } from "../types";
 import { formatRelativeTime } from "../utils/time";
@@ -246,6 +247,8 @@ interface PRCardProps {
   /** Render the unified reason-chip row (needs-action rows only), replacing the
       standalone status pill and CI icon with labeled chips. */
   showReasonChips?: boolean;
+  /** Number of unresolved notes on this PR — shows a note-count badge when > 0. */
+  noteCount?: number;
   claudeEnabled?: boolean;
   claudeSessions?: ClaudeSession[];
   onClaudeAction?: (
@@ -275,6 +278,7 @@ export function PRCard({
   singleTicket,
   clustered,
   showReasonChips,
+  noteCount,
   claudeEnabled,
   claudeSessions,
   onClaudeAction,
@@ -377,6 +381,18 @@ export function PRCard({
               <span className="pr-card-mergedby">merged by {pr.merged_by}</span>
             </>
           )}
+          {noteCount && noteCount > 0 ? (
+            <>
+              <span className="pr-card-sep">{"·"}</span>
+              <span
+                className="pr-card-notes"
+                title={`${noteCount} note${noteCount > 1 ? "s" : ""} on this PR`}
+              >
+                <IconNote size={12} stroke={1.8} />
+                {noteCount}
+              </span>
+            </>
+          ) : null}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
       </div>

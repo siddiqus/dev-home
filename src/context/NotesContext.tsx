@@ -16,3 +16,7 @@ export function useNotesContext(): NotesApi {
   }
   return ctx;
 }
+
+export function useOptionalNotes(): NotesApi | null {
+  return useContext(NotesContext);
+}

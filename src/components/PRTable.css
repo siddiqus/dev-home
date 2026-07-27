@@ -195,6 +195,21 @@ a.pr-card-ticket:hover {
   flex-shrink: 0;
 }
 
+.pr-card-notes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.pr-card-notes svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
 .pr-card-branch {
   display: inline-flex;
   align-items: center;
