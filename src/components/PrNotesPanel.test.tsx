@@ -37,6 +37,7 @@ function makeNote(overrides: Partial<Note> = {}): Note {
     reference_id: "o/r#1",
     resolved: 0,
     pinned: 0,
+    remind_at: null,
     created_at: "2026-07-01T00:00:00Z",
     updated_at: "2026-07-01T00:00:00Z",
     ...overrides,
@@ -47,6 +48,7 @@ function makeNotesApi(notes: Note[]): NotesApi {
   return {
     notes,
     unresolvedNotes: notes.filter((n) => n.resolved === 0),
+    reminderNotes: notes.filter((n) => n.remind_at !== null),
     loading: false,
     error: null,
     addNote: vi.fn(),

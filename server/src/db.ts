@@ -237,6 +237,14 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_sprint_snapshots_sprint ON sprint_snapshots(sprint_id);
     `);
   },
+
+  // 15 – add remind_at column to notes (nullable scheduled reminder timestamp)
+  (d) => {
+    const columns = d.prepare("PRAGMA table_info(notes)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "remind_at")) {
+      d.exec("ALTER TABLE notes ADD COLUMN remind_at TEXT DEFAULT NULL");
+    }
+  },
 ];
 
 function runMigrations(d: Database.Database): void {

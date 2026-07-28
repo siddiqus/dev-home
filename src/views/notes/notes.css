@@ -29,3 +29,19 @@
   overflow: hidden;
   white-space: pre-wrap;
 }
+
+/* Reminder datetime picker: the native calendar glyph is near-black and
+   disappears on the dark editor background. Invert it to white in dark mode
+   (the base theme); revert to the native glyph under the light theme. */
+.description-modal input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+[data-theme="light"]
+  .description-modal
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 1;
+}

@@ -11,10 +11,11 @@ import {
   IconTrash,
   IconPin,
   IconPinFilled,
+  IconBell,
 } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
-import { formatRelativeTime } from "../../utils/time";
+import { formatRelativeTime, formatShortDate, describeReminder } from "../../utils/time";
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
   free_text: <IconNote size={14} stroke={1.8} />,
@@ -52,6 +53,9 @@ export function NoteCard({
   const url = getReferenceUrl(note, jiraBaseUrl);
   const title = getNoteDisplayTitle(note);
   const isPinned = note.pinned === 1;
+  const reminder = note.remind_at ? describeReminder(note.remind_at) : null;
+  // Alert styling only while the note is still actionable (unresolved).
+  const reminderIsAlerting = reminder?.overdue === true && note.resolved === 0;
 
   return (
     <Card className="note-card" style={{ cursor: "pointer" }} onClick={() => onOpenNote(note)}>
@@ -105,6 +109,23 @@ export function NoteCard({
           >
             {formatRelativeTime(note.created_at)}
           </span>
+          {reminder && (
+            <span
+              data-testid="reminder-chip"
+              className={`d-flex align-items-center gap-1 ${
+                reminderIsAlerting ? "text-danger" : "text-secondary-custom"
+              }`}
+              style={{
+                fontSize: "0.6875rem",
+                whiteSpace: "nowrap",
+                fontWeight: reminderIsAlerting ? 600 : 400,
+              }}
+              title={note.remind_at ? `Reminder: ${formatShortDate(note.remind_at)}` : undefined}
+            >
+              <IconBell size={12} stroke={1.8} />
+              {reminder.label}
+            </span>
+          )}
           <div className="d-flex align-items-center gap-2 ms-auto" style={{ flexShrink: 0 }}>
             <Button
               variant={isPinned ? "primary" : "outline-secondary"}

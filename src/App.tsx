@@ -30,6 +30,7 @@ import { useConfig } from "./hooks/useConfig";
 import { useTheme } from "./hooks/useTheme";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
+import { useReminderScheduler } from "./hooks/useReminderScheduler";
 import { useFocus } from "./hooks/useFocus";
 import { NotesProvider } from "./context/NotesContext";
 import { FocusView } from "./components/FocusView";
@@ -160,6 +161,9 @@ export default function App() {
     removeNote,
     refresh: refreshNotes,
   } = notesApi;
+  // App-level so reminders fire regardless of the active tab. dueReminderCount
+  // drives the Notes sidebar badge and updates ~every 15s as reminders come due.
+  const { dueCount: dueReminderCount } = useReminderScheduler(notes);
   const kanbanNotes = useMemo(
     () =>
       unresolvedNotes.filter((n) => {
@@ -486,6 +490,23 @@ export default function App() {
                         >
                           <Icon size={18} />
                           <span className="sidebar-tab-label">{tab.label}</span>
+                          {tab.key === "notes" && dueReminderCount > 0 && (
+                            <span
+                              title={`${dueReminderCount} reminder${dueReminderCount === 1 ? "" : "s"} due`}
+                              style={{
+                                marginLeft: "auto",
+                                background: "var(--bs-danger, #dc3545)",
+                                color: "#fff",
+                                borderRadius: "10px",
+                                padding: "0 6px",
+                                fontSize: "0.6875rem",
+                                fontWeight: 600,
+                                lineHeight: "1.4",
+                              }}
+                            >
+                              {dueReminderCount}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

@@ -64,7 +64,23 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  const unresolved = sortPinnedFirst(notes.filter((n) => n.resolved === 0));
+  // A note is a "due reminder" when it has a scheduled time that has already
+  // passed and it is still unresolved.
+  const isDueReminder = (n: Note) =>
+    n.remind_at !== null && n.resolved === 0 && new Date(n.remind_at).getTime() <= Date.now();
+
+  // Due/overdue reminders float to the very top (most-overdue first, i.e. the
+  // earliest remind_at first), then everything else falls back to pinned-first /
+  // newest ordering.
+  const sortRemindersFirst = (items: Note[]) => {
+    const due = items
+      .filter(isDueReminder)
+      .sort((a, b) => new Date(a.remind_at!).getTime() - new Date(b.remind_at!).getTime());
+    const rest = sortPinnedFirst(items.filter((n) => !isDueReminder(n)));
+    return [...due, ...rest];
+  };
+
+  const unresolved = sortRemindersFirst(notes.filter((n) => n.resolved === 0));
   const resolved = sortPinnedFirst(notes.filter((n) => n.resolved === 1));
 
   const activeNotes = activeTab === "unresolved" ? unresolved : resolved;

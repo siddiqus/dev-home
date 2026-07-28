@@ -153,6 +153,8 @@ export interface Note {
   reference_id: string | null;
   resolved: number;
   pinned: number;
+  /** ISO-8601 UTC datetime the reminder should fire, or null for a plain note. */
+  remind_at: string | null;
   created_at: string;
   updated_at: string;
 }

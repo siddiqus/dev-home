@@ -15,6 +15,7 @@ export async function createNote(note: {
   title?: string;
   content: string;
   reference_id?: string;
+  remind_at?: string | null;
 }): Promise<Note> {
   const { data } = await apiClient.post("/notes", note);
   return data.note;
@@ -28,6 +29,7 @@ export async function updateNote(
     title?: string;
     content?: string;
     reference_id?: string;
+    remind_at?: string | null;
   },
 ): Promise<Note> {
   const { data } = await apiClient.patch(`/notes/${id}`, updates);

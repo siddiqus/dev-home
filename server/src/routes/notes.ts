@@ -6,6 +6,21 @@ const router = Router();
 const VALID_TYPES = ["free_text", "jira_ticket", "github_pr", "link"];
 
 /**
+ * Validate a remind_at value. Accepts null/undefined (no reminder) or a string
+ * that parses to a valid date. Past dates are valid (overdue reminders are
+ * allowed). Numbers, objects, empty strings, and unparseable strings are invalid.
+ */
+export function isValidRemindAt(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return true;
+  }
+  if (typeof value !== "string" || value === "") {
+    return false;
+  }
+  return !Number.isNaN(new Date(value).getTime());
+}
+
+/**
  * GET /api/notes
  * List all notes, optionally filtered by resolved status.
  */
@@ -33,7 +48,7 @@ router.get("/", (req: Request, res: Response) => {
  */
 router.post("/", (req: Request, res: Response) => {
   const db = getDb();
-  const { type, content, reference_id, title } = req.body;
+  const { type, content, reference_id, title, remind_at } = req.body;
 
   if (!type || !VALID_TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(", ")}` });
@@ -45,10 +60,21 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
+  if (remind_at !== undefined && !isValidRemindAt(remind_at)) {
+    res.status(400).json({ error: "remind_at must be a valid date or null" });
+    return;
+  }
+
   const stmt = db.prepare(
-    "INSERT INTO notes (type, title, content, reference_id) VALUES (?, ?, ?, ?)",
+    "INSERT INTO notes (type, title, content, reference_id, remind_at) VALUES (?, ?, ?, ?, ?)",
   );
-  const result = stmt.run(type, title || "", content || "", reference_id || null);
+  const result = stmt.run(
+    type,
+    title || "",
+    content || "",
+    reference_id || null,
+    remind_at ?? null,
+  );
 
   const note = db.prepare("SELECT * FROM notes WHERE id = ?").get(result.lastInsertRowid);
   res.status(201).json({ note });
@@ -61,7 +87,7 @@ router.post("/", (req: Request, res: Response) => {
 router.patch("/:id", (req: Request, res: Response) => {
   const db = getDb();
   const { id } = req.params;
-  const { resolved, content, reference_id, title, pinned } = req.body;
+  const { resolved, content, reference_id, title, pinned, remind_at } = req.body;
 
   const existing = db.prepare("SELECT * FROM notes WHERE id = ?").get(id);
   if (!existing) {
@@ -95,6 +121,15 @@ router.patch("/:id", (req: Request, res: Response) => {
   if (reference_id !== undefined) {
     setClauses.push("reference_id = ?");
     params.push(reference_id);
+  }
+
+  if (remind_at !== undefined) {
+    if (!isValidRemindAt(remind_at)) {
+      res.status(400).json({ error: "remind_at must be a valid date or null" });
+      return;
+    }
+    setClauses.push("remind_at = ?");
+    params.push(remind_at);
   }
 
   setClauses.push("updated_at = datetime('now')");

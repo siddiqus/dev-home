@@ -26,11 +26,24 @@ export function useNotes(active: boolean) {
   }, [loadNotes]);
 
   const unresolvedNotes = notes.filter((n) => n.resolved === 0);
+  const reminderNotes = notes.filter((n) => n.remind_at !== null);
 
   const addNote = useCallback(
-    async (type: NoteType, content: string, referenceId?: string, title?: string) => {
+    async (
+      type: NoteType,
+      content: string,
+      referenceId?: string,
+      title?: string,
+      remindAt?: string | null,
+    ) => {
       try {
-        const newNote = await createNote({ type, title, content, reference_id: referenceId });
+        const newNote = await createNote({
+          type,
+          title,
+          content,
+          reference_id: referenceId,
+          remind_at: remindAt,
+        });
         setNotes((prev) => [newNote, ...prev]);
       } catch (err: any) {
         setError(err?.message || "Failed to add note");
@@ -81,7 +94,15 @@ export function useNotes(active: boolean) {
   }, []);
 
   const editNote = useCallback(
-    async (id: number, updates: { title?: string; content?: string; reference_id?: string }) => {
+    async (
+      id: number,
+      updates: {
+        title?: string;
+        content?: string;
+        reference_id?: string;
+        remind_at?: string | null;
+      },
+    ) => {
       try {
         const updated = await updateNote(id, updates);
         setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
@@ -106,6 +127,7 @@ export function useNotes(active: boolean) {
   return {
     notes,
     unresolvedNotes,
+    reminderNotes,
     loading,
     error,
     addNote,

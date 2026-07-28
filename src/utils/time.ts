@@ -57,3 +57,40 @@ export function formatShortDate(dateString?: string | null): string {
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
+
+/**
+ * Describes a reminder time for a chip/badge.
+ *
+ * - overdue (remind_at <= now): label like "Overdue 5m ago" (reuses formatRelativeTime)
+ * - upcoming: label like "Jul 30, 9:00 AM" (local short date + local time). The year is
+ *   included only when the reminder falls outside the current calendar year.
+ *
+ * Robust to invalid input: returns a muted fallback with overdue=false.
+ */
+export function describeReminder(
+  remindAt: string,
+  now: number = Date.now(),
+): { label: string; overdue: boolean } {
+  const then = new Date(remindAt).getTime();
+
+  if (Number.isNaN(then)) {
+    return { label: "No reminder", overdue: false };
+  }
+
+  const overdue = then <= now;
+
+  if (overdue) {
+    return { label: `Overdue ${formatRelativeTime(remindAt)}`, overdue: true };
+  }
+
+  const d = new Date(then);
+  const sameYear = d.getFullYear() === new Date(now).getFullYear();
+  const datePart = d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  const timePart = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+  return { label: `${datePart}, ${timePart}`, overdue: false };
+}

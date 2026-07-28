@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
+import { IconBell } from "@tabler/icons-react";
 import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -22,10 +23,21 @@ function getMarkdown(editor: Editor): string {
 interface NoteEditorModalProps {
   show: boolean;
   onHide: () => void;
-  onSave: (type: NoteType, content: string, referenceId?: string, title?: string) => Promise<void>;
+  onSave: (
+    type: NoteType,
+    content: string,
+    referenceId?: string,
+    title?: string,
+    remindAt?: string | null,
+  ) => Promise<void>;
   onEdit?: (
     id: number,
-    updates: { title?: string; content?: string; reference_id?: string },
+    updates: {
+      title?: string;
+      content?: string;
+      reference_id?: string;
+      remind_at?: string | null;
+    },
   ) => Promise<void>;
   note?: Note | null;
   jiraBaseUrl: string;
@@ -33,6 +45,37 @@ interface NoteEditorModalProps {
 
 function reconstructRawText(note: Note): string {
   return note.content || "";
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+// ISO-8601 UTC -> value for an <input type="datetime-local"> (local wall-clock).
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// <input type="datetime-local"> value (local) -> ISO-8601 UTC, or null if empty/invalid.
+function localInputToIso(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+// datetime-local value for `now + 1 hour`.
+function presetInOneHour(): string {
+  return isoToLocalInput(new Date(Date.now() + 60 * 60 * 1000).toISOString());
+}
+
+// datetime-local value for tomorrow at 09:00 local.
+function presetTomorrow9am(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return isoToLocalInput(d.toISOString());
 }
 
 export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
@@ -52,6 +95,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState("");
   const [showDismissConfirm, setShowDismissConfirm] = useState(false);
+  const [remindAt, setRemindAt] = useState("");
+  const [initialRemindAt, setInitialRemindAt] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -79,8 +124,9 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   useEffect(() => {
     const contentChanged = editorContent.trim() !== initialContent.trim();
     const titleChanged = titleText.trim() !== initialTitle.trim();
-    setIsDirty(contentChanged || titleChanged);
-  }, [initialContent, editorContent, titleText, initialTitle]);
+    const remindChanged = remindAt !== initialRemindAt;
+    setIsDirty(contentChanged || titleChanged || remindChanged);
+  }, [initialContent, editorContent, titleText, initialTitle, remindAt, initialRemindAt]);
 
   // Load note content when modal opens
   useEffect(() => {
@@ -93,6 +139,9 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       setInitialContent(rawText);
       setTitleText(note.title || "");
       setInitialTitle(note.title || "");
+      const localRemind = isoToLocalInput(note.remind_at);
+      setRemindAt(localRemind);
+      setInitialRemindAt(localRemind);
       setIsDirty(false);
     } else {
       editor.commands.setContent("");
@@ -100,6 +149,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       setInitialContent("");
       setTitleText("");
       setInitialTitle("");
+      setRemindAt("");
+      setInitialRemindAt("");
       setIsDirty(false);
     }
     setError(null);
@@ -117,6 +168,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     setInitialTitle("");
     setInitialContent("");
     setEditorContent("");
+    setRemindAt("");
+    setInitialRemindAt("");
     setIsDirty(false);
     setError(null);
     setShowDismissConfirm(false);
@@ -157,10 +210,17 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     setError(null);
     try {
       const title = titleText.trim() || autoTitle;
+      const remindIso = localInputToIso(remindAt);
       if (isEditing && onEdit) {
-        const updates: { title?: string; content?: string; reference_id?: string } = {
+        const updates: {
+          title?: string;
+          content?: string;
+          reference_id?: string;
+          remind_at?: string | null;
+        } = {
           title,
           content: markdown,
+          remind_at: remindIso,
         };
         if (detected.type !== "free_text") {
           updates.reference_id = detected.referenceId;
@@ -172,6 +232,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           markdown,
           detected.type !== "free_text" ? detected.referenceId : undefined,
           title,
+          remindIso,
         );
       }
       handleClose();
@@ -180,7 +241,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     } finally {
       setSaving(false);
     }
-  }, [editor, titleText, isEditing, onEdit, note, onSave, handleClose]);
+  }, [editor, titleText, isEditing, onEdit, note, onSave, handleClose, remindAt]);
 
   // Compute reference URL: from existing note when editing, or live-detected from editor content
   const referenceUrl = useMemo(() => {
@@ -255,6 +316,42 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
         <div className="tiptap-editor-wrapper">
           <EditorToolbar editor={editor} />
           <EditorContent editor={editor} />
+        </div>
+
+        <div
+          className="d-flex align-items-center gap-2 mt-3"
+          style={{ fontSize: "0.8125rem", flexWrap: "wrap" }}
+        >
+          <span className="d-flex align-items-center gap-1 text-secondary-custom">
+            <IconBell size={14} stroke={1.8} />
+            Remind me
+          </span>
+          <input
+            type="datetime-local"
+            className="form-control form-control-sm"
+            style={{ width: "auto", fontSize: "0.8125rem" }}
+            value={remindAt}
+            onChange={(e) => setRemindAt(e.target.value)}
+          />
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setRemindAt(presetInOneHour())}
+          >
+            In 1h
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => setRemindAt(presetTomorrow9am())}
+          >
+            Tomorrow 9am
+          </Button>
+          {remindAt && (
+            <Button variant="outline-secondary" size="sm" onClick={() => setRemindAt("")}>
+              Clear
+            </Button>
+          )}
         </div>
       </Modal.Body>
       <Modal.Footer>
