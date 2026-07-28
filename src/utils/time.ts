@@ -94,3 +94,33 @@ export function describeReminder(
 
   return { label: `${datePart}, ${timePart}`, overdue: false };
 }
+
+/** ISO-8601 UTC string for `now + hours`. Used by reminder presets. */
+export function inHoursIso(hours: number, now: number = Date.now()): string {
+  return new Date(now + hours * 60 * 60 * 1000).toISOString();
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** ISO-8601 UTC -> value for an <input type="datetime-local"> (local wall-clock). */
+export function isoToDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** <input type="datetime-local"> value (local) -> ISO-8601 UTC, or null if empty/invalid. */
+export function datetimeLocalToIso(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/** ISO-8601 UTC string for tomorrow at 09:00 local time. */
+export function tomorrow9amIso(now: number = Date.now()): string {
+  const d = new Date(now);
+  const tomorrow9 = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 9, 0, 0, 0);
+  return tomorrow9.toISOString();
+}

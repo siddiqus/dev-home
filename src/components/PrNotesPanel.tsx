@@ -3,6 +3,8 @@ import { GitHubPR, Note } from "../types";
 import { useNotesContext } from "../context/NotesContext";
 import { prNoteKey, notesForPr } from "../utils/prNotes";
 import { getNoteDisplayTitle } from "../utils/text";
+import { describeReminder } from "../utils/time";
+import { ReminderControl } from "./ReminderControl";
 import {
   IconPlus,
   IconCheck,
@@ -11,6 +13,7 @@ import {
   IconTrash,
   IconPencil,
   IconX,
+  IconBell,
 } from "@tabler/icons-react";
 import "./PrNotesPanel.css";
 
@@ -21,13 +24,21 @@ interface PrNotesPanelProps {
 interface NoteEditorProps {
   initialTitle?: string;
   initialContent?: string;
-  onSave: (content: string, title: string) => void;
+  initialRemindAt?: string | null;
+  onSave: (content: string, title: string, remindAt: string | null) => void;
   onCancel: () => void;
 }
 
-function NoteEditor({ initialTitle = "", initialContent = "", onSave, onCancel }: NoteEditorProps) {
+function NoteEditor({
+  initialTitle = "",
+  initialContent = "",
+  initialRemindAt = null,
+  onSave,
+  onCancel,
+}: NoteEditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
+  const [remindAt, setRemindAt] = useState<string | null>(initialRemindAt);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   // Focus the content field as soon as the editor opens so the user can type
@@ -56,12 +67,13 @@ function NoteEditor({ initialTitle = "", initialContent = "", onSave, onCancel }
         onChange={(e) => setContent(e.target.value)}
         rows={4}
       />
+      <ReminderControl value={remindAt} onChange={setRemindAt} />
       <div className="pr-notes-editor-actions">
         <button
           type="button"
           className="pr-notes-btn pr-notes-btn--primary"
           disabled={!canSave}
-          onClick={() => onSave(content.trim(), title.trim())}
+          onClick={() => onSave(content.trim(), title.trim(), remindAt)}
         >
           Save
         </button>
@@ -79,7 +91,7 @@ interface PrNoteItemProps {
   onUnresolve: (id: number) => void;
   onPin: (id: number) => void;
   onUnpin: (id: number) => void;
-  onEdit: (id: number, content: string, title: string) => void;
+  onEdit: (id: number, content: string, title: string, remindAt: string | null) => void;
   onDelete: (id: number) => void;
 }
 
@@ -96,6 +108,9 @@ function PrNoteItem({
   const isResolved = note.resolved === 1;
   const isPinned = note.pinned === 1;
   const displayTitle = getNoteDisplayTitle(note);
+  const reminder = note.remind_at ? describeReminder(note.remind_at) : null;
+  // Alert styling only while the note is still actionable (unresolved).
+  const reminderIsAlerting = reminder?.overdue === true && note.resolved === 0;
 
   if (isEditing) {
     return (
@@ -103,8 +118,9 @@ function PrNoteItem({
         <NoteEditor
           initialTitle={note.title}
           initialContent={note.content}
-          onSave={(content, title) => {
-            onEdit(note.id, content, title);
+          initialRemindAt={note.remind_at}
+          onSave={(content, title, remindAt) => {
+            onEdit(note.id, content, title, remindAt);
             setIsEditing(false);
           }}
           onCancel={() => setIsEditing(false)}
@@ -124,6 +140,16 @@ function PrNoteItem({
         <span className="pr-note-title">{displayTitle}</span>
       </div>
       <div className="pr-note-content">{note.content}</div>
+      {reminder && (
+        <span
+          data-testid="pr-note-reminder"
+          className={`pr-note-reminder ${reminderIsAlerting ? "is-alerting" : ""}`}
+          title={`Reminder: ${reminder.label}`}
+        >
+          <IconBell size={12} stroke={1.8} />
+          {reminder.label}
+        </span>
+      )}
       <div className="pr-note-actions">
         <button
           type="button"
@@ -190,13 +216,18 @@ export function PrNotesPanel({ pr }: PrNotesPanelProps) {
   const matched = useMemo(() => notesForPr(notes, pr), [notes, pr]);
   const unresolvedCount = matched.filter((n) => n.resolved === 0).length;
 
-  const handleAddNote = async (content: string, title: string) => {
-    await addNote("github_pr", content, prNoteKey(pr), title || undefined);
+  const handleAddNote = async (content: string, title: string, remindAt: string | null) => {
+    await addNote("github_pr", content, prNoteKey(pr), title || undefined, remindAt);
     setShowComposer(false);
   };
 
-  const handleEditNote = async (id: number, content: string, title: string) => {
-    await editNote(id, { content, title: title || undefined });
+  const handleEditNote = async (
+    id: number,
+    content: string,
+    title: string,
+    remindAt: string | null,
+  ) => {
+    await editNote(id, { content, title: title || undefined, remind_at: remindAt });
   };
 
   const handleResolve = async (id: number) => {

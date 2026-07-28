@@ -5,6 +5,10 @@
    ============================================ */
 
 :root {
+  /* Render native controls (date/time pickers, scrollbars, form widgets) dark to
+     match the default dark theme. Light theme flips this below. */
+  color-scheme: dark;
+
   /* Surfaces */
   --color-bg-app: #0d1117;
   --color-bg-panel: #161b22;
@@ -87,6 +91,8 @@
 }
 
 [data-theme="light"] {
+  color-scheme: light;
+
   /* Surfaces */
   --color-bg-app: #ffffff;
   --color-bg-panel: #ffffff;

@@ -102,7 +102,13 @@ describe("PrNotesPanel", () => {
 
     fireEvent.click(screen.getByText("Save"));
 
-    expect(api.addNote).toHaveBeenCalledWith("github_pr", "New note content", "o/r#1", undefined);
+    expect(api.addNote).toHaveBeenCalledWith(
+      "github_pr",
+      "New note content",
+      "o/r#1",
+      undefined,
+      null,
+    );
   });
 
   it("clicking add button, typing title and content, clicking Save calls addNote with title", () => {
@@ -125,7 +131,13 @@ describe("PrNotesPanel", () => {
 
     fireEvent.click(screen.getByText("Save"));
 
-    expect(api.addNote).toHaveBeenCalledWith("github_pr", "New note content", "o/r#1", "My Title");
+    expect(api.addNote).toHaveBeenCalledWith(
+      "github_pr",
+      "New note content",
+      "o/r#1",
+      "My Title",
+      null,
+    );
   });
 
   it("clicking a note's resolve button calls resolveNote", () => {
@@ -306,6 +318,7 @@ describe("PrNotesPanel", () => {
     expect(api.editNote).toHaveBeenCalledWith(80, {
       content: "Updated content",
       title: "Updated title",
+      remind_at: null,
     });
   });
 
@@ -332,5 +345,65 @@ describe("PrNotesPanel", () => {
     fireEvent.change(contentTextarea, { target: { value: "Valid content" } });
 
     expect(saveButton).not.toBeDisabled();
+  });
+
+  it("setting a reminder preset in the composer passes an ISO time to addNote", () => {
+    const api = makeNotesApi([]);
+    const pr = makePR({ repo_full_name: "o/r", number: 1 });
+
+    render(
+      <NotesProvider value={api}>
+        <PrNotesPanel pr={pr} />
+      </NotesProvider>,
+    );
+
+    fireEvent.click(screen.getByTitle("Add note"));
+    fireEvent.change(screen.getByPlaceholderText("Note content..."), {
+      target: { value: "Ping me later" },
+    });
+
+    // Pick the "In 1h" preset, which collapses to a chip + clear button.
+    fireEvent.click(screen.getByText("In 1h"));
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(api.addNote).toHaveBeenCalledWith(
+      "github_pr",
+      "Ping me later",
+      "o/r#1",
+      undefined,
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    );
+  });
+
+  it("renders a reminder chip for a note that has a remind_at", () => {
+    const note = makeNote({
+      id: 5,
+      content: "Note with reminder",
+      remind_at: "2099-01-01T09:00:00.000Z",
+    });
+    const api = makeNotesApi([note]);
+    const pr = makePR({ repo_full_name: "o/r", number: 1 });
+
+    render(
+      <NotesProvider value={api}>
+        <PrNotesPanel pr={pr} />
+      </NotesProvider>,
+    );
+
+    expect(screen.getByTestId("pr-note-reminder")).toBeInTheDocument();
+  });
+
+  it("does not render a reminder chip for a note without a remind_at", () => {
+    const note = makeNote({ id: 6, content: "No reminder", remind_at: null });
+    const api = makeNotesApi([note]);
+    const pr = makePR({ repo_full_name: "o/r", number: 1 });
+
+    render(
+      <NotesProvider value={api}>
+        <PrNotesPanel pr={pr} />
+      </NotesProvider>,
+    );
+
+    expect(screen.queryByTestId("pr-note-reminder")).not.toBeInTheDocument();
   });
 });

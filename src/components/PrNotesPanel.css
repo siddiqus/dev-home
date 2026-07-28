@@ -168,6 +168,21 @@
   word-wrap: break-word;
 }
 
+.pr-note-reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.pr-note-reminder.is-alerting {
+  color: var(--color-status-danger, #f85149);
+  font-weight: 600;
+}
+
 .pr-note-actions {
   display: flex;
   gap: 6px;
