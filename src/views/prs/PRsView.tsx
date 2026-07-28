@@ -4,6 +4,7 @@ import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
+import { RED_CHECK_STATUSES } from "../../utils/prCategories";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { PRSections, PRSectionsHandle } from "../../components/PRSections";
 import { SearchInput } from "../../components/SearchInput";
@@ -76,11 +77,20 @@ export const PRsView: React.FC<PRsViewProps> = ({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+  // Open-PRs-only filters, driven from the left sidebar.
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [ciFailureOnly, setCiFailureOnly] = useState(false);
 
-  const hasActiveFilters = searchQuery.trim() !== "" || selectedRepos.length > 0;
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    selectedRepos.length > 0 ||
+    selectedLabels.length > 0 ||
+    ciFailureOnly;
   const clearFilters = useCallback(() => {
     setSearchQuery("");
     setSelectedRepos([]);
+    setSelectedLabels([]);
+    setCiFailureOnly(false);
   }, []);
 
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
@@ -96,6 +106,16 @@ export const PRsView: React.FC<PRsViewProps> = ({
       .sort((a, b) => a.localeCompare(b))
       .map((full) => ({ value: full, label: full.split("/").pop() || full }));
   }, [openPRs, mergedPRs]);
+
+  // Label filter options are Open-PRs-only, derived from the labels present on
+  // the loaded open PRs. value === label === the raw label name.
+  const labelItems = useMemo<DropdownItem[]>(() => {
+    const names = new Set<string>();
+    for (const pr of openPRs) for (const label of pr.labels || []) names.add(label.name);
+    return Array.from(names)
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({ value: name, label: name }));
+  }, [openPRs]);
 
   const loadMergedPRs = useCallback(async () => {
     if (!configured) return;
@@ -134,7 +154,21 @@ export const PRsView: React.FC<PRsViewProps> = ({
     [searchQuery, selectedRepos, jiraIssues],
   );
 
-  const filteredOpenPRs = useMemo(() => filterPRs(openPRs), [filterPRs, openPRs]);
+  // Open PRs get the shared search/repo filter plus the Open-only sidebar
+  // filters: labels (match ALL selected) and CI-failure-only.
+  const filteredOpenPRs = useMemo(() => {
+    let list = filterPRs(openPRs);
+    if (selectedLabels.length > 0) {
+      list = list.filter((pr) => {
+        const names = new Set((pr.labels || []).map((l) => l.name));
+        return selectedLabels.every((name) => names.has(name));
+      });
+    }
+    if (ciFailureOnly) {
+      list = list.filter((pr) => !!pr.checks_status && RED_CHECK_STATUSES.has(pr.checks_status));
+    }
+    return list;
+  }, [filterPRs, openPRs, selectedLabels, ciFailureOnly]);
   const filteredMergedPRs = useMemo(() => filterPRs(mergedPRs), [filterPRs, mergedPRs]);
 
   return (
@@ -155,30 +189,36 @@ export const PRsView: React.FC<PRsViewProps> = ({
           </button>
         </div>
         <div className="prs-subtab-bar-right">
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search PRs..."
-            expandOnFocus
-          />
-          <MultiSelectDropdown
-            items={repoItems}
-            values={selectedRepos}
-            onChange={setSelectedRepos}
-            placeholder="Filter repos..."
-            allLabel="All repos"
-            width={200}
-          />
-          {hasActiveFilters && (
-            <button
-              type="button"
-              className="pr-table-collapse-btn"
-              onClick={clearFilters}
-              title="Clear all filters"
-            >
-              <IconX size={14} />
-              Clear filters
-            </button>
+          {/* Recently Merged keeps its filters in the top toolbar; Open PRs moves
+              them into the left sidebar (rendered in .prs-body below). */}
+          {subTab === "merged" && (
+            <>
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search PRs..."
+                expandOnFocus
+              />
+              <MultiSelectDropdown
+                items={repoItems}
+                values={selectedRepos}
+                onChange={setSelectedRepos}
+                placeholder="Filter repos..."
+                allLabel="All repos"
+                width={200}
+              />
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="pr-table-collapse-btn"
+                  onClick={clearFilters}
+                  title="Clear all filters"
+                >
+                  <IconX size={14} />
+                  Clear filters
+                </button>
+              )}
+            </>
           )}
           {subTab === "open" && (
             <div className="prs-view-actions">
@@ -230,54 +270,120 @@ export const PRsView: React.FC<PRsViewProps> = ({
         </div>
       </div>
 
-      <div className="prs-scroll-body">
-        {subTab === "open" && viewMode === "segments" && (
-          <PRSections
-            ref={prSectionsRef}
-            prs={filteredOpenPRs}
-            loading={loading}
-            jiraIssues={jiraIssues}
-            jiraBaseUrl={jiraBaseUrl}
-            claudeEnabled={claudeEnabled}
-            claudeSessions={claudeSessions}
-            onClaudeAction={onClaudeAction}
-            onViewClaudeSession={onViewClaudeSession}
-            onCollapseStateChange={(hasGroups, allCollapsed) =>
-              setGroupState({ hasGroups, allCollapsed })
-            }
-          />
+      <div className="prs-body">
+        {subTab === "open" && (
+          <aside className="prs-filter-sidebar">
+            <div className="prs-filter-heading">Filters</div>
+
+            <div className="prs-filter-group">
+              <span className="prs-filter-label">Search</span>
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search PRs..."
+                className="prs-filter-search"
+              />
+            </div>
+
+            <div className="prs-filter-group">
+              <span className="prs-filter-label">Repositories</span>
+              <MultiSelectDropdown
+                items={repoItems}
+                values={selectedRepos}
+                onChange={setSelectedRepos}
+                placeholder="Filter repos..."
+                allLabel="All repos"
+                width="100%"
+              />
+            </div>
+
+            <div className="prs-filter-group">
+              <span className="prs-filter-label">Labels</span>
+              <MultiSelectDropdown
+                items={labelItems}
+                values={selectedLabels}
+                onChange={setSelectedLabels}
+                placeholder="Filter labels..."
+                allLabel="All labels"
+                width="100%"
+              />
+            </div>
+
+            <div className="prs-filter-group">
+              <span className="prs-filter-label">CI</span>
+              <label className="prs-filter-checkbox">
+                <input
+                  type="checkbox"
+                  checked={ciFailureOnly}
+                  onChange={(e) => setCiFailureOnly(e.target.checked)}
+                />
+                CI failure only
+              </label>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="pr-table-collapse-btn prs-filter-clear"
+                onClick={clearFilters}
+                title="Clear all filters"
+              >
+                <IconX size={14} />
+                Clear filters
+              </button>
+            )}
+          </aside>
         )}
-        {subTab === "open" && viewMode === "flat" && (
-          <PRTable
-            ref={prTableRef}
-            prs={filteredOpenPRs}
-            loading={loading}
-            variant="my-prs"
-            jiraIssues={jiraIssues}
-            jiraBaseUrl={jiraBaseUrl}
-            claudeEnabled={claudeEnabled}
-            claudeSessions={claudeSessions}
-            onClaudeAction={onClaudeAction}
-            onViewClaudeSession={onViewClaudeSession}
-            showGroupToolbar={false}
-            reasonChips
-            onCollapseStateChange={(hasGroups, allCollapsed) =>
-              setGroupState({ hasGroups, allCollapsed })
-            }
-          />
-        )}
-        {subTab === "merged" && (
-          <PRTable
-            ref={mergedTableRef}
-            prs={filteredMergedPRs}
-            loading={mergedPRsLoading}
-            variant="recently-merged"
-            jiraBaseUrl={jiraBaseUrl}
-            onCollapseStateChange={(hasGroups, allCollapsed) =>
-              setGroupState({ hasGroups, allCollapsed })
-            }
-          />
-        )}
+
+        <div className="prs-scroll-body">
+          {subTab === "open" && viewMode === "segments" && (
+            <PRSections
+              ref={prSectionsRef}
+              prs={filteredOpenPRs}
+              loading={loading}
+              jiraIssues={jiraIssues}
+              jiraBaseUrl={jiraBaseUrl}
+              claudeEnabled={claudeEnabled}
+              claudeSessions={claudeSessions}
+              onClaudeAction={onClaudeAction}
+              onViewClaudeSession={onViewClaudeSession}
+              onCollapseStateChange={(hasGroups, allCollapsed) =>
+                setGroupState({ hasGroups, allCollapsed })
+              }
+            />
+          )}
+          {subTab === "open" && viewMode === "flat" && (
+            <PRTable
+              ref={prTableRef}
+              prs={filteredOpenPRs}
+              loading={loading}
+              variant="my-prs"
+              jiraIssues={jiraIssues}
+              jiraBaseUrl={jiraBaseUrl}
+              claudeEnabled={claudeEnabled}
+              claudeSessions={claudeSessions}
+              onClaudeAction={onClaudeAction}
+              onViewClaudeSession={onViewClaudeSession}
+              showGroupToolbar={false}
+              reasonChips
+              onCollapseStateChange={(hasGroups, allCollapsed) =>
+                setGroupState({ hasGroups, allCollapsed })
+              }
+            />
+          )}
+          {subTab === "merged" && (
+            <PRTable
+              ref={mergedTableRef}
+              prs={filteredMergedPRs}
+              loading={mergedPRsLoading}
+              variant="recently-merged"
+              jiraBaseUrl={jiraBaseUrl}
+              onCollapseStateChange={(hasGroups, allCollapsed) =>
+                setGroupState({ hasGroups, allCollapsed })
+              }
+            />
+          )}
+        </div>
       </div>
     </div>
   );

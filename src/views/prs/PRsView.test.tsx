@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PRsView } from "./PRsView";
 import type { GitHubPR } from "../../types";
@@ -44,5 +44,67 @@ describe("PRsView open PRs tab count", () => {
     render(<PRsView openPRs={[]} loading={true} configured={false} />);
     expect(screen.getByRole("button", { name: "Open PRs" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Open PRs \(/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("PRsView sidebar filters", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("'CI failure only' narrows to PRs with a red check-rollup status", () => {
+    render(
+      <PRsView
+        openPRs={[
+          makePR({ checks_status: "FAILURE" }),
+          makePR({ checks_status: "SUCCESS" }),
+          makePR({ checks_status: null }),
+        ]}
+        loading={false}
+        configured={false}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Open PRs (3)" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    expect(screen.getByRole("button", { name: "Open PRs (1)" })).toBeInTheDocument();
+  });
+
+  it("labels filter matches ALL selected labels (AND)", () => {
+    render(
+      <PRsView
+        openPRs={[
+          makePR({
+            labels: [
+              { name: "bug", color: "ff0000" },
+              { name: "urgent", color: "00ff00" },
+            ],
+          }),
+          makePR({ labels: [{ name: "bug", color: "ff0000" }] }),
+          makePR({ labels: [] }),
+        ]}
+        loading={false}
+        configured={false}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Open PRs (3)" })).toBeInTheDocument();
+
+    // The label name also appears on PR-card chips, so scope clicks to the
+    // dropdown's own option rows (class "multi-select-item").
+    const clickOption = (name: string) => {
+      const option = screen
+        .getAllByText(name)
+        .find((el) => el.classList.contains("multi-select-item"));
+      if (!option) throw new Error(`dropdown option "${name}" not found`);
+      fireEvent.mouseDown(option);
+    };
+
+    // Open the Labels dropdown and select "bug" -> both bug-tagged PRs remain.
+    fireEvent.click(screen.getByText("All labels"));
+    clickOption("bug");
+    expect(screen.getByRole("button", { name: "Open PRs (2)" })).toBeInTheDocument();
+
+    // Add "urgent": AND semantics leave only the PR carrying both labels.
+    clickOption("urgent");
+    expect(screen.getByRole("button", { name: "Open PRs (1)" })).toBeInTheDocument();
   });
 });

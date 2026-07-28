@@ -21,11 +21,76 @@
   margin-bottom: var(--space-3);
 }
 
+/* Row holding the (Open-PRs-only) filter sidebar and the scrollable PR list. */
+.prs-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--space-3);
+}
+
 /* Scrollable region holding the PR list — the only part that scrolls. */
 .prs-scroll-body {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* Fixed-width left column of filters shown on the Open PRs sub-tab. */
+.prs-filter-sidebar {
+  flex-shrink: 0;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  padding-right: var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+
+.prs-filter-heading {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.prs-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.prs-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* SearchInput wrapper fills the sidebar column width. */
+.prs-filter-search {
+  width: 100%;
+}
+
+.prs-filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.prs-filter-checkbox input {
+  cursor: pointer;
+}
+
+.prs-filter-clear {
+  align-self: flex-start;
+  margin-top: var(--space-1);
 }
 
 .prs-subtab-group {

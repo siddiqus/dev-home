@@ -12,7 +12,7 @@ interface MultiSelectDropdownProps {
   onChange: (values: string[]) => void;
   placeholder: string;
   allLabel: string;
-  width?: number;
+  width?: number | string;
   loading?: boolean;
   /** Icon shown at the left of the trigger. Defaults to a search icon. */
   triggerIcon?: React.ReactNode;
