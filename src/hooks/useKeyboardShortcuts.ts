@@ -20,7 +20,7 @@ const shortcutHints: Record<string, string> = Object.fromEntries(
   Object.entries(tabShortcuts).map(([key, tab]) => [tab, key.toUpperCase()]),
 );
 
-const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+export const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export function getShortcutTitle(tabKey: string, label: string): string {
   const hint = shortcutHints[tabKey];

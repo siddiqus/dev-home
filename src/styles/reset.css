@@ -71,6 +71,10 @@ body {
   background-color: var(--color-bg-hover, rgba(255, 255, 255, 0.08));
 }
 
+.top-bar-icon-btn.active {
+  color: var(--color-accent, #4f8cff);
+}
+
 .top-bar-icon-btn:focus-visible {
   outline: 2px solid var(--color-accent, #4f8cff);
   outline-offset: 1px;
