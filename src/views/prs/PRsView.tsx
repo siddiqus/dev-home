@@ -142,6 +142,11 @@ export const PRsView: React.FC<PRsViewProps> = ({
         if (repoSet && !repoSet.has(pr.repo_full_name)) return false;
         if (!q) return true;
         if (pr.title.toLowerCase().includes(q)) return true;
+        // Match "repo#number" (short or full name) plus bare "#number" / number.
+        const shortRepo = pr.repo_full_name.split("/").pop() || pr.repo_full_name;
+        const ref = `${shortRepo}#${pr.number}`.toLowerCase();
+        const fullRef = `${pr.repo_full_name}#${pr.number}`.toLowerCase();
+        if (ref.includes(q) || fullRef.includes(q)) return true;
         const ticket = extractTicketKey(sourceFromPR(pr));
         if (ticket && ticket.toLowerCase().includes(q)) return true;
         const ticketTitle = ticket
