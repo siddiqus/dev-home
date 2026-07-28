@@ -319,7 +319,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
         </div>
 
         <div
-          className="d-flex align-items-center gap-2 mt-3"
+          className="d-flex align-items-center gap-2 m-3"
           style={{ fontSize: "0.8125rem", flexWrap: "wrap" }}
         >
           <span className="d-flex align-items-center gap-1 text-secondary-custom">
