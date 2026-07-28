@@ -21,6 +21,9 @@ import {
   IconSparkles,
   IconUsersGroup,
   IconChartBar,
+  IconSun,
+  IconMoon,
+  IconFilePlus,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -61,7 +64,7 @@ import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS } from "./config/navTabs";
 import { sourcesFor } from "./config/tabData";
-import { useKeyboardShortcuts, getShortcutTitle } from "./hooks/useKeyboardShortcuts";
+import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -80,9 +83,14 @@ export default function App() {
     setDashboardTeamId(teamId);
     setActiveTab("team-dashboard");
   };
-  // The topbar no longer has a theme toggle; useTheme() still runs to apply the
-  // stored/OS theme and keep it live. Settings' ThemePicker drives the choice.
-  const { preference: themePreference, setPreference: setThemePreference } = useTheme();
+  // useTheme() applies the stored/OS theme and keeps it live. The topbar exposes a
+  // quick light/dark toggle; Settings' ThemePicker drives the full choice (incl. "system").
+  const {
+    preference: themePreference,
+    setPreference: setThemePreference,
+    resolvedTheme,
+    toggleTheme,
+  } = useTheme();
   const {
     configured,
     loading: configLoading,
@@ -389,6 +397,34 @@ export default function App() {
               />
             )}
             {loading && <Spinner animation="border" size="sm" variant="secondary" />}
+            {/* Quick actions -- kept rightmost so the transient badge/spinner don't shift them */}
+            <button
+              type="button"
+              className="top-bar-icon-btn"
+              onClick={handleNewNote}
+              title={`New note (${isMac ? "⌘⇧" : "Ctrl+Shift+"}N)`}
+              aria-label="New note"
+            >
+              <IconFilePlus size={16} />
+            </button>
+            <button
+              type="button"
+              className="top-bar-icon-btn"
+              onClick={toggleTheme}
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {resolvedTheme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+            </button>
+            <button
+              type="button"
+              className={`top-bar-icon-btn${effectiveTab === "settings" ? " active" : ""}`}
+              onClick={() => setActiveTab("settings")}
+              title={getShortcutTitle("settings", "Settings")}
+              aria-label="Settings"
+            >
+              <IconSettings size={16} />
+            </button>
           </div>
         </Container>
       </Navbar>
