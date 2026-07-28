@@ -193,6 +193,27 @@ describe("PrNotesPanel", () => {
     expect(screen.getByText("No notes for this PR yet.")).toBeInTheDocument();
   });
 
+  it("opens the composer on the new-note shortcut (Cmd/Ctrl+Shift+N)", () => {
+    const api = makeNotesApi([]);
+    const pr = makePR({ repo_full_name: "o/r", number: 1 });
+
+    render(
+      <NotesProvider value={api}>
+        <PrNotesPanel pr={pr} />
+      </NotesProvider>,
+    );
+
+    expect(screen.queryByPlaceholderText("Note content...")).not.toBeInTheDocument();
+
+    // A plain "n" must not open it.
+    fireEvent.keyDown(document, { key: "n" });
+    expect(screen.queryByPlaceholderText("Note content...")).not.toBeInTheDocument();
+
+    // Meta+Shift+N opens the composer (linked to this PR by construction).
+    fireEvent.keyDown(document, { key: "N", metaKey: true, shiftKey: true });
+    expect(screen.getByPlaceholderText("Note content...")).toBeInTheDocument();
+  });
+
   it("hides empty state when composer is open", () => {
     const api = makeNotesApi([]);
     const pr = makePR({ repo_full_name: "o/r", number: 1 });

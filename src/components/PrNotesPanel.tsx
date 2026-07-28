@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { GitHubPR, Note } from "../types";
 import { useNotesContext } from "../context/NotesContext";
 import { prNoteKey, notesForPr } from "../utils/prNotes";
@@ -28,6 +28,14 @@ interface NoteEditorProps {
 function NoteEditor({ initialTitle = "", initialContent = "", onSave, onCancel }: NoteEditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus the content field as soon as the editor opens so the user can type
+  // immediately — whether opened via the "+ Add" button, inline edit, or the
+  // new-note keyboard shortcut.
+  useEffect(() => {
+    contentRef.current?.focus();
+  }, []);
 
   const canSave = content.trim().length > 0;
 
@@ -41,6 +49,7 @@ function NoteEditor({ initialTitle = "", initialContent = "", onSave, onCancel }
         onChange={(e) => setTitle(e.target.value)}
       />
       <textarea
+        ref={contentRef}
         className="pr-notes-content-textarea"
         placeholder="Note content..."
         value={content}
@@ -161,6 +170,22 @@ export function PrNotesPanel({ pr }: PrNotesPanelProps) {
   const { notes, addNote, editNote, resolveNote, unresolveNote, pinNote, unpinNote, removeNote } =
     useNotesContext();
   const [showComposer, setShowComposer] = useState(false);
+
+  // While a PR modal is open (this panel is only mounted then), the new-note
+  // shortcut opens this composer so the note is linked to the PR, instead of the
+  // app-level note editor. Capture phase + stopPropagation pre-empts the global
+  // handler in useKeyboardShortcuts (which listens in the bubble phase).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowComposer(true);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, []);
 
   const matched = useMemo(() => notesForPr(notes, pr), [notes, pr]);
   const unresolvedCount = matched.filter((n) => n.resolved === 0).length;
