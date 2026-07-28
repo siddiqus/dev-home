@@ -285,6 +285,14 @@ a:hover {
   color: var(--color-text-secondary) !important;
 }
 
+/* Bootstrap's .text-body reads --bs-body-color-rgb (not --bs-body-color), and
+   without data-bs-theme="dark" that rgb var stays at the light default
+   (near-black), so .text-body is unreadable on dark surfaces. Pin it to the
+   themed token like .text-muted above. */
+.text-body {
+  color: var(--color-text-primary) !important;
+}
+
 /* --- Popovers --- */
 .popover {
   background-color: var(--color-bg-elevated);
