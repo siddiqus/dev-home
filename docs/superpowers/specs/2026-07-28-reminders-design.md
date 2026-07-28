@@ -1,7 +1,7 @@
 # Reminders — Design
 
 **Date:** 2026-07-28
-**Status:** Approved
+**Status:** Approved (revised for the current `NotesContext` architecture)
 
 ## Concept
 
@@ -10,8 +10,8 @@ the app fires a desktop notification (once, in real time) and marks the note
 "due" in the UI. It stays due — highlighted and counted — until the user
 resolves it.
 
-Reminders are **not** a separate entity. They extend the existing notes feature
-with one new field, reusing the notes table, API, hook, and UI.
+Reminders are **not** a separate entity. They add one field (`remind_at`) to the
+existing notes feature, reusing the notes table, API, hook, context, and UI.
 
 ## Decisions
 
@@ -28,7 +28,33 @@ with one new field, reusing the notes table, API, hook, and UI.
 ## Out of scope (YAGNI)
 
 Recurrence, snooze, auto-resolve on fire, and countdown timers were all
-explicitly considered and decided against.
+explicitly considered and decided against. Reminders on **PR-attached notes**
+are also out of scope for v1 (see "Composition with PR notes" — it comes almost
+for free later).
+
+---
+
+## Current architecture this builds on
+
+The notes feature was recently restructured; the reminder work plugs into it as
+follows:
+
+- **`App.tsx` owns one `useNotes(configured)` instance** (`notesApi`, ~line 141),
+  destructures `notes` / `addNote` / `editNote` / … from it, and wraps the app in
+  **`<NotesProvider value={notesApi}>`** (`src/context/NotesContext.tsx`).
+  Any component reads the same instance via `useNotesContext()` /
+  `useOptionalNotes()`. There is exactly one fetch and one source of truth.
+- The gate was loosened to `useNotes(configured)` (no longer tied to the notes
+  source toggle), so notes — and therefore reminders — are always loaded once the
+  app is configured. This is what lets reminders fire app-wide regardless of the
+  active tab. (Consistent with the "data hooks gate on configured" convention.)
+- **PR-attached notes** (`src/utils/prNotes.ts`, `src/components/PrNotesPanel.tsx`)
+  are ordinary notes with `type: "github_pr"` and `reference_id = owner/repo#number`.
+  They required no schema change. Because a reminder is just a note-level field,
+  reminders compose with them automatically at the data layer.
+
+Unchanged and reused as-is: `useNotes`, `src/services/notes.ts`, `NoteCard`,
+`PersonalNotes`, `server/src/routes/notes.ts` (aside from the additions below).
 
 ---
 
@@ -48,23 +74,33 @@ explicitly considered and decided against.
 
 - `POST /` accepts an optional `remind_at` in the body.
 - `PATCH /:id` accepts `remind_at`, including an explicit `null` to clear a
-  reminder from an existing note.
+  reminder from an existing note (mirror the existing `setClauses` pattern).
 - Validation: if `remind_at` is present and not `null`, it must parse as a valid
-  date, otherwise respond `400`. Reuse the existing validation style in the file.
-- `GET /` already does `SELECT *`, so it returns `remind_at` automatically; no
-  change to ordering needed (surfacing/sorting is done client-side).
+  date, otherwise respond `400`.
+- `GET /` already does `SELECT *`, so it returns `remind_at` automatically.
 
 ### 3. Service + hook — `src/services/notes.ts`, `src/hooks/useNotes.ts`
 
 - Thread `remind_at?: string | null` through `createNote` / `updateNote` in the
-  service and `addNote` / `editNote` in the hook.
-- Expose a derived value: `dueReminders` = notes where `remind_at` is set, the
-  note is unresolved, and `remind_at <= now`. Used for the sidebar badge count.
+  service.
+- Extend the hook methods:
+  - `addNote(type, content, referenceId?, title?, remindAt?)` — adding a 5th
+    optional positional arg is backward-compatible with the existing
+    `PrNotesPanel` call `addNote("github_pr", content, prNoteKey(pr), title)`.
+  - `editNote(id, { title?, content?, reference_id?, remind_at? })`.
+- Add a derived, exported value to the hook's return (and therefore to `NotesApi`
+  via context, alongside the existing `unresolvedNotes`):
+  - `reminderNotes` = notes with `remind_at != null`.
+  This keeps "which notes are reminders" available everywhere through the context
+  with no extra fetch. The *live due count* is produced by the scheduler (below),
+  because it depends on the current time, not just the notes array.
 
-### 4. Firing — `src/hooks/useReminderScheduler.ts`, mounted in `App.tsx`
+### 4. Firing — `src/hooks/useReminderScheduler.ts`, called in `App.tsx`
 
-Client-side scheduler (Approach A). Mounted at the App level so reminders fire
-regardless of which tab is active.
+Client-side scheduler. Called once in `App.tsx` with the `notes` already
+destructured from the single `notesApi`, so it runs app-wide independent of the
+active tab and reuses the one source of truth (no second fetch, no dependence on
+being rendered under the provider).
 
 - On mount: request `Notification` permission (reuse the `usePomodoro` pattern —
   request only when `permission === "default"`, swallow errors).
@@ -81,46 +117,57 @@ regardless of which tab is active.
   a notification storm on launch). Only reminders that cross the threshold while
   the app is running fire an OS notification. In-app surfacing is the safety net
   for anything missed while the app was closed.
+- **Return value:** the hook keeps a `dueReminders` set/count in state, refreshed
+  each tick, and returns it. `App.tsx` feeds this to the sidebar badge, and the
+  tick-driven state update is what makes "due/overdue" styling and the badge
+  update live (~every 15s) without user interaction.
 
-The scheduler is a thin wrapper; its decision logic (which notes are due and
-newly notifiable given a `now` and a set of already-notified keys) is extracted
-into a **pure function** so it can be unit-tested without timers.
+The pure decision logic — given `(notes, now, alreadyNotified)`, which notes are
+(a) due and (b) newly notifiable — is extracted into a standalone function so it
+can be unit-tested without timers or the DOM `Notification` API.
 
 ### 5. In-app surfacing
 
 - **`NoteCard`** (`src/views/notes/NoteCard.tsx`): when `remind_at` is set,
-  render a clock chip showing the scheduled time formatted in local time
-  (e.g. "Today 3:00pm", "Jul 30, 9:00am"). When the reminder is due/overdue and
-  unresolved, style the chip with an alert color (amber → red) and label it
-  "Due" / "Overdue 5m ago". Reuse the relative-time helper in `src/utils/time`.
+  render a clock chip showing the scheduled time in local time
+  (e.g. "Today 3:00pm", "Jul 30, 9:00am"). When due/overdue and unresolved, style
+  the chip with an alert color (amber → red) and label it "Due" / "Overdue 5m ago".
+  Reuse the relative-time helper in `src/utils/time`.
 - **`PersonalNotes`** (`src/views/notes/PersonalNotes.tsx`): in the Unresolved
   list, sort due/overdue reminders to the top, ahead of pinned and newest.
-- **Sidebar** (`src/App.tsx`): add a small count badge to the Notes tab button
-  showing the number of due-unresolved reminders. This requires threading the
-  `dueReminders` count into the sidebar tab rendering (the tabs currently show
-  only icon + label; there is precedent for a live indicator in `PomodoroBadge`).
+- **Sidebar** (`src/App.tsx`): add a small count badge to the Notes tab button =
+  number of due-unresolved reminders (from the scheduler's return value). The
+  sidebar tabs currently render only icon + label; this adds a badge span. There
+  is precedent for a live indicator in `PomodoroBadge`.
 
 ### 6. Editor — `src/views/notes/NoteEditorModal.tsx`
 
-- Add an optional "Remind me" control: a native `datetime-local` input plus a
-  few quick presets ("In 1h", "Tomorrow 9am", "Clear").
+- Add an optional "Remind me" control: a native `datetime-local` input plus a few
+  quick presets ("In 1h", "Tomorrow 9am", "Clear").
 - On save, pass `remind_at` (ISO string, or `null` when cleared) through the
-  `onSave` / `onEdit` callbacks. This requires extending the `onSave` / `onEdit`
-  prop signatures and the corresponding `addNote` / `editNote` hook methods.
+  `onSave` / `onEdit` callbacks (extend those prop signatures and the matching
+  `addNote` / `editNote` calls in `App.tsx`).
+
+## Composition with PR notes (informational, not v1 work)
+
+Because `remind_at` lives on every note, a PR-attached note can carry a reminder
+with no additional backend or scheduler work — the scheduler fires for any note
+with a due `remind_at`, regardless of `type`. The only thing v1 does **not** do is
+expose a remind control inside `PrNotesPanel`'s lightweight inline editor. Adding
+one later is a small, isolated follow-up.
 
 ## Data flow
 
 ```
-NoteEditorModal ──(remind_at)──► useNotes.addNote/editNote ──► service ──► POST/PATCH /notes
-                                                                              │
-GET /notes ◄──────────────────────────────────────────────────────────────┘
-     │
-     ▼
-  notes[] ──► useReminderScheduler (App-level)  ──► desktop Notification (real-time, once)
-     │
-     ├──► NoteCard (due/overdue chip)
-     ├──► PersonalNotes (due-first sort)
-     └──► Sidebar Notes-tab badge (dueReminders count)
+NoteEditorModal ─(remind_at)─► addNote/editNote (useNotes) ─► service ─► POST/PATCH /notes
+                                        │                                     │
+                                   NotesContext ◄── notesApi (single instance) ┘
+                                        │
+   App.tsx: notes ─► useReminderScheduler(notes) ─► desktop Notification (real-time, once)
+                                        │                └─► dueReminders (live, per tick)
+                                        ├─► NoteCard (due/overdue chip)
+                                        ├─► PersonalNotes (due-first sort)
+                                        └─► Sidebar Notes-tab badge (dueReminders count)
 ```
 
 ## Error handling & edge cases
