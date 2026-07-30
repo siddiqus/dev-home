@@ -8,8 +8,10 @@ import {
   IconFilter,
   IconAlertTriangle,
   IconRefresh,
+  IconDownload,
 } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
+import { issuesToTsv, downloadTextFile } from "../utils/tsvExport";
 import { EmptyState } from "./EmptyState";
 import { JiraIssueTable } from "./JiraIssueTable";
 import { SearchableDropdown } from "./SearchableDropdown";
@@ -29,13 +31,14 @@ interface JiraIssueSearchProps {
 }
 
 export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => {
-  const PAGE_SIZE = 50;
   const [jql, setJql] = useState("");
   const [results, setResults] = useState<JiraIssue[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [nextToken, setNextToken] = useState<string | null>(null);
+  const [activeQuery, setActiveQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportTruncated, setExportTruncated] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -49,8 +52,6 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
 
   const [selectedLocalFilter, setSelectedLocalFilter] = useState("");
   const [selectedRemoteFilter, setSelectedRemoteFilter] = useState("");
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const loadFilters = useCallback(async () => {
     try {
@@ -112,33 +113,79 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     loadRemoteFilters();
   }, [loadFilters, loadRemoteFilters]);
 
-  const runSearch = useCallback(
-    async (query: string, token?: string | null, label?: string, pageNum = 1) => {
-      if (!query.trim()) return;
-      setSearching(true);
-      setSearchError(null);
-      setHasSearched(true);
-      setPage(pageNum);
-      if (label !== undefined) setActiveFilterName(label || null);
-      try {
-        const { issues, total: t, nextPageToken: npt } = await searchJql(query, token);
-        setResults(issues);
-        setTotal(t);
-        setNextToken(npt);
-      } catch (err: any) {
-        const msg = err?.response?.data?.error || err?.message || "Search failed";
-        setSearchError(msg);
-        setResults([]);
-        setTotal(0);
-        setNextToken(null);
-      } finally {
-        setSearching(false);
-      }
-    },
-    [],
-  );
+  const runSearch = useCallback(async (query: string, label?: string) => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setSearchError(null);
+    setHasSearched(true);
+    setExportTruncated(false);
+    setActiveQuery(query);
+    if (label !== undefined) setActiveFilterName(label || null);
+    try {
+      const { issues, nextPageToken: npt } = await searchJql(query, null);
+      setResults(issues);
+      setNextToken(npt);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || "Search failed";
+      setSearchError(msg);
+      setResults([]);
+      setNextToken(null);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
 
-  const handleRun = () => runSearch(jql, null);
+  const loadMore = useCallback(async () => {
+    if (!nextToken || loadingMore) return;
+    setLoadingMore(true);
+    setSearchError(null);
+    try {
+      const { issues, nextPageToken: npt } = await searchJql(activeQuery, nextToken);
+      setResults((prev) => [...prev, ...issues]);
+      setNextToken(npt);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || "Failed to load more";
+      setSearchError(msg);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeQuery, nextToken, loadingMore]);
+
+  const handleExport = useCallback(async () => {
+    if (exporting || !activeQuery.trim()) return;
+    setExporting(true);
+    setExportTruncated(false);
+    setSearchError(null);
+    try {
+      const MAX_PAGES = 100;
+      const all: JiraIssue[] = [];
+      let token: string | null = null;
+      let pages = 0;
+      do {
+        const { issues, nextPageToken: npt } = await searchJql(activeQuery, token);
+        all.push(...issues);
+        token = npt;
+        pages++;
+      } while (token && pages < MAX_PAGES);
+      if (token) setExportTruncated(true); // cap reached with more remaining
+      const tsv = issuesToTsv(all);
+      const date = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local tz
+      const base = activeFilterName
+        ? activeFilterName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+        : "jira-export";
+      downloadTextFile(`${base}-${date}.tsv`, tsv);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || "Export failed";
+      setSearchError(msg);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, activeQuery, activeFilterName]);
+
+  const handleRun = () => runSearch(jql);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -180,7 +227,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     const filter = localFilters.find((f) => String(f.id) === value);
     if (filter) {
       setJql(filter.jql);
-      runSearch(filter.jql, null, filter.name);
+      runSearch(filter.jql, filter.name);
     }
   };
 
@@ -191,7 +238,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     const filter = remoteFilters.find((f) => f.id === value);
     if (filter) {
       setJql(filter.jql);
-      runSearch(filter.jql, null, filter.name);
+      runSearch(filter.jql, filter.name);
     }
   };
 
@@ -335,26 +382,34 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
               <span className="jql-results-filter-name">{activeFilterName}</span>
             )}
             <span className="jql-results-count">
-              {totalPages > 1
-                ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${total} issues`
-                : `${total} issues`}
+              {results.length}
+              {nextToken ? "+" : ""} issues
             </span>
+            <button
+              className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 jql-export-btn"
+              onClick={handleExport}
+              disabled={exporting}
+              title="Export all matching issues as TSV"
+            >
+              {exporting ? <Spinner animation="border" size="sm" /> : <IconDownload size={14} />}
+              Export
+            </button>
           </div>
+          {exportTruncated && (
+            <div className="jql-export-note">
+              Exported first 5,000 issues (result set was larger).
+            </div>
+          )}
           <JiraIssueTable issues={results} baseUrl={baseUrl} />
-          {totalPages > 1 && (
+          {nextToken && (
             <div className="jql-pagination">
-              <span className="jql-pagination-info">
-                Page {page} of {totalPages}
-              </span>
-              {nextToken && (
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  disabled={searching}
-                  onClick={() => runSearch(jql, nextToken, undefined, page + 1)}
-                >
-                  Next Page
-                </button>
-              )}
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                disabled={loadingMore}
+                onClick={loadMore}
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
             </div>
           )}
         </>

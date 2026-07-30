@@ -113,7 +113,7 @@
 
 .jql-results-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
 }
 
@@ -126,6 +126,16 @@
 .jql-results-count {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.jql-export-btn {
+  margin-left: auto;
+}
+
+.jql-export-note {
+  font-size: 0.8125rem;
+  opacity: 0.7;
+  margin-bottom: 8px;
 }
 
 /* ── Pagination ─────────────────────────────────────────────────────── */
