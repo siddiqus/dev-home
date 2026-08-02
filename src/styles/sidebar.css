@@ -126,6 +126,15 @@
   line-height: 1;
 }
 
+.sidebar-refresh-ago {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .sidebar-footer-btn:hover:not(:disabled) {
   color: var(--color-text-primary);
   background-color: var(--color-bg-hover);

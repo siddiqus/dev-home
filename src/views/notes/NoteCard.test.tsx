@@ -37,7 +37,10 @@ describe("NoteCard reminder chip", () => {
 
     render(<NoteCard note={note} {...baseProps} />);
 
-    expect(screen.getByText(/Overdue/)).toBeInTheDocument();
+    // Overdue state is shown via the chip's alerting style, not an "Overdue" label.
+    const chip = screen.getByTestId("reminder-chip");
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveClass("text-danger");
   });
 
   it("does not render a reminder chip when remind_at is null", () => {

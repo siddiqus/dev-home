@@ -255,6 +255,9 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       centered
       className="description-modal"
       keyboard={false}
+      // Allow focus to leave the modal (default enforceFocus traps it), so the
+      // global find-in-page bar is usable while a note is open.
+      enforceFocus={false}
     >
       <Modal.Header closeButton>
         <input

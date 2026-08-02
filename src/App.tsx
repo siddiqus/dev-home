@@ -67,6 +67,19 @@ import { NAV_GROUPS } from "./config/navTabs";
 import { sourcesFor } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 
+// Compact "time since last refresh" label for the sidebar refresh button.
+function formatAgo(ts: number, now: number): string {
+  const mins = Math.floor(Math.max(0, now - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 min ago";
+  if (mins < 60) return `${mins} mins ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs === 1) return "1 hr ago";
+  if (hrs < 24) return `${hrs} hrs ago`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem("dev-home-active-tab") || "summary";
@@ -221,6 +234,26 @@ export default function App() {
     if (sources.includes("notes")) refreshNotes();
     if (sources.includes("kanban")) refreshKanban();
   }, [effectiveTab, boardEnabled, refresh, refreshNotes, refreshKanban]);
+
+  // Track when the last refresh finished, and re-render every 30s so the
+  // "(x mins ago)" label next to the Refresh button stays current.
+  const [lastRefreshed, setLastRefreshed] = useState<number | null>(null);
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  const anyLoading = loading || notesLoading || kanbanLoading;
+  const wasLoadingRef = useRef(false);
+  useEffect(() => {
+    if (wasLoadingRef.current && !anyLoading) {
+      const now = Date.now();
+      setLastRefreshed(now);
+      setNowTs(now);
+    }
+    wasLoadingRef.current = anyLoading;
+  }, [anyLoading]);
+  useEffect(() => {
+    if (lastRefreshed == null) return;
+    const id = setInterval(() => setNowTs(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, [lastRefreshed]);
 
   const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
 
@@ -533,6 +566,14 @@ export default function App() {
                   }
                 />
                 <span className="sidebar-footer-label">Refresh</span>
+                {lastRefreshed != null && (
+                  <span
+                    className="sidebar-refresh-ago"
+                    title={`Last refreshed at ${new Date(lastRefreshed).toLocaleTimeString()}`}
+                  >
+                    ({formatAgo(lastRefreshed, nowTs)})
+                  </span>
+                )}
               </button>
               <button
                 type="button"

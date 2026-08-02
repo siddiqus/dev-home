@@ -6,6 +6,7 @@ import { IconNote, IconCheck, IconPlus } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { NoteCard } from "./NoteCard";
+import { parseTimestamp } from "../../utils/time";
 import "./notes.css";
 
 interface PersonalNotesProps {
@@ -61,7 +62,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   const sortPinnedFirst = (items: Note[]) =>
     [...items].sort((a, b) => {
       if (a.pinned !== b.pinned) return b.pinned - a.pinned;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return parseTimestamp(b.created_at).getTime() - parseTimestamp(a.created_at).getTime();
     });
 
   // A note is a "due reminder" when it has a scheduled time that has already

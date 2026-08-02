@@ -5,7 +5,41 @@ import {
   tomorrow9amIso,
   isoToDatetimeLocal,
   datetimeLocalToIso,
+  parseTimestamp,
 } from "./time";
+
+describe("parseTimestamp", () => {
+  it("treats a marker-less SQLite datetime as UTC (not local)", () => {
+    // SQLite `datetime('now')` output. Must resolve to the same instant as the
+    // explicit-UTC form regardless of the viewer's timezone — this is the fix
+    // for "just now" rendering as "6h ago" in GMT+6.
+    expect(parseTimestamp("2026-07-31 18:24:00").getTime()).toBe(
+      new Date("2026-07-31T18:24:00Z").getTime(),
+    );
+  });
+
+  it("leaves an already-zoned ISO string (Z) untouched", () => {
+    expect(parseTimestamp("2026-07-01T00:00:00Z").getTime()).toBe(
+      new Date("2026-07-01T00:00:00Z").getTime(),
+    );
+  });
+
+  it("respects an explicit numeric offset", () => {
+    expect(parseTimestamp("2026-07-01T06:00:00+06:00").getTime()).toBe(
+      new Date("2026-07-01T00:00:00Z").getTime(),
+    );
+  });
+
+  it("handles a T-separated datetime with no zone marker as UTC", () => {
+    expect(parseTimestamp("2026-07-31T18:24:00").getTime()).toBe(
+      new Date("2026-07-31T18:24:00Z").getTime(),
+    );
+  });
+
+  it("returns an invalid Date for empty input", () => {
+    expect(Number.isNaN(parseTimestamp("").getTime())).toBe(true);
+  });
+});
 
 describe("describeReminder", () => {
   const now = new Date("2026-07-28T12:00:00Z").getTime();
@@ -14,9 +48,8 @@ describe("describeReminder", () => {
     const remindAt = new Date("2026-07-28T11:55:00Z").toISOString();
     const result = describeReminder(remindAt, now);
     expect(result.overdue).toBe(true);
-    // Label reuses formatRelativeTime (real clock), so assert the "Overdue" prefix
-    // plus a relative phrase rather than a specific minute count.
-    expect(result.label).toMatch(/^Overdue /);
+    // Label is a bare relative phrase from formatRelativeTime (real clock); the
+    // overdue state is conveyed by the `overdue` flag / chip styling, not a prefix.
     expect(result.label.toLowerCase()).toMatch(/ago|just now/);
   });
 

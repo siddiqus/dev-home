@@ -1,11 +1,34 @@
 /**
+ * Parses a timestamp into a Date, treating marker-less values as UTC.
+ *
+ * External timestamps (GitHub/Jira, or our own `toISOString()` output) already
+ * carry a timezone — a `Z` or a `±HH:MM` offset — and are parsed as-is.
+ *
+ * Timestamps generated locally by SQLite's `datetime('now')` are UTC but arrive
+ * WITHOUT any marker, as `"YYYY-MM-DD HH:MM:SS"`. Chromium parses a marker-less
+ * datetime as *local* time, which shifts the instant by the viewer's UTC offset
+ * (e.g. "just now" reads as "6h ago" in GMT+6). We normalize those to explicit
+ * UTC so every consumer gets the correct instant.
+ */
+export function parseTimestamp(dateString: string): Date {
+  if (!dateString) return new Date(NaN);
+  // Already zoned (…Z or …+06:00 / …-0500)? Parse directly.
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(dateString)) return new Date(dateString);
+  const normalized = dateString.includes(" ")
+    ? dateString.replace(" ", "T") + "Z"
+    : dateString + "Z";
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? new Date(dateString) : d;
+}
+
+/**
  * Formats a date string into a human-readable relative time.
  *
  * Examples: "just now", "3m ago", "2h ago", "5d ago", "2w ago", "3mo ago", "1y ago"
  */
 export function formatRelativeTime(dateString: string): string {
   const now = Date.now();
-  const then = new Date(dateString).getTime();
+  const then = parseTimestamp(dateString).getTime();
   const diffMs = now - then;
 
   if (diffMs < 0) {
@@ -80,7 +103,7 @@ export function describeReminder(
   const overdue = then <= now;
 
   if (overdue) {
-    return { label: `Overdue ${formatRelativeTime(remindAt)}`, overdue: true };
+    return { label: formatRelativeTime(remindAt), overdue: true };
   }
 
   const d = new Date(then);

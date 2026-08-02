@@ -19,7 +19,7 @@ import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../typ
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
 import { REASON_SUMMARY } from "../../utils/github";
-import { formatRelativeTime } from "../../utils/time";
+import { formatRelativeTime, parseTimestamp } from "../../utils/time";
 import { fetchIssuesByKeys } from "../../services/jira";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { SummaryItem } from "./SummaryItem";
@@ -232,7 +232,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
     .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
     .slice(0, 5);
   const topNotes = [...visibleNotes]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .sort((a, b) => parseTimestamp(b.created_at).getTime() - parseTimestamp(a.created_at).getTime())
     .slice(0, 10);
 
   // Combine jira comments + github mentions
