@@ -6,9 +6,9 @@ import { graphql } from "../clients/githubGraphqlClient";
 const router = Router();
 
 /**
- * Get an ISO date string for three months ago (YYYY-MM-DD).
+ * Get an ISO date string (YYYY-MM-DD) for `months` months ago (default 2).
  */
-function monthsAgo(months: number = 1): string {
+function monthsAgo(months: number = 2): string {
   const d = new Date();
   d.setMonth(d.getMonth() - months);
   return d.toISOString().slice(0, 10);
