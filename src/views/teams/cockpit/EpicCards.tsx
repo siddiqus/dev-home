@@ -39,6 +39,11 @@ export function EpicCards({ epics, onOpenRef }: Props) {
               <div className={`fw-semibold text-truncate ${isNoEpic ? "text-muted" : ""}`}>
                 {epic.name}
               </div>
+              {epic.key && (
+                <div className="text-muted text-truncate" style={{ fontSize: "0.6875rem" }}>
+                  {epic.key}
+                </div>
+              )}
               <div className="text-muted mb-1">
                 {epic.done}/{epic.total} done
               </div>

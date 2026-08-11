@@ -21,6 +21,15 @@ describe("EpicCards", () => {
     expect(screen.getByText("No epic")).toBeInTheDocument();
   });
 
+  it("renders the epic key alongside the name for real epics", () => {
+    render(<EpicCards epics={dashboardFixture.epics} />);
+    // Both the human-readable name and the Jira key are visible on the card.
+    expect(screen.getByText("Cockpit")).toBeInTheDocument();
+    expect(screen.getByText("PLAT-100")).toBeInTheDocument();
+    expect(screen.getByText("Auth revamp")).toBeInTheDocument();
+    expect(screen.getByText("PLAT-200")).toBeInTheDocument();
+  });
+
   it("renders done/total progress labels", () => {
     render(<EpicCards epics={dashboardFixture.epics} />);
     // Cockpit: 3/8 done

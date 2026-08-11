@@ -72,7 +72,7 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
           description="Create a team to get started."
         />
       ) : (
-        <Table hover className="align-middle">
+        <Table className="align-middle">
           <thead>
             <tr>
               <th style={{ width: 220 }}>Name</th>
@@ -83,7 +83,7 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
           </thead>
           <tbody>
             {teams.map((t) => (
-              <tr key={t.id} onClick={() => openEdit(t)} style={{ cursor: "pointer" }}>
+              <tr key={t.id}>
                 <td style={{ fontWeight: 500 }}>{t.name}</td>
                 <td>{t.jira_board_name || <span className="text-secondary-custom">—</span>}</td>
                 <td>
@@ -94,10 +94,7 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
                   )}
                 </td>
                 <td>
-                  <div
-                    className="d-flex gap-2 justify-content-end"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="d-flex gap-2 justify-content-end">
                     <button
                       className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
                       onClick={() => onOpenDashboard?.(t.id)}

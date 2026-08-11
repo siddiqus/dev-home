@@ -231,7 +231,7 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
 }
 
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
-function mapAgileIssues(rawIssues: any[]): RawIssue[] {
+export function mapAgileIssues(rawIssues: any[]): RawIssue[] {
   return rawIssues.map((issue: any) => ({
     key: issue.key,
     summary: issue.fields?.summary || "",
@@ -240,7 +240,10 @@ function mapAgileIssues(rawIssues: any[]): RawIssue[] {
     assigneeAccountId: issue.fields?.assignee?.accountId || null,
     assigneeName: issue.fields?.assignee?.displayName || null,
     epicKey: issue.fields?.epic?.key || null,
-    epicName: issue.fields?.epic?.name || null,
+    // Agile API `epic.name` is the deprecated "Epic Name" field and is often
+    // empty (Atlassian merged it into the summary); fall back to `epic.summary`
+    // so epics still render a title instead of just their key.
+    epicName: issue.fields?.epic?.name || issue.fields?.epic?.summary || null,
     createdAt: issue.fields?.created || null,
     updatedAt: issue.fields?.updated || null,
     dueDate: issue.fields?.duedate || null,
