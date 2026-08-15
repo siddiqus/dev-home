@@ -210,6 +210,30 @@ a.pr-card-ticket:hover {
   flex-shrink: 0;
 }
 
+.pr-card-diffstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.pr-card-diffstat-add {
+  color: var(--color-status-success);
+}
+
+.pr-card-diffstat-del {
+  color: var(--color-status-danger);
+}
+
+.pr-card-diffstat-files {
+  color: var(--color-text-muted);
+  font-family: var(--font-body, inherit);
+  font-weight: 400;
+}
+
 .pr-card-branch {
   display: inline-flex;
   align-items: center;

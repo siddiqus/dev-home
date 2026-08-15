@@ -218,6 +218,35 @@ function labelStyle(color: string): React.CSSProperties {
   };
 }
 
+/**
+ * Diff summary for a PR: additions (green), deletions (red), and file count.
+ * Renders nothing when the counts weren't fetched (older cached PRs, or endpoints
+ * that don't populate them) — guards on additions/deletions being real numbers.
+ */
+function DiffStat({ pr }: { pr: GitHubPR }) {
+  if (typeof pr.additions !== "number" || typeof pr.deletions !== "number") return null;
+  const files = pr.changed_files;
+  return (
+    <span
+      className="pr-card-diffstat"
+      title={`${pr.additions} additions, ${pr.deletions} deletions${
+        typeof files === "number" ? `, ${files} file${files === 1 ? "" : "s"} changed` : ""
+      }`}
+    >
+      <span className="pr-card-diffstat-add">+{pr.additions}</span>
+      <span className="pr-card-diffstat-del">
+        {"−"}
+        {pr.deletions}
+      </span>
+      {typeof files === "number" && (
+        <span className="pr-card-diffstat-files">
+          {"·"} {files} file{files === 1 ? "" : "s"}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Small colored pills for the PR's GitHub labels. */
 function PRLabels({ labels }: { labels: GitHubLabel[] }) {
   return (
@@ -373,6 +402,12 @@ export function PRCard({
             <>
               <span className="pr-card-sep">{"·"}</span>
               <BranchPill head={pr.head.ref} base={pr.base.ref} onCopy={onCopyBranch} />
+            </>
+          )}
+          {(typeof pr.additions === "number" || typeof pr.deletions === "number") && (
+            <>
+              <span className="pr-card-sep">{"·"}</span>
+              <DiffStat pr={pr} />
             </>
           )}
           {fields.timestamps === "merged" && pr.merged_by && (

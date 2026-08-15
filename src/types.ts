@@ -93,6 +93,12 @@ export interface GitHubPR {
     ref: string;
   };
   body: string;
+  /** Lines added across the PR diff (GraphQL `additions`). Null when unavailable. */
+  additions?: number | null;
+  /** Lines removed across the PR diff (GraphQL `deletions`). Null when unavailable. */
+  deletions?: number | null;
+  /** Number of files touched by the PR (GraphQL `changedFiles`). Null when unavailable. */
+  changed_files?: number | null;
   repo_full_name: string;
   checks_status: string | null;
   checks: CheckRunInfo[];

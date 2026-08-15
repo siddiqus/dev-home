@@ -37,6 +37,9 @@ const SEARCH_PRS_QUERY = `
           body
           headRefName
           baseRefName
+          additions
+          deletions
+          changedFiles
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
@@ -91,6 +94,9 @@ const SEARCH_MY_PRS_QUERY = `
           body
           headRefName
           baseRefName
+          additions
+          deletions
+          changedFiles
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
           commits(last: 1) {
@@ -270,6 +276,9 @@ function mapGraphQLPr(node: any, viewer?: string) {
       ref: node.baseRefName || "",
     },
     body: node.body || "",
+    additions: node.additions ?? null,
+    deletions: node.deletions ?? null,
+    changed_files: node.changedFiles ?? null,
     repo_full_name: node.repository?.nameWithOwner || "",
     checks_status: rollup?.state || null,
     checks: contextNodes.map(mapCheckContext),
@@ -597,6 +606,9 @@ const SEARCH_ORG_PRS_QUERY = `
           body
           headRefName
           baseRefName
+          additions
+          deletions
+          changedFiles
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
@@ -714,6 +726,9 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
       body
       headRefName
       baseRefName
+      additions
+      deletions
+      changedFiles
       repository { nameWithOwner }
       labels(first: 10) { nodes { name color } }
       mergeQueueEntry { id }
@@ -901,6 +916,9 @@ const SEARCH_MERGED_PRS_QUERY = `
           body
           headRefName
           baseRefName
+          additions
+          deletions
+          changedFiles
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
         }
@@ -995,6 +1013,9 @@ const SINGLE_PR_QUERY = `
         body
         headRefName
         baseRefName
+        additions
+        deletions
+        changedFiles
         repository { nameWithOwner }
         labels(first: 10) { nodes { name color } }
         mergeQueueEntry { id }
