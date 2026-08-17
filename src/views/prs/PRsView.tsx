@@ -184,7 +184,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
             className={`prs-subtab${subTab === "open" ? " active" : ""}`}
             onClick={() => handleSubTab("open")}
           >
-            Open PRs{(openPRs.length > 0 || !loading) && ` (${filteredOpenPRs.length})`}
+            Open PRs{(openPRs.length > 0 || !loading) && ` (${openPRs.length})`}
           </button>
           <button
             className={`prs-subtab${subTab === "merged" ? " active" : ""}`}
@@ -278,7 +278,14 @@ export const PRsView: React.FC<PRsViewProps> = ({
       <div className="prs-body">
         {subTab === "open" && (
           <aside className="prs-filter-sidebar">
-            <div className="prs-filter-heading">Filters</div>
+            <div className="prs-filter-heading">
+              <span>Filters</span>
+              {hasActiveFilters && (
+                <span className="prs-filter-count">
+                  {filteredOpenPRs.length} of {openPRs.length}
+                </span>
+              )}
+            </div>
 
             <div className="prs-filter-group">
               <span className="prs-filter-label">Search</span>
