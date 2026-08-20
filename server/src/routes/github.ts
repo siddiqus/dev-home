@@ -939,7 +939,7 @@ router.get("/merged-prs", async (req: Request, res: Response) => {
   const scope = typeof req.query.scope === "string" ? req.query.scope : "user";
   const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
   const repo = typeof req.query.repo === "string" ? req.query.repo.trim() : "";
-  const since = hoursAgo(24);
+  const since = hoursAgo(24 * 3); // last 3 days
 
   let q: string;
 
