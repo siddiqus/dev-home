@@ -151,3 +151,20 @@ export interface Insight {
   title: string;
   detail: string;
 }
+
+/** One row of the Review Queue: an open PR and whose court the ball is in. */
+export interface ReviewQueueEntry {
+  number: number;
+  repo_full_name: string;
+  title: string;
+  html_url: string;
+  author: string;
+  /** author = 🔵 waiting on author, reviewer = 🟡 waiting on reviewer, none = 🔴 no reviewer. */
+  state: "author" | "reviewer" | "none";
+  reason: string;
+  /** Persons who reviewed (most recent first), then persons with an open request. */
+  reviewers: string[];
+  checks_status: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}

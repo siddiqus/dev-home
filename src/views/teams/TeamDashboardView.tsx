@@ -30,6 +30,7 @@ import { LoadDistribution } from "./cockpit/LoadDistribution";
 import { EpicCards } from "./cockpit/EpicCards";
 import { PrFlowSection } from "./cockpit/PrFlowSection";
 import { DeliveryHygiene } from "./cockpit/DeliveryHygiene";
+import { ReviewQueuePanel } from "./cockpit/ReviewQueuePanel";
 
 interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
@@ -302,6 +303,10 @@ export function TeamDashboardView({
                 <div className="col-lg-5">
                   <DeliveryHygiene hygiene={dashboard.hygiene} onOpenRef={openRef} />
                 </div>
+              </div>
+
+              <div className="mb-3">
+                <ReviewQueuePanel entries={dashboard.reviewQueue} onOpenPR={openPR} />
               </div>
 
               {/* Off-board PRs — full list */}

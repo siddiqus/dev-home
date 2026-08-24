@@ -15,6 +15,8 @@ import { computePace } from "../services/dashboard/pace";
 import { computeLoadDistribution, computeLoadBalance } from "../services/dashboard/load";
 import { computePrFlow } from "../services/dashboard/prFlow";
 import { computeHygiene } from "../services/dashboard/hygiene";
+import { mapPullRequestNode, dedupePRs } from "../services/dashboard/prFetch";
+import { computeReviewQueue } from "../services/dashboard/reviewQueue";
 import { recordSnapshot, getBurnup } from "../services/dashboard/snapshots";
 import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
 import type { SprintInfo, Burnup } from "../services/dashboard/types";
@@ -153,12 +155,16 @@ const MEMBER_PRS_QUERY = `
     search(query: $q, type: ISSUE, first: 30) {
       nodes {
         ... on PullRequest {
-          number title url state createdAt mergedAt headRefName body
+          number title url state createdAt updatedAt mergedAt headRefName body isDraft
+          reviewDecision
           author { login }
           repository { nameWithOwner }
-          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
-          reviews(first: 10) { nodes { submittedAt state } }
-          reviewRequests(first: 1) { totalCount }
+          commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
+          reviews(first: 20) { nodes { author { login __typename } state submittedAt } }
+          reviewRequests(first: 20) {
+            totalCount
+            nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } } }
+          }
         }
       }
     }
@@ -171,7 +177,20 @@ function twoWeeksAgoISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Fetch each member's PRs (last 2 weeks) in batches to bound concurrency. */
+async function runSearch(q: string, fallbackLogin: string): Promise<RawPR[]> {
+  try {
+    const data = await graphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
+    return (data.search.nodes || []).map((n: any) => mapPullRequestNode(n, fallbackLogin));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch each member's PRs in batches: PRs they authored (last 2 weeks) plus open
+ * PRs where they are a requested reviewer (any author, any age). Deduped by
+ * repo#number so a PR the team both authored and reviews appears once.
+ */
 async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
   const since = twoWeeksAgoISO();
   const batchSize = 5;
@@ -179,55 +198,14 @@ async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
   for (let i = 0; i < roster.length; i += batchSize) {
     const batch = roster.slice(i, i + batchSize);
     const results = await Promise.all(
-      batch.map(async (m) => {
-        const q = `author:${m.githubUsername} type:pr created:>=${since}`;
-        try {
-          const data = await graphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
-          return (data.search.nodes || []).map((n: any) => {
-            // Reviews: compute earliest submittedAt and rollup state
-            const reviews = n.reviews?.nodes || [];
-            let first_review_at: string | null = null;
-            let review_state: string | null = null;
-            if (reviews.length > 0) {
-              const sorted = [...reviews].sort(
-                (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime(),
-              );
-              first_review_at = sorted[0].submittedAt;
-              // Rollup: CHANGES_REQUESTED > APPROVED > COMMENTED
-              const hasChanges = reviews.some((r: any) => r.state === "CHANGES_REQUESTED");
-              const hasApproved = reviews.some((r: any) => r.state === "APPROVED");
-              if (hasChanges) review_state = "CHANGES_REQUESTED";
-              else if (hasApproved) review_state = "APPROVED";
-              else review_state = "COMMENTED";
-            } else if ((n.reviewRequests?.totalCount || 0) > 0) {
-              review_state = "REVIEW_REQUIRED";
-            }
-
-            return {
-              number: n.number,
-              title: n.title,
-              repo_full_name: n.repository?.nameWithOwner || "",
-              html_url: n.url,
-              state: (n.state || "").toLowerCase(),
-              checks_status: n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
-              author: n.author?.login || m.githubUsername,
-              created_at: n.createdAt,
-              merged_at: n.mergedAt || null,
-              first_review_at,
-              review_state,
-              review_requested: (n.reviewRequests?.totalCount || 0) > 0,
-              head_ref: n.headRefName || "",
-              body: n.body || "",
-            };
-          }) as RawPR[];
-        } catch {
-          return [] as RawPR[];
-        }
-      }),
+      batch.flatMap((m) => [
+        runSearch(`author:${m.githubUsername} type:pr created:>=${since}`, m.githubUsername),
+        runSearch(`review-requested:${m.githubUsername} type:pr state:open`, ""),
+      ]),
     );
     for (const r of results) all.push(...r);
   }
-  return all;
+  return dedupePRs(all);
 }
 
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
@@ -451,6 +429,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     loadBalance,
     prFlow,
     hygiene,
+    reviewQueue: computeReviewQueue(prs),
     burnup,
     syncedAt: now.toISOString(),
     errors,

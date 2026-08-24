@@ -17,6 +17,22 @@ export function prSource(pr: RawPR): TicketSource {
   return { title: pr.title, branch: pr.head_ref, body: pr.body };
 }
 
+export interface RawReview {
+  login: string;
+  /** GraphQL __typename of the review author: "User" | "Bot" | ... */
+  typename: string;
+  /** APPROVED | CHANGES_REQUESTED | COMMENTED | DISMISSED | PENDING */
+  state: string;
+  submittedAt: string | null;
+}
+
+export interface RawReviewRequest {
+  /** GraphQL __typename of the requested reviewer: "User" | "Team" | ... */
+  typename: string;
+  /** User login, or the team name when typename === "Team". */
+  login: string;
+}
+
 export interface RawPR {
   number: number;
   title: string;
@@ -38,6 +54,17 @@ export interface RawPR {
   head_ref?: string;
   /** PR body, for ticket-key extraction. */
   body?: string;
+  /** ISO timestamp of the PR's last activity (GitHub updatedAt) — the queue sort key. */
+  updatedAt?: string | null;
+  isDraft?: boolean;
+  /** GitHub's own rollup: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null */
+  reviewDecision?: string | null;
+  /** committedDate of the PR's last commit — the author's most recent action (lean model). */
+  lastCommitAt?: string | null;
+  /** Full review list (person + bot); the queue filters bots out itself. */
+  reviews?: RawReview[];
+  /** Outstanding review requests (users + teams); the queue filters teams out itself. */
+  requestedReviewers?: RawReviewRequest[];
 }
 
 export interface RawIssue {

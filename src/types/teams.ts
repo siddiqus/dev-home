@@ -216,6 +216,21 @@ export interface Burnup {
   points: BurnupPoint[];
 }
 
+/** One row of the Review Queue — mirrors the backend ReviewQueueEntry. */
+export interface ReviewQueueEntry {
+  number: number;
+  repo_full_name: string;
+  title: string;
+  html_url: string;
+  author: string;
+  state: "author" | "reviewer" | "none";
+  reason: string;
+  reviewers: string[];
+  checks_status: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface TeamDashboard {
   team: { id: number; name: string; board: { id: number; name: string } | null };
   sprint: SprintResult | null;
@@ -230,6 +245,7 @@ export interface TeamDashboard {
   loadBalance: LoadBalance;
   prFlow: PrFlow;
   hygiene: Hygiene;
+  reviewQueue: ReviewQueueEntry[];
   burnup: Burnup;
   /** ISO timestamp of when the backend assembled this payload. */
   syncedAt?: string;
