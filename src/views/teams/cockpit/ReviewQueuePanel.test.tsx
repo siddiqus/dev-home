@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { ReviewQueuePanel } from "./ReviewQueuePanel";
 import type { ReviewQueueEntry } from "../../../types/teams";
@@ -52,5 +52,42 @@ describe("ReviewQueuePanel", () => {
   it("renders an empty state when there are no entries", () => {
     render(<ReviewQueuePanel entries={[]} />);
     expect(screen.getByText("No open PRs.")).toBeInTheDocument();
+  });
+
+  it("collapses and expands when the header is clicked", () => {
+    render(<ReviewQueuePanel entries={entries} />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
+    expect(screen.getByRole("table")).toBeInTheDocument();
+  });
+
+  it("does not render the member filter when no members are provided", () => {
+    render(<ReviewQueuePanel entries={entries} />);
+    expect(screen.queryByText("All members")).not.toBeInTheDocument();
+  });
+
+  it("filters the queue to the selected team member (author or reviewer)", () => {
+    const members = [
+      { login: "tashfia", name: "Tashfia" },
+      { login: "nadman", name: "Nadman" },
+    ];
+    render(<ReviewQueuePanel entries={entries} members={members} />);
+
+    // Both PRs visible before filtering.
+    expect(screen.getByText(/PLAT-101 health strip/)).toBeInTheDocument();
+    expect(screen.getByText(/PLAT-102 token refresh/)).toBeInTheDocument();
+
+    // Open the member dropdown and pick Nadman.
+    fireEvent.click(screen.getByText("All members"));
+    fireEvent.mouseDown(screen.getByText("Nadman"));
+
+    // Only Nadman's PR remains; the count reflects the filter.
+    expect(screen.queryByText(/PLAT-101 health strip/)).not.toBeInTheDocument();
+    expect(screen.getByText(/PLAT-102 token refresh/)).toBeInTheDocument();
+    expect(screen.getByText(/REVIEW QUEUE · 1/)).toBeInTheDocument();
   });
 });

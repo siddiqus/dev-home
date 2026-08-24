@@ -306,7 +306,14 @@ export function TeamDashboardView({
               </div>
 
               <div className="mb-3">
-                <ReviewQueuePanel entries={dashboard.reviewQueue} onOpenPR={openPR} />
+                <ReviewQueuePanel
+                  entries={dashboard.reviewQueue}
+                  members={dashboard.workload.map((w) => ({
+                    login: w.githubUsername,
+                    name: w.displayName,
+                  }))}
+                  onOpenPR={openPR}
+                />
               </div>
 
               {/* Off-board PRs — full list */}
