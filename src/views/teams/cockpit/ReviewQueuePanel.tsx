@@ -46,7 +46,8 @@ function StateCell({ state }: { state: ReviewQueueEntry["state"] }) {
 }
 
 export function ReviewQueuePanel({ entries, members, onOpenPR }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default — the queue is a drill-in, not the cockpit's headline.
+  const [collapsed, setCollapsed] = useState(true);
   const [memberFilter, setMemberFilter] = useState("");
 
   const memberItems: DropdownItem[] = useMemo(

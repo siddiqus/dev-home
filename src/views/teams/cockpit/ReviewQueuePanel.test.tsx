@@ -32,10 +32,28 @@ const entries: ReviewQueueEntry[] = [
   },
 ];
 
+/** The panel is collapsed by default; expand it to reveal the table/filter. */
+function expand() {
+  fireEvent.click(screen.getByText(/REVIEW QUEUE/));
+}
+
 describe("ReviewQueuePanel", () => {
+  it("is collapsed by default and expands on header click", () => {
+    render(<ReviewQueuePanel entries={entries} />);
+    // Header (with count) is visible, but the table is hidden until expanded.
+    expect(screen.getByText(/REVIEW QUEUE · 2/)).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    expand();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("renders a row per entry with title link, reason, author, reviewers, and state label", () => {
     render(<ReviewQueuePanel entries={entries} />);
-    expect(screen.getByText(/REVIEW QUEUE · 2/)).toBeInTheDocument();
+    expand();
 
     const link = screen.getByRole("link", { name: /PLAT-101 health strip/ });
     expect(link).toHaveAttribute("href", "https://github.com/acme/web/pull/12");
@@ -51,22 +69,13 @@ describe("ReviewQueuePanel", () => {
 
   it("renders an empty state when there are no entries", () => {
     render(<ReviewQueuePanel entries={[]} />);
+    expand();
     expect(screen.getByText("No open PRs.")).toBeInTheDocument();
-  });
-
-  it("collapses and expands when the header is clicked", () => {
-    render(<ReviewQueuePanel entries={entries} />);
-    expect(screen.getByRole("table")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
-    expect(screen.getByRole("table")).toBeInTheDocument();
   });
 
   it("does not render the member filter when no members are provided", () => {
     render(<ReviewQueuePanel entries={entries} />);
+    expand();
     expect(screen.queryByText("All members")).not.toBeInTheDocument();
   });
 
@@ -76,6 +85,7 @@ describe("ReviewQueuePanel", () => {
       { login: "nadman", name: "Nadman" },
     ];
     render(<ReviewQueuePanel entries={entries} members={members} />);
+    expand();
 
     // Both PRs visible before filtering.
     expect(screen.getByText(/PLAT-101 health strip/)).toBeInTheDocument();
