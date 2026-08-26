@@ -397,6 +397,70 @@ describe("computeLoadDistribution", () => {
     expect(result[2].riskLevel).toBe("normal"); // Charlie: no issues
   });
 
+  it("populates atRiskIssues for members with non-normal issues and empties it otherwise", () => {
+    const issues: EnrichedIssue[] = [
+      makeIssue({
+        key: "T-1",
+        summary: "Stale attention issue",
+        assigneeAccountId: "a1",
+        risk: { score: 4, level: "attention", reasons: ["stale", "dueSoon"] },
+      }),
+      makeIssue({
+        key: "T-2",
+        summary: "Normal issue",
+        assigneeAccountId: "a1",
+        risk: { score: 1, level: "normal", reasons: [] },
+      }),
+      // Bob has only a normal issue
+      makeIssue({
+        key: "T-3",
+        summary: "Bob normal issue",
+        assigneeAccountId: "a2",
+        risk: { score: 0, level: "normal", reasons: [] },
+      }),
+    ];
+
+    const result = computeLoadDistribution(roster, issues, [], now);
+
+    expect(result[0].atRiskIssues).toContainEqual({
+      key: "T-1",
+      summary: "Stale attention issue",
+      level: "attention",
+      reasons: ["stale", "dueSoon"],
+    });
+    // The normal issue is excluded
+    expect(result[0].atRiskIssues.map((r) => r.key)).not.toContain("T-2");
+    // Bob (only normal issues) gets an empty list
+    expect(result[1].atRiskIssues).toEqual([]);
+    // Charlie (no issues) gets an empty list
+    expect(result[2].atRiskIssues).toEqual([]);
+  });
+
+  it("orders atRiskIssues worst first (level, then score)", () => {
+    const issues: EnrichedIssue[] = [
+      makeIssue({
+        key: "T-1",
+        assigneeAccountId: "a1",
+        risk: { score: 4, level: "attention", reasons: ["stale"] },
+      }),
+      makeIssue({
+        key: "T-2",
+        assigneeAccountId: "a1",
+        risk: { score: 8, level: "high", reasons: ["prFailingCI"] },
+      }),
+      makeIssue({
+        key: "T-3",
+        assigneeAccountId: "a1",
+        risk: { score: 6, level: "high", reasons: ["dueSoon"] },
+      }),
+    ];
+
+    const result = computeLoadDistribution(roster, issues, [], now);
+
+    // high(8), high(6), attention(4)
+    expect(result[0].atRiskIssues.map((r) => r.key)).toEqual(["T-2", "T-3", "T-1"]);
+  });
+
   it("handles complex scenario: stalled + in-progress mix", () => {
     const issues: EnrichedIssue[] = [
       makeIssue({
@@ -485,6 +549,7 @@ describe("computeLoadBalance", () => {
         prReviewing: 0,
         prMerged: 0,
         riskLevel: "normal",
+        atRiskIssues: [],
       },
       {
         accountId: "a2",
@@ -502,6 +567,7 @@ describe("computeLoadBalance", () => {
         prReviewing: 0,
         prMerged: 0,
         riskLevel: "normal",
+        atRiskIssues: [],
       },
       {
         accountId: "a3",
@@ -519,6 +585,7 @@ describe("computeLoadBalance", () => {
         prReviewing: 0,
         prMerged: 0,
         riskLevel: "normal",
+        atRiskIssues: [],
       },
     ];
 
@@ -547,6 +614,7 @@ describe("computeLoadBalance", () => {
         prReviewing: 0,
         prMerged: 0,
         riskLevel: "normal",
+        atRiskIssues: [],
       },
       {
         accountId: "a2",
@@ -564,6 +632,7 @@ describe("computeLoadBalance", () => {
         prReviewing: 0,
         prMerged: 0,
         riskLevel: "normal",
+        atRiskIssues: [],
       },
     ];
 

@@ -7,7 +7,7 @@
  */
 import { classifyStatus } from "../teamAggregation";
 import type { RawPR, RosterEntry } from "../teamAggregation";
-import type { EnrichedIssue, LoadBalance, WorkloadEntry } from "./types";
+import type { AtRiskIssue, EnrichedIssue, LoadBalance, WorkloadEntry } from "./types";
 
 function emptyByStatus() {
   return { new: 0, indeterminate: 0, inReview: 0, done: 0 };
@@ -64,6 +64,22 @@ export function computeLoadDistribution(
       }
     }
 
+    // At-risk issues: assigned issues whose risk level is not normal, worst first.
+    const riskOrder = ["normal", "attention", "high"];
+    const atRiskIssues: AtRiskIssue[] = memberIssues
+      .filter((i) => i.risk.level !== "normal")
+      .sort(
+        (a, b) =>
+          riskOrder.indexOf(b.risk.level) - riskOrder.indexOf(a.risk.level) ||
+          b.risk.score - a.risk.score,
+      )
+      .map((i) => ({
+        key: i.key,
+        summary: i.summary,
+        level: i.risk.level,
+        reasons: i.risk.reasons,
+      }));
+
     const entry: WorkloadEntry = {
       accountId: r.accountId,
       displayName: r.displayName,
@@ -80,6 +96,7 @@ export function computeLoadDistribution(
       prReviewing,
       prMerged,
       riskLevel,
+      atRiskIssues,
     };
 
     return entry;

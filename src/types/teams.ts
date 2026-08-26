@@ -66,6 +66,14 @@ export type Ref = { kind: "issue"; key: string } | { kind: "pr"; repo: string; n
 
 export type RiskLevel = "normal" | "attention" | "high";
 
+/** An issue assigned to a member that carries a non-normal risk level, with the raw reason flags. */
+export interface AtRiskIssue {
+  key: string;
+  summary: string;
+  level: RiskLevel; // only "attention" | "high" are included
+  reasons: string[]; // raw flag keys, e.g. "stale", "prFailingCI", "dueSoon"
+}
+
 export interface RiskResult {
   score: number;
   level: RiskLevel;
@@ -137,6 +145,7 @@ export interface WorkloadEntry {
   prReviewing: number;
   prMerged: number;
   riskLevel: RiskLevel;
+  atRiskIssues: AtRiskIssue[];
 }
 
 export interface OffBoardPR {

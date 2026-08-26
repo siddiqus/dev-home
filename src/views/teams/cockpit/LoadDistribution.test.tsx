@@ -129,4 +129,39 @@ describe("LoadDistribution", () => {
     expect(screen.getByText("stalest: PLAT-101")).toBeInTheDocument();
     expect(screen.queryByText(/\dd$/)).not.toBeInTheDocument();
   });
+
+  it("opens the member detail modal with a 'Why flagged' entry when a row is clicked", () => {
+    render(
+      <LoadDistribution
+        workload={dashboardFixture.workload}
+        loadBalance={dashboardFixture.loadBalance}
+      />,
+    );
+
+    // Click Tashfia's row (name text bubbles to the row container's onClick).
+    fireEvent.click(screen.getByText("Tashfia"));
+
+    // The modal shows a "Why flagged" section.
+    expect(screen.getByText("Why flagged")).toBeInTheDocument();
+    // ...listing the at-risk ticket key and a readable reason label.
+    expect(screen.getByText("PLAT-101")).toBeInTheDocument();
+    expect(screen.getByText("failing CI")).toBeInTheDocument();
+  });
+
+  it("calls onOpenRef with the issue Ref when an at-risk ticket in the modal is clicked", () => {
+    const onOpenRef = vi.fn();
+
+    render(
+      <LoadDistribution
+        workload={dashboardFixture.workload}
+        loadBalance={dashboardFixture.loadBalance}
+        onOpenRef={onOpenRef}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Tashfia"));
+    fireEvent.click(screen.getByText("PLAT-101"));
+
+    expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
+  });
 });

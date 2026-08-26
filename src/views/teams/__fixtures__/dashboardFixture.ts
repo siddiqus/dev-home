@@ -171,6 +171,14 @@ export const dashboardFixture: TeamDashboard = {
       prReviewing: 1,
       prMerged: 1,
       riskLevel: "high",
+      atRiskIssues: [
+        {
+          key: "PLAT-101",
+          summary: "Sprint health strip",
+          level: "high",
+          reasons: ["stale", "prFailingCI", "prWaitingReview", "addedAfterStart"],
+        },
+      ],
     },
     {
       accountId: "u2",
@@ -188,6 +196,7 @@ export const dashboardFixture: TeamDashboard = {
       prReviewing: 0,
       prMerged: 1,
       riskLevel: "normal",
+      atRiskIssues: [],
     },
   ],
   offBoardPRs: [

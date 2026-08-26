@@ -96,6 +96,14 @@ export interface LoadBalance {
   imbalance: number;
 }
 
+/** An issue assigned to a member that carries a non-normal risk level, with the raw reason flags. */
+export interface AtRiskIssue {
+  key: string;
+  summary: string;
+  level: RiskLevel; // only "attention" | "high" are included
+  reasons: string[]; // raw flag keys, e.g. "stale", "prFailingCI", "dueSoon"
+}
+
 export interface WorkloadEntry {
   accountId: string;
   displayName: string;
@@ -112,6 +120,8 @@ export interface WorkloadEntry {
   prReviewing: number;
   prMerged: number;
   riskLevel: RiskLevel;
+  /** The member's assigned issues whose risk level is not normal, worst first. Explains the risk pill. */
+  atRiskIssues: AtRiskIssue[];
 }
 
 export interface PrFlow {
