@@ -4,7 +4,7 @@ import { GitHubPR, JiraIssue } from "../../types";
 import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
-import { RED_CHECK_STATUSES } from "../../utils/prCategories";
+import { ACTIONABLE_REASONS } from "../../utils/prCategories";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { PRSections, PRSectionsHandle } from "../../components/PRSections";
 import { SearchInput } from "../../components/SearchInput";
@@ -75,40 +75,45 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const mergedTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
+  // Sidebar filters — Open-PRs only. Recently Merged intentionally has no
+  // filters, so this state never leaks across sub-tabs (it stays put while
+  // you're on Merged and is still here when you switch back to Open).
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
-  // Open-PRs-only filters, driven from the left sidebar.
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  const [ciFailureOnly, setCiFailureOnly] = useState(false);
+  // "Actionable" reasons (your turn / CI failed / …) and Jira ticket keys.
+  const [selectedActionable, setSelectedActionable] = useState<string[]>([]);
+  const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
 
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
     selectedRepos.length > 0 ||
     selectedLabels.length > 0 ||
-    ciFailureOnly;
+    selectedActionable.length > 0 ||
+    selectedTickets.length > 0;
   const clearFilters = useCallback(() => {
     setSearchQuery("");
     setSelectedRepos([]);
     setSelectedLabels([]);
-    setCiFailureOnly(false);
+    setSelectedActionable([]);
+    setSelectedTickets([]);
   }, []);
 
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
 
-  // Repo filter options derived from loaded PRs (union of open + merged) so the
-  // dropdown stays stable when switching sub-tabs. Label is the short repo name.
+  // Repo filter options derived from the loaded open PRs (the only list the
+  // sidebar filters). Label is the short repo name.
   const repoItems = useMemo<DropdownItem[]>(() => {
     const names = new Set<string>();
     for (const pr of openPRs) names.add(pr.repo_full_name);
-    for (const pr of mergedPRs) names.add(pr.repo_full_name);
     return Array.from(names)
       .sort((a, b) => a.localeCompare(b))
       .map((full) => ({ value: full, label: full.split("/").pop() || full }));
-  }, [openPRs, mergedPRs]);
+  }, [openPRs]);
 
-  // Label filter options are Open-PRs-only, derived from the labels present on
-  // the loaded open PRs. value === label === the raw label name.
+  // Label filter options, derived from the labels present on the loaded open
+  // PRs. value === label === the raw label name.
   const labelItems = useMemo<DropdownItem[]>(() => {
     const names = new Set<string>();
     for (const pr of openPRs) for (const label of pr.labels || []) names.add(label.name);
@@ -116,6 +121,33 @@ export const PRsView: React.FC<PRsViewProps> = ({
       .sort((a, b) => a.localeCompare(b))
       .map((name) => ({ value: name, label: name }));
   }, [openPRs]);
+
+  // Actionable filter options: only the reasons actually present on the current
+  // open PRs, so we never offer a dead option. Applied with OR semantics.
+  const actionableItems = useMemo<DropdownItem[]>(
+    () =>
+      ACTIONABLE_REASONS.filter((reason) => openPRs.some((pr) => reason.matches(pr))).map(
+        (reason) => ({ value: reason.key, label: reason.label }),
+      ),
+    [openPRs],
+  );
+
+  // Jira ticket options: the distinct keys parsed from the open PRs, labeled with
+  // the Jira summary when we have it ("PROJ-1: Fix the thing"). The dropdown's
+  // search matches the label, so typing a key or words from the summary works.
+  const ticketItems = useMemo<DropdownItem[]>(() => {
+    const keys = new Set<string>();
+    for (const pr of openPRs) {
+      const key = extractTicketKey(sourceFromPR(pr));
+      if (key) keys.add(key);
+    }
+    return Array.from(keys)
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => {
+        const summary = jiraIssues?.find((i) => i.key.toUpperCase() === key.toUpperCase())?.summary;
+        return { value: key, label: summary ? `${key}: ${summary}` : key };
+      });
+  }, [openPRs, jiraIssues]);
 
   const loadMergedPRs = useCallback(async () => {
     if (!configured) return;
@@ -159,8 +191,9 @@ export const PRsView: React.FC<PRsViewProps> = ({
     [searchQuery, selectedRepos, jiraIssues],
   );
 
-  // Open PRs get the shared search/repo filter plus the Open-only sidebar
-  // filters: labels (match ALL selected) and CI-failure-only.
+  // Open PRs get the search/repo filter plus the sidebar filters: labels (match
+  // ALL selected — AND), actionable reasons (match ANY selected — OR), and Jira
+  // tickets (match ANY selected key — OR).
   const filteredOpenPRs = useMemo(() => {
     let list = filterPRs(openPRs);
     if (selectedLabels.length > 0) {
@@ -169,12 +202,19 @@ export const PRsView: React.FC<PRsViewProps> = ({
         return selectedLabels.every((name) => names.has(name));
       });
     }
-    if (ciFailureOnly) {
-      list = list.filter((pr) => !!pr.checks_status && RED_CHECK_STATUSES.has(pr.checks_status));
+    if (selectedActionable.length > 0) {
+      const active = ACTIONABLE_REASONS.filter((reason) => selectedActionable.includes(reason.key));
+      list = list.filter((pr) => active.some((reason) => reason.matches(pr)));
+    }
+    if (selectedTickets.length > 0) {
+      const wanted = new Set(selectedTickets);
+      list = list.filter((pr) => {
+        const key = extractTicketKey(sourceFromPR(pr));
+        return key ? wanted.has(key) : false;
+      });
     }
     return list;
-  }, [filterPRs, openPRs, selectedLabels, ciFailureOnly]);
-  const filteredMergedPRs = useMemo(() => filterPRs(mergedPRs), [filterPRs, mergedPRs]);
+  }, [filterPRs, openPRs, selectedLabels, selectedActionable, selectedTickets]);
 
   return (
     <div className="prs-view">
@@ -194,37 +234,8 @@ export const PRsView: React.FC<PRsViewProps> = ({
           </button>
         </div>
         <div className="prs-subtab-bar-right">
-          {/* Recently Merged keeps its filters in the top toolbar; Open PRs moves
-              them into the left sidebar (rendered in .prs-body below). */}
-          {subTab === "merged" && (
-            <>
-              <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search PRs..."
-                expandOnFocus
-              />
-              <MultiSelectDropdown
-                items={repoItems}
-                values={selectedRepos}
-                onChange={setSelectedRepos}
-                placeholder="Filter repos..."
-                allLabel="All repos"
-                width={200}
-              />
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  className="pr-table-collapse-btn"
-                  onClick={clearFilters}
-                  title="Clear all filters"
-                >
-                  <IconX size={14} />
-                  Clear filters
-                </button>
-              )}
-            </>
-          )}
+          {/* Open PRs keeps its filters in the left sidebar (rendered in
+              .prs-body below); Recently Merged has no filters. */}
           {subTab === "open" && (
             <div className="prs-view-actions">
               {groupState.hasGroups && (
@@ -322,15 +333,27 @@ export const PRsView: React.FC<PRsViewProps> = ({
             </div>
 
             <div className="prs-filter-group">
-              <span className="prs-filter-label">CI</span>
-              <label className="prs-filter-checkbox">
-                <input
-                  type="checkbox"
-                  checked={ciFailureOnly}
-                  onChange={(e) => setCiFailureOnly(e.target.checked)}
-                />
-                CI failure only
-              </label>
+              <span className="prs-filter-label">Actionable</span>
+              <MultiSelectDropdown
+                items={actionableItems}
+                values={selectedActionable}
+                onChange={setSelectedActionable}
+                placeholder="Filter actionable..."
+                allLabel="All actionable"
+                width="100%"
+              />
+            </div>
+
+            <div className="prs-filter-group">
+              <span className="prs-filter-label">Jira tickets</span>
+              <MultiSelectDropdown
+                items={ticketItems}
+                values={selectedTickets}
+                onChange={setSelectedTickets}
+                placeholder="Filter tickets..."
+                allLabel="All tickets"
+                width="100%"
+              />
             </div>
 
             {hasActiveFilters && (
@@ -386,7 +409,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
           {subTab === "merged" && (
             <PRTable
               ref={mergedTableRef}
-              prs={filteredMergedPRs}
+              prs={mergedPRs}
               loading={mergedPRsLoading}
               variant="recently-merged"
               jiraBaseUrl={jiraBaseUrl}

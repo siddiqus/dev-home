@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PRsView } from "./PRsView";
-import type { GitHubPR } from "../../types";
+import type { GitHubPR, JiraIssue } from "../../types";
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -50,13 +50,31 @@ describe("PRsView open PRs tab count", () => {
 describe("PRsView sidebar filters", () => {
   beforeEach(() => localStorage.clear());
 
-  it("'CI failure only' narrows to PRs with a red check-rollup status", () => {
+  // Dropdown option rows carry the class "multi-select-item"; the same text can
+  // also appear on PR-card reason chips, so scope option clicks to that class.
+  const clickOption = (name: string) => {
+    const option = screen
+      .getAllByText(name)
+      .find((el) => el.classList.contains("multi-select-item"));
+    if (!option) throw new Error(`dropdown option "${name}" not found`);
+    fireEvent.mouseDown(option);
+  };
+
+  // The tab button always shows the unfiltered total; the *filtered* result count
+  // is the sidebar's "N of M" readout (only rendered while a filter is active).
+  const filterCount = () => {
+    const el = document.querySelector(".prs-filter-count");
+    if (!el) throw new Error("filter count is not shown (no active filter?)");
+    return el.textContent;
+  };
+
+  it("'Actionable' filter matches ANY selected reason (OR), folding in CI failed", () => {
     render(
       <PRsView
         openPRs={[
-          makePR({ checks_status: "FAILURE" }),
-          makePR({ checks_status: "SUCCESS" }),
-          makePR({ checks_status: null }),
+          makePR({ checks_status: "FAILURE" }), // CI failed
+          makePR({ your_turn: true, checks_status: "SUCCESS" }), // Your turn
+          makePR({ checks_status: "SUCCESS" }), // neither
         ]}
         loading={false}
         configured={false}
@@ -64,9 +82,59 @@ describe("PRsView sidebar filters", () => {
     );
     expect(screen.getByRole("button", { name: "Open PRs (3)" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("checkbox"));
+    // Only CI failed -> 1 PR.
+    fireEvent.click(screen.getByText("All actionable"));
+    clickOption("CI failed");
+    expect(filterCount()).toBe("1 of 3");
 
-    expect(screen.getByRole("button", { name: "Open PRs (1)" })).toBeInTheDocument();
+    // Add Your turn: OR semantics widen to both matching PRs.
+    clickOption("Your turn");
+    expect(filterCount()).toBe("2 of 3");
+  });
+
+  it("'Jira tickets' filter narrows by ticket key and labels options with the Jira summary", () => {
+    const jiraIssues = [{ key: "PROJ-1", summary: "Add single sign-on" }] as unknown as JiraIssue[];
+    render(
+      <PRsView
+        openPRs={[
+          makePR({ title: "PROJ-1: Add SSO" }),
+          makePR({ title: "PROJ-2: Fix bug" }),
+          makePR({ title: "No ticket here" }),
+        ]}
+        jiraIssues={jiraIssues}
+        loading={false}
+        configured={false}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Open PRs (3)" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("All tickets"));
+    // PROJ-1's option carries the Jira summary; selecting it narrows to that PR.
+    clickOption("PROJ-1: Add single sign-on");
+    expect(filterCount()).toBe("1 of 3");
+  });
+
+  it("Recently Merged has no filter controls, so Open filters never carry over", () => {
+    render(
+      <PRsView
+        openPRs={[makePR({ labels: [{ name: "bug", color: "ff0000" }] })]}
+        loading={false}
+        configured={false}
+      />,
+    );
+    // Open tab shows the sidebar and its filter controls.
+    expect(screen.getByText("Filters")).toBeInTheDocument();
+    expect(screen.getByText("All repos")).toBeInTheDocument();
+    expect(screen.getByText("All actionable")).toBeInTheDocument();
+    expect(screen.getByText("All tickets")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Recently Merged/ }));
+
+    // Merged tab drops the sidebar entirely — no filters to inherit.
+    expect(screen.queryByText("Filters")).not.toBeInTheDocument();
+    expect(screen.queryByText("All repos")).not.toBeInTheDocument();
+    expect(screen.queryByText("All actionable")).not.toBeInTheDocument();
+    expect(screen.queryByText("All tickets")).not.toBeInTheDocument();
   });
 
   it("labels filter matches ALL selected labels (AND)", () => {
@@ -88,23 +156,13 @@ describe("PRsView sidebar filters", () => {
     );
     expect(screen.getByRole("button", { name: "Open PRs (3)" })).toBeInTheDocument();
 
-    // The label name also appears on PR-card chips, so scope clicks to the
-    // dropdown's own option rows (class "multi-select-item").
-    const clickOption = (name: string) => {
-      const option = screen
-        .getAllByText(name)
-        .find((el) => el.classList.contains("multi-select-item"));
-      if (!option) throw new Error(`dropdown option "${name}" not found`);
-      fireEvent.mouseDown(option);
-    };
-
     // Open the Labels dropdown and select "bug" -> both bug-tagged PRs remain.
     fireEvent.click(screen.getByText("All labels"));
     clickOption("bug");
-    expect(screen.getByRole("button", { name: "Open PRs (2)" })).toBeInTheDocument();
+    expect(filterCount()).toBe("2 of 3");
 
     // Add "urgent": AND semantics leave only the PR carrying both labels.
     clickOption("urgent");
-    expect(screen.getByRole("button", { name: "Open PRs (1)" })).toBeInTheDocument();
+    expect(filterCount()).toBe("1 of 3");
   });
 });

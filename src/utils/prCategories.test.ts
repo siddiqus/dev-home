@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { categorizeOpenPR, groupPRsBySection, OPEN_PR_SECTIONS } from "./prCategories";
+import {
+  categorizeOpenPR,
+  groupPRsBySection,
+  OPEN_PR_SECTIONS,
+  ACTIONABLE_REASONS,
+} from "./prCategories";
 import type { GitHubPR } from "../types";
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
@@ -101,6 +106,60 @@ describe("groupPRsBySection", () => {
     expect(grouped["needs-action"].map((p) => p.id)).toEqual([20]);
     expect(grouped.pending.map((p) => p.id)).toEqual([30, 31]);
     expect(grouped.draft).toEqual([]);
+  });
+});
+
+describe("ACTIONABLE_REASONS", () => {
+  const reason = (key: string) => {
+    const found = ACTIONABLE_REASONS.find((r) => r.key === key);
+    if (!found) throw new Error(`no actionable reason "${key}"`);
+    return found;
+  };
+
+  it("declares the reasons most-blocking first (drives chip + filter order)", () => {
+    expect(ACTIONABLE_REASONS.map((r) => r.key)).toEqual([
+      "ci_failed",
+      "conflict",
+      "changes_requested",
+      "reviewed",
+      "your_turn",
+      "unresolved",
+    ]);
+  });
+
+  it("ci_failed matches only red check-rollup statuses", () => {
+    for (const status of ["FAILURE", "ERROR", "STARTUP_FAILURE", "TIMED_OUT"]) {
+      expect(reason("ci_failed").matches(makePR({ checks_status: status }))).toBe(true);
+    }
+    expect(reason("ci_failed").matches(makePR({ checks_status: "SUCCESS" }))).toBe(false);
+    expect(reason("ci_failed").matches(makePR({ checks_status: null }))).toBe(false);
+  });
+
+  it("conflict matches only when the PR has a merge conflict", () => {
+    expect(reason("conflict").matches(makePR({ has_conflict: true }))).toBe(true);
+    expect(reason("conflict").matches(makePR({ has_conflict: false }))).toBe(false);
+    expect(reason("conflict").matches(makePR())).toBe(false);
+  });
+
+  it("changes_requested and reviewed match their review statuses exclusively", () => {
+    expect(
+      reason("changes_requested").matches(makePR({ review_status: "CHANGES_REQUESTED" })),
+    ).toBe(true);
+    expect(reason("changes_requested").matches(makePR({ review_status: "REVIEWED" }))).toBe(false);
+    expect(reason("reviewed").matches(makePR({ review_status: "REVIEWED" }))).toBe(true);
+    expect(reason("reviewed").matches(makePR({ review_status: "CHANGES_REQUESTED" }))).toBe(false);
+  });
+
+  it("your_turn matches when it is the viewer's turn", () => {
+    expect(reason("your_turn").matches(makePR({ your_turn: true }))).toBe(true);
+    expect(reason("your_turn").matches(makePR({ your_turn: false }))).toBe(false);
+    expect(reason("your_turn").matches(makePR())).toBe(false);
+  });
+
+  it("unresolved matches only a positive thread count", () => {
+    expect(reason("unresolved").matches(makePR({ unresolved_thread_count: 3 }))).toBe(true);
+    expect(reason("unresolved").matches(makePR({ unresolved_thread_count: 0 }))).toBe(false);
+    expect(reason("unresolved").matches(makePR())).toBe(false);
   });
 });
 
