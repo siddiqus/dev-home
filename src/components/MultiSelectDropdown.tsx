@@ -268,7 +268,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                   data-index={i + 1}
                   className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""} ${
                     highlightedIndex === i + 1 ? "multi-select-item--active" : ""
-                  }`}
+                  } ${item.count === 0 ? "multi-select-item--empty" : ""}`}
                   onMouseEnter={() => setHighlightedIndex(i + 1)}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -287,6 +287,9 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                     />
                   )}
                   {item.label}
+                  {item.count !== undefined && (
+                    <span className="multi-select-count-badge">{item.count}</span>
+                  )}
                 </div>
               ))}
               {filtered.length === 0 && (

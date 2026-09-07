@@ -13,6 +13,22 @@
   background-color: var(--color-bg-hover);
 }
 
+/* Faceted-count badge on the right of an option; 0-count rows read as muted
+   but stay selectable. */
+.multi-select-count-badge {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.multi-select-item--empty {
+  opacity: 0.45;
+}
+
 .multi-select-check {
   width: 16px;
   height: 16px;

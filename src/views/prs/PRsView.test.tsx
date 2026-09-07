@@ -165,4 +165,58 @@ describe("PRsView sidebar filters", () => {
     clickOption("urgent");
     expect(filterCount()).toBe("1 of 3");
   });
+
+  // Locate a dropdown option row by its label (the row div carries the class;
+  // its count badge, if any, lives in a child span so it doesn't affect this match).
+  const optionRow = (name: string) => {
+    const row = screen.getAllByText(name).find((el) => el.classList.contains("multi-select-item"));
+    if (!row) throw new Error(`dropdown option "${name}" not found`);
+    return row;
+  };
+  const optionCount = (name: string) =>
+    optionRow(name).querySelector(".multi-select-count-badge")?.textContent;
+
+  it("annotates other dropdowns with counts scoped to the current selection", () => {
+    render(
+      <PRsView
+        openPRs={[
+          makePR({ repo_full_name: "org/cmp-server", labels: [{ name: "ABC", color: "111" }] }),
+          makePR({ repo_full_name: "org/cmp-server", labels: [{ name: "ABC", color: "111" }] }),
+          makePR({ repo_full_name: "org/cmp-client", labels: [{ name: "ABC", color: "111" }] }),
+          makePR({ repo_full_name: "org/embeddable-dam", labels: [{ name: "XYZ", color: "222" }] }),
+        ]}
+        loading={false}
+        configured={false}
+      />,
+    );
+
+    // Select the ABC label.
+    fireEvent.click(screen.getByText("All labels"));
+    clickOption("ABC");
+
+    // Open Repositories: counts now reflect only the 3 ABC-labeled PRs.
+    fireEvent.click(screen.getByText("All repos"));
+    expect(optionCount("cmp-server")).toBe("2");
+    expect(optionCount("cmp-client")).toBe("1");
+  });
+
+  it("shows zero and dims repos that have none of the selected label's PRs", () => {
+    render(
+      <PRsView
+        openPRs={[
+          makePR({ repo_full_name: "org/cmp-server", labels: [{ name: "ABC", color: "111" }] }),
+          makePR({ repo_full_name: "org/embeddable-dam", labels: [{ name: "XYZ", color: "222" }] }),
+        ]}
+        loading={false}
+        configured={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("All labels"));
+    clickOption("ABC");
+
+    fireEvent.click(screen.getByText("All repos"));
+    expect(optionCount("embeddable-dam")).toBe("0");
+    expect(optionRow("embeddable-dam").classList.contains("multi-select-item--empty")).toBe(true);
+  });
 });

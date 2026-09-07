@@ -102,40 +102,133 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
 
+  // Per-facet predicates. Each answers "does this PR pass THIS filter?" in
+  // isolation, so we can compose them freely: the filtered list ANDs all five,
+  // while each sidebar dropdown's option counts apply every predicate EXCEPT its
+  // own (faceted counts — see below).
+  const matchesSearch = useCallback(
+    (pr: GitHubPR) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      if (pr.title.toLowerCase().includes(q)) return true;
+      // Match "repo#number" (short or full name) plus bare "#number" / number.
+      const shortRepo = pr.repo_full_name.split("/").pop() || pr.repo_full_name;
+      const ref = `${shortRepo}#${pr.number}`.toLowerCase();
+      const fullRef = `${pr.repo_full_name}#${pr.number}`.toLowerCase();
+      if (ref.includes(q) || fullRef.includes(q)) return true;
+      const ticket = extractTicketKey(sourceFromPR(pr));
+      if (ticket && ticket.toLowerCase().includes(q)) return true;
+      const ticketTitle = ticket
+        ? jiraIssues?.find((i) => i.key.toUpperCase() === ticket.toUpperCase())?.summary
+        : undefined;
+      if (ticketTitle && ticketTitle.toLowerCase().includes(q)) return true;
+      return false;
+    },
+    [searchQuery, jiraIssues],
+  );
+
+  const matchesRepo = useCallback(
+    (pr: GitHubPR) => selectedRepos.length === 0 || selectedRepos.includes(pr.repo_full_name),
+    [selectedRepos],
+  );
+
+  // Labels match ALL selected (AND).
+  const matchesLabels = useCallback(
+    (pr: GitHubPR) => {
+      if (selectedLabels.length === 0) return true;
+      const names = new Set((pr.labels || []).map((l) => l.name));
+      return selectedLabels.every((name) => names.has(name));
+    },
+    [selectedLabels],
+  );
+
+  // Actionable reasons match ANY selected (OR).
+  const matchesActionable = useCallback(
+    (pr: GitHubPR) => {
+      if (selectedActionable.length === 0) return true;
+      return ACTIONABLE_REASONS.some(
+        (reason) => selectedActionable.includes(reason.key) && reason.matches(pr),
+      );
+    },
+    [selectedActionable],
+  );
+
+  // Jira tickets match ANY selected key (OR).
+  const matchesTickets = useCallback(
+    (pr: GitHubPR) => {
+      if (selectedTickets.length === 0) return true;
+      const key = extractTicketKey(sourceFromPR(pr));
+      return key ? selectedTickets.includes(key) : false;
+    },
+    [selectedTickets],
+  );
+
   // Repo filter options derived from the loaded open PRs (the only list the
-  // sidebar filters). Label is the short repo name.
+  // sidebar filters). Label is the short repo name. Count = how many PRs match
+  // every OTHER active filter, so selecting a label narrows these numbers.
   const repoItems = useMemo<DropdownItem[]>(() => {
+    const base = openPRs.filter(
+      (pr) => matchesSearch(pr) && matchesLabels(pr) && matchesActionable(pr) && matchesTickets(pr),
+    );
+    const counts = new Map<string, number>();
+    for (const pr of base) counts.set(pr.repo_full_name, (counts.get(pr.repo_full_name) || 0) + 1);
     const names = new Set<string>();
     for (const pr of openPRs) names.add(pr.repo_full_name);
     return Array.from(names)
       .sort((a, b) => a.localeCompare(b))
-      .map((full) => ({ value: full, label: full.split("/").pop() || full }));
-  }, [openPRs]);
+      .map((full) => ({
+        value: full,
+        label: full.split("/").pop() || full,
+        count: counts.get(full) ?? 0,
+      }));
+  }, [openPRs, matchesSearch, matchesLabels, matchesActionable, matchesTickets]);
 
   // Label filter options, derived from the labels present on the loaded open
-  // PRs. value === label === the raw label name.
+  // PRs. value === label === the raw label name. Count excludes the label facet.
   const labelItems = useMemo<DropdownItem[]>(() => {
+    const base = openPRs.filter(
+      (pr) => matchesSearch(pr) && matchesRepo(pr) && matchesActionable(pr) && matchesTickets(pr),
+    );
+    const counts = new Map<string, number>();
+    for (const pr of base)
+      for (const label of pr.labels || [])
+        counts.set(label.name, (counts.get(label.name) || 0) + 1);
     const names = new Set<string>();
     for (const pr of openPRs) for (const label of pr.labels || []) names.add(label.name);
     return Array.from(names)
       .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({ value: name, label: name }));
-  }, [openPRs]);
+      .map((name) => ({ value: name, label: name, count: counts.get(name) ?? 0 }));
+  }, [openPRs, matchesSearch, matchesRepo, matchesActionable, matchesTickets]);
 
   // Actionable filter options: only the reasons actually present on the current
-  // open PRs, so we never offer a dead option. Applied with OR semantics.
-  const actionableItems = useMemo<DropdownItem[]>(
-    () =>
-      ACTIONABLE_REASONS.filter((reason) => openPRs.some((pr) => reason.matches(pr))).map(
-        (reason) => ({ value: reason.key, label: reason.label }),
-      ),
-    [openPRs],
-  );
+  // open PRs, so we never offer a dead option. Applied with OR semantics; count
+  // excludes the actionable facet.
+  const actionableItems = useMemo<DropdownItem[]>(() => {
+    const base = openPRs.filter(
+      (pr) => matchesSearch(pr) && matchesRepo(pr) && matchesLabels(pr) && matchesTickets(pr),
+    );
+    return ACTIONABLE_REASONS.filter((reason) => openPRs.some((pr) => reason.matches(pr))).map(
+      (reason) => ({
+        value: reason.key,
+        label: reason.label,
+        count: base.filter((pr) => reason.matches(pr)).length,
+      }),
+    );
+  }, [openPRs, matchesSearch, matchesRepo, matchesLabels, matchesTickets]);
 
   // Jira ticket options: the distinct keys parsed from the open PRs, labeled with
   // the Jira summary when we have it ("PROJ-1: Fix the thing"). The dropdown's
   // search matches the label, so typing a key or words from the summary works.
+  // Count excludes the tickets facet.
   const ticketItems = useMemo<DropdownItem[]>(() => {
+    const base = openPRs.filter(
+      (pr) => matchesSearch(pr) && matchesRepo(pr) && matchesLabels(pr) && matchesActionable(pr),
+    );
+    const counts = new Map<string, number>();
+    for (const pr of base) {
+      const key = extractTicketKey(sourceFromPR(pr));
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    }
     const keys = new Set<string>();
     for (const pr of openPRs) {
       const key = extractTicketKey(sourceFromPR(pr));
@@ -145,9 +238,13 @@ export const PRsView: React.FC<PRsViewProps> = ({
       .sort((a, b) => a.localeCompare(b))
       .map((key) => {
         const summary = jiraIssues?.find((i) => i.key.toUpperCase() === key.toUpperCase())?.summary;
-        return { value: key, label: summary ? `${key}: ${summary}` : key };
+        return {
+          value: key,
+          label: summary ? `${key}: ${summary}` : key,
+          count: counts.get(key) ?? 0,
+        };
       });
-  }, [openPRs, jiraIssues]);
+  }, [openPRs, jiraIssues, matchesSearch, matchesRepo, matchesLabels, matchesActionable]);
 
   const loadMergedPRs = useCallback(async () => {
     if (!configured) return;
@@ -165,56 +262,20 @@ export const PRsView: React.FC<PRsViewProps> = ({
     loadMergedPRs();
   }, [loadMergedPRs, refreshKey]);
 
-  const filterPRs = useCallback(
-    (prs: GitHubPR[]) => {
-      const q = searchQuery.trim().toLowerCase();
-      const repoSet = selectedRepos.length > 0 ? new Set(selectedRepos) : null;
-      if (!q && !repoSet) return prs;
-      return prs.filter((pr) => {
-        if (repoSet && !repoSet.has(pr.repo_full_name)) return false;
-        if (!q) return true;
-        if (pr.title.toLowerCase().includes(q)) return true;
-        // Match "repo#number" (short or full name) plus bare "#number" / number.
-        const shortRepo = pr.repo_full_name.split("/").pop() || pr.repo_full_name;
-        const ref = `${shortRepo}#${pr.number}`.toLowerCase();
-        const fullRef = `${pr.repo_full_name}#${pr.number}`.toLowerCase();
-        if (ref.includes(q) || fullRef.includes(q)) return true;
-        const ticket = extractTicketKey(sourceFromPR(pr));
-        if (ticket && ticket.toLowerCase().includes(q)) return true;
-        const ticketTitle = ticket
-          ? jiraIssues?.find((i) => i.key.toUpperCase() === ticket.toUpperCase())?.summary
-          : undefined;
-        if (ticketTitle && ticketTitle.toLowerCase().includes(q)) return true;
-        return false;
-      });
-    },
-    [searchQuery, selectedRepos, jiraIssues],
+  // Open PRs pass every facet at once: search, repo, labels (AND), actionable
+  // reasons (OR), and Jira tickets (OR).
+  const filteredOpenPRs = useMemo(
+    () =>
+      openPRs.filter(
+        (pr) =>
+          matchesSearch(pr) &&
+          matchesRepo(pr) &&
+          matchesLabels(pr) &&
+          matchesActionable(pr) &&
+          matchesTickets(pr),
+      ),
+    [openPRs, matchesSearch, matchesRepo, matchesLabels, matchesActionable, matchesTickets],
   );
-
-  // Open PRs get the search/repo filter plus the sidebar filters: labels (match
-  // ALL selected — AND), actionable reasons (match ANY selected — OR), and Jira
-  // tickets (match ANY selected key — OR).
-  const filteredOpenPRs = useMemo(() => {
-    let list = filterPRs(openPRs);
-    if (selectedLabels.length > 0) {
-      list = list.filter((pr) => {
-        const names = new Set((pr.labels || []).map((l) => l.name));
-        return selectedLabels.every((name) => names.has(name));
-      });
-    }
-    if (selectedActionable.length > 0) {
-      const active = ACTIONABLE_REASONS.filter((reason) => selectedActionable.includes(reason.key));
-      list = list.filter((pr) => active.some((reason) => reason.matches(pr)));
-    }
-    if (selectedTickets.length > 0) {
-      const wanted = new Set(selectedTickets);
-      list = list.filter((pr) => {
-        const key = extractTicketKey(sourceFromPR(pr));
-        return key ? wanted.has(key) : false;
-      });
-    }
-    return list;
-  }, [filterPRs, openPRs, selectedLabels, selectedActionable, selectedTickets]);
 
   return (
     <div className="prs-view">

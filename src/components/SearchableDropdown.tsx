@@ -9,6 +9,8 @@ export interface DropdownItem {
   value: string;
   label: string;
   icon?: string;
+  /** Optional match count shown as a right-aligned badge (0 dims the row). */
+  count?: number;
 }
 
 interface SearchableDropdownProps {
