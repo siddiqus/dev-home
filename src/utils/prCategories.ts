@@ -86,7 +86,9 @@ export const ACTIONABLE_REASONS: readonly ActionableReason[] = [
  * Assign an open PR to exactly one section. Rules are evaluated top-down and the
  * first match wins, which encodes two decisions:
  *   - drafts are pulled out first (a draft can never be "ready to merge"), and
- *   - "needs action" beats "ready to merge" (an approved PR with red CI needs work).
+ *   - "needs action" beats "ready to merge" (an approved PR with red CI or a merge
+ *     conflict needs work — a conflict is a hard merge blocker, so such a PR is not
+ *     "ready" no matter its review state).
  */
 export function categorizeOpenPR(pr: GitHubPR): OpenPRSection {
   if (pr.draft) return "draft";
@@ -94,7 +96,7 @@ export function categorizeOpenPR(pr: GitHubPR): OpenPRSection {
   const redChecks = !!pr.checks_status && RED_CHECK_STATUSES.has(pr.checks_status);
   const nonApprovingReview =
     !!pr.review_status && NON_APPROVING_REVIEW_STATUSES.has(pr.review_status);
-  if (redChecks || nonApprovingReview) return "needs-action";
+  if (redChecks || nonApprovingReview || pr.has_conflict) return "needs-action";
 
   if (pr.in_merge_queue || pr.review_status === "APPROVED") return "ready";
 

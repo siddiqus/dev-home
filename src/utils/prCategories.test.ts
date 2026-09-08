@@ -56,6 +56,24 @@ describe("categorizeOpenPR", () => {
     );
   });
 
+  it("puts merge-conflict PRs into 'needs-action' even when approved (a conflict is a blocker)", () => {
+    expect(
+      categorizeOpenPR(
+        makePR({ review_status: "APPROVED", checks_status: "SUCCESS", has_conflict: true }),
+      ),
+    ).toBe("needs-action");
+    // ...and a conflict alone (no reviews, green CI) still needs action.
+    expect(
+      categorizeOpenPR(
+        makePR({ review_status: null, checks_status: "SUCCESS", has_conflict: true }),
+      ),
+    ).toBe("needs-action");
+    // A merge-queue PR that somehow has a conflict is likewise not "ready".
+    expect(categorizeOpenPR(makePR({ in_merge_queue: true, has_conflict: true }))).toBe(
+      "needs-action",
+    );
+  });
+
   it("puts PRs in the merge queue into 'ready'", () => {
     expect(categorizeOpenPR(makePR({ in_merge_queue: true }))).toBe("ready");
   });
