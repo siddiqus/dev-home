@@ -82,17 +82,9 @@
   outline-offset: -2px;
 }
 
-.pr-card-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  padding-top: 1px;
-  color: var(--color-status-success);
-}
-
-.pr-card-icon--muted {
-  color: var(--color-text-secondary);
-}
+/* The leading PR icon (.pr-card-icon) and other shared PR indicators
+   (ticket link, branch pill, diff stat, labels, status pill, reason chips)
+   live in prIndicators.css so the PR detail modal can reuse them. */
 
 /* ---- left column ---- */
 .pr-card-main {
@@ -112,17 +104,6 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-primary);
-}
-
-.pr-card-ticket {
-  flex-shrink: 0;
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-a.pr-card-ticket:hover {
-  text-decoration: underline;
 }
 
 .pr-card-title-text {
@@ -210,86 +191,6 @@ a.pr-card-ticket:hover {
   flex-shrink: 0;
 }
 
-.pr-card-diffstat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-}
-
-.pr-card-diffstat-add {
-  color: var(--color-status-success);
-}
-
-.pr-card-diffstat-del {
-  color: var(--color-status-danger);
-}
-
-.pr-card-diffstat-files {
-  color: var(--color-text-muted);
-  font-family: var(--font-body, inherit);
-  font-weight: 400;
-}
-
-.pr-card-branch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 0.73rem;
-  color: var(--color-text-secondary);
-}
-
-.pr-card-branch svg {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
-
-.pr-card-branch-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pr-card-branch-arrow {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-}
-
-.pr-card-branch-copy {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  line-height: 0;
-  transition: color 120ms ease, background-color 120ms ease;
-}
-
-/* Follow the button color (overrides `.pr-card-branch svg`, which would
-   otherwise pin the icon to muted and swallow the hover change). */
-.pr-card-branch-copy svg {
-  color: inherit;
-}
-
-.pr-card-branch-copy:hover {
-  color: var(--color-accent);
-  background-color: var(--color-bg-hover);
-}
-
-.pr-card-branch-copy:active {
-  transform: scale(0.9);
-}
-
 /* Copied-to-clipboard toast: fixed at the bottom of the viewport so showing/
    hiding it never reflows the PR list. Mirrors .settings-saved-toast. */
 .pr-copy-toast {
@@ -315,31 +216,6 @@ a.pr-card-ticket:hover {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ---- label badges ---- */
-.pr-card-labels {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.pr-card-label {
-  flex-shrink: 0;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.68rem;
-  font-weight: 600;
-  line-height: 1.4;
-  padding: 1px 7px;
-  border-radius: var(--radius-pill);
-  /* Neutral fallback used only when a label has no/invalid color. */
-  background: var(--color-bg-elevated);
-  color: var(--color-text-secondary);
-}
-
 /* ---- right column ---- */
 .pr-card-side {
   flex-shrink: 0;
@@ -354,88 +230,6 @@ a.pr-card-ticket:hover {
   display: flex;
   align-items: center;
   gap: 13px;
-}
-
-.pr-card-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.85rem;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-
-.pr-card-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: var(--radius-pill);
-  flex-shrink: 0;
-}
-
-.pr-card-dot--success {
-  background: var(--color-status-success);
-}
-.pr-card-dot--danger {
-  background: var(--color-status-danger);
-}
-.pr-card-dot--warning {
-  background: var(--color-status-warning);
-}
-
-.pr-card-draft {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 1px 7px;
-}
-
-.pr-card-tag {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-}
-
-.pr-card-tag--merge-queue {
-  color: var(--color-status-purple);
-  background: var(--color-status-purple-bg);
-}
-
-/* ---- needs-action reason chips ----
-   Sit inline on the right of the row (same line as the title), in place of the
-   standalone status pill. */
-.pr-card-reasons {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pr-reason-chip {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.4;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-}
-
-.pr-reason-chip--danger {
-  color: var(--color-status-danger);
-  background: var(--color-status-danger-bg);
-}
-.pr-reason-chip--warning {
-  color: var(--color-status-warning);
-  background: var(--color-status-warning-bg);
-}
-.pr-reason-chip--info {
-  color: var(--color-status-info);
-  background: var(--color-status-info-bg);
 }
 
 .pr-card-time {

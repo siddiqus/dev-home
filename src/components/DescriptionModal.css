@@ -48,6 +48,80 @@
   flex-shrink: 0;
 }
 
+/* --- PR header (shown in the title section when the modal is opened for a PR).
+   Reuses the shared .pr-card-* indicator components (see prIndicators.css);
+   these classes lay them out for the wider modal header. --- */
+.description-modal .pr-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.description-modal .pr-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* The leading PR icon aligns with the title text (the shared row styling pushes
+   it to flex-start with a top pad, which the row needs but the modal doesn't). */
+.description-modal .pr-modal-title .pr-card-icon {
+  align-items: center;
+  padding-top: 0;
+}
+
+.description-modal .pr-modal-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description-modal .pr-modal-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.description-modal .pr-modal-repo {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  flex-shrink: 0;
+}
+
+.description-modal .pr-modal-sep {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.description-modal .pr-modal-indicators {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.description-modal .pr-modal-time {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.description-modal .pr-modal-url {
+  font-size: 0.75rem;
+  display: inline-block;
+  max-width: 100%;
+}
+
 /* --- Split layout: description | checks --- */
 .description-modal .modal-split-layout {
   flex: 1;

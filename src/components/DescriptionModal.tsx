@@ -15,6 +15,18 @@ import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import { fetchJobLogs } from "../services/github";
 import { PrNotesPanel } from "./PrNotesPanel";
+import { formatRelativeTime } from "../utils/time";
+import { extractTicketKey, sourceFromPR } from "../utils/tickets";
+import { categorizeOpenPR } from "../utils/prCategories";
+import {
+  BranchPill,
+  DiffStat,
+  PRLabels,
+  PRStateIcon,
+  ReasonChips,
+  StatusPill,
+  renderTitleContent,
+} from "./prIndicators";
 import "./DescriptionModal.css";
 
 const CHECK_SORT_ORDER: Record<string, number> = {
@@ -172,6 +184,90 @@ function LogViewer({ check }: { check: CheckRunInfo }) {
   );
 }
 
+/**
+ * Rich PR header shown in place of the plain title/subtitle when the modal is
+ * opened for a PR. Renders the same labels and indicators as the PR list row
+ * (PRCard) via the shared {@link prIndicators} components, so the two views stay
+ * in lockstep: draft icon + Jira-linked title, a meta line (repo#number, author,
+ * branch, diff stat), and the review/needs-action indicators plus GitHub labels.
+ *
+ * Review-state indicators (status pill / reason chips) are shown for open PRs
+ * only — on a merged PR those flags are stale, matching the row's merged variant
+ * which hides them too.
+ */
+function PrModalHeader({
+  pr,
+  jiraBaseUrl,
+  url,
+}: {
+  pr: GitHubPR;
+  jiraBaseUrl?: string;
+  url?: string;
+}) {
+  const ticket = extractTicketKey(sourceFromPR(pr));
+  const isMerged = !!pr.merged_at;
+  const isNeedsAction = !isMerged && categorizeOpenPR(pr) === "needs-action";
+  const hasDiff = typeof pr.additions === "number" || typeof pr.deletions === "number";
+  const hasLabels = !!pr.labels && pr.labels.length > 0;
+  const timeText = isMerged
+    ? `merged ${formatRelativeTime(pr.merged_at!)}`
+    : `opened ${formatRelativeTime(pr.created_at)} · updated ${formatRelativeTime(pr.updated_at)}`;
+
+  return (
+    <div className="pr-modal-header">
+      <div className="pr-modal-title">
+        <PRStateIcon pr={pr} size={18} />
+        <span className="pr-modal-title-text">
+          {renderTitleContent(pr.title, ticket, jiraBaseUrl)}
+        </span>
+      </div>
+
+      <div className="pr-modal-meta">
+        <span className="pr-modal-repo">
+          {pr.repo_full_name}#{pr.number}
+        </span>
+        <span className="pr-modal-sep">{"·"}</span>
+        <span>{pr.user.login}</span>
+        <span className="pr-modal-sep">{"·"}</span>
+        <BranchPill head={pr.head.ref} base={pr.base.ref} />
+        {hasDiff && (
+          <>
+            <span className="pr-modal-sep">{"·"}</span>
+            <DiffStat pr={pr} />
+          </>
+        )}
+        {isMerged && pr.merged_by && (
+          <>
+            <span className="pr-modal-sep">{"·"}</span>
+            <span>merged by {pr.merged_by}</span>
+          </>
+        )}
+      </div>
+
+      {(!isMerged || hasLabels) && (
+        <div className="pr-modal-indicators">
+          {!isMerged && (isNeedsAction ? <ReasonChips pr={pr} /> : <StatusPill pr={pr} />)}
+          {hasLabels && <PRLabels labels={pr.labels!} />}
+        </div>
+      )}
+
+      <div className="pr-modal-time">{timeText}</div>
+
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pr-modal-url text-truncate-custom"
+          title={url}
+        >
+          {url}
+        </a>
+      )}
+    </div>
+  );
+}
+
 interface DescriptionModalProps {
   show: boolean;
   onHide: () => void;
@@ -181,6 +277,8 @@ interface DescriptionModalProps {
   /** When true and no description is available yet, show a loading spinner in the body. */
   loading?: boolean;
   url?: string;
+  /** Jira base URL, used to link the ticket in the PR header title. */
+  jiraBaseUrl?: string;
   checks?: CheckRunInfo[];
   activeSessions?: ClaudeSession[];
   onViewSession?: (sessionId: string) => void;
@@ -197,6 +295,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   description,
   loading,
   url,
+  jiraBaseUrl,
   checks,
   activeSessions,
   onViewSession,
@@ -240,26 +339,32 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
-            {subtitle && (
-              <div
-                className="text-secondary-custom"
-                style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
-              >
-                {subtitle}
-              </div>
-            )}
-            {url && (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
-                className="text-truncate-custom"
-                title={url}
-              >
-                {url}
-              </a>
+            {pr ? (
+              <PrModalHeader pr={pr} jiraBaseUrl={jiraBaseUrl} url={url} />
+            ) : (
+              <>
+                <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
+                {subtitle && (
+                  <div
+                    className="text-secondary-custom"
+                    style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
+                  >
+                    {subtitle}
+                  </div>
+                )}
+                {url && (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
+                    className="text-truncate-custom"
+                    title={url}
+                  >
+                    {url}
+                  </a>
+                )}
+              </>
             )}
           </div>
           {pr && claudeEnabled && onClaudeAction && (

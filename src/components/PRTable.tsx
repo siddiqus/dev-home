@@ -418,6 +418,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
         subtitle={`${selectedPR?.user.login} · ${selectedPR?.repo_full_name} · ${selectedPR?.head.ref} · ${formatRelativeTime(selectedPR?.created_at || "")}`}
         description={selectedPR?.body || ""}
         url={selectedPR?.html_url}
+        jiraBaseUrl={jiraBaseUrl}
         checks={selectedPR?.checks}
         activeSessions={
           selectedPR

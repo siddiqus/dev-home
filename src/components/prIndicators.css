@@ -1,0 +1,222 @@
+/* ============================================
+   Shared PR indicators
+   Labels and status indicators shared by the PR list row (PRCard) and the PR
+   detail modal (DescriptionModal). Imported by prIndicators.tsx so the styles
+   load wherever the shared components render — including modals opened from
+   views that never mount the PR list (Kanban, Summary).
+   ============================================ */
+
+/* ---- leading PR icon ---- */
+.pr-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 1px;
+  color: var(--color-status-success);
+}
+
+.pr-card-icon--muted {
+  color: var(--color-text-secondary);
+}
+
+/* ---- Jira ticket link ---- */
+.pr-card-ticket {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.pr-card-ticket:hover {
+  text-decoration: underline;
+}
+
+/* ---- diff stat ---- */
+.pr-card-diffstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.pr-card-diffstat-add {
+  color: var(--color-status-success);
+}
+
+.pr-card-diffstat-del {
+  color: var(--color-status-danger);
+}
+
+.pr-card-diffstat-files {
+  color: var(--color-text-muted);
+  font-family: var(--font-body, inherit);
+  font-weight: 400;
+}
+
+/* ---- branch pill ---- */
+.pr-card-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--color-text-secondary);
+}
+
+.pr-card-branch svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.pr-card-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-card-branch-arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.pr-card-branch-copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+/* Follow the button color (overrides `.pr-card-branch svg`, which would
+   otherwise pin the icon to muted and swallow the hover change). */
+.pr-card-branch-copy svg {
+  color: inherit;
+}
+
+.pr-card-branch-copy:hover {
+  color: var(--color-accent);
+  background-color: var(--color-bg-hover);
+}
+
+.pr-card-branch-copy:active {
+  transform: scale(0.9);
+}
+
+/* ---- label badges ---- */
+.pr-card-labels {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pr-card-label {
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  /* Neutral fallback used only when a label has no/invalid color. */
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+/* ---- status pill ---- */
+.pr-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.pr-card-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.pr-card-dot--success {
+  background: var(--color-status-success);
+}
+.pr-card-dot--danger {
+  background: var(--color-status-danger);
+}
+.pr-card-dot--warning {
+  background: var(--color-status-warning);
+}
+
+.pr-card-draft {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+}
+
+.pr-card-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.pr-card-tag--merge-queue {
+  color: var(--color-status-purple);
+  background: var(--color-status-purple-bg);
+}
+
+/* ---- needs-action reason chips ----
+   On the row these sit inline on the right (same line as the title), in place
+   of the standalone status pill. */
+.pr-card-reasons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-reason-chip {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.pr-reason-chip--danger {
+  color: var(--color-status-danger);
+  background: var(--color-status-danger-bg);
+}
+.pr-reason-chip--warning {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+}
+.pr-reason-chip--info {
+  color: var(--color-status-info);
+  background: var(--color-status-info-bg);
+}
