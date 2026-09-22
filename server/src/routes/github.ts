@@ -2,8 +2,25 @@ import { Router, Request, Response } from "express";
 import { getConfig } from "../config";
 import { createGitHubClient } from "../clients/githubApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
+import { computeChecksStatus, parseRequiredContexts } from "../services/githubChecks";
 
 const router = Router();
+
+/**
+ * Shared GraphQL selection for a commit's check rollup. We fetch each context's
+ * timestamps so mapGraphQLPr can dedupe to the newest run per check name (GitHub
+ * keeps stale re-runs attached to the commit — see services/githubChecks). Kept
+ * as one constant so all PR queries stay in lockstep.
+ */
+const PR_CHECKS_ROLLUP = `statusCheckRollup {
+  state
+  contexts(first: 100) {
+    nodes {
+      ... on CheckRun { name conclusion status detailsUrl startedAt completedAt }
+      ... on StatusContext { context state targetUrl createdAt }
+    }
+  }
+}`;
 
 /**
  * Get an ISO date string (YYYY-MM-DD) for `months` months ago (default 2).
@@ -43,27 +60,12 @@ const SEARCH_PRS_QUERY = `
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
+          mergeStateStatus
+          reviewDecision
           commits(last: 1) {
             nodes {
               commit {
-                statusCheckRollup {
-                  state
-                  contexts(first: 50) {
-                    nodes {
-                      ... on CheckRun {
-                        name
-                        conclusion
-                        status
-                        detailsUrl
-                      }
-                      ... on StatusContext {
-                        context
-                        state
-                        targetUrl
-                      }
-                    }
-                  }
-                }
+                ${PR_CHECKS_ROLLUP}
               }
             }
           }
@@ -102,29 +104,14 @@ const SEARCH_MY_PRS_QUERY = `
           commits(last: 1) {
             nodes {
               commit {
-                statusCheckRollup {
-                  state
-                  contexts(first: 50) {
-                    nodes {
-                      ... on CheckRun {
-                        name
-                        conclusion
-                        status
-                        detailsUrl
-                      }
-                      ... on StatusContext {
-                        context
-                        state
-                        targetUrl
-                      }
-                    }
-                  }
-                }
+                ${PR_CHECKS_ROLLUP}
               }
             }
           }
           mergeable
           mergeQueueEntry { id }
+          mergeStateStatus
+          reviewDecision
           reviews(last: 20) {
             nodes {
               state
@@ -252,8 +239,14 @@ function countUnresolvedThreads(node: any): number {
  * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
  * `viewer` (the authenticated username) is only passed by the "my PRs" endpoint,
  * where it drives the "your turn" signal; elsewhere it's omitted.
+ * `requiredContexts`, when provided, scopes the CI status to the base branch's
+ * required checks (see computeChecksStatus); omit it to evaluate every check.
  */
-function mapGraphQLPr(node: any, viewer?: string) {
+function mapGraphQLPr(
+  node: any,
+  viewer?: string,
+  requiredContexts?: ReadonlySet<string> | null,
+) {
   const rollup = node.commits?.nodes?.[0]?.commit?.statusCheckRollup;
   const contextNodes = rollup?.contexts?.nodes || [];
   return {
@@ -280,7 +273,9 @@ function mapGraphQLPr(node: any, viewer?: string) {
     deletions: node.deletions ?? null,
     changed_files: node.changedFiles ?? null,
     repo_full_name: node.repository?.nameWithOwner || "",
-    checks_status: rollup?.state || null,
+    // Recomputed from deduped, required-scoped contexts rather than rollup.state,
+    // which counts stale re-runs and disagrees with the GitHub merge box.
+    checks_status: computeChecksStatus(contextNodes, requiredContexts),
     checks: contextNodes.map(mapCheckContext),
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
@@ -289,11 +284,87 @@ function mapGraphQLPr(node: any, viewer?: string) {
     your_turn: deriveYourTurn(node, viewer),
     unresolved_thread_count: countUnresolvedThreads(node),
     has_conflict: node.mergeable === "CONFLICTING",
+    // GitHub's own merge-box signals, surfaced for corroboration/display.
+    merge_state_status: node.mergeStateStatus || null,
+    review_decision: node.reviewDecision || null,
     labels: (node.labels?.nodes || []).map((l: any) => ({
       name: l.name || "",
       color: l.color || "",
     })),
   };
+}
+
+/** Cache of required status-check context names, keyed by `owner/repo@branch`. */
+const requiredContextsCache = new Map<string, { value: Set<string> | null; expires: number }>();
+const REQUIRED_CONTEXTS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Resolve the required status-check context names for a base branch, merging
+ * classic branch protection with repository rulesets. Cached per branch and
+ * fail-open: any error (no protection, missing admin scope) yields null, which
+ * tells computeChecksStatus to fall back to evaluating every check.
+ */
+async function getRequiredContexts(
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<Set<string> | null> {
+  const key = `${owner}/${repo}@${branch}`;
+  const now = Date.now();
+  const cached = requiredContextsCache.get(key);
+  if (cached && cached.expires > now) return cached.value;
+
+  const github = createGitHubClient();
+  const enc = encodeURIComponent(branch);
+  let protection: any = null;
+  let rules: any = null;
+  try {
+    const resp = await github.get(
+      `/repos/${owner}/${repo}/branches/${enc}/protection/required_status_checks`,
+    );
+    protection = resp.data;
+  } catch {
+    // 404 (unprotected / no required checks) or 403 (no admin) — fall through.
+  }
+  try {
+    const resp = await github.get(`/repos/${owner}/${repo}/rules/branches/${enc}`);
+    rules = resp.data;
+  } catch {
+    // Rulesets unavailable — protection alone (or nothing) is fine.
+  }
+
+  const names = parseRequiredContexts(protection, rules);
+  const value = names.size > 0 ? names : null;
+  requiredContextsCache.set(key, { value, expires: now + REQUIRED_CONTEXTS_TTL_MS });
+  return value;
+}
+
+/**
+ * Map open-PR GraphQL nodes to the frontend shape, scoping each PR's CI status
+ * to its base branch's required checks. Required contexts are resolved once per
+ * unique `repo@baseRef` (cached across requests) and reused for every PR.
+ */
+async function mapOpenPrsWithChecks(nodes: any[], viewer?: string) {
+  const branchKeys = new Map<string, { owner: string; repo: string; branch: string }>();
+  for (const n of nodes) {
+    const full = n.repository?.nameWithOwner || "";
+    const branch = n.baseRefName || "";
+    const [owner, repo] = full.split("/");
+    if (!owner || !repo || !branch) continue;
+    branchKeys.set(`${full}@${branch}`, { owner, repo, branch });
+  }
+
+  const required = new Map<string, Set<string> | null>();
+  await Promise.all(
+    [...branchKeys.entries()].map(async ([k, { owner, repo, branch }]) => {
+      required.set(k, await getRequiredContexts(owner, repo, branch));
+    }),
+  );
+
+  return nodes.map((n: any) => {
+    const key = `${n.repository?.nameWithOwner || ""}@${n.baseRefName || ""}`;
+    return mapGraphQLPr(n, viewer, required.get(key) ?? null);
+  });
 }
 
 /**
@@ -313,9 +384,9 @@ router.get("/prs", async (_req: Request, res: Response) => {
   });
 
   const nodes = result.search.nodes || [];
-  const prs = nodes
-    .map((n: any) => mapGraphQLPr(n, config.githubUsername))
-    .filter((pr: any) => pr.state === "open");
+  const prs = (await mapOpenPrsWithChecks(nodes, config.githubUsername)).filter(
+    (pr: any) => pr.state === "open",
+  );
   const prComments = extractOwnPRComments(nodes, config.githubUsername);
 
   res.json({ prs, pr_comments: prComments });
@@ -334,9 +405,9 @@ router.get("/reviews", async (_req: Request, res: Response) => {
     first: 50,
   });
 
-  const reviews = (result.search.nodes || [])
-    .map((n: any) => mapGraphQLPr(n))
-    .filter((pr: any) => pr.state === "open");
+  const reviews = (await mapOpenPrsWithChecks(result.search.nodes || [])).filter(
+    (pr: any) => pr.state === "open",
+  );
 
   res.json({ reviews });
 });
@@ -612,27 +683,12 @@ const SEARCH_ORG_PRS_QUERY = `
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
           mergeQueueEntry { id }
+          mergeStateStatus
+          reviewDecision
           commits(last: 1) {
             nodes {
               commit {
-                statusCheckRollup {
-                  state
-                  contexts(first: 50) {
-                    nodes {
-                      ... on CheckRun {
-                        name
-                        conclusion
-                        status
-                        detailsUrl
-                      }
-                      ... on StatusContext {
-                        context
-                        state
-                        targetUrl
-                      }
-                    }
-                  }
-                }
+                ${PR_CHECKS_ROLLUP}
               }
             }
           }
@@ -684,9 +740,9 @@ router.get("/org-prs", async (req: Request, res: Response) => {
   });
 
   const nodes = result.search.nodes || [];
-  const prs = nodes
-    .map((n: any) => mapGraphQLPr(n))
-    .filter((pr: any) => pr.state === "open" && !pr.draft);
+  const prs = (await mapOpenPrsWithChecks(nodes)).filter(
+    (pr: any) => pr.state === "open" && !pr.draft,
+  );
 
   res.json({ prs, pageInfo: result.search.pageInfo });
 });
@@ -732,27 +788,12 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
       repository { nameWithOwner }
       labels(first: 10) { nodes { name color } }
       mergeQueueEntry { id }
+      mergeStateStatus
+      reviewDecision
       commits(last: 1) {
         nodes {
           commit {
-            statusCheckRollup {
-              state
-              contexts(first: 50) {
-                nodes {
-                  ... on CheckRun {
-                    name
-                    conclusion
-                    status
-                    detailsUrl
-                  }
-                  ... on StatusContext {
-                    context
-                    state
-                    targetUrl
-                  }
-                }
-              }
-            }
+            ${PR_CHECKS_ROLLUP}
           }
         }
       }
@@ -791,9 +832,9 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
     allPrs.push(...nodes);
   }
 
-  let prs = allPrs
-    .map((n: any) => mapGraphQLPr(n))
-    .filter((pr: any) => pr.state === "open" && !pr.draft);
+  let prs = (await mapOpenPrsWithChecks(allPrs)).filter(
+    (pr: any) => pr.state === "open" && !pr.draft,
+  );
 
   // Filter by author if specified
   if (author) {
@@ -1019,18 +1060,12 @@ const SINGLE_PR_QUERY = `
         repository { nameWithOwner }
         labels(first: 10) { nodes { name color } }
         mergeQueueEntry { id }
+        mergeStateStatus
+        reviewDecision
         commits(last: 1) {
           nodes {
             commit {
-              statusCheckRollup {
-                state
-                contexts(first: 50) {
-                  nodes {
-                    ... on CheckRun { name conclusion status detailsUrl }
-                    ... on StatusContext { context state targetUrl }
-                  }
-                }
-              }
+              ${PR_CHECKS_ROLLUP}
             }
           }
         }
@@ -1068,7 +1103,8 @@ router.get("/pr/:owner/:repo/:number", async (req: Request, res: Response) => {
       res.status(404).json({ error: "Pull request not found" });
       return;
     }
-    res.json({ pr: mapGraphQLPr(node) });
+    const required = await getRequiredContexts(owner, repo, node.baseRefName || "");
+    res.json({ pr: mapGraphQLPr(node, undefined, required) });
   } catch (err: any) {
     const status = err.response?.status || 500;
     const message = err.response?.data?.message || err.message || "Failed to fetch pull request";

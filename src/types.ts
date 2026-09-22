@@ -113,6 +113,14 @@ export interface GitHubPR {
   unresolved_thread_count?: number;
   /** GitHub reports the branch as CONFLICTING against its base. */
   has_conflict?: boolean;
+  /**
+   * GitHub's merge-box state (mergeStateStatus): CLEAN, BLOCKED, UNSTABLE,
+   * BEHIND, DIRTY, DRAFT, HAS_HOOKS, UNKNOWN. Corroborating signal for CI/merge
+   * readiness; null on endpoints that don't request it (e.g. merged PRs).
+   */
+  merge_state_status?: string | null;
+  /** GitHub's aggregate review decision: APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, or null. */
+  review_decision?: string | null;
   labels?: GitHubLabel[];
 }
 
