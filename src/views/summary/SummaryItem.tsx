@@ -11,6 +11,7 @@ export interface SummaryItemProps {
   badge?: string;
   badgeVariant?: BadgeVariant;
   checksStatus?: string | null;
+  optionalChecksFailing?: string[];
   onClick?: () => void;
 }
 
@@ -22,6 +23,7 @@ export const SummaryItem: React.FC<SummaryItemProps> = ({
   badge,
   badgeVariant,
   checksStatus,
+  optionalChecksFailing,
   onClick,
 }) => {
   return (
@@ -43,7 +45,7 @@ export const SummaryItem: React.FC<SummaryItemProps> = ({
       </div>
       <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
         {badge && <Badge variant={badgeVariant || "neutral"}>{badge}</Badge>}
-        <ChecksStatusIcon status={checksStatus ?? null} />
+        <ChecksStatusIcon status={checksStatus ?? null} optionalFailures={optionalChecksFailing} />
         <span
           className="text-secondary-custom"
           style={{ fontSize: "0.6875rem", whiteSpace: "nowrap" }}

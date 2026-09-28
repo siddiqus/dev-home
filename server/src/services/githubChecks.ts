@@ -76,6 +76,21 @@ function normalizeContext(ctx: any): NormalizedCheck | null {
 }
 
 /**
+ * Dedupe contexts to the newest run per check name. Later array entries win ties
+ * so the behavior is stable when timestamps are missing/equal.
+ */
+function dedupeLatest(contexts: any[]): NormalizedCheck[] {
+  const latestByName = new Map<string, NormalizedCheck>();
+  for (const raw of contexts) {
+    const c = normalizeContext(raw);
+    if (!c) continue;
+    const prev = latestByName.get(c.name);
+    if (!prev || c.time >= prev.time) latestByName.set(c.name, c);
+  }
+  return [...latestByName.values()];
+}
+
+/**
  * Compute an effective checks status ("SUCCESS" | "FAILURE" | "PENDING") from a
  * commit's statusCheckRollup contexts, or null when no relevant check has run.
  *
@@ -90,18 +105,8 @@ export function computeChecksStatus(
 ): string | null {
   if (!contexts || contexts.length === 0) return null;
 
-  // Dedupe to the newest run per check name. Later array entries win ties so the
-  // behavior is stable when timestamps are missing/equal.
-  const latestByName = new Map<string, NormalizedCheck>();
-  for (const raw of contexts) {
-    const c = normalizeContext(raw);
-    if (!c) continue;
-    const prev = latestByName.get(c.name);
-    if (!prev || c.time >= prev.time) latestByName.set(c.name, c);
-  }
-
   const useRequired = !!requiredContexts && requiredContexts.size > 0;
-  const evaluated = [...latestByName.values()].filter(
+  const evaluated = dedupeLatest(contexts).filter(
     (c) => !useRequired || requiredContexts!.has(c.name),
   );
   if (evaluated.length === 0) return null;
@@ -109,6 +114,23 @@ export function computeChecksStatus(
   if (evaluated.some((c) => RED_STATUSES.has(c.status))) return "FAILURE";
   if (evaluated.some((c) => PENDING_STATUSES.has(c.status))) return "PENDING";
   return "SUCCESS";
+}
+
+/**
+ * Names of failing checks that computeChecksStatus ignored because they aren't
+ * required. Lets the UI flag "required green, optional red" instead of showing
+ * a plain green check next to failures. Empty when the required set is unknown,
+ * since every check is then already evaluated.
+ */
+export function findOptionalFailures(
+  contexts: any[] | null | undefined,
+  requiredContexts?: ReadonlySet<string> | null,
+): string[] {
+  if (!contexts || contexts.length === 0) return [];
+  if (!requiredContexts || requiredContexts.size === 0) return [];
+  return dedupeLatest(contexts)
+    .filter((c) => !requiredContexts.has(c.name) && RED_STATUSES.has(c.status))
+    .map((c) => c.name);
 }
 
 /**

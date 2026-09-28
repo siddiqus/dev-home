@@ -297,6 +297,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 time={r.updated_at}
                 badgeVariant="warning"
                 checksStatus={r.checks_status}
+                optionalChecksFailing={r.optional_checks_failing}
                 onClick={() => setSelectedPR(r)}
               />
             ))
@@ -324,6 +325,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 badge={pr.draft ? "Draft" : "Open"}
                 badgeVariant={pr.draft ? "neutral" : "success"}
                 checksStatus={pr.checks_status}
+                optionalChecksFailing={pr.optional_checks_failing}
                 onClick={() => setSelectedPR(pr)}
               />
             ))

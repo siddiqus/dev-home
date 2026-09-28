@@ -239,6 +239,7 @@ export function useKanban({
           sourceBadge: "PR",
           sourceBadgeVariant: "success",
           checksStatus: pr?.checks_status,
+          optionalChecksFailing: pr?.optional_checks_failing,
           timestamp: pr?.updated_at ?? ki.updated_at,
         };
       }
@@ -254,6 +255,7 @@ export function useKanban({
           sourceBadge: "Review",
           sourceBadgeVariant: "warning",
           checksStatus: review?.checks_status,
+          optionalChecksFailing: review?.optional_checks_failing,
           timestamp: review?.updated_at ?? ki.updated_at,
         };
       }

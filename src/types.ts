@@ -101,6 +101,11 @@ export interface GitHubPR {
   changed_files?: number | null;
   repo_full_name: string;
   checks_status: string | null;
+  /**
+   * Failing checks that aren't required by branch protection, so they don't
+   * affect checks_status. Non-empty → the icon renders an amber warning.
+   */
+  optional_checks_failing?: string[];
   checks: CheckRunInfo[];
   review_status: string | null;
   merged_at?: string;
@@ -199,6 +204,7 @@ export interface KanbanTile {
   sourceBadge: string;
   sourceBadgeVariant: "info" | "success" | "warning" | "danger" | "purple" | "neutral";
   checksStatus?: string | null;
+  optionalChecksFailing?: string[];
   timestamp: string;
 }
 

@@ -1,5 +1,11 @@
 import React from "react";
-import { IconCircleCheck, IconCircleX, IconClock, IconCircleMinus } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconCircleCheck,
+  IconCircleX,
+  IconClock,
+  IconCircleMinus,
+} from "@tabler/icons-react";
 
 export const STATUS_CONFIG: Record<
   string,
@@ -21,8 +27,22 @@ export const STATUS_CONFIG: Record<
   TIMED_OUT: { icon: IconCircleX, color: "#f85149", title: "Timed out" },
 };
 
-export const ChecksStatusIcon: React.FC<{ status: string | null }> = ({ status }) => {
+export const ChecksStatusIcon: React.FC<{
+  status: string | null;
+  /** Failing non-required checks; turns a green SUCCESS into an amber warning. */
+  optionalFailures?: string[];
+}> = ({ status, optionalFailures }) => {
   if (!status) return null;
+  if (status === "SUCCESS" && optionalFailures && optionalFailures.length > 0) {
+    return (
+      <IconAlertTriangle
+        size={14}
+        stroke={1.8}
+        color="#d29922"
+        title={`Required checks passed; non-required failing: ${optionalFailures.join(", ")}`}
+      />
+    );
+  }
   const config = STATUS_CONFIG[status];
   if (!config) return null;
   const Icon = config.icon;

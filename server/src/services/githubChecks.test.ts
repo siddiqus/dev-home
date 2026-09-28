@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecksStatus, parseRequiredContexts } from "./githubChecks";
+import { computeChecksStatus, findOptionalFailures, parseRequiredContexts } from "./githubChecks";
 
 /** Build a CheckRun context node (GitHub Actions / Checks API). */
 function ck(name: string, conclusion: string | null, completedAt?: string) {
@@ -147,8 +147,43 @@ describe("parseRequiredContexts", () => {
 
   it("reads from rulesets alone", () => {
     const rules = [
-      { type: "required_status_checks", parameters: { required_status_checks: [{ context: "b" }] } },
+      {
+        type: "required_status_checks",
+        parameters: { required_status_checks: [{ context: "b" }] },
+      },
     ];
     expect([...parseRequiredContexts(null, rules)]).toEqual(["b"]);
+  });
+});
+
+describe("findOptionalFailures", () => {
+  // Regression for PR #12602: required checks all green, but the non-required
+  // test-playwright and ai-suggestion failed. Status stays SUCCESS; the failures
+  // are surfaced separately so the UI can warn instead of showing plain green.
+  const required = new Set(["lint", "test", "report", "Git Checks"]);
+  const pr12602 = [
+    ck("test-playwright", "FAILURE", "2026-09-26T12:10:57Z"),
+    ck("Git Checks", "SUCCESS", "2026-09-26T12:00:12Z"),
+    ck("ai-suggestion", "FAILURE", "2026-09-26T12:14:09Z"),
+    ck("lint", "SUCCESS", "2026-09-26T12:02:36Z"),
+    ck("test", "SUCCESS", "2026-09-26T12:06:34Z"),
+    ck("report", "SUCCESS", "2026-09-26T12:08:35Z"),
+  ];
+
+  it("lists failing non-required checks while status stays SUCCESS", () => {
+    expect(computeChecksStatus(pr12602, required)).toBe("SUCCESS");
+    expect(findOptionalFailures(pr12602, required)).toEqual(["test-playwright", "ai-suggestion"]);
+  });
+
+  it("ignores stale failed runs superseded by a passing re-run", () => {
+    const ctx = [
+      ck("test-playwright", "FAILURE", "2026-09-26T12:00:00Z"),
+      ck("test-playwright", "SUCCESS", "2026-09-26T12:30:00Z"),
+    ];
+    expect(findOptionalFailures(ctx, required)).toEqual([]);
+  });
+
+  it("returns [] when the required set is unknown", () => {
+    expect(findOptionalFailures(pr12602, null)).toEqual([]);
   });
 });

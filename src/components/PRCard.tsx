@@ -191,7 +191,12 @@ export function PRCard({
         <div className="pr-card-side-top">
           {showReasonChips && <ReasonChips pr={pr} />}
           {showStatusPill && <StatusPill pr={pr} />}
-          {fields.showChecks && <ChecksStatusIcon status={pr.checks_status} />}
+          {fields.showChecks && (
+            <ChecksStatusIcon
+              status={pr.checks_status}
+              optionalFailures={pr.optional_checks_failing}
+            />
+          )}
           {claudeEnabled && onClaudeAction && (
             <ClaudeActionDropdown
               pr={pr}

@@ -63,7 +63,10 @@ export function KanbanCard({ tile, isDragOverlay, onClick }: KanbanCardProps) {
       </div>
       {tile.subtitle && <div className="kanban-tile-subtitle">{tile.subtitle}</div>}
       <div className="d-flex align-items-center gap-2 mt-1">
-        <ChecksStatusIcon status={tile.checksStatus ?? null} />
+        <ChecksStatusIcon
+          status={tile.checksStatus ?? null}
+          optionalFailures={tile.optionalChecksFailing}
+        />
         <span className="text-secondary-custom" style={{ fontSize: "0.6875rem" }}>
           {formatRelativeTime(tile.timestamp)}
         </span>

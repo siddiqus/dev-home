@@ -2,7 +2,11 @@ import { Router, Request, Response } from "express";
 import { getConfig } from "../config";
 import { createGitHubClient } from "../clients/githubApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
-import { computeChecksStatus, parseRequiredContexts } from "../services/githubChecks";
+import {
+  computeChecksStatus,
+  findOptionalFailures,
+  parseRequiredContexts,
+} from "../services/githubChecks";
 
 const router = Router();
 
@@ -242,11 +246,7 @@ function countUnresolvedThreads(node: any): number {
  * `requiredContexts`, when provided, scopes the CI status to the base branch's
  * required checks (see computeChecksStatus); omit it to evaluate every check.
  */
-function mapGraphQLPr(
-  node: any,
-  viewer?: string,
-  requiredContexts?: ReadonlySet<string> | null,
-) {
+function mapGraphQLPr(node: any, viewer?: string, requiredContexts?: ReadonlySet<string> | null) {
   const rollup = node.commits?.nodes?.[0]?.commit?.statusCheckRollup;
   const contextNodes = rollup?.contexts?.nodes || [];
   return {
@@ -276,6 +276,7 @@ function mapGraphQLPr(
     // Recomputed from deduped, required-scoped contexts rather than rollup.state,
     // which counts stale re-runs and disagrees with the GitHub merge box.
     checks_status: computeChecksStatus(contextNodes, requiredContexts),
+    optional_checks_failing: findOptionalFailures(contextNodes, requiredContexts),
     checks: contextNodes.map(mapCheckContext),
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
