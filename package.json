@@ -41,9 +41,6 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**"
-    ],
     "mac": {
       "target": [
         {
@@ -101,7 +98,6 @@
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "axios": "^1.14.0",
-    "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "electron-store": "^11.0.2",
     "express": "^4.21.0",

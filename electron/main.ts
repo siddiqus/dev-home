@@ -37,8 +37,6 @@ async function startBackendServer() {
   if (process.env.VITE_DEV_SERVER_URL) {
     const dotenv = (await import("dotenv")).default;
     dotenv.config({ path: path.resolve(__dirname, "../.env") });
-  } else {
-    process.env.DEV_HOME_DB_PATH = path.join(app.getPath("userData"), "notes.db");
   }
 
   const defaultPort = parseInt(__API_PORT__, 10);

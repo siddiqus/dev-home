@@ -2,14 +2,9 @@ import cors from "cors";
 import express, { Request, Response } from "express";
 import "express-async-errors";
 import { configFromHeaders, runWithConfig } from "./config";
-import { closeDb } from "./db";
-import focusRoutes from "./routes/focus";
 import githubRoutes from "./routes/github";
 import jiraRoutes from "./routes/jira";
-import kanbanRoutes from "./routes/kanban";
-import filtersRoutes from "./routes/filters";
 import jiraFiltersRoutes from "./routes/jiraFilters";
-import notesRoutes from "./routes/notes";
 import teamsRoutes from "./routes/teams";
 import teamsJiraRoutes from "./routes/teamsJira";
 import { errorHandler } from "./utils/errors";
@@ -51,10 +46,6 @@ export function createServer() {
   // Routes
   app.use("/api/jira", jiraRoutes);
   app.use("/api/github", githubRoutes);
-  app.use("/api/focus", focusRoutes);
-  app.use("/api/notes", notesRoutes);
-  app.use("/api/kanban", kanbanRoutes);
-  app.use("/api/filters", filtersRoutes);
   app.use("/api/jira-filters", jiraFiltersRoutes);
   app.use("/api/teams", teamsRoutes);
   app.use("/api/teams-jira", teamsJiraRoutes);
@@ -80,14 +71,3 @@ export function startServer() {
 
   return server;
 }
-
-// Graceful shutdown — close SQLite connection
-process.on("SIGTERM", () => {
-  closeDb();
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  closeDb();
-  process.exit(0);
-});
