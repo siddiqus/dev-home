@@ -2,7 +2,6 @@ import { IconExternalLink, IconCopy, IconNote } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
-import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import {
   BranchPill,
   DiffStat,
@@ -12,7 +11,6 @@ import {
   StatusPill,
   renderTitleContent,
 } from "./prIndicators";
-import type { ClaudeAction, ClaudeSession } from "../types/claude";
 
 /** Which optional fields a card renders, driven by the PRTable variant. */
 export interface PRCardFields {
@@ -39,20 +37,6 @@ interface PRCardProps {
   showReasonChips?: boolean;
   /** Number of unresolved notes on this PR — shows a note-count badge when > 0. */
   noteCount?: number;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
   /** Opens the PR description modal. */
   onOpen: (pr: GitHubPR) => void;
   /** Copies the given head branch name to the clipboard (surfaces a toast). */
@@ -69,10 +53,6 @@ export function PRCard({
   clustered,
   showReasonChips,
   noteCount,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
   onOpen,
   onCopyBranch,
   onCopyLink,
@@ -195,26 +175,6 @@ export function PRCard({
             <ChecksStatusIcon
               status={pr.checks_status}
               optionalFailures={pr.optional_checks_failing}
-            />
-          )}
-          {claudeEnabled && onClaudeAction && (
-            <ClaudeActionDropdown
-              pr={pr}
-              activeSessions={claudeSessions}
-              onViewSession={onViewClaudeSession}
-              onAction={(action, customPrompt) =>
-                onClaudeAction(
-                  {
-                    number: pr.number,
-                    repo_full_name: pr.repo_full_name,
-                    title: pr.title,
-                    headBranch: pr.head.ref,
-                    baseBranch: pr.base.ref,
-                  },
-                  action,
-                  customPrompt,
-                )
-              }
             />
           )}
         </div>

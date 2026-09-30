@@ -9,7 +9,6 @@ import React, {
 } from "react";
 import { IconChevronRight, IconChevronDown } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
-import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import { PRTable } from "./PRTable";
 import { OPEN_PR_SECTIONS, groupPRsBySection, OpenPRSection } from "../utils/prCategories";
 import { groupByTicket } from "../utils/tickets";
@@ -20,20 +19,6 @@ interface PRSectionsProps {
   loading: boolean;
   jiraIssues?: JiraIssue[];
   jiraBaseUrl?: string;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
   /** Reports whether any collapsible Jira ticket groups exist across the section
       tables, and whether all of them are currently collapsed. */
   onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
@@ -58,17 +43,7 @@ const TICKET_STORAGE_KEY = "dev-home-myprs-ticket-collapsed";
  * existing spinner and empty-state UI are reused unchanged.
  */
 export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function PRSections(
-  {
-    prs,
-    loading,
-    jiraIssues,
-    jiraBaseUrl,
-    claudeEnabled,
-    claudeSessions,
-    onClaudeAction,
-    onViewClaudeSession,
-    onCollapseStateChange,
-  },
+  { prs, loading, jiraIssues, jiraBaseUrl, onCollapseStateChange },
   ref,
 ) {
   const [collapsed, setCollapsed] = useState<Set<OpenPRSection>>(() => {
@@ -224,10 +199,6 @@ export const PRSections = forwardRef<PRSectionsHandle, PRSectionsProps>(function
                 variant="my-prs"
                 jiraIssues={jiraIssues}
                 jiraBaseUrl={jiraBaseUrl}
-                claudeEnabled={claudeEnabled}
-                claudeSessions={claudeSessions}
-                onClaudeAction={onClaudeAction}
-                onViewClaudeSession={onViewClaudeSession}
                 embedded
                 showGroupToolbar={false}
                 storageKeyScope={section.id}

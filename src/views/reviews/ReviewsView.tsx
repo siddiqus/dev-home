@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import { IconChevronRight, IconChevronDown, IconMessageCircle, IconEye } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { PRTable } from "../../components/PRTable";
 import "../../components/PRSections.css";
 
@@ -14,20 +13,6 @@ interface ReviewsViewProps {
   loading: boolean;
   jiraIssues?: JiraIssue[];
   jiraBaseUrl?: string;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 type ReviewSection = "reviewing" | "requested";
@@ -55,10 +40,6 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
   loading,
   jiraIssues,
   jiraBaseUrl,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }) => {
   const [collapsed, setCollapsed] = useState<Set<ReviewSection>>(() => {
     try {
@@ -145,10 +126,6 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 variant="review-requests"
                 jiraIssues={jiraIssues}
                 jiraBaseUrl={jiraBaseUrl}
-                claudeEnabled={claudeEnabled}
-                claudeSessions={claudeSessions}
-                onClaudeAction={onClaudeAction}
-                onViewClaudeSession={onViewClaudeSession}
                 embedded
                 showGroupToolbar={false}
                 storageKeyScope={section.id}

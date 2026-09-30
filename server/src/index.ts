@@ -11,7 +11,6 @@ import kanbanRoutes from "./routes/kanban";
 import filtersRoutes from "./routes/filters";
 import jiraFiltersRoutes from "./routes/jiraFilters";
 import notesRoutes from "./routes/notes";
-import claudeRoutes from "./routes/claude";
 import teamsRoutes from "./routes/teams";
 import teamsJiraRoutes from "./routes/teamsJira";
 import { errorHandler } from "./utils/errors";
@@ -54,7 +53,6 @@ export function createServer() {
   app.use("/api/kanban", kanbanRoutes);
   app.use("/api/filters", filtersRoutes);
   app.use("/api/jira-filters", jiraFiltersRoutes);
-  app.use("/api/claude", claudeRoutes);
   app.use("/api/teams", teamsRoutes);
   app.use("/api/teams-jira", teamsJiraRoutes);
 

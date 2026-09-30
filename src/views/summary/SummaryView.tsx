@@ -16,7 +16,6 @@ import {
   IconInbox,
 } from "@tabler/icons-react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
 import { REASON_SUMMARY } from "../../utils/github";
 import { formatRelativeTime, parseTimestamp } from "../../utils/time";
@@ -46,20 +45,6 @@ interface SummaryViewProps {
   onAddNote: () => void;
   onOpenNote: (note: Note) => void;
   doneItemIds?: Set<string>;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 interface SectionProps {
@@ -155,10 +140,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   onAddNote,
   onOpenNote,
   doneItemIds,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
@@ -509,34 +490,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         url={selectedPR?.html_url}
         checks={selectedPR?.checks}
         pr={selectedPR ?? undefined}
-        claudeEnabled={claudeEnabled}
-        activeSessions={
-          selectedPR
-            ? claudeSessions?.filter(
-                (s) =>
-                  s.prNumber === selectedPR.number &&
-                  s.repoFullName === selectedPR.repo_full_name &&
-                  s.status === "running",
-              )
-            : undefined
-        }
-        onViewSession={onViewClaudeSession}
-        onClaudeAction={
-          selectedPR && onClaudeAction
-            ? (action, customPrompt) =>
-                onClaudeAction(
-                  {
-                    number: selectedPR.number,
-                    repo_full_name: selectedPR.repo_full_name,
-                    title: selectedPR.title,
-                    headBranch: selectedPR.head.ref,
-                    baseBranch: selectedPR.base.ref,
-                  },
-                  action,
-                  customPrompt,
-                )
-            : undefined
-        }
       />
     </>
   );

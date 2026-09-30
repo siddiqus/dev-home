@@ -18,7 +18,6 @@ import {
   IconBuilding,
   IconClock,
   IconTarget,
-  IconSparkles,
   IconUsersGroup,
   IconChartBar,
   IconSun,
@@ -57,10 +56,7 @@ import { FindInPage } from "./components/FindInPage";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
-import { useClaudeSessions } from "./hooks/useClaudeSessions";
-import { ClaudeSessionsView } from "./views/claude/ClaudeSessionsView";
 import type { FocusableItem } from "./types";
-import type { ClaudeAction } from "./types/claude";
 import type { AppSettings } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS } from "./config/navTabs";
@@ -116,11 +112,9 @@ export default function App() {
     saveSettings,
   } = useConfig();
 
-  const [claudeEnabled, setClaudeEnabled] = useState(false);
   const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
   useEffect(() => {
     window.electronAPI?.getSettings().then((s) => {
-      setClaudeEnabled(!!s?.claudeEnabled);
       setHiddenTabs(s?.hiddenTabs ?? []);
     });
   }, [configured]);
@@ -365,51 +359,7 @@ export default function App() {
 
   const pomodoro = usePomodoro({ focusableItems });
 
-  const claudeSessions = useClaudeSessions(claudeEnabled);
-  const [claudeError, setClaudeError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!claudeError) return;
-    const timer = setTimeout(() => setClaudeError(null), 5000);
-    return () => clearTimeout(timer);
-  }, [claudeError]);
-
-  const handleClaudeAction = async (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => {
-    const result = await claudeSessions.create({
-      prNumber: pr.number,
-      repoFullName: pr.repo_full_name,
-      prTitle: pr.title,
-      action,
-      customPrompt,
-      headBranch: pr.headBranch,
-      baseBranch: pr.baseBranch,
-    });
-    if ("sessionId" in result) {
-      setActiveTab("claude");
-    } else {
-      setClaudeError(result.error);
-    }
-  };
-
-  const [viewClaudeSessionId, setViewClaudeSessionId] = useState<string | null>(null);
-
-  const handleViewClaudeSession = (sessionId: string) => {
-    setViewClaudeSessionId(sessionId);
-    setActiveTab("claude");
-  };
-
   const handleSaveSettingsWrapped = async (settings: AppSettings) => {
-    setClaudeEnabled(settings.claudeEnabled);
     setHiddenTabs(settings.hiddenTabs ?? []);
     await saveSettings(settings);
   };
@@ -519,7 +469,6 @@ export default function App() {
                 teams: { icon: IconUsersGroup },
                 "team-dashboard": { icon: IconChartBar },
                 pomodoro: { icon: IconClock },
-                claude: { icon: IconSparkles },
               };
 
               // Tabs whose visibility depends on runtime config.
@@ -527,7 +476,6 @@ export default function App() {
                 if (hiddenTabs.includes(key)) return false;
                 if (key === "org-prs") return !!githubOrg;
                 if (key === "teams" || key === "team-dashboard") return !!githubOrg;
-                if (key === "claude") return claudeEnabled;
                 return true;
               };
 
@@ -686,10 +634,6 @@ export default function App() {
                         setShowNoteEditor(true);
                       }}
                       doneItemIds={doneItemIds}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "focus" && (
@@ -708,10 +652,6 @@ export default function App() {
                       loading={kanbanLoading}
                       jiraBaseUrl={jiraBaseUrl}
                       onMoveItem={kanbanMoveItem}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "jira" && (
@@ -740,10 +680,6 @@ export default function App() {
                       jiraBaseUrl={jiraBaseUrl}
                       configured={configured}
                       refreshKey={refreshKey}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "reviews" && (
@@ -753,10 +689,6 @@ export default function App() {
                       loading={loading}
                       jiraIssues={jiraIssues}
                       jiraBaseUrl={jiraBaseUrl}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "org-prs" && (
@@ -765,10 +697,6 @@ export default function App() {
                       jiraBaseUrl={jiraBaseUrl}
                       jiraIssues={jiraIssues}
                       refreshKey={refreshKey}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "teams" && (
@@ -780,10 +708,6 @@ export default function App() {
                       jiraBaseUrl={jiraBaseUrl}
                       initialTeamId={dashboardTeamId}
                       jiraIssues={jiraIssues}
-                      claudeEnabled={claudeEnabled}
-                      claudeSessions={claudeSessions.sessions}
-                      onClaudeAction={handleClaudeAction}
-                      onViewClaudeSession={handleViewClaudeSession}
                     />
                   )}
                   {effectiveTab === "notes" && (
@@ -805,15 +729,6 @@ export default function App() {
                   {effectiveTab === "pomodoro" && (
                     <PomodoroView focusableItems={focusableItems} {...pomodoro} />
                   )}
-                  {effectiveTab === "claude" && claudeEnabled && (
-                    <ClaudeSessionsView
-                      sessions={claudeSessions.sessions}
-                      loading={claudeSessions.loading}
-                      onCancel={claudeSessions.cancel}
-                      onDelete={claudeSessions.remove}
-                      initialSessionId={viewClaudeSessionId}
-                    />
-                  )}
                 </div>
               )}
             </ErrorBoundary>
@@ -832,14 +747,6 @@ export default function App() {
         onEdit={editNote}
         jiraBaseUrl={jiraBaseUrl}
       />
-
-      {claudeError && (
-        <div className="claude-error-toast">
-          <IconSparkles size={14} />
-          <span>{claudeError}</span>
-          <button onClick={() => setClaudeError(null)}>&times;</button>
-        </div>
-      )}
 
       {/* Rendered last so its own input isn't the first find-in-page match (see FindInPage) */}
       <FindInPage />

@@ -3,8 +3,8 @@
  *
  * NAV_GROUPS is the source of truth for sidebar structure (order + grouping).
  * NAV_TABS is the flattened list, used by Settings → Appearance to decide which
- * tabs can be toggled on/off. The conditional tabs (org-prs, claude) are listed
- * here for structure; their runtime visibility (githubOrg, claudeEnabled) is
+ * tabs can be toggled on/off. The conditional tabs (org-prs) are listed
+ * here for structure; their runtime visibility (githubOrg) is
  * still decided in App.tsx.
  *
  * Keys must match the `key` values used in App.tsx's sidebar tab metadata.
@@ -62,11 +62,6 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "tools",
     label: "Tools",
     tabs: [{ key: "pomodoro", label: "Pomodoro" }],
-  },
-  {
-    key: "ai",
-    label: "AI",
-    tabs: [{ key: "claude", label: "Claude" }],
   },
 ];
 

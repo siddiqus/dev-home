@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { IconFold, IconFoldDown, IconList, IconLayoutRows, IconX } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { fetchRecentlyMergedPRs } from "../../services/github";
 import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
 import { ACTIONABLE_REASONS } from "../../utils/prCategories";
@@ -22,20 +21,6 @@ interface PRsViewProps {
   jiraBaseUrl?: string;
   configured: boolean;
   refreshKey?: number;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 export const PRsView: React.FC<PRsViewProps> = ({
@@ -45,10 +30,6 @@ export const PRsView: React.FC<PRsViewProps> = ({
   jiraBaseUrl,
   configured,
   refreshKey,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }) => {
   const [subTab, setSubTab] = useState<PRSubTab>(() => {
     return (localStorage.getItem("dev-home-prs-subtab") as PRSubTab) || "open";
@@ -439,10 +420,6 @@ export const PRsView: React.FC<PRsViewProps> = ({
               loading={loading}
               jiraIssues={jiraIssues}
               jiraBaseUrl={jiraBaseUrl}
-              claudeEnabled={claudeEnabled}
-              claudeSessions={claudeSessions}
-              onClaudeAction={onClaudeAction}
-              onViewClaudeSession={onViewClaudeSession}
               onCollapseStateChange={(hasGroups, allCollapsed) =>
                 setGroupState({ hasGroups, allCollapsed })
               }
@@ -456,10 +433,6 @@ export const PRsView: React.FC<PRsViewProps> = ({
               variant="my-prs"
               jiraIssues={jiraIssues}
               jiraBaseUrl={jiraBaseUrl}
-              claudeEnabled={claudeEnabled}
-              claudeSessions={claudeSessions}
-              onClaudeAction={onClaudeAction}
-              onViewClaudeSession={onViewClaudeSession}
               showGroupToolbar={false}
               reasonChips
               onCollapseStateChange={(hasGroups, allCollapsed) =>

@@ -4,7 +4,7 @@
  * Each sidebar tab needs a specific set of data sources. This file declares that
  * mapping so the app can lazily load only what the active tab requires, instead
  * of fetching everything up front. Views that self-fetch (e.g. jira-search,
- * org-prs, teams, team-dashboard, claude) declare no sources here.
+ * org-prs, teams, team-dashboard) declare no sources here.
  *
  * Keys must match the `key` values used in navTabs.ts / App.tsx sidebar metadata.
  */
@@ -65,7 +65,6 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
   "org-prs": [],
   teams: [],
   "team-dashboard": [],
-  claude: [],
 };
 
 /**

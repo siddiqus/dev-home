@@ -24,7 +24,6 @@ import { categorizeOpenPR } from "../utils/prCategories";
 import { DescriptionModal } from "./DescriptionModal";
 import { EmptyState } from "./EmptyState";
 import { PRCard, PRCardFields } from "./PRCard";
-import type { ClaudeAction, ClaudeSession } from "../types/claude";
 import { useOptionalNotes } from "../context/NotesContext";
 import { normalizeNoteRef, prNoteKey } from "../utils/prNotes";
 import "./PRTable.css";
@@ -42,20 +41,6 @@ interface PRTableProps {
   jiraIssues?: JiraIssue[];
   jiraBaseUrl?: string;
   variant: PRTableVariant;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
   onCollapseStateChange?: (hasGroups: boolean, allCollapsed: boolean) => void;
   /** Set false to hide the inline "collapse all groups" toolbar (e.g. inside PRSections). */
   showGroupToolbar?: boolean;
@@ -179,10 +164,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     jiraIssues = [],
     jiraBaseUrl = "",
     variant,
-    claudeEnabled,
-    claudeSessions,
-    onClaudeAction,
-    onViewClaudeSession,
     onCollapseStateChange,
     showGroupToolbar = true,
     embedded = false,
@@ -397,10 +378,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     clustered={isCluster}
                     showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
                     noteCount={noteCountByKey.get(prNoteKey(pr)) ?? 0}
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions}
-                    onClaudeAction={onClaudeAction}
-                    onViewClaudeSession={onViewClaudeSession}
                     onOpen={setSelectedPR}
                     onCopyBranch={handleCopyBranch}
                     onCopyLink={handleCopyLink}
@@ -420,35 +397,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
         url={selectedPR?.html_url}
         jiraBaseUrl={jiraBaseUrl}
         checks={selectedPR?.checks}
-        activeSessions={
-          selectedPR
-            ? claudeSessions?.filter(
-                (s) =>
-                  s.prNumber === selectedPR.number &&
-                  s.repoFullName === selectedPR.repo_full_name &&
-                  s.status === "running",
-              )
-            : undefined
-        }
-        onViewSession={onViewClaudeSession}
         pr={selectedPR ?? undefined}
-        claudeEnabled={claudeEnabled}
-        onClaudeAction={
-          selectedPR && onClaudeAction
-            ? (action, customPrompt) =>
-                onClaudeAction(
-                  {
-                    number: selectedPR.number,
-                    repo_full_name: selectedPR.repo_full_name,
-                    title: selectedPR.title,
-                    headBranch: selectedPR.head.ref,
-                    baseBranch: selectedPR.base.ref,
-                  },
-                  action,
-                  customPrompt,
-                )
-            : undefined
-        }
       />
 
       {/* Copied-to-clipboard confirmation — fixed at the bottom so it doesn't

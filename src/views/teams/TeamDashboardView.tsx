@@ -19,7 +19,6 @@ import { fetchIssuesByKeys } from "../../services/jira";
 import { fetchPR } from "../../services/github";
 import { formatRelativeTime } from "../../utils/time";
 import type { JiraIssue, GitHubPR } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import type { LinkedPR, Ref } from "../../types/teams";
 import { TeamPRsTab } from "./TeamPRsTab";
 import "./TeamDashboardView.css";
@@ -40,32 +39,9 @@ interface Props {
   initialTeamId?: number | null;
   // --- Team PRs tab (threaded through to the PRTable, as in Org PRs) ---
   jiraIssues?: JiraIssue[];
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
-export function TeamDashboardView({
-  configured,
-  jiraBaseUrl,
-  initialTeamId,
-  jiraIssues,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
-}: Props) {
+export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jiraIssues }: Props) {
   const { teams } = useTeams(configured);
   const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
@@ -379,10 +355,6 @@ export function TeamDashboardView({
             teamName={teamName}
             jiraBaseUrl={jiraBaseUrl}
             jiraIssues={jiraIssues}
-            claudeEnabled={claudeEnabled}
-            claudeSessions={claudeSessions}
-            onClaudeAction={onClaudeAction}
-            onViewClaudeSession={onViewClaudeSession}
           />
         </div>
       )}

@@ -5,7 +5,6 @@ import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh, IconFilter, IconFold, IconFoldDown } from "@tabler/icons-react";
 import "../prs/PRsView.css";
 import { GitHubPR, JiraIssue } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
@@ -81,20 +80,6 @@ interface OrgPRsViewProps {
   jiraBaseUrl: string;
   jiraIssues?: JiraIssue[];
   refreshKey?: number;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
@@ -102,10 +87,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   jiraBaseUrl,
   jiraIssues,
   refreshKey,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }) => {
   const orgPrTableRef = useRef<PRTableHandle>(null);
   const orgMergedTableRef = useRef<PRTableHandle>(null);
@@ -563,10 +544,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                     jiraBaseUrl={jiraBaseUrl}
                     jiraIssues={jiraIssues}
                     variant="org-prs"
-                    claudeEnabled={claudeEnabled}
-                    claudeSessions={claudeSessions}
-                    onClaudeAction={onClaudeAction}
-                    onViewClaudeSession={onViewClaudeSession}
                     onCollapseStateChange={(hasGroups, allCollapsed) =>
                       setGroupState({ hasGroups, allCollapsed })
                     }

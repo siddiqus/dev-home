@@ -7,10 +7,6 @@ export interface AppSettings {
   githubToken: string;
   githubUsername: string;
   githubOrg: string;
-  claudeEnabled: boolean;
-  claudeCliPath: string;
-  claudeWorkingDirectory: string;
-  claudeMaxConcurrentSessions: number;
   /** Sidebar tab keys the user has hidden. Summary is never included. */
   hiddenTabs: string[];
 }

@@ -12,7 +12,6 @@ const tabShortcuts: Record<string, string> = {
   8: "github-mentions",
   9: "org-prs",
   p: "pomodoro",
-  l: "claude",
   ",": "settings",
 };
 

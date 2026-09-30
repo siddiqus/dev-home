@@ -3,7 +3,6 @@ import Spinner from "react-bootstrap/Spinner";
 import { IconRefresh, IconFold, IconFoldDown, IconLock } from "@tabler/icons-react";
 import "./TeamPRsTab.css";
 import type { GitHubPR, JiraIssue } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import type { TeamMember } from "../../types/teams";
 import { fetchTeamMembers } from "../../services/teams";
 import {
@@ -28,20 +27,6 @@ interface TeamPRsTabProps {
   teamName: string;
   jiraBaseUrl?: string;
   jiraIssues?: JiraIssue[];
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 /**
@@ -57,10 +42,6 @@ export function TeamPRsTab({
   teamName,
   jiraBaseUrl,
   jiraIssues,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }: TeamPRsTabProps) {
   const prTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
@@ -276,10 +257,6 @@ export function TeamPRsTab({
               jiraBaseUrl={jiraBaseUrl}
               jiraIssues={jiraIssues}
               variant="org-prs"
-              claudeEnabled={claudeEnabled}
-              claudeSessions={claudeSessions}
-              onClaudeAction={onClaudeAction}
-              onViewClaudeSession={onViewClaudeSession}
               onCollapseStateChange={(hasGroups, allCollapsed) =>
                 setGroupState({ hasGroups, allCollapsed })
               }

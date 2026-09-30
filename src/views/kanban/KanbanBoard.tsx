@@ -15,7 +15,6 @@ import {
 import Spinner from "react-bootstrap/Spinner";
 import { IconFilter } from "@tabler/icons-react";
 import { KanbanTile, KanbanColumnId } from "../../types";
-import type { ClaudeAction, ClaudeSession } from "../../types/claude";
 import { KANBAN_COLUMNS } from "../../hooks/useKanban";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { SearchableDropdown, DropdownItem } from "../../components/SearchableDropdown";
@@ -58,20 +57,6 @@ interface KanbanBoardProps {
       position: number;
     }[],
   ) => void;
-  claudeEnabled?: boolean;
-  claudeSessions?: ClaudeSession[];
-  onClaudeAction?: (
-    pr: {
-      number: number;
-      repo_full_name: string;
-      title: string;
-      headBranch: string;
-      baseBranch: string;
-    },
-    action: ClaudeAction,
-    customPrompt?: string,
-  ) => void;
-  onViewClaudeSession?: (sessionId: string) => void;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -79,10 +64,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   loading,
   jiraBaseUrl,
   onMoveItem,
-  claudeEnabled,
-  claudeSessions,
-  onClaudeAction,
-  onViewClaudeSession,
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -355,39 +336,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         url={modalData?.url}
         checks={modalData?.checks}
         pr={(selectedTile?.pr || selectedTile?.review) ?? undefined}
-        claudeEnabled={claudeEnabled}
-        activeSessions={
-          selectedTile?.pr || selectedTile?.review
-            ? claudeSessions?.filter((s) => {
-                const tilePr = selectedTile.pr || selectedTile.review;
-                return (
-                  tilePr &&
-                  s.prNumber === tilePr.number &&
-                  s.repoFullName === tilePr.repo_full_name &&
-                  s.status === "running"
-                );
-              })
-            : undefined
-        }
-        onViewSession={onViewClaudeSession}
-        onClaudeAction={
-          (selectedTile?.pr || selectedTile?.review) && onClaudeAction
-            ? (action, customPrompt) => {
-                const tilePr = (selectedTile!.pr || selectedTile!.review)!;
-                onClaudeAction(
-                  {
-                    number: tilePr.number,
-                    repo_full_name: tilePr.repo_full_name,
-                    title: tilePr.title,
-                    headBranch: tilePr.head.ref,
-                    baseBranch: tilePr.base.ref,
-                  },
-                  action,
-                  customPrompt,
-                );
-              }
-            : undefined
-        }
       />
     </>
   );

@@ -6,13 +6,9 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
-import { IconEye, IconExternalLink, IconPlayerPlay } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
 import type { GitHubPR } from "../types";
-import type { ClaudeAction, ClaudeSession } from "../types/claude";
-import { CLAUDE_ACTION_LABELS } from "../types/claude";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
-import { ClaudeActionDropdown } from "./ClaudeActionDropdown";
 import { fetchJobLogs } from "../services/github";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { formatRelativeTime } from "../utils/time";
@@ -46,14 +42,12 @@ const CHECK_SORT_ORDER: Record<string, number> = {
   STALE: 3,
 };
 
-function columnWidths(hasChecks: boolean, hasSessions: boolean, hasNotes: boolean) {
+function columnWidths(hasChecks: boolean, hasNotes: boolean) {
   if (!hasNotes) {
-    return { desc: hasChecks ? 6 : hasSessions ? 8 : 12, checks: 6, sessions: 4, notes: 0 };
+    return { desc: hasChecks ? 6 : 12, checks: 6, notes: 0 };
   }
-  const optional = (hasChecks ? 1 : 0) + (hasSessions ? 1 : 0);
-  if (optional === 0) return { desc: 8, checks: 0, sessions: 0, notes: 4 };
-  if (optional === 1) return { desc: 5, checks: 4, sessions: 4, notes: 3 };
-  return { desc: 3, checks: 3, sessions: 3, notes: 3 };
+  if (!hasChecks) return { desc: 8, checks: 0, notes: 4 };
+  return { desc: 5, checks: 4, notes: 3 };
 }
 
 function parseJobInfoFromUrl(
@@ -280,11 +274,7 @@ interface DescriptionModalProps {
   /** Jira base URL, used to link the ticket in the PR header title. */
   jiraBaseUrl?: string;
   checks?: CheckRunInfo[];
-  activeSessions?: ClaudeSession[];
-  onViewSession?: (sessionId: string) => void;
   pr?: GitHubPR;
-  claudeEnabled?: boolean;
-  onClaudeAction?: (action: ClaudeAction, customPrompt?: string) => void;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -297,11 +287,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   url,
   jiraBaseUrl,
   checks,
-  activeSessions,
-  onViewSession,
   pr,
-  claudeEnabled,
-  onClaudeAction,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -311,9 +297,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       : null;
 
   const hasChecks = !!sortedChecks;
-  const hasActiveSessions = !!activeSessions && activeSessions.length > 0;
   const hasNotes = !!pr;
-  const widths = columnWidths(hasChecks, hasActiveSessions, hasNotes);
+  const widths = columnWidths(hasChecks, hasNotes);
   const [selectedCheck, setSelectedCheck] = useState<CheckRunInfo | null>(null);
 
   useEffect(() => {
@@ -367,17 +352,6 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
               </>
             )}
           </div>
-          {pr && claudeEnabled && onClaudeAction && (
-            <ClaudeActionDropdown
-              pr={pr}
-              activeSessions={activeSessions}
-              onViewSession={(sessionId) => {
-                onViewSession?.(sessionId);
-                onHide();
-              }}
-              onAction={onClaudeAction}
-            />
-          )}
         </div>
 
         <Row className="g-0 modal-split-layout">
@@ -439,41 +413,6 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                   ))}
                 </div>
               )}
-            </Col>
-          )}
-          {hasActiveSessions && (
-            <Col md={widths.sessions} className="modal-checks-col">
-              <div className="modal-body-section-header">Active Claude Sessions</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {activeSessions!.map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={() => {
-                      onViewSession?.(s.id);
-                      onHide();
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      background: "var(--card-bg)",
-                      cursor: "pointer",
-                      fontSize: "0.8125rem",
-                      border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <IconPlayerPlay size={14} color="var(--bs-success)" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600 }}>{CLAUDE_ACTION_LABELS[s.action]}</div>
-                      <div className="text-secondary-custom" style={{ fontSize: "0.75rem" }}>
-                        Running
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </Col>
           )}
           {pr && (
