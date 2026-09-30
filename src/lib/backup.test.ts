@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBackup, restoreBackup } from "./backup";
 import { DB_PREFIX } from "./localStore";
 
@@ -51,5 +51,47 @@ describe("backup", () => {
   it("rejects foreign files", () => {
     expect(() => restoreBackup({ foo: 1 })).toThrow("Not a Dev Home backup file");
     expect(() => restoreBackup(null)).toThrow("Not a Dev Home backup file");
+  });
+
+  it("rolls back on quota error, restoring original state exactly", () => {
+    // Seed original data
+    localStorage.setItem(DB_PREFIX + "old1", JSON.stringify({ old: 1 }));
+    localStorage.setItem(DB_PREFIX + "old2", JSON.stringify({ old: 2 }));
+    localStorage.setItem(SETTINGS, JSON.stringify({ githubToken: "tok" }));
+
+    const orig = Storage.prototype.setItem;
+    let callCount = 0;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      callCount++;
+      // Throw on the second setItem call after restore starts (first new data key)
+      if (callCount === 2) {
+        throw new DOMException("QuotaExceededError", "QuotaExceededError");
+      }
+      return orig.call(this, key, value);
+    });
+
+    expect(() =>
+      restoreBackup({
+        app: "dev-home",
+        version: 1,
+        exportedAt: "x",
+        data: { new1: { a: 1 }, new2: { b: 2 } },
+        settings: {},
+      }),
+    ).toThrow("QuotaExceededError");
+
+    spy.mockRestore();
+
+    // Original state should be restored exactly
+    expect(localStorage.getItem(DB_PREFIX + "old1")).toBe(JSON.stringify({ old: 1 }));
+    expect(localStorage.getItem(DB_PREFIX + "old2")).toBe(JSON.stringify({ old: 2 }));
+    expect(localStorage.getItem(SETTINGS)).toBe(JSON.stringify({ githubToken: "tok" }));
+    // No new keys from the backup
+    expect(localStorage.getItem(DB_PREFIX + "new1")).toBeNull();
+    expect(localStorage.getItem(DB_PREFIX + "new2")).toBeNull();
   });
 });

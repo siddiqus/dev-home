@@ -74,4 +74,33 @@ describe("nextHandler", () => {
     expect(r.status).toBe(400);
     expect(await r.json()).toEqual({ error: "Invalid JSON body" });
   });
+
+  it("returns 400 for disallowed Jira base URL", async () => {
+    const h = nextHandler(() => {
+      getConfig(); // This will throw JiraUrlNotAllowedError
+    });
+    const r = await h(
+      new Request("http://x/api/t", {
+        headers: { ...creds, "x-jira-base-url": "http://evil.com" },
+      }),
+      ctx(),
+    );
+    expect(r.status).toBe(400);
+    expect(await r.json()).toEqual({
+      error:
+        "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+    });
+  });
+
+  it("normalizes Jira base URL to origin", async () => {
+    const h = nextHandler((_req, res) => res.json({ url: getConfig().jiraBaseUrl }));
+    const r = await h(
+      new Request("http://x/api/t", {
+        headers: { ...creds, "x-jira-base-url": "https://acme.atlassian.net/jira/your-work" },
+      }),
+      ctx(),
+    );
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ url: "https://acme.atlassian.net" });
+  });
 });

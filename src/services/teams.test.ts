@@ -71,4 +71,33 @@ describe("teams (localStorage)", () => {
     expect(d.burnup.trackingSince).toBe("2026-09-30");
     expect(d.burnup.points).toHaveLength(1);
   });
+
+  it("returns dashboard with burnup when recordSnapshot fails", async () => {
+    const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
+    await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
+    vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: {
+        burnup: { trackingSince: null, points: [] },
+        snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
+      },
+    } as any);
+
+    const orig = Storage.prototype.setItem;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      if (key === "dev-home:db:sprint_snapshots") {
+        throw new DOMException("QuotaExceededError", "QuotaExceededError");
+      }
+      return orig.call(this, key, value);
+    });
+
+    const d = await fetchTeamDashboard(t.id, 11);
+    expect(d.burnup).toBeDefined();
+    expect(Array.isArray(d.burnup.points)).toBe(true);
+
+    spy.mockRestore();
+  });
 });

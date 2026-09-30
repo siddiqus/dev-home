@@ -42,8 +42,8 @@ interface Stored<T> {
 export function createCollection<T extends { id: number }>(name: string): Collection<T> {
   const load = (): Stored<T> => {
     const raw = readJson<Stored<T>>(name, { nextId: 1, rows: [] });
-    // Validate the loaded data and fall back if malformed
-    if (!Array.isArray(raw.rows) || typeof raw.nextId !== "number") {
+    // Validate the loaded data and fall back if malformed (including null)
+    if (!raw || !Array.isArray(raw.rows) || typeof raw.nextId !== "number") {
       return { nextId: 1, rows: [] };
     }
     return raw;

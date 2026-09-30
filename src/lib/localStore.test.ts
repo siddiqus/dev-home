@@ -65,5 +65,10 @@ describe("localStore", () => {
     const c2 = createCollection<Row>("rows2");
     expect(c2.all()).toEqual([]);
     expect(c2.insert({ name: "b" }).id).toBe(1);
+
+    localStorage.setItem(DB_PREFIX + "rows3", "null");
+    const c3 = createCollection<Row>("rows3");
+    expect(c3.all()).toEqual([]);
+    expect(c3.insert({ name: "c" }).id).toBe(1);
   });
 });
