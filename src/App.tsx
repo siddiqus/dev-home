@@ -236,6 +236,21 @@ export default function App() {
     if (sources.includes("kanban")) refreshKanban();
   }, [effectiveTab, boardEnabled, refresh, refreshNotes, refreshKanban]);
 
+  // Top-bar refresh for My PRs / Reviews: refetches only that page's GitHub
+  // source (skipping Jira). refresh() also bumps refreshKey, so PRsView's
+  // recently-merged list reloads too.
+  const pageRefreshSource =
+    effectiveTab === "prs" ? "openPRs" : effectiveTab === "reviews" ? "reviewRequests" : null;
+  const pageRefreshing =
+    pageRefreshSource === "openPRs"
+      ? openPRsLoading
+      : pageRefreshSource === "reviewRequests"
+        ? reviewRequestsLoading
+        : false;
+  const handlePageRefresh = useCallback(() => {
+    if (pageRefreshSource) refresh([pageRefreshSource]);
+  }, [pageRefreshSource, refresh]);
+
   // Track when the last refresh finished, and re-render every 30s so the
   // "(x mins ago)" label next to the Refresh button stays current.
   const [lastRefreshed, setLastRefreshed] = useState<number | null>(null);
@@ -434,7 +449,23 @@ export default function App() {
                 onClick={() => setActiveTab("pomodoro")}
               />
             )}
-            {loading && <Spinner animation="border" size="sm" variant="secondary" />}
+            {pageRefreshSource ? (
+              <button
+                type="button"
+                className="top-bar-icon-btn"
+                onClick={handlePageRefresh}
+                disabled={pageRefreshing}
+                title={effectiveTab === "prs" ? "Refresh my PRs" : "Refresh reviews"}
+                aria-label={effectiveTab === "prs" ? "Refresh my PRs" : "Refresh reviews"}
+              >
+                <IconRefresh
+                  size={16}
+                  className={loading ? "sidebar-refresh-icon spinning" : "sidebar-refresh-icon"}
+                />
+              </button>
+            ) : (
+              loading && <Spinner animation="border" size="sm" variant="secondary" />
+            )}
             {/* Quick actions -- kept rightmost so the transient badge/spinner don't shift them */}
             <button
               type="button"
