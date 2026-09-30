@@ -6,6 +6,7 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
+import { IconEye, IconExternalLink } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
 import type { GitHubPR } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
