@@ -58,7 +58,8 @@ export const DataBackupCard: React.FC = () => {
         <Card.Body>
           <h6 style={{ marginBottom: 4 }}>Data Backup</h6>
           <p className="text-secondary-custom" style={{ fontSize: "0.75rem", marginBottom: 12 }}>
-            Export or import your notes, kanban items, and saved filters.
+            Export or import your notes, kanban items, saved and JQL filters, focus state, teams,
+            and burn-up history. Tokens are not included.
           </p>
           <div className="d-flex gap-2 mb-2">
             <Button variant="outline-primary" size="sm" onClick={handleExport}>

@@ -15,3 +15,5 @@ notes.db*
 .superpowers/
 
 .playwright-mcp/
+
+tsconfig.tsbuildinfo

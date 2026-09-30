@@ -15,9 +15,7 @@ The easiest deployment option. Vercel auto-detects Next.js and requires no confi
 2. Vercel will auto-detect the framework preset (Next.js).
 3. Deploy with default settings (no environment variables required).
 
-The app is automatically built and deployed. Heavy API routes have `maxDuration = 60` to accommodate slower Jira/GitHub responses.
-
-**Note**: Vercel's Hobby plan is for personal, non-commercial use. Function execution limits apply (60s max on Pro, 10s on Hobby for serverless functions, though Edge Functions and Route Handlers may differ — check Vercel's current limits). If you hit timeouts, consider Cloudflare Workers or self-hosting.
+The app is automatically built and deployed. Heavy API routes set `maxDuration = 60` to accommodate slower Jira/GitHub responses. The Hobby plan's function duration is configurable, so these routes should work within the plan's limits.
 
 ### Optional Environment Variable
 
@@ -35,26 +33,38 @@ Cloudflare Workers offer generous free-tier limits (100,000 requests/day) and gl
 yarn add -D @opennextjs/cloudflare wrangler
 ```
 
-2. Create `wrangler.jsonc` in the project root:
+2. Create `open-next.config.ts` in the project root:
+
+```typescript
+import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+export default defineCloudflareConfig();
+```
+
+3. Create `wrangler.jsonc` in the project root:
 
 ```jsonc
 {
   "name": "dev-home",
+  "main": ".open-next/worker.js",
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
   "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2026-09-30"
 }
 ```
 
-3. Build and deploy:
+4. Build and deploy:
 
 ```bash
 npx opennextjs-cloudflare build
-npx opennextjs-cloudflare deploy
+npx wrangler deploy
 ```
 
 The app will be deployed to `https://dev-home.<your-workers-subdomain>.workers.dev`.
 
-**Free tier limits**: 100,000 requests/day, 10ms CPU time per request, 128 MB memory. For higher limits, upgrade to the Workers Paid plan ($5/month).
+**Free tier limits**: 100,000 requests/day, 10ms CPU time per request, 128 MB memory. Heavy aggregation routes may exceed the free plan's CPU limit, so the Workers Paid plan ($5/month) or Vercel is recommended for heavy use.
 
 ### Optional Environment Variable
 
@@ -98,7 +108,7 @@ PORT=8080 node .next/standalone/server.js
 ### Docker Example
 
 ```dockerfile
-FROM node:18-alpine AS base
+FROM node:22-alpine AS base
 
 # Install dependencies
 FROM base AS deps

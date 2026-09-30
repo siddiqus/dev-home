@@ -362,8 +362,8 @@ describe("PrNotesPanel", () => {
       target: { value: "Ping me later" },
     });
 
-    // Pick the "In 1h" preset, which collapses to a chip + clear button.
-    fireEvent.click(screen.getByText("In 1h"));
+    // Pick the "In 3h" preset, which collapses to a chip + clear button.
+    fireEvent.click(screen.getByText("In 3h"));
     fireEvent.click(screen.getByText("Save"));
 
     expect(api.addNote).toHaveBeenCalledWith(

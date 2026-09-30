@@ -34,7 +34,16 @@ export class MissingConfigError extends Error {
   }
 }
 
-const requestConfig = new AsyncLocalStorage<ServerConfig | null>();
+export class JiraUrlNotAllowedError extends Error {
+  status = 400;
+  constructor() {
+    super(
+      "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+    );
+  }
+}
+
+const requestConfig = new AsyncLocalStorage<ServerConfig | { jiraUrlNotAllowed: true } | null>();
 
 function isJiraBaseUrlAllowed(urlString: string): string | null {
   try {
@@ -43,7 +52,7 @@ function isJiraBaseUrlAllowed(urlString: string): string | null {
 
     const hostname = url.hostname.toLowerCase();
     if (hostname.endsWith(".atlassian.net")) {
-      return url.origin + url.pathname.replace(/\/+$/, "");
+      return url.origin;
     }
 
     const allowedHosts = (process.env.JIRA_ALLOWED_HOSTS || "")
@@ -51,7 +60,7 @@ function isJiraBaseUrlAllowed(urlString: string): string | null {
       .map((h: string) => h.trim().toLowerCase())
       .filter(Boolean);
     if (allowedHosts.includes(hostname)) {
-      return url.origin + url.pathname.replace(/\/+$/, "");
+      return url.origin;
     }
 
     return null;
@@ -62,12 +71,17 @@ function isJiraBaseUrlAllowed(urlString: string): string | null {
 
 export function configFromHeaders(
   get: (name: string) => string | null | undefined,
-): ServerConfig | null {
+): ServerConfig | { jiraUrlNotAllowed: true } | null {
   const read = (k: keyof ServerConfig) => (get(CONFIG_HEADERS[k]) ?? "").trim();
   if (REQUIRED.some((k) => !read(k))) return null;
 
-  const jiraBaseUrl = isJiraBaseUrlAllowed(read("jiraBaseUrl"));
-  if (!jiraBaseUrl) return null;
+  const rawJiraUrl = read("jiraBaseUrl");
+  const jiraBaseUrl = isJiraBaseUrlAllowed(rawJiraUrl);
+  if (!jiraBaseUrl) {
+    // If the header was present but not allowed, signal that distinctly
+    if (rawJiraUrl) return { jiraUrlNotAllowed: true };
+    return null;
+  }
 
   return {
     jiraBaseUrl,
@@ -79,7 +93,10 @@ export function configFromHeaders(
   };
 }
 
-export function runWithConfig<T>(config: ServerConfig | null, fn: () => T): T {
+export function runWithConfig<T>(
+  config: ServerConfig | { jiraUrlNotAllowed: true } | null,
+  fn: () => T,
+): T {
   return requestConfig.run(config, fn);
 }
 
@@ -87,5 +104,6 @@ export function runWithConfig<T>(config: ServerConfig | null, fn: () => T): T {
 export function getConfig(): ServerConfig {
   const config = requestConfig.getStore();
   if (!config) throw new MissingConfigError();
+  if ("jiraUrlNotAllowed" in config) throw new JiraUrlNotAllowedError();
   return config;
 }

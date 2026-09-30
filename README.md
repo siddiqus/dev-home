@@ -7,7 +7,7 @@ A developer dashboard built with Next.js and React that integrates with Jira and
 Dev Home is a stateless web application that helps you stay on top of your work across Jira and GitHub. It aggregates:
 
 - **Your work**: Jira issues, open PRs, review requests, and mentions across both platforms
-- **Team analytics**: PR velocity, burnup charts, and team workload (when GitHub org is configured)
+- **Team analytics**: PR velocity, burn-up charts, and team workload (when GitHub org is configured)
 - **Personal productivity**: Notes with reminders, Kanban board, Focus view, and Pomodoro timer
 
 All personal data (notes, teams, filters, focus state) lives in your browser's localStorage. Jira and GitHub credentials are never stored server-side — they're sent with each request as headers and forwarded to the APIs.

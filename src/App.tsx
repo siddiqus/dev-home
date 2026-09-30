@@ -43,7 +43,6 @@ import { ReviewsView } from "./views/reviews/ReviewsView";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
 import { SettingsView } from "./views/settings/SettingsView";
-import packageJson from "../package.json";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
@@ -371,7 +370,7 @@ export default function App() {
 
   return (
     <NotesProvider value={notesApi}>
-      {/* Thin top bar -- draggable for Electron, with app name and refresh */}
+      {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container
           fluid
@@ -384,7 +383,7 @@ export default function App() {
             style={{ fontSize: "0.8125rem", fontWeight: 600 }}
           >
             <IconCode size={16} />
-            Dev Home ({packageJson.version})
+            Dev Home ({process.env.NEXT_PUBLIC_APP_VERSION || "dev"})
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
             {pomodoro.phase !== "idle" && (

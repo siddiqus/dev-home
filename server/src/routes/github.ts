@@ -297,6 +297,23 @@ function mapGraphQLPr(node: any, viewer?: string, requiredContexts?: ReadonlySet
 /** Cache of required status-check context names, keyed by `owner/repo@branch`. */
 const requiredContextsCache = new Map<string, { value: Set<string> | null; expires: number }>();
 const REQUIRED_CONTEXTS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const REQUIRED_CONTEXTS_MAX_ENTRIES = 500;
+
+function pruneRequiredContextsCache(now: number): void {
+  // Remove expired entries
+  for (const [key, entry] of requiredContextsCache.entries()) {
+    if (entry.expires <= now) requiredContextsCache.delete(key);
+  }
+  // Enforce hard cap with oldest-first eviction (Map preserves insertion order)
+  if (requiredContextsCache.size >= REQUIRED_CONTEXTS_MAX_ENTRIES) {
+    const toDelete = requiredContextsCache.size - REQUIRED_CONTEXTS_MAX_ENTRIES + 1;
+    let deleted = 0;
+    for (const key of requiredContextsCache.keys()) {
+      requiredContextsCache.delete(key);
+      if (++deleted >= toDelete) break;
+    }
+  }
+}
 
 /**
  * Resolve the required status-check context names for a base branch, merging
@@ -336,6 +353,7 @@ async function getRequiredContexts(
 
   const names = parseRequiredContexts(protection, rules);
   const value = names.size > 0 ? names : null;
+  pruneRequiredContextsCache(now);
   requiredContextsCache.set(key, { value, expires: now + REQUIRED_CONTEXTS_TTL_MS });
   return value;
 }

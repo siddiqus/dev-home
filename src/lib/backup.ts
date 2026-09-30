@@ -64,13 +64,41 @@ function isBackup(input: unknown): input is Backup {
 /** Replace all local data with the backup's; merge settings, keeping existing tokens. */
 export function restoreBackup(input: unknown): void {
   if (!isBackup(input)) throw new Error("Not a Dev Home backup file");
-  for (const key of dataKeys()) localStorage.removeItem(key);
-  for (const [name, value] of Object.entries(input.data)) {
-    localStorage.setItem(DB_PREFIX + name, JSON.stringify(value));
+
+  // Snapshot current state for rollback
+  const snapshot = new Map<string, string>();
+  const oldKeys = dataKeys();
+  for (const key of oldKeys) {
+    const value = localStorage.getItem(key);
+    if (value !== null) snapshot.set(key, value);
   }
-  const merged = { ...readSettings() };
-  for (const k of EXPORTABLE_SETTINGS) {
-    if (input.settings?.[k] !== undefined) merged[k] = input.settings[k];
+  const oldSettings = localStorage.getItem(SETTINGS_KEY);
+  if (oldSettings !== null) snapshot.set(SETTINGS_KEY, oldSettings);
+
+  try {
+    // Clear old data
+    for (const key of oldKeys) localStorage.removeItem(key);
+
+    // Write new data
+    for (const [name, value] of Object.entries(input.data)) {
+      localStorage.setItem(DB_PREFIX + name, JSON.stringify(value));
+    }
+
+    // Merge settings
+    const merged = { ...readSettings() };
+    for (const k of EXPORTABLE_SETTINGS) {
+      if (input.settings?.[k] !== undefined) merged[k] = input.settings[k];
+    }
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+  } catch (err) {
+    // Rollback: restore snapshot and remove any newly added keys
+    const newKeys = dataKeys();
+    for (const key of newKeys) {
+      if (!snapshot.has(key)) localStorage.removeItem(key);
+    }
+    for (const [key, value] of snapshot.entries()) {
+      localStorage.setItem(key, value);
+    }
+    throw err;
   }
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
 }

@@ -64,6 +64,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setFormState((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
+  const jiraUrlWarning = React.useMemo(() => {
+    const url = formState.jiraBaseUrl.trim();
+    if (!url) return null;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:") return "URL must use https";
+      if (!parsed.hostname.toLowerCase().endsWith(".atlassian.net")) {
+        return "URL should be https://<site>.atlassian.net (server may allow other hosts via JIRA_ALLOWED_HOSTS)";
+      }
+      return null;
+    } catch {
+      return "Invalid URL format";
+    }
+  }, [formState.jiraBaseUrl]);
+
   const handleSave = async () => {
     setSaving(true);
     setSuccessMessage(null);
@@ -207,6 +222,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     onChange={handleChange("jiraBaseUrl")}
                     size="sm"
                   />
+                  {jiraUrlWarning && (
+                    <Form.Text className="text-warning" style={{ fontSize: "0.75rem" }}>
+                      {jiraUrlWarning}
+                    </Form.Text>
+                  )}
                 </Form.Group>
 
                 <Form.Group className="mb-3">

@@ -4,6 +4,7 @@ import {
   configFromHeaders,
   getConfig,
   MissingConfigError,
+  JiraUrlNotAllowedError,
   runWithConfig,
 } from "./config";
 
@@ -40,7 +41,8 @@ describe("per-request config", () => {
   });
 
   it("returns null when a required header is missing", () => {
-    const { ["x-github-token"]: _, ...rest } = headers;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { "x-github-token": _unused, ...rest } = headers;
     expect(configFromHeaders(get(rest))).toBeNull();
   });
 
@@ -66,27 +68,27 @@ describe("per-request config", () => {
     }
   });
 
-  it("rejects http:// jira URLs", () => {
+  it("signals disallowed http:// jira URLs", () => {
     const h = { ...headers, "x-jira-base-url": "http://acme.atlassian.net" };
-    expect(configFromHeaders(get(h))).toBeNull();
+    expect(configFromHeaders(get(h))).toEqual({ jiraUrlNotAllowed: true });
   });
 
-  it("rejects non-atlassian https:// URLs", () => {
+  it("signals disallowed non-atlassian https:// URLs", () => {
     const h = { ...headers, "x-jira-base-url": "https://evil.example.com" };
-    expect(configFromHeaders(get(h))).toBeNull();
+    expect(configFromHeaders(get(h))).toEqual({ jiraUrlNotAllowed: true });
   });
 
-  it("rejects SSRF attempts like metadata endpoints", () => {
+  it("signals disallowed SSRF attempts like metadata endpoints", () => {
     const h = { ...headers, "x-jira-base-url": "https://169.254.169.254" };
-    expect(configFromHeaders(get(h))).toBeNull();
+    expect(configFromHeaders(get(h))).toEqual({ jiraUrlNotAllowed: true });
   });
 
-  it("allows custom Jira hosts via JIRA_ALLOWED_HOSTS", () => {
+  it("allows custom Jira hosts via JIRA_ALLOWED_HOSTS and normalizes to origin", () => {
     const original = process.env.JIRA_ALLOWED_HOSTS;
     process.env.JIRA_ALLOWED_HOSTS = "jira.corp.example";
     const h = { ...headers, "x-jira-base-url": "https://jira.corp.example/foo/" };
     expect(configFromHeaders(get(h))).toEqual({
-      jiraBaseUrl: "https://jira.corp.example/foo",
+      jiraBaseUrl: "https://jira.corp.example",
       jiraEmail: "me@acme.com",
       jiraApiToken: "jt",
       githubToken: "gt",
@@ -97,6 +99,17 @@ describe("per-request config", () => {
       process.env.JIRA_ALLOWED_HOSTS = original;
     } else {
       delete process.env.JIRA_ALLOWED_HOSTS;
+    }
+  });
+
+  it("throws 400 JiraUrlNotAllowedError when the URL is disallowed", () => {
+    const disallowed = { jiraUrlNotAllowed: true as const };
+    expect(() => runWithConfig(disallowed, () => getConfig())).toThrow(JiraUrlNotAllowedError);
+    try {
+      runWithConfig(disallowed, () => getConfig());
+    } catch (e: any) {
+      expect(e.status).toBe(400);
+      expect(e.message).toContain("Jira base URL not allowed");
     }
   });
 });

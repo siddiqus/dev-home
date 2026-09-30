@@ -54,4 +54,16 @@ describe("localStore", () => {
     createCollection<Row>("rows").insert({ name: "a" });
     expect(createCollection<Row>("rows").all()).toEqual([{ id: 1, name: "a" }]);
   });
+
+  it("falls back to empty collection when stored data is malformed", () => {
+    localStorage.setItem(DB_PREFIX + "rows", JSON.stringify({ nextId: "not-a-number", rows: [] }));
+    const c1 = createCollection<Row>("rows");
+    expect(c1.all()).toEqual([]);
+    expect(c1.insert({ name: "a" }).id).toBe(1);
+
+    localStorage.setItem(DB_PREFIX + "rows2", JSON.stringify({ nextId: 1, rows: "not-an-array" }));
+    const c2 = createCollection<Row>("rows2");
+    expect(c2.all()).toEqual([]);
+    expect(c2.insert({ name: "b" }).id).toBe(1);
+  });
 });

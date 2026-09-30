@@ -7,7 +7,7 @@ describe("ReminderControl", () => {
     const onChange = vi.fn();
     render(<ReminderControl value={null} onChange={onChange} />);
 
-    fireEvent.click(screen.getByText("In 1h"));
+    fireEvent.click(screen.getByText("In 3h"));
 
     expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
   });
@@ -29,7 +29,7 @@ describe("ReminderControl", () => {
     render(<ReminderControl value="2099-01-01T09:00:00.000Z" onChange={onChange} />);
 
     // Presets are hidden once a value is set.
-    expect(screen.queryByText("In 1h")).not.toBeInTheDocument();
+    expect(screen.queryByText("In 3h")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("Clear reminder"));
     expect(onChange).toHaveBeenCalledWith(null);

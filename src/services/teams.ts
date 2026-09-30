@@ -191,8 +191,13 @@ export async function fetchTeamDashboard(
 
   // Record today's snapshot and build the full burn-up history locally
   if (data.snapshot) {
-    recordSnapshot(data.snapshot);
-    data.burnup = buildBurnup(getSnapshotRows(data.snapshot.sprintId));
+    try {
+      recordSnapshot(data.snapshot);
+      data.burnup = buildBurnup(getSnapshotRows(data.snapshot.sprintId));
+    } catch (err) {
+      console.warn("Failed to record snapshot:", err);
+      data.burnup = buildBurnup(getSnapshotRows(data.snapshot.sprintId));
+    }
   }
 
   return data;
