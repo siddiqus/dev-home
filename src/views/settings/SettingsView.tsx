@@ -13,6 +13,7 @@ import { ThemePicker } from "./ThemePicker";
 import type { ThemePreference } from "../../hooks/useTheme";
 import { MenuItemsToggle } from "./MenuItemsToggle";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
+import { DataBackupCard } from "./DataBackupCard";
 import "./settings.css";
 
 interface SettingsViewProps {
@@ -256,6 +257,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <MenuItemsToggle formState={formState} setFormState={setFormState} />
         </>
       )}
+
+      <DataBackupCard />
 
       {/* Saved confirmation — fixed at the bottom so it doesn't shift the layout */}
       <div className={`settings-saved-toast ${successMessage ? "is-visible" : ""}`} role="status">
