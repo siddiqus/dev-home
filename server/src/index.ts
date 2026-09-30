@@ -40,7 +40,10 @@ export function createServer() {
 
   // Bind the caller's credentials (sent as headers) to this request's async context.
   app.use((req, _res, next) => {
-    runWithConfig(configFromHeaders((name) => req.header(name)), next);
+    runWithConfig(
+      configFromHeaders((name) => req.header(name)),
+      next,
+    );
   });
 
   // Routes

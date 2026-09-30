@@ -28,15 +28,7 @@ router.post("/search", async (req: Request, res: Response) => {
   }
 
   const jira = createJiraClient();
-  const fields = [
-    "summary",
-    "status",
-    "priority",
-    "assignee",
-    "project",
-    "created",
-    "updated",
-  ];
+  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
   const maxResults = 50;
 
   const payload: Record<string, any> = { jql: jql.trim(), fields, maxResults };

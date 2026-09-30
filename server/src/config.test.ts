@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG_HEADERS, configFromHeaders, getConfig, MissingConfigError, runWithConfig } from "./config";
+import {
+  CONFIG_HEADERS,
+  configFromHeaders,
+  getConfig,
+  MissingConfigError,
+  runWithConfig,
+} from "./config";
 
 const headers: Record<string, string> = {
   "x-jira-base-url": "https://acme.atlassian.net/",

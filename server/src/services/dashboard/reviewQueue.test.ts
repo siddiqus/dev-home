@@ -40,7 +40,14 @@ describe("computeReviewQueue", () => {
     const [e] = computeReviewQueue([
       mkPr({
         reviewDecision: "CHANGES_REQUESTED",
-        reviews: [{ login: "bob", typename: "User", state: "CHANGES_REQUESTED", submittedAt: "2026-08-02T00:00:00Z" }],
+        reviews: [
+          {
+            login: "bob",
+            typename: "User",
+            state: "CHANGES_REQUESTED",
+            submittedAt: "2026-08-02T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("author");
@@ -51,7 +58,14 @@ describe("computeReviewQueue", () => {
     const [e] = computeReviewQueue([
       mkPr({
         lastCommitAt: "2026-08-01T00:00:00Z",
-        reviews: [{ login: "bob", typename: "User", state: "COMMENTED", submittedAt: "2026-08-03T00:00:00Z" }],
+        reviews: [
+          {
+            login: "bob",
+            typename: "User",
+            state: "COMMENTED",
+            submittedAt: "2026-08-03T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("author");
@@ -63,7 +77,14 @@ describe("computeReviewQueue", () => {
       mkPr({
         reviewDecision: "APPROVED",
         lastCommitAt: "2026-08-01T00:00:00Z",
-        reviews: [{ login: "bob", typename: "User", state: "APPROVED", submittedAt: "2026-08-03T00:00:00Z" }],
+        reviews: [
+          {
+            login: "bob",
+            typename: "User",
+            state: "APPROVED",
+            submittedAt: "2026-08-03T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("author");
@@ -75,7 +96,14 @@ describe("computeReviewQueue", () => {
       mkPr({
         reviewDecision: "APPROVED",
         lastCommitAt: "2026-08-05T00:00:00Z",
-        reviews: [{ login: "bob", typename: "User", state: "APPROVED", submittedAt: "2026-08-03T00:00:00Z" }],
+        reviews: [
+          {
+            login: "bob",
+            typename: "User",
+            state: "APPROVED",
+            submittedAt: "2026-08-03T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("author");
@@ -86,7 +114,14 @@ describe("computeReviewQueue", () => {
     const [e] = computeReviewQueue([
       mkPr({
         lastCommitAt: "2026-08-05T00:00:00Z",
-        reviews: [{ login: "bob", typename: "User", state: "COMMENTED", submittedAt: "2026-08-03T00:00:00Z" }],
+        reviews: [
+          {
+            login: "bob",
+            typename: "User",
+            state: "COMMENTED",
+            submittedAt: "2026-08-03T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("reviewer");
@@ -102,7 +137,14 @@ describe("computeReviewQueue", () => {
   it("a bot review does not count as engagement", () => {
     const [e] = computeReviewQueue([
       mkPr({
-        reviews: [{ login: "github-actions", typename: "Bot", state: "COMMENTED", submittedAt: "2026-08-03T00:00:00Z" }],
+        reviews: [
+          {
+            login: "github-actions",
+            typename: "Bot",
+            state: "COMMENTED",
+            submittedAt: "2026-08-03T00:00:00Z",
+          },
+        ],
       }),
     ]);
     expect(e.state).toBe("none");
@@ -119,11 +161,24 @@ describe("computeReviewQueue", () => {
     const [e] = computeReviewQueue([
       mkPr({
         reviews: [
-          { login: "bob", typename: "User", state: "COMMENTED", submittedAt: "2026-08-02T00:00:00Z" },
-          { login: "carol", typename: "User", state: "APPROVED", submittedAt: "2026-08-04T00:00:00Z" },
+          {
+            login: "bob",
+            typename: "User",
+            state: "COMMENTED",
+            submittedAt: "2026-08-02T00:00:00Z",
+          },
+          {
+            login: "carol",
+            typename: "User",
+            state: "APPROVED",
+            submittedAt: "2026-08-04T00:00:00Z",
+          },
           { login: "ci", typename: "Bot", state: "COMMENTED", submittedAt: "2026-08-05T00:00:00Z" },
         ],
-        requestedReviewers: [{ typename: "User", login: "dave" }, { typename: "Team", login: "cmp-ui" }],
+        requestedReviewers: [
+          { typename: "User", login: "dave" },
+          { typename: "Team", login: "cmp-ui" },
+        ],
       }),
     ]);
     // carol reviewed most recently, then bob, then still-pending dave; no ci, no team
@@ -131,7 +186,10 @@ describe("computeReviewQueue", () => {
   });
 
   it("excludes non-open PRs", () => {
-    const out = computeReviewQueue([mkPr({ state: "merged" }), mkPr({ number: 2, state: "closed" })]);
+    const out = computeReviewQueue([
+      mkPr({ state: "merged" }),
+      mkPr({ number: 2, state: "closed" }),
+    ]);
     expect(out).toHaveLength(0);
   });
 

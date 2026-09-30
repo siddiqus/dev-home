@@ -13,15 +13,7 @@ router.get("/issues", async (_req: Request, res: Response) => {
   const jira = createJiraClient();
 
   const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
-  const fields = [
-    "summary",
-    "status",
-    "priority",
-    "assignee",
-    "project",
-    "created",
-    "updated",
-  ];
+  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
 

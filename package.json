@@ -4,115 +4,49 @@
   "private": true,
   "description": "Developer Home Dashboard - JIRA & GitHub integration",
   "repository": "https://github.com/siddiqus/dev-home",
-  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:server": "cd server && yarn build",
-    "preview": "vite preview",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "lint:server": "cd server && yarn eslint src/",
-    "lint:server:fix": "cd server && yarn eslint src/ --fix",
-    "lint:all": "yarn lint && yarn lint:server",
-    "fix:all": "yarn lint:fix && yarn lint:server:fix",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src/ app/ server/src/",
+    "lint:fix": "eslint src/ app/ server/src/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:all": "yarn test && yarn --cwd server test",
-    "icons": "bash scripts/generate-icons.sh",
-    "pack": "yarn icons && yarn build && electron-builder --dir",
-    "dist": "yarn icons && yarn build && electron-builder",
-    "dist:mac": "yarn icons && yarn build && electron-builder --mac",
-    "dist:win": "yarn build && electron-builder --win",
+    "typecheck": "tsc --noEmit",
     "bump": "sh ./scripts/bump-version.sh",
-    "ghtag": "sh ./scripts/release-tag.sh",
-    "tag:push": "sh ./scripts/push-tag.sh",
     "prepare": "husky",
     "lint-staged": "lint-staged"
-  },
-  "build": {
-    "appId": "com.devhome.app",
-    "productName": "Dev Home",
-    "artifactName": "Dev-Home-${version}-${arch}.${ext}",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.developer-tools",
-      "icon": "build/icon.icns",
-      "electronLanguages": [
-        "en"
-      ]
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    },
-    "dmg": {
-      "title": "Dev Home",
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    }
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@optiaxiom/react": "^1.9.23",
+    "@tabler/icons-react": "^3.0.0",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/table-core": "^8.21.3",
     "@tiptap/extension-link": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "axios": "^1.14.0",
+    "bootstrap": "^5.3.8",
     "cors": "^2.8.6",
-    "electron-store": "^11.0.2",
     "express": "^4.21.0",
     "express-async-errors": "^3.1.1",
-    "get-port": "^7.2.0",
+    "next": "^15",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^18.3.1",
+    "react-is": "^19.2.4",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.9.1",
     "remark-breaks": "^4.0.0",
     "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.7.0",
-    "@optiaxiom/react": "^1.9.23",
-    "@tabler/icons-react": "^3.0.0",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/table-core": "^8.21.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -122,11 +56,7 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
-    "@vitejs/plugin-react": "^4.3.0",
-    "bootstrap": "^5.3.8",
-    "concurrently": "^9.2.1",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -136,24 +66,12 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
-    "react": "^18.3.1",
-    "react-bootstrap": "^2.10.10",
-    "react-dom": "^18.3.1",
-    "react-is": "^19.2.4",
-    "react-markdown": "^10.1.0",
-    "tsc": "^2.0.4",
     "typescript": "^5.5.0",
-    "vite": "^5.4.0",
-    "vite-plugin-electron": "^0.28.0",
-    "vite-plugin-electron-renderer": "^0.14.0",
     "vitest": "^4.1.9"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": [
+    "{src,app,server/src}/**/*.{ts,tsx}": [
       "eslint --fix"
-    ],
-    "server/src/**/*.{ts,tsx}": [
-      "eslint --fix --config server/eslint.config.js"
     ]
   }
 }

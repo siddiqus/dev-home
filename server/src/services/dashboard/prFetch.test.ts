@@ -16,11 +16,25 @@ const node = {
   reviewDecision: "CHANGES_REQUESTED",
   author: { login: "carol" },
   repository: { nameWithOwner: "org/repo" },
-  commits: { nodes: [{ commit: { committedDate: "2026-08-03T00:00:00Z", statusCheckRollup: { state: "FAILURE" } } }] },
+  commits: {
+    nodes: [
+      {
+        commit: { committedDate: "2026-08-03T00:00:00Z", statusCheckRollup: { state: "FAILURE" } },
+      },
+    ],
+  },
   reviews: {
     nodes: [
-      { author: { login: "bob", __typename: "User" }, state: "CHANGES_REQUESTED", submittedAt: "2026-08-02T00:00:00Z" },
-      { author: { login: "ci", __typename: "Bot" }, state: "COMMENTED", submittedAt: "2026-08-02T06:00:00Z" },
+      {
+        author: { login: "bob", __typename: "User" },
+        state: "CHANGES_REQUESTED",
+        submittedAt: "2026-08-02T00:00:00Z",
+      },
+      {
+        author: { login: "ci", __typename: "Bot" },
+        state: "COMMENTED",
+        submittedAt: "2026-08-02T06:00:00Z",
+      },
     ],
   },
   reviewRequests: {
@@ -46,7 +60,12 @@ describe("mapPullRequestNode", () => {
     expect(pr.checks_status).toBe("FAILURE");
     // structured reviews carry typename
     expect(pr.reviews).toEqual([
-      { login: "bob", typename: "User", state: "CHANGES_REQUESTED", submittedAt: "2026-08-02T00:00:00Z" },
+      {
+        login: "bob",
+        typename: "User",
+        state: "CHANGES_REQUESTED",
+        submittedAt: "2026-08-02T00:00:00Z",
+      },
       { login: "ci", typename: "Bot", state: "COMMENTED", submittedAt: "2026-08-02T06:00:00Z" },
     ]);
     expect(pr.requestedReviewers).toEqual([
@@ -67,7 +86,16 @@ describe("mapPullRequestNode", () => {
 
 describe("dedupePRs", () => {
   it("unions by repo#number, keeping the first occurrence, incl. external-author PRs", () => {
-    const a: RawPR = { number: 1, title: "t", repo_full_name: "org/repo", html_url: "u", state: "open", checks_status: null, author: "alice", created_at: "2026-08-01T00:00:00Z" };
+    const a: RawPR = {
+      number: 1,
+      title: "t",
+      repo_full_name: "org/repo",
+      html_url: "u",
+      state: "open",
+      checks_status: null,
+      author: "alice",
+      created_at: "2026-08-01T00:00:00Z",
+    };
     const dup: RawPR = { ...a, title: "dup-should-be-dropped" };
     const external: RawPR = { ...a, number: 2, author: "outsider" };
     const out = dedupePRs([a, dup, external]);

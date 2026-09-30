@@ -44,15 +44,12 @@ import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
 import { SettingsView } from "./views/settings/SettingsView";
 import packageJson from "../package.json";
-import { UpdateBanner } from "./components/UpdateBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
 import { TeamsView } from "./views/teams/TeamsView";
 import { TeamDashboardView } from "./views/teams/TeamDashboardView";
-import { FindInPage } from "./components/FindInPage";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
@@ -265,8 +262,6 @@ export default function App() {
     const id = setInterval(() => setNowTs(Date.now()), 30000);
     return () => clearInterval(id);
   }, [lastRefreshed]);
-
-  const { updateInfo, dismiss: dismissUpdate } = useUpdateCheck();
 
   // Build focusable items for the Pomodoro picker from every loaded source.
   const focusableItems = useMemo<FocusableItem[]>(() => {
@@ -570,16 +565,6 @@ export default function App() {
 
           {/* Main content panel */}
           <main className="main-content">
-            {/* Update banner */}
-            {updateInfo && (
-              <UpdateBanner
-                latestVersion={updateInfo.latestVersion}
-                currentVersion={updateInfo.currentVersion}
-                downloadUrl={updateInfo.downloadUrl}
-                onDismiss={dismissUpdate}
-              />
-            )}
-
             {/* Error alert */}
             {error && (
               <Alert variant="danger" className="small" dismissible>
@@ -748,9 +733,6 @@ export default function App() {
         onEdit={editNote}
         jiraBaseUrl={jiraBaseUrl}
       />
-
-      {/* Rendered last so its own input isn't the first find-in-page match (see FindInPage) */}
-      <FindInPage />
     </NotesProvider>
   );
 }

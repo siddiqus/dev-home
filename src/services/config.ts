@@ -59,8 +59,7 @@ export function credentialHeaders(s: AppSettings): Record<string, string> {
   return headers;
 }
 
-const API_PORT = import.meta.env.VITE_API_PORT || "3571";
-export const API_BASE = `http://localhost:${API_PORT}/api`;
+export const API_BASE = "/api";
 
 export const apiClient = axios.create({ baseURL: API_BASE });
 

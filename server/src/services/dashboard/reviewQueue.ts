@@ -26,7 +26,9 @@ function buildReviewers(personReviews: RawReview[], personRequests: RawReviewReq
     .map((r) => r.login);
   const uniqueReviewed = [...new Set(reviewed)];
   const reviewedSet = new Set(uniqueReviewed);
-  const pending = [...new Set(personRequests.map((q) => q.login))].filter((l) => !reviewedSet.has(l));
+  const pending = [...new Set(personRequests.map((q) => q.login))].filter(
+    (l) => !reviewedSet.has(l),
+  );
   return [...uniqueReviewed, ...pending];
 }
 
