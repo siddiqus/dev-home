@@ -7,7 +7,7 @@ import Alert from "react-bootstrap/Alert";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
 import { IconArrowLeft } from "@tabler/icons-react";
-import { AppSettings, loadSettingsFromStore } from "../../services/config";
+import { AppSettings, loadSettings } from "../../services/config";
 import { BackendStatusCard } from "./BackendStatusCard";
 import { ThemePicker } from "./ThemePicker";
 import type { ThemePreference } from "../../hooks/useTheme";
@@ -56,18 +56,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>("integrations");
 
   useEffect(() => {
-    async function loadSettings() {
-      try {
-        const stored = await loadSettingsFromStore();
-        if (stored) {
-          // Normalize fields that may be missing from older stored settings.
-          setFormState({ ...stored, hiddenTabs: stored.hiddenTabs ?? [] });
-        }
-      } catch (err) {
-        console.error("Failed to load settings from store:", err);
-      }
-    }
-    loadSettings();
+    const stored = loadSettings();
+    setFormState({ ...stored, hiddenTabs: stored.hiddenTabs ?? [] });
   }, []);
 
   const handleChange = (field: keyof AppSettings) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,6 +238,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </Card>
           </Col>
         </Row>
+      )}
+
+      {activeSettingsTab === "integrations" && (
+        <Alert variant="info" className="py-2 mb-3" style={{ fontSize: "0.8125rem" }}>
+          Stored only in this browser and sent with each request. The server never saves them.
+        </Alert>
       )}
 
       {/* Appearance */}

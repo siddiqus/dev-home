@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   checkBackendHealth,
-  fetchBackendConfig,
-  loadSettingsFromStore,
-  saveSettingsToStore,
-  saveSettingsToBackend,
-  initApiPort,
+  isConfigured,
+  loadSettings,
+  saveSettings as persistSettings,
+  SETTINGS_EVENT,
   AppSettings,
 } from "../services/config";
 
@@ -22,84 +21,41 @@ interface UseConfigReturn {
 }
 
 export function useConfig(): UseConfigReturn {
-  const [configured, setConfigured] = useState<boolean>(false);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [backendVersion, setBackendVersion] = useState<string>("");
-  const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
-  const [githubUsername, setGithubUsername] = useState<string>("");
-  const [githubOrg, setGithubOrg] = useState<string>("");
 
   const init = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Resolve the dynamic backend port before any API calls
-      await initApiPort();
-
-      // First try to load settings from electron-store
-      const storedSettings = await loadSettingsFromStore();
-      if (
-        storedSettings &&
-        storedSettings.jiraBaseUrl &&
-        storedSettings.jiraEmail &&
-        storedSettings.jiraApiToken &&
-        storedSettings.githubToken &&
-        storedSettings.githubUsername
-      ) {
-        // All fields are non-empty, POST them to the backend
-        try {
-          await saveSettingsToBackend(storedSettings);
-        } catch (err) {
-          console.error("Failed to sync stored settings to backend:", err);
-        }
-      }
-
-      // Check backend health and fetch config
-      const health = await checkBackendHealth();
-      setBackendOnline(health.online);
-      setBackendVersion(health.version);
-
-      if (health.online) {
-        const config = await fetchBackendConfig();
-        setConfigured(config.configured);
-        setJiraBaseUrl(config.jiraBaseUrl);
-        setGithubUsername(config.githubUsername);
-        setGithubOrg(config.githubOrg);
-      }
-    } catch (err) {
-      console.error("Failed to initialize config:", err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    setSettings(loadSettings());
+    const health = await checkBackendHealth();
+    setBackendOnline(health.online);
+    setBackendVersion(health.version);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     init();
+    const onChange = () => setSettings(loadSettings());
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
   }, [init]);
 
-  const refreshConfig = useCallback(() => {
-    init();
-  }, [init]);
-
-  const saveSettings = useCallback(
-    async (settings: AppSettings): Promise<void> => {
-      await saveSettingsToStore(settings);
-      await saveSettingsToBackend(settings);
-      await init();
-    },
-    [init],
-  );
+  const saveSettings = useCallback(async (next: AppSettings) => {
+    persistSettings(next);
+    setSettings(next);
+  }, []);
 
   return {
-    configured,
+    configured: isConfigured(settings),
     loading,
     backendOnline,
     backendVersion,
-    jiraBaseUrl,
-    githubUsername,
-    githubOrg,
+    jiraBaseUrl: settings.jiraBaseUrl.replace(/\/+$/, ""),
+    githubUsername: settings.githubUsername,
+    githubOrg: settings.githubOrg,
     saveSettings,
-    refreshConfig,
+    refreshConfig: init,
   };
 }

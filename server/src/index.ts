@@ -1,9 +1,8 @@
 import cors from "cors";
 import express, { Request, Response } from "express";
 import "express-async-errors";
-import { validateEnv } from "./config";
+import { configFromHeaders, runWithConfig } from "./config";
 import { closeDb } from "./db";
-import configRoutes from "./routes/config";
 import focusRoutes from "./routes/focus";
 import githubRoutes from "./routes/github";
 import jiraRoutes from "./routes/jira";
@@ -44,10 +43,14 @@ export function createServer() {
   // JSON body parser
   app.use(express.json());
 
+  // Bind the caller's credentials (sent as headers) to this request's async context.
+  app.use((req, _res, next) => {
+    runWithConfig(configFromHeaders((name) => req.header(name)), next);
+  });
+
   // Routes
   app.use("/api/jira", jiraRoutes);
   app.use("/api/github", githubRoutes);
-  app.use("/api/config", configRoutes);
   app.use("/api/focus", focusRoutes);
   app.use("/api/notes", notesRoutes);
   app.use("/api/kanban", kanbanRoutes);
@@ -68,13 +71,6 @@ export function createServer() {
 }
 
 export function startServer() {
-  // Validate env vars
-  const missingVars = validateEnv();
-  if (missingVars.length > 0) {
-    console.warn(`\n⚠  WARNING: Missing environment variables: ${missingVars.join(", ")}`);
-    console.warn("   Copy .env.example to .env and fill in the required values.\n");
-  }
-
   const app = createServer();
   const PORT = parseInt(process.env.VITE_API_PORT || "3571", 10);
 

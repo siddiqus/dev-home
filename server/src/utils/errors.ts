@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from "express";
  * instead of wrapping everything in try/catch.
  */
 export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction): void {
-  const status = err.response?.status || 500;
+  const status = err.status ?? err.response?.status ?? 500;
   const internalMessage = err.response?.data ? JSON.stringify(err.response.data) : err.message;
   console.error(`[${req.method} ${req.path}] Error:`, status, internalMessage);
 

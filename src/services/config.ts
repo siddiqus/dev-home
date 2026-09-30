@@ -11,43 +11,58 @@ export interface AppSettings {
   hiddenTabs: string[];
 }
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      getSettings: () => Promise<AppSettings>;
-      saveSettings: (settings: AppSettings) => Promise<void>;
-      isConfigured: () => Promise<boolean>;
-      getApiPort: () => Promise<number>;
-      findInPage: (text: string, forward: boolean, findNext: boolean) => Promise<void>;
-      stopFindInPage: () => Promise<void>;
-      onToggleFind: (callback: () => void) => () => void;
-      onFindResult: (
-        callback: (result: { activeMatchOrdinal: number; matches: number }) => void,
-      ) => () => void;
-    };
-  }
-}
+export const SETTINGS_KEY = "dev-home-settings";
+export const SETTINGS_EVENT = "dev-home-settings";
 
-const DEFAULT_PORT = import.meta.env.VITE_API_PORT || "3571";
+const DEFAULT_SETTINGS: AppSettings = {
+  jiraBaseUrl: "",
+  jiraEmail: "",
+  jiraApiToken: "",
+  githubToken: "",
+  githubUsername: "",
+  githubOrg: "",
+  hiddenTabs: [],
+};
 
-export const apiClient = axios.create({
-  baseURL: `http://localhost:${DEFAULT_PORT}/api`,
-});
-
-export let API_BASE = `http://localhost:${DEFAULT_PORT}/api`;
-
-export async function initApiPort(): Promise<void> {
-  if (!window.electronAPI) {
-    return;
-  }
+export function loadSettings(): AppSettings {
   try {
-    const port = await window.electronAPI.getApiPort();
-    API_BASE = `http://localhost:${port}/api`;
-    apiClient.defaults.baseURL = API_BASE;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
   } catch {
-    // Fall back to default port
+    return { ...DEFAULT_SETTINGS };
   }
 }
+
+export function saveSettings(settings: AppSettings): void {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new Event(SETTINGS_EVENT));
+}
+
+export function isConfigured(s: AppSettings): boolean {
+  return !!(s.jiraBaseUrl && s.jiraEmail && s.jiraApiToken && s.githubToken && s.githubUsername);
+}
+
+/** Credentials travel with each request; the server keeps nothing. */
+export function credentialHeaders(s: AppSettings): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-jira-base-url": s.jiraBaseUrl.replace(/\/+$/, ""),
+    "x-jira-email": s.jiraEmail,
+    "x-jira-api-token": s.jiraApiToken,
+    "x-github-token": s.githubToken,
+    "x-github-username": s.githubUsername,
+  };
+  if (s.githubOrg) headers["x-github-org"] = s.githubOrg;
+  return headers;
+}
+
+const API_PORT = import.meta.env.VITE_API_PORT || "3571";
+export const API_BASE = `http://localhost:${API_PORT}/api`;
+
+export const apiClient = axios.create({ baseURL: API_BASE });
+
+apiClient.interceptors.request.use((cfg) => {
+  cfg.headers.set(credentialHeaders(loadSettings()));
+  return cfg;
+});
 
 export async function checkBackendHealth(): Promise<{ online: boolean; version: string }> {
   try {
@@ -56,49 +71,4 @@ export async function checkBackendHealth(): Promise<{ online: boolean; version: 
   } catch {
     return { online: false, version: "" };
   }
-}
-
-export async function fetchBackendConfig(): Promise<{
-  configured: boolean;
-  jiraBaseUrl: string;
-  githubUsername: string;
-  githubOrg: string;
-}> {
-  const { data } = await apiClient.get("/config");
-  return {
-    configured: data.configured,
-    jiraBaseUrl: data.jiraBaseUrl,
-    githubUsername: data.githubUsername,
-    githubOrg: data.githubOrg || "",
-  };
-}
-
-export async function saveSettingsToBackend(settings: AppSettings): Promise<void> {
-  const { jiraBaseUrl, jiraEmail, jiraApiToken, githubToken, githubUsername, githubOrg } = settings;
-  await apiClient.post("/config", {
-    jiraBaseUrl,
-    jiraEmail,
-    jiraApiToken,
-    githubToken,
-    githubUsername,
-    githubOrg,
-  });
-}
-
-export async function loadSettingsFromStore(): Promise<AppSettings | null> {
-  if (!window.electronAPI) {
-    return null;
-  }
-  try {
-    return await window.electronAPI.getSettings();
-  } catch {
-    return null;
-  }
-}
-
-export async function saveSettingsToStore(settings: AppSettings): Promise<void> {
-  if (!window.electronAPI) {
-    return;
-  }
-  await window.electronAPI.saveSettings(settings);
 }

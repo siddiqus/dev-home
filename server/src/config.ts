@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 export interface ServerConfig {
   jiraBaseUrl: string;
   jiraEmail: string;
@@ -5,83 +7,57 @@ export interface ServerConfig {
   githubToken: string;
   githubUsername: string;
   githubOrg: string;
-  port: number;
 }
 
-const REQUIRED_ENV_VARS = [
-  "JIRA_BASE_URL",
-  "JIRA_EMAIL",
-  "JIRA_API_TOKEN",
-  "GITHUB_TOKEN",
-  "GITHUB_USERNAME",
-] as const;
+/** Credentials arrive on every request from the browser; nothing is stored server-side. */
+export const CONFIG_HEADERS: Record<keyof ServerConfig, string> = {
+  jiraBaseUrl: "x-jira-base-url",
+  jiraEmail: "x-jira-email",
+  jiraApiToken: "x-jira-api-token",
+  githubToken: "x-github-token",
+  githubUsername: "x-github-username",
+  githubOrg: "x-github-org",
+};
 
-let runtimeConfig: ServerConfig | null = null;
+const REQUIRED: (keyof ServerConfig)[] = [
+  "jiraBaseUrl",
+  "jiraEmail",
+  "jiraApiToken",
+  "githubToken",
+  "githubUsername",
+];
 
-/**
- * Store runtime configuration provided by the frontend.
- * The port is automatically derived from the environment or defaults to 3571.
- */
-export function setRuntimeConfig(config: Omit<ServerConfig, "port">): void {
-  runtimeConfig = {
-    ...config,
-    port: parseInt(process.env.VITE_API_PORT || "3571", 10),
-  };
+export class MissingConfigError extends Error {
+  status = 401;
+  constructor() {
+    super("Missing credentials: configure Dev Home in Settings");
+  }
 }
 
-/**
- * Returns the current server configuration.
- * If runtime config has been set via setRuntimeConfig(), it takes precedence.
- * Otherwise falls back to environment variables.
- */
-export function getConfig(): ServerConfig {
-  if (runtimeConfig) {
-    return runtimeConfig;
-  }
+const requestConfig = new AsyncLocalStorage<ServerConfig | null>();
 
-  const missing = validateEnv();
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}. ` +
-        "Please copy .env.example to .env and fill in the values.",
-    );
-  }
-
+export function configFromHeaders(
+  get: (name: string) => string | null | undefined,
+): ServerConfig | null {
+  const read = (k: keyof ServerConfig) => (get(CONFIG_HEADERS[k]) ?? "").trim();
+  if (REQUIRED.some((k) => !read(k))) return null;
   return {
-    jiraBaseUrl: process.env.JIRA_BASE_URL!.replace(/\/$/, ""),
-    jiraEmail: process.env.JIRA_EMAIL!,
-    jiraApiToken: process.env.JIRA_API_TOKEN!,
-    githubToken: process.env.GITHUB_TOKEN!,
-    githubUsername: process.env.GITHUB_USERNAME!,
-    githubOrg: process.env.GITHUB_ORG || "",
-    port: parseInt(process.env.VITE_API_PORT || "3571", 10),
+    jiraBaseUrl: read("jiraBaseUrl").replace(/\/+$/, ""),
+    jiraEmail: read("jiraEmail"),
+    jiraApiToken: read("jiraApiToken"),
+    githubToken: read("githubToken"),
+    githubUsername: read("githubUsername"),
+    githubOrg: read("githubOrg"),
   };
 }
 
-/**
- * Returns true if the server is configured, either via runtime config
- * or via environment variables.
- */
-export function isConfigured(): boolean {
-  if (runtimeConfig) {
-    return true;
-  }
-
-  return REQUIRED_ENV_VARS.every((varName) => !!process.env[varName]);
+export function runWithConfig<T>(config: ServerConfig | null, fn: () => T): T {
+  return requestConfig.run(config, fn);
 }
 
-/**
- * Validate that all required env vars are present.
- * Returns an array of missing variable names (empty if all are set).
- */
-export function validateEnv(): string[] {
-  const missing: string[] = [];
-
-  for (const varName of REQUIRED_ENV_VARS) {
-    if (!process.env[varName]) {
-      missing.push(varName);
-    }
-  }
-
-  return missing;
+/** The calling request's credentials. Throws a 401 error if none were sent. */
+export function getConfig(): ServerConfig {
+  const config = requestConfig.getStore();
+  if (!config) throw new MissingConfigError();
+  return config;
 }

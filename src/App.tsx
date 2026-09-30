@@ -58,6 +58,7 @@ import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
 import type { FocusableItem } from "./types";
 import type { AppSettings } from "./services/config";
+import { loadSettings, SETTINGS_EVENT } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS } from "./config/navTabs";
 import { sourcesFor } from "./config/tabData";
@@ -112,12 +113,12 @@ export default function App() {
     saveSettings,
   } = useConfig();
 
-  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>(() => loadSettings().hiddenTabs);
   useEffect(() => {
-    window.electronAPI?.getSettings().then((s) => {
-      setHiddenTabs(s?.hiddenTabs ?? []);
-    });
-  }, [configured]);
+    const onChange = () => setHiddenTabs(loadSettings().hiddenTabs);
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
+  }, []);
 
   // If config isn't loaded yet, show settings first. If the active tab has been
   // hidden via settings, fall back to summary.
