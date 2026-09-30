@@ -36,13 +36,41 @@ export class MissingConfigError extends Error {
 
 const requestConfig = new AsyncLocalStorage<ServerConfig | null>();
 
+function isJiraBaseUrlAllowed(urlString: string): string | null {
+  try {
+    const url = new URL(urlString);
+    if (url.protocol !== "https:") return null;
+
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.endsWith(".atlassian.net")) {
+      return url.origin + url.pathname.replace(/\/+$/, "");
+    }
+
+    const allowedHosts = (process.env.JIRA_ALLOWED_HOSTS || "")
+      .split(",")
+      .map((h) => h.trim().toLowerCase())
+      .filter(Boolean);
+    if (allowedHosts.includes(hostname)) {
+      return url.origin + url.pathname.replace(/\/+$/, "");
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function configFromHeaders(
   get: (name: string) => string | null | undefined,
 ): ServerConfig | null {
   const read = (k: keyof ServerConfig) => (get(CONFIG_HEADERS[k]) ?? "").trim();
   if (REQUIRED.some((k) => !read(k))) return null;
+
+  const jiraBaseUrl = isJiraBaseUrlAllowed(read("jiraBaseUrl"));
+  if (!jiraBaseUrl) return null;
+
   return {
-    jiraBaseUrl: read("jiraBaseUrl").replace(/\/+$/, ""),
+    jiraBaseUrl,
     jiraEmail: read("jiraEmail"),
     jiraApiToken: read("jiraApiToken"),
     githubToken: read("githubToken"),

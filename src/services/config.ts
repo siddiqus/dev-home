@@ -26,7 +26,12 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export function loadSettings(): AppSettings {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+    const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    const settings = { ...DEFAULT_SETTINGS, ...stored };
+    if (!Array.isArray(settings.hiddenTabs)) {
+      settings.hiddenTabs = [];
+    }
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

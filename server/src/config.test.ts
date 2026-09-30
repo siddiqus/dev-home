@@ -59,4 +59,38 @@ describe("per-request config", () => {
       expect(e.status).toBe(401);
     }
   });
+
+  it("rejects http:// jira URLs", () => {
+    const h = { ...headers, "x-jira-base-url": "http://acme.atlassian.net" };
+    expect(configFromHeaders(get(h))).toBeNull();
+  });
+
+  it("rejects non-atlassian https:// URLs", () => {
+    const h = { ...headers, "x-jira-base-url": "https://evil.example.com" };
+    expect(configFromHeaders(get(h))).toBeNull();
+  });
+
+  it("rejects SSRF attempts like metadata endpoints", () => {
+    const h = { ...headers, "x-jira-base-url": "https://169.254.169.254" };
+    expect(configFromHeaders(get(h))).toBeNull();
+  });
+
+  it("allows custom Jira hosts via JIRA_ALLOWED_HOSTS", () => {
+    const original = process.env.JIRA_ALLOWED_HOSTS;
+    process.env.JIRA_ALLOWED_HOSTS = "jira.corp.example";
+    const h = { ...headers, "x-jira-base-url": "https://jira.corp.example/foo/" };
+    expect(configFromHeaders(get(h))).toEqual({
+      jiraBaseUrl: "https://jira.corp.example/foo",
+      jiraEmail: "me@acme.com",
+      jiraApiToken: "jt",
+      githubToken: "gt",
+      githubUsername: "me",
+      githubOrg: "",
+    });
+    if (original !== undefined) {
+      process.env.JIRA_ALLOWED_HOSTS = original;
+    } else {
+      delete process.env.JIRA_ALLOWED_HOSTS;
+    }
+  });
 });

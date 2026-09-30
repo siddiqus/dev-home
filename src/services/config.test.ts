@@ -51,4 +51,11 @@ describe("browser settings", () => {
     });
     expect(captured["x-github-token"]).toBe("gt");
   });
+
+  it("guards hiddenTabs with Array.isArray for bad stored data", () => {
+    localStorage.setItem("dev-home-settings", JSON.stringify({ hiddenTabs: "not-an-array" }));
+    const settings = loadSettings();
+    expect(Array.isArray(settings.hiddenTabs)).toBe(true);
+    expect(settings.hiddenTabs).toEqual([]);
+  });
 });

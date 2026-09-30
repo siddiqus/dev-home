@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { createHash } from "node:crypto";
 import { getConfig } from "../config";
 import { createGitHubClient } from "../clients/githubApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
@@ -310,7 +311,8 @@ async function getRequiredContexts(
   repo: string,
   branch: string,
 ): Promise<Set<string> | null> {
-  const key = `${owner}/${repo}@${branch}`;
+  const tokenHash = createHash("sha256").update(getConfig().githubToken).digest("hex").slice(0, 16);
+  const key = `${owner}/${repo}@${branch}:${tokenHash}`;
   const now = Date.now();
   const cached = requiredContextsCache.get(key);
   if (cached && cached.expires > now) return cached.value;
