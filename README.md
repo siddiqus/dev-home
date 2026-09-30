@@ -1,24 +1,54 @@
 # Dev Home Dashboard
 
-A developer dashboard built with Electron, React, and Express that integrates with JIRA and GitHub to provide a unified view of issues and pull requests.
+A developer dashboard built with Next.js and React that integrates with Jira and GitHub to provide a unified view of issues, pull requests, team analytics, and personal productivity tools.
+
+## What is Dev Home?
+
+Dev Home is a stateless web application that helps you stay on top of your work across Jira and GitHub. It aggregates:
+
+- **Your work**: Jira issues, open PRs, review requests, and mentions across both platforms
+- **Team analytics**: PR velocity, burnup charts, and team workload (when GitHub org is configured)
+- **Personal productivity**: Notes with reminders, Kanban board, Focus view, and Pomodoro timer
+
+All personal data (notes, teams, filters, focus state) lives in your browser's localStorage. Jira and GitHub credentials are never stored server-side — they're sent with each request as headers and forwarded to the APIs.
+
+## Features
+
+- **Summary Dashboard**: At-a-glance view of your open work, mentions, and top priorities
+- **Focus View**: Intelligently prioritized inbox with pin/snooze/dismiss actions
+- **Kanban Board**: Drag-and-drop board pulling from PRs, review requests, and notes tagged `#todo`
+- **Jira Integration**: View assigned issues, search with JQL, track mentions in comments
+- **GitHub Integration**: Track your PRs, review requests, org-wide PRs, and GitHub mentions
+- **Team Analytics**: Track team PR velocity, burn-up charts, and workload distribution
+- **Personal Notes**: Create notes with reminders, link to Jira/GitHub items, tag as `#todo` for Kanban
+- **Pomodoro Timer**: Focus timer with task tracking and break intervals
 
 ## Prerequisites
 
 - Node.js (v18+)
 - Yarn
-- A JIRA account with an API token
+- A Jira account with an API token
 - A GitHub personal access token
 
-## Setup
+## Local Development
 
-Install dependencies:
+1. Install dependencies:
 
 ```bash
 yarn install
-cd server && yarn install && cd ..
 ```
 
-JIRA and GitHub credentials can be configured from the in-app settings.
+2. Start the Next.js dev server:
+
+```bash
+yarn dev
+```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+4. Enter your credentials in **Settings** (the app will prompt you on first launch).
+
+Credentials are stored in browser localStorage and sent with each API request. The server never persists them.
 
 ## Required Token Permissions
 
@@ -55,53 +85,61 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 
 No write permissions are required — the app only reads data from both GitHub and Jira.
 
-## Development
+#### Jira Host Restriction
 
-Run the frontend and backend concurrently:
+For security, the app only accepts Jira base URLs that are `https://` on a host ending in `.atlassian.net`. If you need to use a self-hosted Jira instance or another domain, the operator can set the environment variable `JIRA_ALLOWED_HOSTS` to a comma-separated list of exact hostnames (e.g., `JIRA_ALLOWED_HOSTS=jira.example.com,jira-internal.corp`).
+
+## Where is my data?
+
+All personal data (notes, teams, filters, focus state, sprint snapshots) is stored **only in your browser's localStorage**. The server is stateless and does not persist any data.
+
+- **Jira and GitHub credentials** are stored in localStorage and forwarded with each API request as `x-jira-*` and `x-github-*` headers. They are never logged or stored server-side.
+- **Tokens are excluded from exports**: When you export your data via Settings → Data → Export, tokens are not included in the backup file.
+- **Import/Export**: You can export your data as JSON and import it on another device or browser.
+
+### Migrating from Dev Home Desktop
+
+If you previously used the Electron desktop version of Dev Home, you can migrate your data:
+
+1. Export your desktop data:
 
 ```bash
-yarn dev
+node scripts/export-sqlite.mjs ~/Library/Application\ Support/Dev\ Home/notes.db
 ```
 
-Or run them separately:
+This creates a `dev-home-backup-YYYY-MM-DD.json` file.
 
-```bash
-yarn dev:app      # Frontend only (Vite)
-yarn dev:server   # Backend only (Express with hot-reload)
-```
+2. In the web app, go to **Settings → Data → Import** and select the JSON file.
+
+Your notes, teams, filters, and focus state will be imported into the browser.
 
 ## Build
 
-```bash
-yarn build        # Build frontend + backend
-```
-
-## Packaging
-
-Package the app into a distributable Electron application. All packaging commands run the icon generation and full build automatically before packaging.
+Build the production Next.js app:
 
 ```bash
-yarn pack         # Build and create an unpacked app directory (in release/)
-yarn dist         # Build and package for the current platform
-yarn dist:mac     # Build and package as a macOS DMG (arm64)
+yarn build
 ```
 
-The packaged output is written to the `release/` directory.
+The build output is in `.next/`. For deployment, see [docs/deploy.md](docs/deploy.md).
+
+## Deployment
+
+See [docs/deploy.md](docs/deploy.md) for deployment instructions for Vercel, Cloudflare Workers, Docker, or any Node.js host.
 
 ## Troubleshooting
 
-### macOS: "Dev Home is damaged and can't be opened"
+### "Invalid Jira base URL" error
 
-This is **not** an actual corruption — the app simply isn't code-signed/notarized with an Apple Developer ID, so macOS Gatekeeper quarantines it after download and refuses to open it.
+By default, only `https://*.atlassian.net` URLs are accepted. If you need to use a self-hosted Jira instance, ask the operator to set the `JIRA_ALLOWED_HOSTS` environment variable with your Jira hostname.
 
-To fix, run this in Terminal after dragging Dev Home into Applications:
+### Data not syncing across devices
 
-```bash
-xattr -dr com.apple.quarantine "/Applications/Dev Home.app"
-```
+Personal data (notes, teams, filters) is stored in browser localStorage, which is device- and browser-specific. To sync data across devices:
 
-Then open the app normally. If the error persists, clear all extended attributes instead:
+1. Export your data from Settings → Data → Export
+2. Import the JSON file on your other device
 
-```bash
-xattr -cr "/Applications/Dev Home.app"
-```
+### Credentials prompts on every page refresh
+
+Make sure third-party cookies are not blocked in your browser, as this can prevent localStorage from persisting. Check your browser's privacy/cookie settings.
