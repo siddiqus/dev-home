@@ -1,19 +1,19 @@
-import { Request, Response, NextFunction } from "express";
-
 /**
- * Express error-handling middleware.
- * Used with express-async-errors so routes can just throw
- * instead of wrapping everything in try/catch.
+ * Map a thrown error to an HTTP response. Upstream (axios) statuses pass
+ * through; 5xx details are hidden from the client. Never logs request headers.
  */
-export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction): void {
+export function toErrorResponse(
+  err: any,
+  method: string,
+  path: string,
+): { status: number; body: { error: string } } {
   const status = err.status ?? err.response?.status ?? 500;
   const internalMessage = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-  console.error(`[${req.method} ${req.path}] Error:`, status, internalMessage);
+  console.error(`[${method} ${path}] Error:`, status, internalMessage);
 
-  // For 5xx errors, return a generic message to avoid leaking internal details
-  const clientMessage =
+  const error =
     status >= 500
       ? "An internal server error occurred"
       : err.response?.data?.message || err.message || "Request failed";
-  res.status(status).json({ error: clientMessage });
+  return { status, body: { error } };
 }

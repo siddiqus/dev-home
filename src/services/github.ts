@@ -141,7 +141,7 @@ export async function fetchJobLogs(owner: string, repo: string, jobId: string): 
   const { data } = await apiClient.get("/github/job-logs", {
     params: { owner, repo, job_id: jobId },
   });
-  return data;
+  return data.logs;
 }
 
 /** Fetch a single PR (body + checks) by repo and number. */

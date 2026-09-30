@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
 import { createHash } from "node:crypto";
 import { getConfig } from "../config";
 import { createGitHubClient } from "../clients/githubApiClient";
@@ -8,8 +8,6 @@ import {
   findOptionalFailures,
   parseRequiredContexts,
 } from "../services/githubChecks";
-
-const router = Router();
 
 /**
  * Shared GraphQL selection for a commit's check rollup. We fetch each context's
@@ -377,7 +375,7 @@ async function mapOpenPrsWithChecks(nodes: any[], viewer?: string) {
  * Also returns pr_comments: comments on the user's PRs by other people (non-bot),
  * so the frontend can merge them into mentions without a second GraphQL call.
  */
-router.get("/prs", async (_req: Request, res: Response) => {
+export async function getPrs(_req: Request, res: Response) {
   const config = getConfig();
   const q = `author:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
@@ -393,7 +391,7 @@ router.get("/prs", async (_req: Request, res: Response) => {
   const prComments = extractOwnPRComments(nodes, config.githubUsername);
 
   res.json({ prs, pr_comments: prComments });
-});
+}
 
 /** Key a PR search node by repo + number, for cross-search set membership. */
 function prNodeKey(n: any): string {
@@ -411,7 +409,7 @@ function prNodeKey(n: any): string {
  *    or commented on — i.e. reviews in progress. GitHub drops you from
  *    `review-requested:` once you submit a review, so this needs its own search.
  */
-router.get("/reviews", async (_req: Request, res: Response) => {
+export async function getReviews(_req: Request, res: Response) {
   const config = getConfig();
   const user = config.githubUsername;
   const base = `type:pr state:open updated:>=${monthsAgo()}`;
@@ -445,7 +443,7 @@ router.get("/reviews", async (_req: Request, res: Response) => {
       })),
     reviewing: reviewing.filter((pr: any) => pr.state === "open"),
   });
-});
+}
 
 /**
  * Extract the issue/PR number from a GitHub API subject URL.
@@ -744,7 +742,7 @@ const SEARCH_ORG_PRS_QUERY = `
  * Fetch open, non-draft PRs for the configured org, sorted by most recent.
  * Supports cursor-based pagination via ?cursor= and optional ?author= and ?repo= filters.
  */
-router.get("/org-prs", async (req: Request, res: Response) => {
+export async function getOrgPrs(req: Request, res: Response) {
   const config = getConfig();
   const org = config.githubOrg;
 
@@ -780,14 +778,14 @@ router.get("/org-prs", async (req: Request, res: Response) => {
   );
 
   res.json({ prs, pageInfo: result.search.pageInfo });
-});
+}
 
 /**
  * GET /api/github/org-prs-multi-repo
  * Fetch open, non-draft PRs across multiple repos using aliased repository() GraphQL queries.
  * Accepts ?repos=owner/repo1,owner/repo2 and optional ?author=login (single).
  */
-router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
+export async function getOrgPrsMultiRepo(req: Request, res: Response) {
   const repoParam = typeof req.query.repos === "string" ? req.query.repos.trim() : "";
   const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
 
@@ -881,13 +879,13 @@ router.get("/org-prs-multi-repo", async (req: Request, res: Response) => {
   prs.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   res.json({ prs });
-});
+}
 
 /**
  * GET /api/github/org-members
  * Fetch members of the configured org for the author filter dropdown.
  */
-router.get("/org-members", async (_req: Request, res: Response) => {
+export async function getOrgMembers(_req: Request, res: Response) {
   const config = getConfig();
   const org = config.githubOrg;
 
@@ -914,13 +912,13 @@ router.get("/org-members", async (_req: Request, res: Response) => {
 
   members.sort((a, b) => a.login.localeCompare(b.login));
   res.json({ members });
-});
+}
 
 /**
  * GET /api/github/org-repos
  * Fetch the 40 most recently pushed repositories in the configured org.
  */
-router.get("/org-repos", async (_req: Request, res: Response) => {
+export async function getOrgRepos(_req: Request, res: Response) {
   const config = getConfig();
   const org = config.githubOrg;
 
@@ -936,7 +934,7 @@ router.get("/org-repos", async (_req: Request, res: Response) => {
 
   const repos = data.map((r: any) => ({ full_name: r.full_name, name: r.name }));
   res.json({ repos });
-});
+}
 
 /**
  * GET /api/github/mentions
@@ -944,7 +942,7 @@ router.get("/org-repos", async (_req: Request, res: Response) => {
  * Note: comments on the user's own PRs are returned by GET /api/github/prs as pr_comments
  * and merged on the frontend, avoiding a duplicate GraphQL call.
  */
-router.get("/mentions", async (_req: Request, res: Response) => {
+export async function getGithubMentions(_req: Request, res: Response) {
   const github = createGitHubClient();
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
@@ -968,7 +966,7 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   });
 
   res.json({ mentions: deduplicated });
-});
+}
 
 /**
  * Lightweight GraphQL query for recently merged PRs (no checks/reviews needed).
@@ -1010,7 +1008,7 @@ const SEARCH_MERGED_PRS_QUERY = `
  * ?scope=org — org-wide merged PRs
  * Optional: ?author=login, ?repo=owner/repo
  */
-router.get("/merged-prs", async (req: Request, res: Response) => {
+export async function getMergedPrs(req: Request, res: Response) {
   const config = getConfig();
   const scope = typeof req.query.scope === "string" ? req.query.scope : "user";
   const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
@@ -1042,14 +1040,14 @@ router.get("/merged-prs", async (req: Request, res: Response) => {
 
   const prs = (result.search.nodes || []).map((n: any) => mapGraphQLPr(n));
   res.json({ prs });
-});
+}
 
 /**
  * GET /github/job-logs?owner=OWNER&repo=REPO&job_id=JOB_ID
  * Proxies GitHub Actions job log download through the backend so the
  * browser doesn't need a token.
  */
-router.get("/job-logs", async (req: Request, res: Response) => {
+export async function getJobLogs(req: Request, res: Response) {
   const owner = typeof req.query.owner === "string" ? req.query.owner.trim() : "";
   const repo = typeof req.query.repo === "string" ? req.query.repo.trim() : "";
   const jobId = typeof req.query.job_id === "string" ? req.query.job_id.trim() : "";
@@ -1059,19 +1057,14 @@ router.get("/job-logs", async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    const gh = createGitHubClient();
-    const response = await gh.get(`/repos/${owner}/${repo}/actions/jobs/${jobId}/logs`, {
-      maxRedirects: 5,
-      responseType: "text",
-    });
-    res.type("text/plain").send(response.data);
-  } catch (err: any) {
-    const status = err.response?.status || 500;
-    const message = err.response?.data?.message || err.message || "Failed to fetch logs";
-    res.status(status).json({ error: message });
-  }
-});
+  const gh = createGitHubClient();
+  const response = await gh.get(`/repos/${owner}/${repo}/actions/jobs/${jobId}/logs`, {
+    maxRedirects: 5,
+    responseType: "text",
+  });
+  // Return logs as plain text - route handler will set Content-Type
+  res.json({ logs: response.data });
+}
 
 const SINGLE_PR_QUERY = `
   query SinglePR($owner: String!, $repo: String!, $number: Int!) {
@@ -1118,7 +1111,7 @@ const SINGLE_PR_QUERY = `
  * Used by views (e.g. the team dashboard) that only hold a PR reference and need
  * the full record to populate the description modal on demand.
  */
-router.get("/pr/:owner/:repo/:number", async (req: Request, res: Response) => {
+export async function getPrDetail(req: Request, res: Response) {
   const { owner, repo } = req.params;
   const number = parseInt(req.params.number, 10);
 
@@ -1145,6 +1138,4 @@ router.get("/pr/:owner/:repo/:number", async (req: Request, res: Response) => {
     const message = err.response?.data?.message || err.message || "Failed to fetch pull request";
     res.status(status).json({ error: message });
   }
-});
-
-export default router;
+}

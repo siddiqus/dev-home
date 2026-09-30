@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
 import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
 import {
@@ -18,8 +18,6 @@ import { mapPullRequestNode, dedupePRs } from "../services/dashboard/prFetch";
 import { computeReviewQueue } from "../services/dashboard/reviewQueue";
 import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
 import type { SprintInfo, Burnup } from "../services/dashboard/types";
-
-const router = Router();
 
 const MEMBER_PRS_QUERY = `
   query($q: String!) {
@@ -125,7 +123,7 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
  * Aggregate Jira issues + GitHub PRs for the team's roster.
  * Body: { team: { id, name, jira_board_id, jira_board_name }, members: [...], sprintId }
  */
-router.post("/dashboard", async (req: Request, res: Response) => {
+export async function postTeamDashboard(req: Request, res: Response) {
   const { team, members, sprintId: requestedSprintId } = req.body || {};
   if (
     !team ||
@@ -301,6 +299,4 @@ router.post("/dashboard", async (req: Request, res: Response) => {
     syncedAt: now.toISOString(),
     errors,
   });
-});
-
-export default router;
+}

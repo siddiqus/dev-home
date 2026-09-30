@@ -1,11 +1,9 @@
-import { Router, Request, Response } from "express";
+import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
 import { createJiraClient } from "../clients/jiraApiClient";
-
-const router = Router();
 
 // ── JIRA Remote Filters (user's own filters) ───────────────────────────
 
-router.get("/remote", async (_req: Request, res: Response) => {
+export async function getRemoteFilters(_req: Request, res: Response) {
   const jira = createJiraClient();
   const { data } = await jira.get("/filter/my");
   const filters = (Array.isArray(data) ? data : []).map((f: any) => ({
@@ -15,11 +13,11 @@ router.get("/remote", async (_req: Request, res: Response) => {
     favourite: f.favourite,
   }));
   res.json({ filters });
-});
+}
 
 // ── JQL Search ──────────────────────────────────────────────────────────
 
-router.post("/search", async (req: Request, res: Response) => {
+export async function postJqlSearch(req: Request, res: Response) {
   const { jql, nextPageToken } = req.body;
 
   if (!jql || typeof jql !== "string" || jql.trim().length === 0) {
@@ -71,6 +69,4 @@ router.post("/search", async (req: Request, res: Response) => {
     total: data.total || issues.length,
     nextPageToken: data.nextPageToken || null,
   });
-});
-
-export default router;
+}

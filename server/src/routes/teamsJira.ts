@@ -1,16 +1,14 @@
-import { Router, Request, Response } from "express";
+import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
 import axios from "axios";
 import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
 import { getConfig } from "../config";
-
-const router = Router();
 
 /**
  * GET /api/teams-jira/users/search?q=
  * Type-ahead search for Jira users. Returns accountId (stable match key),
  * displayName, emailAddress (often null due to privacy), and a small avatar.
  */
-router.get("/users/search", async (req: Request, res: Response) => {
+export async function searchUsers(req: Request, res: Response) {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (!q) {
     res.json({ users: [] });
@@ -57,13 +55,13 @@ router.get("/users/search", async (req: Request, res: Response) => {
     }
   }
   res.json({ users });
-});
+}
 
 /**
  * GET /api/teams-jira/boards/search?q=
  * Search scrum boards by name. Returns id, name, and project location.
  */
-router.get("/boards/search", async (req: Request, res: Response) => {
+export async function searchBoards(req: Request, res: Response) {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const agile = createJiraAgileClient();
   const boards: any[] = [];
@@ -86,13 +84,13 @@ router.get("/boards/search", async (req: Request, res: Response) => {
     startAt += maxResults;
   }
   res.json({ boards });
-});
+}
 
 /**
  * GET /api/teams-jira/boards/:id/sprints
  * Return active + recent closed sprints for a board, newest first.
  */
-router.get("/boards/:id/sprints", async (req: Request, res: Response) => {
+export async function getBoardSprints(req: Request, res: Response) {
   const boardId = parseInt(req.params.id, 10);
   if (isNaN(boardId)) {
     res.status(400).json({ error: "invalid board id" });
@@ -125,6 +123,4 @@ router.get("/boards/:id/sprints", async (req: Request, res: Response) => {
     return new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
   });
   res.json({ sprints });
-});
-
-export default router;
+}

@@ -48,7 +48,7 @@ function isJiraBaseUrlAllowed(urlString: string): string | null {
 
     const allowedHosts = (process.env.JIRA_ALLOWED_HOSTS || "")
       .split(",")
-      .map((h) => h.trim().toLowerCase())
+      .map((h: string) => h.trim().toLowerCase())
       .filter(Boolean);
     if (allowedHosts.includes(hostname)) {
       return url.origin + url.pathname.replace(/\/+$/, "");

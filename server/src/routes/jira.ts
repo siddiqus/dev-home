@@ -1,15 +1,13 @@
-import { Router, Request, Response } from "express";
+import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
 import { getConfig } from "../config";
 import { createJiraClient } from "../clients/jiraApiClient";
 import { adfToMarkdown } from "../utils/adf";
-
-const router = Router();
 
 /**
  * GET /api/jira/issues
  * Fetch unresolved issues assigned to the current user.
  */
-router.get("/issues", async (_req: Request, res: Response) => {
+export async function getIssues(_req: Request, res: Response) {
   const jira = createJiraClient();
 
   const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
@@ -45,13 +43,13 @@ router.get("/issues", async (_req: Request, res: Response) => {
   }));
 
   res.json({ issues });
-});
+}
 
 /**
  * POST /api/jira/issues/bulk
  * Fetch issues by their keys (e.g. ["CCP-123", "CCP-456"]).
  */
-router.post("/issues/bulk", async (req: Request, res: Response) => {
+export async function postIssuesBulk(req: Request, res: Response) {
   const { keys } = req.body;
   if (!Array.isArray(keys) || keys.length === 0) {
     res.json({ issues: [] });
@@ -108,13 +106,13 @@ router.post("/issues/bulk", async (req: Request, res: Response) => {
   }));
 
   res.json({ issues });
-});
+}
 
 /**
  * GET /api/jira/mentions
  * Fetch recent comments that mention the current user.
  */
-router.get("/mentions", async (_req: Request, res: Response) => {
+export async function getJiraMentions(_req: Request, res: Response) {
   const config = getConfig();
   const jira = createJiraClient();
 
@@ -174,6 +172,4 @@ router.get("/mentions", async (_req: Request, res: Response) => {
   });
 
   res.json({ comments: allComments });
-});
-
-export default router;
+}
