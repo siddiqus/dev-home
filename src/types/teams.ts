@@ -256,6 +256,7 @@ export interface TeamDashboard {
   hygiene: Hygiene;
   reviewQueue: ReviewQueueEntry[];
   burnup: Burnup;
+  snapshot?: { sprintId: number; date: string; doneCount: number; totalCount: number } | null;
   /** ISO timestamp of when the backend assembled this payload. */
   syncedAt?: string;
   errors: string[];

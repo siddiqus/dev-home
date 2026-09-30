@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildIdealLine } from "./snapshots";
-import type { SnapshotRow } from "./snapshots";
+import { buildIdealLine, buildBurnup } from "./burnup";
+import type { SnapshotRow } from "./burnup";
 
 describe("buildIdealLine", () => {
   it("single row: ideal equals totalCount", () => {
@@ -74,5 +74,20 @@ describe("buildIdealLine", () => {
       doneCount: 5,
       totalCount: 10,
     });
+  });
+});
+
+describe("buildBurnup", () => {
+  it("buildBurnup sorts rows and reports trackingSince", () => {
+    const b = buildBurnup([
+      { date: "2026-09-02", doneCount: 2, totalCount: 10 },
+      { date: "2026-09-01", doneCount: 0, totalCount: 10 },
+    ]);
+    expect(b.trackingSince).toBe("2026-09-01");
+    expect(b.points.map((p) => p.ideal)).toEqual([0, 10]);
+  });
+
+  it("buildBurnup handles no rows", () => {
+    expect(buildBurnup([])).toEqual({ trackingSince: null, points: [] });
   });
 });

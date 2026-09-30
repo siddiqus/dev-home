@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import { getDb } from "../db";
 import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
 import { graphql } from "../clients/githubGraphqlClient";
 import {
@@ -17,138 +16,10 @@ import { computePrFlow } from "../services/dashboard/prFlow";
 import { computeHygiene } from "../services/dashboard/hygiene";
 import { mapPullRequestNode, dedupePRs } from "../services/dashboard/prFetch";
 import { computeReviewQueue } from "../services/dashboard/reviewQueue";
-import { recordSnapshot, getBurnup } from "../services/dashboard/snapshots";
 import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
 import type { SprintInfo, Burnup } from "../services/dashboard/types";
 
 const router = Router();
-
-/** GET /api/teams — list teams with member counts and names. */
-router.get("/", (_req: Request, res: Response) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT t.*,
-         (SELECT COUNT(*) FROM team_members m WHERE m.team_id = t.id) AS member_count,
-         (SELECT json_group_array(json_object('name', m.display_name))
-            FROM (SELECT display_name FROM team_members
-                  WHERE team_id = t.id ORDER BY display_name COLLATE NOCASE) m
-         ) AS members
-       FROM teams t ORDER BY t.name COLLATE NOCASE`,
-    )
-    .all() as Array<Record<string, unknown>>;
-  const teams = rows.map((row) => ({
-    ...row,
-    members: row.members ? JSON.parse(row.members as string) : [],
-  }));
-  res.json({ teams });
-});
-
-/** POST /api/teams — create a team. Body: { name, boardId?, boardName? } */
-router.post("/", (req: Request, res: Response) => {
-  const { name, boardId, boardName } = req.body || {};
-  if (!name || typeof name !== "string") {
-    res.status(400).json({ error: "name is required" });
-    return;
-  }
-  const db = getDb();
-  const result = db
-    .prepare("INSERT INTO teams (name, jira_board_id, jira_board_name) VALUES (?, ?, ?)")
-    .run(name.trim(), boardId ?? null, boardName ?? null);
-  const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(result.lastInsertRowid);
-  res.json({ team });
-});
-
-/** PUT /api/teams/:id — update name/board. */
-router.put("/:id", (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: "invalid id" });
-    return;
-  }
-  const { name, boardId, boardName } = req.body || {};
-  const db = getDb();
-  const existing = db.prepare("SELECT * FROM teams WHERE id = ?").get(id);
-  if (!existing) {
-    res.status(404).json({ error: "team not found" });
-    return;
-  }
-  db.prepare(
-    "UPDATE teams SET name = ?, jira_board_id = ?, jira_board_name = ?, updated_at = datetime('now') WHERE id = ?",
-  ).run(
-    (name ?? (existing as any).name).trim(),
-    boardId !== undefined ? boardId : (existing as any).jira_board_id,
-    boardName !== undefined ? boardName : (existing as any).jira_board_name,
-    id,
-  );
-  const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(id);
-  res.json({ team });
-});
-
-/** DELETE /api/teams/:id — delete team and its members. */
-router.delete("/:id", (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: "invalid id" });
-    return;
-  }
-  const db = getDb();
-  db.transaction(() => {
-    db.prepare("DELETE FROM team_members WHERE team_id = ?").run(id);
-    db.prepare("DELETE FROM teams WHERE id = ?").run(id);
-  })();
-  res.json({ ok: true });
-});
-
-/** GET /api/teams/:id/members */
-router.get("/:id/members", (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: "invalid id" });
-    return;
-  }
-  const db = getDb();
-  const members = db
-    .prepare("SELECT * FROM team_members WHERE team_id = ? ORDER BY display_name COLLATE NOCASE")
-    .all(id);
-  res.json({ members });
-});
-
-/** POST /api/teams/:id/members — Body: { displayName, jiraAccountId, jiraEmail?, githubUsername } */
-router.post("/:id/members", (req: Request, res: Response) => {
-  const teamId = parseInt(req.params.id, 10);
-  if (Number.isNaN(teamId)) {
-    res.status(400).json({ error: "invalid id" });
-    return;
-  }
-  const { displayName, jiraAccountId, jiraEmail, githubUsername } = req.body || {};
-  if (!displayName || !jiraAccountId || !githubUsername) {
-    res.status(400).json({ error: "displayName, jiraAccountId, githubUsername are required" });
-    return;
-  }
-  const db = getDb();
-  const result = db
-    .prepare(
-      `INSERT INTO team_members (team_id, display_name, jira_account_id, jira_email, github_username)
-       VALUES (?, ?, ?, ?, ?)`,
-    )
-    .run(teamId, displayName, jiraAccountId, jiraEmail ?? null, githubUsername);
-  const member = db.prepare("SELECT * FROM team_members WHERE id = ?").get(result.lastInsertRowid);
-  res.json({ member });
-});
-
-/** DELETE /api/teams/:teamId/members/:memberId */
-router.delete("/:teamId/members/:memberId", (req: Request, res: Response) => {
-  const teamId = parseInt(req.params.teamId, 10);
-  const memberId = parseInt(req.params.memberId, 10);
-  if (Number.isNaN(teamId) || Number.isNaN(memberId)) {
-    res.status(400).json({ error: "invalid id" });
-    return;
-  }
-  const db = getDb();
-  db.prepare("DELETE FROM team_members WHERE id = ? AND team_id = ?").run(memberId, teamId);
-  res.json({ ok: true });
-});
 
 const MEMBER_PRS_QUERY = `
   query($q: String!) {
@@ -250,28 +121,26 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
 }
 
 /**
- * GET /api/teams/:id/dashboard?sprintId=
+ * POST /api/teams/dashboard
  * Aggregate Jira issues + GitHub PRs for the team's roster.
+ * Body: { team: { id, name, jira_board_id, jira_board_name }, members: [...], sprintId }
  */
-router.get("/:id/dashboard", async (req: Request, res: Response) => {
-  const teamId = parseInt(req.params.id, 10);
-  if (Number.isNaN(teamId)) {
-    res.status(400).json({ error: "invalid id" });
+router.post("/dashboard", async (req: Request, res: Response) => {
+  const { team, members, sprintId: requestedSprintId } = req.body || {};
+  if (
+    !team ||
+    typeof team.id !== "number" ||
+    typeof team.name !== "string" ||
+    !Array.isArray(members)
+  ) {
+    res.status(400).json({ error: "team and members are required" });
     return;
   }
-  const db = getDb();
-  const team = db.prepare("SELECT * FROM teams WHERE id = ?").get(teamId) as any;
-  if (!team) {
-    res.status(404).json({ error: "team not found" });
-    return;
-  }
-  const memberRows = db
-    .prepare("SELECT * FROM team_members WHERE team_id = ?")
-    .all(teamId) as any[];
-  const roster: RosterEntry[] = memberRows.map((m) => ({
-    accountId: m.jira_account_id,
-    displayName: m.display_name,
-    githubUsername: m.github_username,
+
+  const roster: RosterEntry[] = members.map((m: any) => ({
+    accountId: m.accountId,
+    displayName: m.displayName,
+    githubUsername: m.githubUsername,
   }));
 
   const errors: string[] = [];
@@ -280,8 +149,6 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
   let currentSprint: any = null;
 
   const accountIds = roster.map((r) => r.accountId);
-  const requestedSprintId =
-    typeof req.query.sprintId === "string" ? parseInt(req.query.sprintId, 10) : null;
 
   // --- Jira ---
   if (accountIds.length > 0) {
@@ -400,17 +267,16 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
   const prFlow = computePrFlow(prs, enrichedIssues, now);
   const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
 
-  // Burn-up: snapshot today's completion, then read the accrued history.
-  let burnup: Burnup = { trackingSince: null, points: [] };
-  if (currentSprint) {
-    try {
-      const today = now.toISOString().slice(0, 10);
-      recordSnapshot(db, currentSprint.id, pace.doneCount, pace.totalCount, today);
-      burnup = getBurnup(db, sprintInfo);
-    } catch (err: any) {
-      errors.push(`Burn-up: ${err.message || "snapshot failed"}`);
-    }
-  }
+  // Burn-up history lives in the browser; hand back today's point to record.
+  const snapshot = currentSprint
+    ? {
+        sprintId: currentSprint.id,
+        date: now.toISOString().slice(0, 10),
+        doneCount: pace.doneCount,
+        totalCount: pace.totalCount,
+      }
+    : null;
+  const burnup: Burnup = { trackingSince: null, points: [] };
 
   res.json({
     team: {
@@ -431,6 +297,7 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
     hygiene,
     reviewQueue: computeReviewQueue(prs),
     burnup,
+    snapshot,
     syncedAt: now.toISOString(),
     errors,
   });
