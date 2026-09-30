@@ -6,9 +6,16 @@ export async function fetchOpenPRs(): Promise<{ prs: GitHubPR[]; prComments: Git
   return { prs: data.prs, prComments: data.pr_comments || [] };
 }
 
-export async function fetchReviewRequests(): Promise<GitHubReviewRequest[]> {
+export interface ReviewPRs {
+  /** Open PRs where the user's review is currently requested. */
+  reviews: GitHubReviewRequest[];
+  /** Open PRs (not the user's) the user has already reviewed or commented on. */
+  reviewing: GitHubPR[];
+}
+
+export async function fetchReviewRequests(): Promise<ReviewPRs> {
   const { data } = await apiClient.get("/github/reviews");
-  return data.reviews;
+  return { reviews: data.reviews, reviewing: data.reviewing ?? [] };
 }
 
 export async function fetchMentions(): Promise<GitHubComment[]> {

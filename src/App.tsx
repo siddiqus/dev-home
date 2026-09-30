@@ -39,8 +39,8 @@ import { JiraTasks } from "./components/JiraTasks";
 import { JiraIssueSearch } from "./components/JiraIssueSearch";
 import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
 import { GitHubMentionsView } from "./views/mentions/GitHubMentionsView";
-import { PRTable } from "./components/PRTable";
 import { PRsView } from "./views/prs/PRsView";
+import { ReviewsView } from "./views/reviews/ReviewsView";
 import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
 import { SettingsView } from "./views/settings/SettingsView";
@@ -149,6 +149,7 @@ export default function App() {
     githubMentions,
     openPRs,
     reviewRequests,
+    reviewingPRs,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,
@@ -715,11 +716,11 @@ export default function App() {
                     />
                   )}
                   {effectiveTab === "reviews" && (
-                    <PRTable
-                      prs={reviewRequests}
+                    <ReviewsView
+                      reviewRequests={reviewRequests}
+                      reviewingPRs={reviewingPRs}
                       loading={loading}
                       jiraIssues={jiraIssues}
-                      variant="review-requests"
                       jiraBaseUrl={jiraBaseUrl}
                       claudeEnabled={claudeEnabled}
                       claudeSessions={claudeSessions.sessions}

@@ -15,6 +15,8 @@ interface DashboardCacheData {
   githubMentions: GitHubComment[];
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
+  /** Optional so caches written before this field existed still load. */
+  reviewingPRs?: GitHubPR[];
   timestamp: number;
 }
 
@@ -62,6 +64,7 @@ interface UseDashboardReturn {
   githubMentions: GitHubComment[];
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
+  reviewingPRs: GitHubPR[];
   loading: boolean;
   jiraIssuesLoading: boolean;
   jiraCommentsLoading: boolean;
@@ -92,6 +95,9 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   const [openPRs, setOpenPRs] = useState<GitHubPR[]>(cachedRef.current?.openPRs ?? []);
   const [reviewRequests, setReviewRequests] = useState<GitHubReviewRequest[]>(
     cachedRef.current?.reviewRequests ?? [],
+  );
+  const [reviewingPRs, setReviewingPRs] = useState<GitHubPR[]>(
+    cachedRef.current?.reviewingPRs ?? [],
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [jiraIssuesLoading, setJiraIssuesLoading] = useState<boolean>(false);
@@ -124,6 +130,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     githubMentions: cachedRef.current?.githubMentions ?? [],
     openPRs: cachedRef.current?.openPRs ?? [],
     reviewRequests: cachedRef.current?.reviewRequests ?? [],
+    reviewingPRs: cachedRef.current?.reviewingPRs ?? [],
   });
 
   // PR comments and notification mentions arrive independently; retained here so
@@ -165,7 +172,11 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     (signal: AbortSignal) => {
       if (!loadedRef.current.has("openPRs") || !loadedRef.current.has("jiraIssues")) return;
       const knownKeys = new Set(dataRef.current.jiraIssues.map((i) => i.key.toUpperCase()));
-      const allPRs = [...dataRef.current.openPRs, ...dataRef.current.reviewRequests];
+      const allPRs = [
+        ...dataRef.current.openPRs,
+        ...dataRef.current.reviewRequests,
+        ...(dataRef.current.reviewingPRs ?? []),
+      ];
       const missingKeys = [
         ...new Set(
           allPRs
@@ -289,10 +300,12 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.reviewRequests = async (signal) => {
     setReviewRequestsLoading(true);
     try {
-      const data = await fetchReviewRequests();
+      const { reviews, reviewing } = await fetchReviewRequests();
       if (signal.aborted) return;
-      setReviewRequests(data);
-      dataRef.current.reviewRequests = data;
+      setReviewRequests(reviews);
+      setReviewingPRs(reviewing);
+      dataRef.current.reviewRequests = reviews;
+      dataRef.current.reviewingPRs = reviewing;
       loadedRef.current.add("reviewRequests");
       setSourceError("reviewRequests", null);
       persistCache();
@@ -433,6 +446,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     githubMentions,
     openPRs,
     reviewRequests,
+    reviewingPRs,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,

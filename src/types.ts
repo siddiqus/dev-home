@@ -127,6 +127,8 @@ export interface GitHubPR {
   /** GitHub's aggregate review decision: APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, or null. */
   review_decision?: string | null;
   labels?: GitHubLabel[];
+  /** Review requests only: the viewer has already reviewed or commented on this PR. */
+  viewer_engaged?: boolean;
 }
 
 export interface GitHubComment {

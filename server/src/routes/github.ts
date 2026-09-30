@@ -393,24 +393,56 @@ router.get("/prs", async (_req: Request, res: Response) => {
   res.json({ prs, pr_comments: prComments });
 });
 
+/** Key a PR search node by repo + number, for cross-search set membership. */
+function prNodeKey(n: any): string {
+  return `${n.repository?.nameWithOwner || ""}#${n.number}`;
+}
+
 /**
  * GET /api/github/reviews
- * Fetch open PRs where the configured user's review is requested.
+ * Fetch open PRs on the configured user's review plate, as two lists:
+ *  - `reviews`: PRs where the user's review is currently requested. Each carries
+ *    `viewer_engaged` (the user has already reviewed or commented), so the
+ *    Reviews tab can show only untouched requests while Summary/Focus/Board keep
+ *    every pending request, re-requests included.
+ *  - `reviewing`: open PRs (not authored by the user) that the user has reviewed
+ *    or commented on — i.e. reviews in progress. GitHub drops you from
+ *    `review-requested:` once you submit a review, so this needs its own search.
  */
 router.get("/reviews", async (_req: Request, res: Response) => {
   const config = getConfig();
-  const q = `review-requested:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
+  const user = config.githubUsername;
+  const base = `type:pr state:open updated:>=${monthsAgo()}`;
+  const search = (q: string) =>
+    graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, { query: q, first: 50 }).then((r) =>
+      (r.search.nodes || []).filter((n: any) => n && n.number),
+    );
 
-  const result = await graphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, {
-    query: q,
-    first: 50,
+  const [requested, reviewedBy, commented] = await Promise.all([
+    search(`review-requested:${user} ${base}`),
+    search(`reviewed-by:${user} -author:${user} ${base}`),
+    search(`commenter:${user} -author:${user} ${base}`),
+  ]);
+
+  const engagedNodes = new Map<string, any>();
+  for (const n of [...reviewedBy, ...commented]) {
+    if (!engagedNodes.has(prNodeKey(n))) engagedNodes.set(prNodeKey(n), n);
+  }
+
+  const [reviews, reviewing] = await Promise.all([
+    mapOpenPrsWithChecks(requested),
+    mapOpenPrsWithChecks([...engagedNodes.values()]),
+  ]);
+
+  res.json({
+    reviews: reviews
+      .filter((pr: any) => pr.state === "open")
+      .map((pr: any) => ({
+        ...pr,
+        viewer_engaged: engagedNodes.has(`${pr.repo_full_name}#${pr.number}`),
+      })),
+    reviewing: reviewing.filter((pr: any) => pr.state === "open"),
   });
-
-  const reviews = (await mapOpenPrsWithChecks(result.search.nodes || [])).filter(
-    (pr: any) => pr.state === "open",
-  );
-
-  res.json({ reviews });
 });
 
 /**
