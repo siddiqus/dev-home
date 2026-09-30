@@ -1,4 +1,4 @@
-import { apiClient } from "./config";
+import { createCollection, sqliteNow } from "../lib/localStore";
 
 export interface SavedFilterData {
   id: number;
@@ -8,27 +8,53 @@ export interface SavedFilterData {
   updated_at: string;
 }
 
+type FilterConfig = SavedFilterData["filter_config"];
+
+export const savedFiltersCollection = createCollection<SavedFilterData>("saved_filters");
+
+function requireName(name: unknown): string {
+  if (typeof name !== "string" || !name.trim()) throw new Error("name is required");
+  return name.trim();
+}
+
+function requireConfig(config: unknown): FilterConfig {
+  const c = config as FilterConfig;
+  if (!c || !Array.isArray(c.authors) || !Array.isArray(c.repos)) {
+    throw new Error("filter_config must include authors and repos arrays");
+  }
+  return { authors: c.authors, repos: c.repos };
+}
+
 export async function fetchSavedFilters(): Promise<SavedFilterData[]> {
-  const { data } = await apiClient.get("/filters");
-  return data.filters;
+  return [...savedFiltersCollection.all()].sort(
+    (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id,
+  );
 }
 
 export async function createSavedFilter(
   name: string,
-  filter_config: { authors: string[]; repos: string[] },
+  filter_config: FilterConfig,
 ): Promise<SavedFilterData> {
-  const { data } = await apiClient.post("/filters", { name, filter_config });
-  return data.filter;
+  const now = sqliteNow();
+  return savedFiltersCollection.insert({
+    name: requireName(name),
+    filter_config: requireConfig(filter_config),
+    created_at: now,
+    updated_at: now,
+  });
 }
 
 export async function updateSavedFilter(
   id: number,
-  data: { name?: string; filter_config?: { authors: string[]; repos: string[] } },
+  data: { name?: string; filter_config?: FilterConfig },
 ): Promise<SavedFilterData> {
-  const { data: resp } = await apiClient.put(`/filters/${id}`, data);
-  return resp.filter;
+  if (!savedFiltersCollection.get(id)) throw new Error("Filter not found");
+  const patch: Partial<Omit<SavedFilterData, "id">> = { updated_at: sqliteNow() };
+  if (data.name !== undefined) patch.name = requireName(data.name);
+  if (data.filter_config !== undefined) patch.filter_config = requireConfig(data.filter_config);
+  return savedFiltersCollection.update(id, patch)!;
 }
 
 export async function deleteSavedFilter(id: number): Promise<void> {
-  await apiClient.delete(`/filters/${id}`);
+  if (!savedFiltersCollection.remove(id)) throw new Error("Filter not found");
 }

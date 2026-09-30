@@ -1,5 +1,6 @@
 import { JiraIssue } from "../types";
 import { apiClient } from "./config";
+import { createCollection, sqliteNow } from "../lib/localStore";
 
 export interface JqlFilter {
   id: number;
@@ -16,26 +17,42 @@ export interface RemoteJiraFilter {
   favourite: boolean;
 }
 
+export const jqlFiltersCollection = createCollection<JqlFilter>("jira_jql_filters");
+
+function requireText(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${field} is required`);
+  return value.trim();
+}
+
 export async function fetchLocalJqlFilters(): Promise<JqlFilter[]> {
-  const { data } = await apiClient.get("/jira-filters");
-  return data.filters;
+  return [...jqlFiltersCollection.all()].sort(
+    (a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id,
+  );
 }
 
 export async function createLocalJqlFilter(name: string, jql: string): Promise<JqlFilter> {
-  const { data } = await apiClient.post("/jira-filters", { name, jql });
-  return data.filter;
+  const now = sqliteNow();
+  return jqlFiltersCollection.insert({
+    name: requireText(name, "name"),
+    jql: requireText(jql, "jql"),
+    created_at: now,
+    updated_at: now,
+  });
 }
 
 export async function updateLocalJqlFilter(
   id: number,
   updates: { name?: string; jql?: string },
 ): Promise<JqlFilter> {
-  const { data } = await apiClient.put(`/jira-filters/${id}`, updates);
-  return data.filter;
+  if (!jqlFiltersCollection.get(id)) throw new Error("Filter not found");
+  const patch: Partial<Omit<JqlFilter, "id">> = { updated_at: sqliteNow() };
+  if (updates.name !== undefined) patch.name = requireText(updates.name, "name");
+  if (updates.jql !== undefined) patch.jql = requireText(updates.jql, "jql");
+  return jqlFiltersCollection.update(id, patch)!;
 }
 
 export async function deleteLocalJqlFilter(id: number): Promise<void> {
-  await apiClient.delete(`/jira-filters/${id}`);
+  if (!jqlFiltersCollection.remove(id)) throw new Error("Filter not found");
 }
 
 export async function fetchRemoteJiraFilters(): Promise<RemoteJiraFilter[]> {
