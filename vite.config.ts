@@ -84,5 +84,5 @@ export default defineConfig({
   plugins: [react(), jiraProxyDev(), pwa()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
-  server: { port: 3000 },
+  server: { port: 3578 },
 });
