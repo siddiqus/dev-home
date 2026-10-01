@@ -39,6 +39,7 @@ describe("Jira proxy core", () => {
     const [url, opts] = fetchImpl.mock.calls[0];
     expect(url).toBe("https://acme.atlassian.net/rest/api/3/search/jql");
     expect(opts?.method).toBe("POST");
+    expect(opts?.body && new TextDecoder().decode(opts.body as ArrayBuffer)).toBe(body);
     expect(response.status).toBe(200);
     const json = await response.json();
     expect(json).toEqual({ ok: true });
@@ -100,7 +101,9 @@ describe("Jira proxy core", () => {
     let response = await handle(noHeader, {}, fetchImpl);
     expect(response.status).toBe(400);
     let json = await response.json();
-    expect(json.error).toContain("Jira base URL not allowed");
+    expect(json.error).toBe(
+      "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+    );
 
     // Non-https
     response = await handle(
@@ -110,7 +113,9 @@ describe("Jira proxy core", () => {
     );
     expect(response.status).toBe(400);
     json = await response.json();
-    expect(json.error).toContain("Jira base URL not allowed");
+    expect(json.error).toBe(
+      "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+    );
 
     // Evil domain
     response = await handle(
@@ -120,7 +125,9 @@ describe("Jira proxy core", () => {
     );
     expect(response.status).toBe(400);
     json = await response.json();
-    expect(json.error).toContain("Jira base URL not allowed");
+    expect(json.error).toBe(
+      "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+    );
 
     // Allowed extra host
     response = await handle(
@@ -245,11 +252,10 @@ describe("Jira proxy core", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [, opts] = fetchImpl.mock.calls[0];
     const headers = opts?.headers as Headers;
+    expect([...headers.keys()].sort()).toEqual(["accept", "authorization", "content-type"]);
     expect(headers.get("authorization")).toBe("Basic abc");
     expect(headers.get("accept")).toBe("application/json");
     expect(headers.get("content-type")).toBe("application/json");
-    expect(headers.get("cookie")).toBeNull();
-    expect(headers.get("x-jira-base-url")).toBeNull();
   });
 
   it("strips upstream response headers except content-type and adds cache-control: no-store", async () => {
@@ -311,6 +317,86 @@ describe("Jira proxy core", () => {
     expect(json).toEqual({ error: "Not found" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it("rejects POST with declared Content-Length over cap without reading body", async () => {
+    const response = await handle(
+      new Request("https://app.example.com/jira-proxy/rest/api/3/search/jql", {
+        method: "POST",
+        headers: {
+          "x-jira-base-url": BASE,
+          authorization: "Basic abc",
+          "content-length": "65537",
+        },
+        body: "x",
+      }),
+      {},
+      fetchImpl,
+    );
+
+    expect(response.status).toBe(413);
+    const json = await response.json();
+    expect(json).toEqual({ error: "Body too large" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("allows cross-origin /health requests", async () => {
+    const response = await handle(
+      new Request("https://app.example.com/jira-proxy/health", {
+        headers: { origin: "https://evil.com" },
+      }),
+      {},
+      fetchImpl,
+    );
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toEqual({ status: "ok" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects path traversal attempts with 403", async () => {
+    const bypassPaths = [
+      "/rest/api/3/filter/my/../../../api/3/myself",
+      "/rest/api/3/filter/my/%2e%2e/%2e%2e/myself",
+      "/rest/api/3/filter/my%2F..%2F..%2Fmyself",
+      "//rest/api/3/filter/my",
+      "/rest/api/3/filter/my/",
+      "/REST/api/3/filter/my",
+    ];
+
+    for (const path of bypassPaths) {
+      const response = await handle(req(path), {}, fetchImpl);
+      expect(response.status).toBe(403);
+      const json = await response.json();
+      expect(json).toEqual({ error: "Path not allowed" });
+      expect(fetchImpl).not.toHaveBeenCalled();
+      fetchImpl.mockClear();
+    }
+  });
+
+  it("rejects SSRF attempts via base URL with 400", async () => {
+    const bypassUrls = [
+      "https://evil.com#.atlassian.net",
+      "https://x.atlassian.net@evil.com",
+      "https://acme.atlassian.net:8443",
+      "https://user:pass@acme.atlassian.net",
+    ];
+
+    for (const url of bypassUrls) {
+      const response = await handle(
+        req("/rest/api/3/filter/my", { headers: { "x-jira-base-url": url } }),
+        {},
+        fetchImpl,
+      );
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.error).toBe(
+        "Jira base URL not allowed: must be https://<site>.atlassian.net or listed in JIRA_ALLOWED_HOSTS",
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+      fetchImpl.mockClear();
+    }
+  });
 });
 
 describe("normalizeJiraBaseUrl", () => {
@@ -342,5 +428,21 @@ describe("normalizeJiraBaseUrl", () => {
     const env: ProxyEnv = { JIRA_ALLOWED_HOSTS: "jira.corp.com" };
     expect(normalizeJiraBaseUrl("https://evil.com", env)).toBeNull();
     expect(normalizeJiraBaseUrl("https://other.corp.com", env)).toBeNull();
+  });
+
+  it("returns null for URLs with non-default port", () => {
+    expect(normalizeJiraBaseUrl("https://acme.atlassian.net:8443", {})).toBeNull();
+    expect(normalizeJiraBaseUrl("https://acme.atlassian.net:443", {})).toBe(
+      "https://acme.atlassian.net",
+    );
+    const env: ProxyEnv = { JIRA_ALLOWED_HOSTS: "jira.corp.com" };
+    expect(normalizeJiraBaseUrl("https://jira.corp.com:8080", env)).toBeNull();
+  });
+
+  it("returns null for URLs with userinfo", () => {
+    expect(normalizeJiraBaseUrl("https://user@acme.atlassian.net", {})).toBeNull();
+    expect(normalizeJiraBaseUrl("https://user:pass@acme.atlassian.net", {})).toBeNull();
+    const env: ProxyEnv = { JIRA_ALLOWED_HOSTS: "jira.corp.com" };
+    expect(normalizeJiraBaseUrl("https://admin:secret@jira.corp.com", env)).toBeNull();
   });
 });

@@ -52,6 +52,8 @@ export function normalizeJiraBaseUrl(raw: string | null, env: ProxyEnv): string 
   try {
     const url = new URL(raw);
     if (url.protocol !== "https:") return null;
+    if (url.port !== "") return null;
+    if (url.username !== "" || url.password !== "") return null;
     const hostname = url.hostname.toLowerCase();
     if (hostname.endsWith(".atlassian.net")) return url.origin;
     const extra = splitList(env.JIRA_ALLOWED_HOSTS).map((h) => h.toLowerCase());
@@ -93,6 +95,8 @@ export async function handle(
   const path = url.pathname.slice(PROXY_PREFIX.length);
   const method = request.method.toUpperCase();
 
+  if (method === "GET" && path === "/health") return json(200, { status: "ok" });
+
   const origin = request.headers.get("origin");
   if (origin && !isOriginAllowed(origin, url, env)) {
     return json(403, { error: "Origin not allowed" });
@@ -100,7 +104,6 @@ export async function handle(
   const cors = corsHeaders(origin);
 
   if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-  if (method === "GET" && path === "/health") return json(200, { status: "ok" }, cors);
 
   const base = normalizeJiraBaseUrl(request.headers.get("x-jira-base-url"), env);
   if (!base) return json(400, { error: BASE_URL_ERROR }, cors);
@@ -113,8 +116,41 @@ export async function handle(
   if (method === "POST") {
     const declared = Number(request.headers.get("content-length") || 0);
     if (declared > MAX_BODY_BYTES) return json(413, { error: "Body too large" }, cors);
-    body = await request.arrayBuffer();
-    if (body.byteLength > MAX_BODY_BYTES) return json(413, { error: "Body too large" }, cors);
+
+    if (!request.body) {
+      body = new ArrayBuffer(0);
+    } else {
+      try {
+        const reader = request.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let totalBytes = 0;
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            totalBytes += value.byteLength;
+            if (totalBytes > MAX_BODY_BYTES) {
+              await reader.cancel();
+              return json(413, { error: "Body too large" }, cors);
+            }
+            chunks.push(value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+
+        const combined = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+          combined.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        body = combined.buffer;
+      } catch {
+        return json(400, { error: "Invalid request body" }, cors);
+      }
+    }
   }
 
   const headers = new Headers();
