@@ -111,7 +111,7 @@ This creates a `dev-home-backup-YYYY-MM-DD.json` file.
 
 2. In the web app, go to **Settings → Data → Import** and select the JSON file.
 
-Your notes, teams, filters, and focus state will be imported into the browser.
+Your notes, teams, filters, and focus state will be imported into the browser. Settings and tokens are not part of the backup, so enter them again in Settings.
 
 ## Build and run
 
