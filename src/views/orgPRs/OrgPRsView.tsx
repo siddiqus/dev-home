@@ -233,7 +233,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       setLoading(true);
       try {
         if (isMultiMode) {
-          // Fan out per-author (x per-repo) calls and merge results
+          // One search ORs every selected author and repo
           const merged = await fetchOrgPRsMulti(authors, selectedRepos);
           setPrs(merged);
           setHasNextPage(false);

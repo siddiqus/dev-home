@@ -9,7 +9,6 @@ import {
   filterOpenNotifications,
 } from "./notifications";
 import {
-  PR_CHECKS_ROLLUP,
   REVIEWS_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
@@ -102,13 +101,44 @@ export async function getReviews(): Promise<{ reviews: any[]; reviewing: any[] }
   };
 }
 
+/** Trimmed, non-empty entries of an optional string list. */
+function cleanList(list: string[] | undefined): string[] {
+  return (Array.isArray(list) ? list : []).map((s) => s.trim()).filter(Boolean);
+}
+
 /**
- * Formerly GET /api/github/org-prs.
+ * Repo scope for a search: `repo:` per selected repo, else the whole org.
+ * GitHub search ORs repeated qualifiers of the same kind, so one query covers
+ * every selected repo (and, with `author:` qualifiers, every selected author).
+ */
+function scopeQualifiers(org: string, repos: string[]): string {
+  return repos.length > 0 ? repos.map((r) => `repo:${r}`).join(" ") : `org:${org}`;
+}
+
+function authorQualifiers(authors: string[]): string {
+  return authors.map((a) => ` author:${a}`).join("");
+}
+
+/** Search query for open, non-draft org PRs by any of `authors` in any of `repos`. */
+export function buildOrgPrsQuery(args: {
+  org: string;
+  authors: string[];
+  repos: string[];
+}): string {
+  return (
+    `${scopeQualifiers(args.org, cleanList(args.repos))} type:pr state:open draft:false sort:updated-desc` +
+    authorQualifiers(cleanList(args.authors))
+  );
+}
+
+/**
+ * Formerly GET /api/github/org-prs (and org-prs-multi-repo).
  * Fetch open, non-draft PRs for the configured org, sorted by most recent.
- * Supports cursor-based pagination via `cursor` and optional `author` and `repo` filters.
+ * Supports cursor-based pagination via `cursor` and optional `authors` and `repos`
+ * filters (a PR matches if it's by any selected author in any selected repo).
  */
 export async function getOrgPrs(
-  args: { cursor?: string; author?: string; repo?: string } = {},
+  args: { cursor?: string; authors?: string[]; repos?: string[] } = {},
 ): Promise<{ prs: any[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
   const config = requireSettings();
   const org = config.githubOrg;
@@ -117,24 +147,19 @@ export async function getOrgPrs(
     return { prs: [], pageInfo: { hasNextPage: false, endCursor: null } };
   }
 
-  const author = typeof args.author === "string" ? args.author.trim() : "";
-  const repo = typeof args.repo === "string" ? args.repo.trim() : "";
+  const authors = cleanList(args.authors);
+  const repos = cleanList(args.repos);
   const cursor = typeof args.cursor === "string" ? args.cursor : undefined;
-
-  // repo: and org: are mutually exclusive in GitHub search;
-  // when a specific repo is selected, scope to that repo instead of the whole org.
-  let q = repo
-    ? `repo:${repo} type:pr state:open draft:false sort:updated-desc`
-    : `org:${org} type:pr state:open draft:false sort:updated-desc`;
-  if (author) {
-    q += ` author:${author}`;
-  }
+  const q = buildOrgPrsQuery({ org, authors, repos });
+  // Pages of 10 for single-filter browsing; a multi-filter query replaces a
+  // fan-out of calls and isn't paginated, so give it a larger page.
+  const first = authors.length > 1 || repos.length > 1 ? 50 : 10;
 
   const result = await githubGraphql<{
     search: { nodes: any[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
   }>(SEARCH_ORG_PRS_QUERY, {
     query: q,
-    first: 10,
+    first,
     after: cursor || null,
   });
 
@@ -144,109 +169,6 @@ export async function getOrgPrs(
   );
 
   return { prs, pageInfo: result.search.pageInfo };
-}
-
-/**
- * Formerly GET /api/github/org-prs-multi-repo.
- * Fetch open, non-draft PRs across multiple repos using aliased repository() GraphQL queries.
- * Accepts `repos` as "owner/repo1,owner/repo2" and an optional single `author` login.
- */
-export async function getOrgPrsMultiRepo(args: {
-  repos: string;
-  author?: string;
-}): Promise<{ prs: any[] }> {
-  const repoParam = typeof args.repos === "string" ? args.repos.trim() : "";
-  const author = typeof args.author === "string" ? args.author.trim() : "";
-
-  const repoList = repoParam
-    ? repoParam
-        .split(",")
-        .map((r) => r.trim())
-        .filter(Boolean)
-    : [];
-  if (repoList.length === 0) {
-    return { prs: [] };
-  }
-
-  // Build PR fragment for each repo
-  const prFragment = `
-    fragment PRFields on PullRequest {
-      databaseId
-      number
-      title
-      url
-      state
-      isDraft
-      createdAt
-      updatedAt
-      author { login avatarUrl }
-      body
-      headRefName
-      baseRefName
-      additions
-      deletions
-      changedFiles
-      repository { nameWithOwner }
-      labels(first: 10) { nodes { name color } }
-      mergeQueueEntry { id }
-      mergeStateStatus
-      reviewDecision
-      commits(last: 1) {
-        nodes {
-          commit {
-            ${PR_CHECKS_ROLLUP}
-          }
-        }
-      }
-      reviews(last: 20) {
-        nodes {
-          state
-          author { login }
-        }
-      }
-    }
-  `;
-
-  // Build aliased repository queries
-  const repoQueries = repoList.map((fullName, i) => {
-    const [owner, name] = fullName.split("/");
-    return `repo${i}: repository(owner: "${owner}", name: "${name}") {
-      pullRequests(states: OPEN, first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) {
-        nodes { ...PRFields }
-      }
-    }`;
-  });
-
-  const query = `
-    ${prFragment}
-    query MultiRepoPRs {
-      ${repoQueries.join("\n      ")}
-    }
-  `;
-
-  const result = await githubGraphql<Record<string, any>>(query);
-
-  // Collect all PRs from all repos
-  const allPrs: any[] = [];
-  for (const key of Object.keys(result)) {
-    const nodes = result[key]?.pullRequests?.nodes || [];
-    allPrs.push(...nodes);
-  }
-
-  let prs = (await mapOpenPrsWithChecks(allPrs)).filter(
-    (pr: any) => pr.state === "open" && !pr.draft,
-  );
-
-  // Filter by author if specified
-  if (author) {
-    const authorLower = author.toLowerCase();
-    prs = prs.filter((pr: any) => pr.user.login.toLowerCase() === authorLower);
-  }
-
-  // Sort by updated_at descending
-  prs.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-
-  return { prs };
 }
 
 /**
@@ -341,41 +263,58 @@ export async function getGithubMentions(): Promise<{ mentions: any[] }> {
 }
 
 /**
+ * Search query for recently merged PRs, or null when org scope has no org.
+ * scope "user" — the user's own merged PRs.
+ * scope "org" — merged PRs in the selected repos (or the whole org), optionally
+ * limited to any of the selected authors.
+ */
+export function buildMergedPrsQuery(args: {
+  scope: "user" | "org";
+  username: string;
+  org: string;
+  authors: string[];
+  repos: string[];
+  since: string;
+}): string | null {
+  const base = `type:pr is:merged merged:>=${args.since}`;
+  if (args.scope !== "org") return `author:${args.username} ${base}`;
+  if (!args.org) return null;
+  return (
+    `${base} ${scopeQualifiers(args.org, cleanList(args.repos))}` +
+    authorQualifiers(cleanList(args.authors))
+  );
+}
+
+/**
  * Formerly GET /api/github/merged-prs.
- * Fetch recently merged PRs (last 3 days).
+ * Fetch recently merged PRs (last 3 days) in a single search.
  * scope "user" (default) — user's own merged PRs
  * scope "org" — org-wide merged PRs
- * Optional: author (login), repo (owner/repo)
+ * Optional: authors (logins), repos (owner/repo) — any of each
  */
 export async function getMergedPrs(
-  args: { scope?: "user" | "org"; author?: string; repo?: string } = {},
+  args: { scope?: "user" | "org"; authors?: string[]; repos?: string[] } = {},
 ): Promise<{ prs: any[] }> {
   const config = requireSettings();
-  const scope = typeof args.scope === "string" ? args.scope : "user";
-  const author = typeof args.author === "string" ? args.author.trim() : "";
-  const repo = typeof args.repo === "string" ? args.repo.trim() : "";
-  const since = hoursAgo(24 * 3); // last 3 days
+  const scope = args.scope === "org" ? "org" : "user";
+  const authors = cleanList(args.authors);
+  const repos = cleanList(args.repos);
 
-  let q: string;
-
-  if (scope === "org") {
-    const org = config.githubOrg;
-    if (!org) {
-      return { prs: [] };
-    }
-    q = repo
-      ? `repo:${repo} type:pr is:merged merged:>=${since}`
-      : `org:${org} type:pr is:merged merged:>=${since}`;
-    if (author) {
-      q += ` author:${author}`;
-    }
-  } else {
-    q = `author:${config.githubUsername} type:pr is:merged merged:>=${since}`;
+  const q = buildMergedPrsQuery({
+    scope,
+    username: config.githubUsername,
+    org: config.githubOrg,
+    authors,
+    repos,
+    since: hoursAgo(24 * 3), // last 3 days
+  });
+  if (q === null) {
+    return { prs: [] };
   }
 
   const result = await githubGraphql<{ search: { nodes: any[] } }>(SEARCH_MERGED_PRS_QUERY, {
     query: q,
-    first: 20,
+    first: authors.length > 1 || repos.length > 1 ? 50 : 20,
   });
 
   const prs = (result.search.nodes || []).map((n: any) => mapGraphQLPr(n));

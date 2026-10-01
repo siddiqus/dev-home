@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import axios from "axios";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
-import { getGithubMentions, resetMentionsCache } from "./index";
+import { fetchOrgPRsMulti, fetchRecentlyMergedPRs } from "../../services/github";
+import {
+  buildMergedPrsQuery,
+  buildOrgPrsQuery,
+  getGithubMentions,
+  getMergedPrs,
+  resetMentionsCache,
+} from "./index";
 
 const BASE_SETTINGS: AppSettings = {
   jiraBaseUrl: "https://example.atlassian.net",
@@ -159,5 +166,119 @@ describe("getGithubMentions caching", () => {
     await getGithubMentions();
     expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBeUndefined();
     expect(commentCalls()).toHaveLength(1);
+  });
+});
+
+const SINCE = "2026-09-28T00:00:00Z";
+const AUTHOR_CASES: [string, string[], string][] = [
+  ["no authors", [], ""],
+  ["one author", ["alice"], " author:alice"],
+  ["many authors", ["alice", "bob", "carol"], " author:alice author:bob author:carol"],
+];
+const REPO_CASES: [string, string[], string][] = [
+  ["no repos", [], "org:test-org"],
+  ["one repo", ["test-org/app"], "repo:test-org/app"],
+  ["many repos", ["test-org/app", "test-org/api"], "repo:test-org/app repo:test-org/api"],
+];
+
+describe("buildMergedPrsQuery", () => {
+  it("searches the user's own merged PRs for scope user", () => {
+    expect(
+      buildMergedPrsQuery({
+        scope: "user",
+        username: "testuser",
+        org: "test-org",
+        authors: ["alice"],
+        repos: ["test-org/app"],
+        since: SINCE,
+      }),
+    ).toBe(`author:testuser type:pr is:merged merged:>=${SINCE}`);
+  });
+
+  it("returns null for scope org without an org", () => {
+    expect(
+      buildMergedPrsQuery({
+        scope: "org",
+        username: "testuser",
+        org: "",
+        authors: [],
+        repos: [],
+        since: SINCE,
+      }),
+    ).toBeNull();
+  });
+
+  for (const [authorLabel, authors, authorPart] of AUTHOR_CASES) {
+    for (const [repoLabel, repos, repoPart] of REPO_CASES) {
+      it(`ORs qualifiers for ${authorLabel} x ${repoLabel}`, () => {
+        expect(
+          buildMergedPrsQuery({
+            scope: "org",
+            username: "testuser",
+            org: "test-org",
+            authors,
+            repos,
+            since: SINCE,
+          }),
+        ).toBe(`type:pr is:merged merged:>=${SINCE} ${repoPart}${authorPart}`);
+      });
+    }
+  }
+});
+
+describe("buildOrgPrsQuery", () => {
+  for (const [authorLabel, authors, authorPart] of AUTHOR_CASES) {
+    for (const [repoLabel, repos, repoPart] of REPO_CASES) {
+      it(`ORs qualifiers for ${authorLabel} x ${repoLabel}`, () => {
+        expect(buildOrgPrsQuery({ org: "test-org", authors, repos })).toBe(
+          `${repoPart} type:pr state:open draft:false sort:updated-desc${authorPart}`,
+        );
+      });
+    }
+  }
+});
+
+describe("multi-author / multi-repo PR searches", () => {
+  const AUTHORS = ["alice", "bob", "carol"];
+  const REPOS = ["test-org/app", "test-org/api"];
+
+  function graphqlBodies(): any[] {
+    return adapter.mock.calls
+      .map(([c]) => c)
+      .filter((c: any) => urlOf(c).endsWith("/graphql"))
+      .map((c: any) => (typeof c.data === "string" ? JSON.parse(c.data) : c.data));
+  }
+
+  beforeEach(() => {
+    adapter.mockImplementation(async (config: any) =>
+      response(config, {
+        data: { search: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } },
+      }),
+    );
+  });
+
+  it("fetchOrgPRsMulti makes exactly one HTTP call for 3 authors x 2 repos", async () => {
+    await expect(fetchOrgPRsMulti(AUTHORS, REPOS)).resolves.toEqual([]);
+    expect(adapter).toHaveBeenCalledTimes(1);
+    const [body] = graphqlBodies();
+    expect(body.variables.query).toBe(
+      buildOrgPrsQuery({ org: "test-org", authors: AUTHORS, repos: REPOS }),
+    );
+    expect(body.variables.first).toBe(50);
+  });
+
+  it("fetchRecentlyMergedPRs makes exactly one HTTP call for 3 authors x 2 repos", async () => {
+    await expect(fetchRecentlyMergedPRs("org", AUTHORS, REPOS)).resolves.toEqual([]);
+    expect(adapter).toHaveBeenCalledTimes(1);
+    const [body] = graphqlBodies();
+    expect(body.variables.query).toContain(
+      "repo:test-org/app repo:test-org/api author:alice author:bob author:carol",
+    );
+    expect(body.variables.first).toBe(50);
+  });
+
+  it("getMergedPrs keeps first: 20 for a single author and repo", async () => {
+    await getMergedPrs({ scope: "org", authors: ["alice"], repos: ["test-org/app"] });
+    expect(graphqlBodies()[0].variables.first).toBe(20);
   });
 });
