@@ -1,175 +1,213 @@
 # Deployment Guide
 
-Dev Home is a Next.js web application with a stateless backend. It can be deployed to any platform that supports Node.js or Next.js.
+Dev Home is a static single-page app (built with Vite) plus a small Jira passthrough proxy. The recommended host is Cloudflare Workers, which serves both from one deploy on the free plan. You can also self-host it with Docker or any Node.js host.
 
-## Security Considerations
+## How it works
 
-- **HTTPS is required**: Always serve the app over HTTPS in production. The app forwards user credentials to third-party APIs, so TLS is essential.
-- **No built-in authentication**: The app has no login system. Anyone with the URL can access it, but they must provide their own Jira and GitHub credentials. If you're deploying for an organization, consider putting the app behind company SSO or an identity-aware proxy.
+```
+Browser (static Vite app)
+  ├─ GitHub ──────────────► api.github.com            (direct, user's token)
+  ├─ Jira ───► /jira-proxy ──► <site>.atlassian.net   (passthrough, user's token)
+  └─ localStorage          (settings, tokens, notes, kanban, teams…)
+```
 
-## Vercel (Hobby Plan)
+- **The app is static.** All app logic runs in the browser, including JQL building, comment parsing and team dashboard aggregation. The build output (`dist/`) is plain HTML, JS and CSS.
+- **GitHub is called directly from the browser.** Requests go to `api.github.com` with the user's token and never touch your deployment.
+- **Jira goes through `/jira-proxy`.** Jira Cloud blocks cross-origin requests made with API tokens, so the browser sends Jira requests to the proxy on the same origin. The proxy checks them against an allowlist and forwards them to the user's Jira site.
+- **Credentials stay in the browser.** Jira and GitHub credentials live only in the browser's localStorage. Only the Jira credentials pass through the proxy, on each Jira request.
+- **The proxy is stateless.** It doesn't log, store or cache any headers, bodies or credentials.
 
-The easiest deployment option. Vercel auto-detects Next.js and requires no configuration.
+## Security considerations
 
-1. Import your repository at [vercel.com/new](https://vercel.com/new).
-2. Vercel will auto-detect the framework preset (Next.js).
-3. Deploy with default settings (no environment variables required).
+- **HTTPS is required.** Always serve the app over HTTPS, because Jira credentials pass through the proxy on every request. Cloudflare Workers serve HTTPS by default.
+- **There is no app login.** Anyone who has the URL can use the app, but only with their own Jira and GitHub credentials. If you're deploying for an organization, consider putting the app behind company SSO or an identity-aware proxy (for example Cloudflare Access).
+- **Trust the operator.** The proxy never logs or stores anything, but whoever operates a deployment could in principle read the Jira tokens that pass through it. Users should prefer an instance they deployed themselves or one run by someone they trust.
+- **Use read-only tokens.** Recommend **scoped, read-only Atlassian API tokens** and **fine-grained, read-only GitHub tokens**. The app only reads data from Jira and GitHub.
+- **The proxy only forwards read-only Jira endpoints.** The method and path must match one of the rules below, and anything else gets `403 {"error":"Path not allowed"}`. The query string is forwarded unchanged.
 
-The app is automatically built and deployed. Heavy API routes set `maxDuration = 60` to accommodate slower Jira/GitHub responses. The Hobby plan's function duration is configurable, so these routes should work within the plan's limits.
+  | Method | Path (after `/jira-proxy`) | Notes |
+  |---|---|---|
+  | `POST` | `/rest/api/3/search/jql` | JQL search (read-only, despite the `POST`) |
+  | `GET` | `/rest/api/3/issue/{KEY}/comment` | `KEY` matches `^[A-Z][A-Z0-9_]*-\d+$` |
+  | `GET` | `/rest/api/3/user/search` | |
+  | `GET` | `/rest/api/2/user/search` | |
+  | `GET` | `/rest/api/3/filter/my` | |
+  | `GET` | `/rest/agile/1.0/board` | |
+  | `GET` | `/rest/agile/1.0/board/{id}/sprint` | `id` matches `^\d+$` |
+  | `GET` | `/rest/agile/1.0/board/{id}/sprint/{id}/issue` | each `id` matches `^\d+$` |
 
-### Optional Environment Variable
+  The proxy also enforces these limits:
+  - The Jira site (`x-jira-base-url` header) must be `https://` on a host ending in `.atlassian.net` or listed in `JIRA_ALLOWED_HOSTS`.
+  - Only `Authorization`, `Accept` and `Content-Type` are forwarded upstream, and only the upstream `Content-Type` is returned.
+  - Request bodies are capped at 64 KB. Upstream redirects are not followed, and upstream requests time out after 25 seconds.
+  - Browser requests from other origins are rejected unless they're listed in `ALLOWED_ORIGINS`.
 
-- **`JIRA_ALLOWED_HOSTS`** (optional): Comma-separated list of hostnames allowed for Jira base URLs, in addition to `*.atlassian.net`. Example: `jira.example.com,jira-internal.corp`.
+## Cloudflare Workers (recommended, free)
 
-## Cloudflare Workers (OpenNext)
+One Worker named `dev-home` serves the static app from `dist/` (Workers Static Assets) and runs the proxy on `/jira-proxy/*`, on the same origin. The configuration is in `wrangler.jsonc`:
 
-Cloudflare Workers offer generous free-tier limits (100,000 requests/day) and global edge deployment.
+- `main: proxy/worker.ts`
+- `assets.directory: ./dist`
+- `assets.not_found_handling: single-page-application`
+- `assets.run_worker_first: ["/jira-proxy/*"]`
 
-### Setup
+### Prerequisites
 
-1. Install dependencies (dev-only, do not commit unless you choose Cloudflare as your deployment target):
+- A Cloudflare account (the free plan is enough)
+- Node.js and Yarn
+- Dependencies installed with `yarn install`. `wrangler` is a devDependency, so run it as `yarn wrangler`.
+
+### Deploy
 
 ```bash
-yarn add -D @opennextjs/cloudflare wrangler
+yarn wrangler login   # one-time: authorize wrangler with your Cloudflare account
+yarn deploy:cf        # = yarn build && wrangler deploy
 ```
 
-2. Create `open-next.config.ts` in the project root:
+The app is then live at `https://dev-home.<your-subdomain>.workers.dev`.
 
-```typescript
-import { defineCloudflareConfig } from "@opennextjs/cloudflare";
-export default defineCloudflareConfig();
-```
+### Free-tier fit
 
-3. Create `wrangler.jsonc` in the project root:
+The Workers free plan allows 100,000 Worker requests per day and 10 ms of CPU time per invocation.
+
+- **Static assets are free.** Requests for static assets are free and unlimited. Because `run_worker_first` only matches `/jira-proxy/*`, they don't invoke the Worker.
+- **Only `/jira-proxy/*` requests count** toward the 100,000/day limit. One active user makes about 300 proxy requests per day at the 10-minute dashboard poll, so the free tier fits roughly **300 daily active users**.
+- **CPU stays low.** The proxy only validates and streams requests and responses. It doesn't parse them, so it stays well within the 10 ms CPU limit.
+
+### Environment variables
+
+Both variables are optional. Set them in the `"vars"` block of `wrangler.jsonc`, or in the Cloudflare dashboard under Workers & Pages, then your Worker, then Settings, then Variables and Secrets.
 
 ```jsonc
-{
-  "name": "dev-home",
-  "main": ".open-next/worker.js",
-  "assets": {
-    "directory": ".open-next/assets",
-    "binding": "ASSETS"
-  },
-  "compatibility_flags": ["nodejs_compat"],
-  "compatibility_date": "2026-09-30"
+"vars": {
+  "JIRA_ALLOWED_HOSTS": "jira.example.com,jira-internal.corp"
 }
 ```
 
-4. Build and deploy:
+- **`ALLOWED_ORIGINS`**: You only need this when the app is served from a different origin than the Worker, for example the app on a custom domain and the proxy on a separate Worker. When it's unset, only same-origin requests are allowed.
+- **`JIRA_ALLOWED_HOSTS`**: Extra Jira hostnames, in addition to `*.atlassian.net`.
+
+If you change variables in the dashboard, keep `wrangler.jsonc` in sync. Otherwise the next `wrangler deploy` may overwrite them.
+
+### Rate limiting (recommended)
+
+Rate limiting helps protect the proxy, and your free-tier quota, from abuse. Create a WAF rate-limiting rule in the Cloudflare dashboard:
+
+1. Go to your zone, then **Security**, then **WAF**, then **Rate limiting rules**, and create a rule.
+2. Match **URI Path** starts with `/jira-proxy/`.
+3. Set the limit to **60 requests per 1 minute**, counted per IP.
+4. Set the action to **Block**.
+
+WAF rate-limiting rules belong to a zone. They only apply when the Worker is on a custom domain or route in a Cloudflare zone, not on `workers.dev`. If you stay on `workers.dev`, use the [Workers Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) instead. That approach needs a binding in `wrangler.jsonc` and a check in the Worker code.
+
+### Custom domain
+
+To add your own domain, go to your Worker in the dashboard, then **Settings**, then **Domains & Routes**, and add a custom domain or route. The domain must be in a zone on your Cloudflare account. This is also what makes the WAF rate-limiting rule above apply.
+
+### Updating
+
+Pull the latest code and re-run:
 
 ```bash
-npx opennextjs-cloudflare build
-npx wrangler deploy
+yarn deploy:cf
 ```
 
-The app will be deployed to `https://dev-home.<your-workers-subdomain>.workers.dev`.
+### Deploy from CI (optional)
 
-**Free tier limits**: 100,000 requests/day, 10ms CPU time per request, 128 MB memory. Heavy aggregation routes may exceed the free plan's CPU limit, so the Workers Paid plan ($5/month) or Vercel is recommended for heavy use.
-
-### Optional Environment Variable
-
-Set environment variables via `wrangler secret put`:
+Create a Cloudflare API token that can edit Workers. Store it and your account ID as CI secrets, expose them as the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` environment variables, and run:
 
 ```bash
-echo "jira.example.com,jira-internal.corp" | wrangler secret put JIRA_ALLOWED_HOSTS
+yarn install --frozen-lockfile
+yarn deploy:cf
 ```
 
-## Docker or Any Node.js Host
+`wrangler` uses these variables instead of `wrangler login`.
 
-Next.js produces a standalone server bundle that can run anywhere Node.js is available.
+## Docker / any Node host (self-host)
 
-### Build
+`yarn build` produces the static app in `dist/`. It also bundles the Node server into `dist-server/server.mjs`, which has no runtime dependencies. The server serves `dist/` with an SPA fallback and security headers, and routes `/jira-proxy/*` to the proxy.
 
 ```bash
+yarn install
 yarn build
+yarn start            # = node dist-server/server.mjs
 ```
 
-This creates `.next/standalone/`, a self-contained Node.js server.
-
-### Run
-
-The standalone server expects `.next/static` and `public` to be copied alongside it:
+The server listens on port 3000 by default. You can configure it with environment variables:
 
 ```bash
-# After building:
-cp -r .next/static .next/standalone/.next/static
-cp -r public .next/standalone/public
-
-# Start the server:
-node .next/standalone/server.js
+PORT=8080 JIRA_ALLOWED_HOSTS=jira.example.com yarn start
 ```
 
-The server listens on port 3000 by default. Set `PORT` to change it:
+To run only the built output on a server, copy `dist/` and `dist-server/` together and run `node dist-server/server.mjs`.
 
-```bash
-PORT=8080 node .next/standalone/server.js
-```
+### Docker
 
-### Docker Example
-
-```dockerfile
-FROM node:22-alpine AS base
-
-# Install dependencies
-FROM base AS deps
-WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-
-# Build the app
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN yarn build
-
-# Production image
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-
-# Copy standalone build
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-EXPOSE 3000
-ENV PORT=3000
-
-CMD ["node", "server.js"]
-```
-
-Build and run:
+The repo includes a multi-stage `Dockerfile`:
 
 ```bash
 docker build -t dev-home .
 docker run -p 3000:3000 dev-home
 ```
 
-### Optional Environment Variable
-
-Set `JIRA_ALLOWED_HOSTS` in your environment or Docker container:
-
-```bash
-JIRA_ALLOWED_HOSTS=jira.example.com,jira-internal.corp node .next/standalone/server.js
-```
-
-Or in Docker:
+You can pass environment variables with `-e`:
 
 ```bash
 docker run -p 3000:3000 -e JIRA_ALLOWED_HOSTS=jira.example.com dev-home
 ```
 
-## Environment Variables
+The Node server speaks plain HTTP. In production, put it behind a reverse proxy or load balancer that terminates HTTPS, such as Caddy, nginx or your platform's ingress.
 
-The app has a single optional environment variable:
+## Separate proxy origin (advanced)
 
-- **`JIRA_ALLOWED_HOSTS`** (optional): Comma-separated list of exact hostnames allowed for Jira base URLs, in addition to the default `*.atlassian.net`. Use this if you need to connect to a self-hosted Jira instance or a non-Atlassian domain.
+By default the app calls the proxy on its own origin at `/jira-proxy`. To serve the app from one origin and the proxy from another:
 
-  Example: `JIRA_ALLOWED_HOSTS=jira.example.com,jira-internal.corp`
+1. Build the app with the proxy URL:
 
-No other environment variables are required. Jira and GitHub credentials are provided by users in the Settings UI and sent per-request as headers.
+   ```bash
+   VITE_JIRA_PROXY_URL=https://proxy.example.com/jira-proxy yarn build
+   ```
 
-## Post-Deployment
+2. On the proxy deployment, set `ALLOWED_ORIGINS` to the app's origin, for example `ALLOWED_ORIGINS=https://devhome.example.com`.
+3. Add the proxy origin to the `connect-src` directive of the Content-Security-Policy. Change it in both `public/_headers` (Cloudflare) and `proxy/securityHeaders.ts` (Node server), for example `connect-src 'self' https://api.github.com https://proxy.example.com`.
 
-After deploying, open the app in a browser and go to **Settings** to configure your Jira and GitHub credentials. The app will store them in localStorage and forward them with each API request.
+## Environment variables
+
+| Variable | Where | Default | Description |
+|---|---|---|---|
+| `ALLOWED_ORIGINS` | Proxy (Worker or Node) | unset (same-origin only) | Comma-separated list of exact origins allowed to call the proxy from a browser, such as `https://devhome.example.com`. Only needed for a separate proxy origin. |
+| `JIRA_ALLOWED_HOSTS` | Proxy (Worker or Node) | unset | Comma-separated list of exact Jira hostnames allowed in addition to `*.atlassian.net`, such as `jira.example.com,jira-internal.corp`. |
+| `PORT` | Node server only | `3000` | Port the Node server listens on. |
+| `VITE_JIRA_PROXY_URL` | Build time | `/jira-proxy` | Proxy base URL compiled into the app. Only needed for a separate proxy origin. |
+
+No credentials are configured on the server. Users enter their Jira and GitHub credentials in the Settings UI.
+
+## Post-deployment
+
+1. Open the app in a browser and go to **Settings**.
+2. Enter your Jira and GitHub credentials. They're saved in this browser's localStorage.
+3. Check that Settings shows **Jira proxy: online** and the app version.
+4. To check the proxy from the command line, run:
+
+   ```bash
+   curl https://<host>/jira-proxy/health
+   # {"status":"ok"}
+   ```
+
+If Settings shows **Jira proxy: offline**, check that `/jira-proxy/*` reaches the Worker or Node server. If you use a separate proxy origin, also check `VITE_JIRA_PROXY_URL`, `ALLOWED_ORIGINS` and the CSP `connect-src` setting.
+
+## Migrating data from the desktop app
+
+If you previously used the Electron desktop version of Dev Home, you can move your data into the web app:
+
+1. Export your desktop data:
+
+   ```bash
+   node scripts/export-sqlite.mjs ~/Library/Application\ Support/Dev\ Home/notes.db
+   ```
+
+   This creates a `dev-home-backup-YYYY-MM-DD.json` file.
+
+2. In the web app, go to **Settings → Data → Import** and select the JSON file.
+
+Your notes, teams, filters and focus state are imported into the browser. Settings and tokens are not part of the backup, so enter them again in Settings.

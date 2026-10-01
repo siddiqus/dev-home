@@ -1,16 +1,16 @@
 # Dev Home Dashboard
 
-A developer dashboard built with Next.js and React that integrates with Jira and GitHub to provide a unified view of issues, pull requests, team analytics, and personal productivity tools.
+A developer dashboard built with React and Vite that integrates with Jira and GitHub to provide a unified view of issues, pull requests, team analytics, and personal productivity tools.
 
 ## What is Dev Home?
 
-Dev Home is a stateless web application that helps you stay on top of your work across Jira and GitHub. It aggregates:
+Dev Home is a static web application that helps you stay on top of your work across Jira and GitHub. It aggregates:
 
 - **Your work**: Jira issues, open PRs, review requests, and mentions across both platforms
 - **Team analytics**: PR velocity, burn-up charts, and team workload (when GitHub org is configured)
 - **Personal productivity**: Notes with reminders, Kanban board, Focus view, and Pomodoro timer
 
-All personal data (notes, teams, filters, focus state) lives in your browser's localStorage. Jira and GitHub credentials are never stored server-side — they're sent with each request as headers and forwarded to the APIs.
+All personal data (notes, teams, filters, focus state) lives in your browser's localStorage. GitHub is called directly from the browser. Jira requests go through a small stateless passthrough proxy (`/jira-proxy`), because Jira Cloud blocks cross-origin requests. Credentials are never stored server-side.
 
 ## Features
 
@@ -25,7 +25,7 @@ All personal data (notes, teams, filters, focus state) lives in your browser's l
 
 ## Prerequisites
 
-- Node.js (v18+)
+- Node.js (v20+)
 - Yarn
 - A Jira account with an API token
 - A GitHub personal access token
@@ -38,7 +38,7 @@ All personal data (notes, teams, filters, focus state) lives in your browser's l
 yarn install
 ```
 
-2. Start the Next.js dev server:
+2. Start the Vite dev server, which also serves the Jira proxy at `/jira-proxy`:
 
 ```bash
 yarn dev
@@ -48,7 +48,7 @@ yarn dev
 
 4. Enter your credentials in **Settings** (the app will prompt you on first launch).
 
-Credentials are stored in browser localStorage and sent with each API request. The server never persists them.
+Credentials are stored in browser localStorage. GitHub requests go straight to `api.github.com`. Jira requests pass through the local proxy, which never logs or stores them.
 
 ## Required Token Permissions
 
@@ -87,13 +87,13 @@ No write permissions are required — the app only reads data from both GitHub a
 
 #### Jira Host Restriction
 
-For security, the app only accepts Jira base URLs that are `https://` on a host ending in `.atlassian.net`. If you need to use a self-hosted Jira instance or another domain, the operator can set the environment variable `JIRA_ALLOWED_HOSTS` to a comma-separated list of exact hostnames (e.g., `JIRA_ALLOWED_HOSTS=jira.example.com,jira-internal.corp`).
+For security, the Jira proxy only accepts Jira base URLs that are `https://` on a host ending in `.atlassian.net`. If you need to use a self-hosted Jira instance or another domain, the operator can set the environment variable `JIRA_ALLOWED_HOSTS` to a comma-separated list of exact hostnames (e.g., `JIRA_ALLOWED_HOSTS=jira.example.com,jira-internal.corp`).
 
 ## Where is my data?
 
-All personal data (notes, teams, filters, focus state, sprint snapshots) is stored **only in your browser's localStorage**. The server is stateless and does not persist any data.
+All personal data (notes, teams, filters, focus state, sprint snapshots) is stored **only in your browser's localStorage**. There is no server-side storage.
 
-- **Jira and GitHub credentials** are stored in localStorage and forwarded with each API request as `x-jira-*` and `x-github-*` headers. They are never logged or stored server-side.
+- **Jira and GitHub credentials** are stored in localStorage. GitHub credentials are sent directly to `api.github.com`. Jira credentials pass through the Jira proxy on each Jira request, and the proxy never logs or stores them. See [docs/deploy.md](docs/deploy.md#security-considerations) for details.
 - **Tokens are excluded from exports**: When you export your data via Settings → Data → Export, tokens are not included in the backup file.
 - **Import/Export**: You can export your data as JSON and import it on another device or browser.
 
@@ -113,23 +113,27 @@ This creates a `dev-home-backup-YYYY-MM-DD.json` file.
 
 Your notes, teams, filters, and focus state will be imported into the browser.
 
-## Build
+## Build and run
 
-Build the production Next.js app:
+Build the static app and the Node server:
 
 ```bash
 yarn build
 ```
 
-The build output is in `.next/`. For deployment, see [docs/deploy.md](docs/deploy.md).
+This writes the static app to `dist/` and the Node server bundle to `dist-server/server.mjs`. To serve the build locally, with the Jira proxy, on port 3000 (set `PORT` to change it), run:
+
+```bash
+yarn start
+```
 
 ## Deployment
 
-See [docs/deploy.md](docs/deploy.md) for deployment instructions for Vercel, Cloudflare Workers, Docker, or any Node.js host.
+The recommended host is Cloudflare Workers (free plan): run `yarn wrangler login` once, then `yarn deploy:cf`. Docker and any Node.js host are also supported. See [docs/deploy.md](docs/deploy.md) for the full guide, including environment variables, rate limiting and security considerations.
 
 ## Troubleshooting
 
-### "Invalid Jira base URL" error
+### "Jira base URL not allowed" error
 
 By default, only `https://*.atlassian.net` URLs are accepted. If you need to use a self-hosted Jira instance, ask the operator to set the `JIRA_ALLOWED_HOSTS` environment variable with your Jira hostname.
 
