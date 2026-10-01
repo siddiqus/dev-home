@@ -127,6 +127,15 @@ This writes the static app to `dist/` and the Node server bundle to `dist-server
 yarn start
 ```
 
+## Install as an app
+
+Dev Home is an installable web app (PWA). Open a deployed build or `yarn start` (not `yarn dev`), then:
+
+- **Chrome / Edge:** click the install icon in the address bar.
+- **Safari:** choose **Share → Add to Dock** (macOS) or **Share → Add to Home Screen** (iOS).
+
+The installed app opens in its own window. Offline, it only works with your local data (notes, Kanban, Pomodoro and so on); Jira and GitHub need a connection, and their responses are never cached. When a new version is deployed, a "New version available" toast appears; click **Reload** to switch to it.
+
 ## Deployment
 
 The recommended host is Cloudflare Workers (free plan): run `yarn wrangler login` once, then `yarn deploy:cf`. Docker and any Node.js host are also supported. See [docs/deploy.md](docs/deploy.md) for the full guide, including environment variables, rate limiting and security considerations.

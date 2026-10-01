@@ -44,6 +44,7 @@ import { PersonalNotes } from "./views/notes/PersonalNotes";
 import { NoteEditorModal } from "./views/notes/NoteEditorModal";
 import { SettingsView } from "./views/settings/SettingsView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { UpdateToast } from "./components/UpdateToast";
 import { useKanban } from "./hooks/useKanban";
 import { KanbanBoard } from "./views/kanban/KanbanBoard";
 import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
@@ -732,6 +733,9 @@ export default function App() {
         onEdit={editNote}
         jiraBaseUrl={jiraBaseUrl}
       />
+
+      {/* Service worker is registered in production builds only. */}
+      {import.meta.env.PROD && <UpdateToast />}
     </NotesProvider>
   );
 }

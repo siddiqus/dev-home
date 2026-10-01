@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // vite-plugin-pwa's virtual module only exists in the Vite build; tests vi.mock it.
+      "virtual:pwa-register/react": path.resolve(__dirname, "./src/test/pwaRegisterStub.ts"),
     },
   },
   test: {

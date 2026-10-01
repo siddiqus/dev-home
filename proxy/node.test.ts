@@ -44,6 +44,9 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(distDir, "index.html"), '<div id="root"></div>');
   fs.mkdirSync(path.join(distDir, "assets"));
   fs.writeFileSync(path.join(distDir, "assets", "app.js"), "console.log(1);");
+  fs.writeFileSync(path.join(distDir, "sw.js"), "self.addEventListener('fetch', () => {});");
+  fs.writeFileSync(path.join(distDir, "workbox-abc123.js"), "// workbox");
+  fs.writeFileSync(path.join(distDir, "manifest.webmanifest"), '{"name":"Dev Home"}');
   server = createServer({ distDir, env: {} });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   port = (server.address() as AddressInfo).port;
@@ -69,6 +72,24 @@ describe("node server", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("text/javascript");
     expect(res.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("serves the service worker and workbox runtime with no-cache", async () => {
+    for (const file of ["/sw.js", "/workbox-abc123.js"]) {
+      const res = await get(file);
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toContain("text/javascript");
+      expect(res.headers["cache-control"]).toBe("no-cache");
+      expect(res.headers["content-security-policy"]).toContain("worker-src 'self'");
+    }
+  });
+
+  it("serves the web manifest as application/manifest+json with no-cache", async () => {
+    const res = await get("/manifest.webmanifest");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/manifest+json");
+    expect(res.headers["cache-control"]).toBe("no-cache");
+    expect(res.headers["content-security-policy"]).toContain("manifest-src 'self'");
   });
 
   it("falls back to index.html for client routes", async () => {
