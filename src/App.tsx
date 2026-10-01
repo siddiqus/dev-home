@@ -384,7 +384,7 @@ export default function App() {
             style={{ fontSize: "0.8125rem", fontWeight: 600 }}
           >
             <IconCode size={16} />
-            Dev Home ({__APP_VERSION__})
+            Dev Home
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
             {pomodoro.phase !== "idle" && (
