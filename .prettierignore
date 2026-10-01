@@ -1,6 +1,5 @@
 node_modules
 dist
-dist-electron
 dist-server
 yarn.lock
 *.log

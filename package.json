@@ -4,6 +4,9 @@
   "private": true,
   "description": "Developer Home Dashboard - JIRA & GitHub integration",
   "repository": "https://github.com/siddiqus/dev-home",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && esbuild proxy/node.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist-server/server.mjs",
