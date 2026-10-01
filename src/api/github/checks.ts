@@ -76,18 +76,25 @@ function normalizeContext(ctx: any): NormalizedCheck | null {
 }
 
 /**
- * Dedupe contexts to the newest run per check name. Later array entries win ties
- * so the behavior is stable when timestamps are missing/equal.
+ * Dedupe raw contexts to the newest run per check name, preserving the raw nodes
+ * (in first-seen name order) so callers can map them to whatever shape they need.
+ * Later array entries win ties so the behavior is stable when timestamps are
+ * missing/equal. Unrecognized nodes are dropped.
  */
-function dedupeLatest(contexts: any[]): NormalizedCheck[] {
-  const latestByName = new Map<string, NormalizedCheck>();
-  for (const raw of contexts) {
+export function latestContexts(contexts: any[] | null | undefined): any[] {
+  const latestByName = new Map<string, { raw: any; c: NormalizedCheck }>();
+  for (const raw of contexts || []) {
     const c = normalizeContext(raw);
     if (!c) continue;
     const prev = latestByName.get(c.name);
-    if (!prev || c.time >= prev.time) latestByName.set(c.name, c);
+    if (!prev || c.time >= prev.c.time) latestByName.set(c.name, { raw, c });
   }
-  return [...latestByName.values()];
+  return [...latestByName.values()].map((e) => e.raw);
+}
+
+/** Dedupe contexts to the newest run per check name, normalized. */
+function dedupeLatest(contexts: any[]): NormalizedCheck[] {
+  return latestContexts(contexts).map((raw) => normalizeContext(raw)!);
 }
 
 /**

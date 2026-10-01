@@ -1,4 +1,4 @@
-import { computeChecksStatus, findOptionalFailures } from "./checks";
+import { computeChecksStatus, findOptionalFailures, latestContexts } from "./checks";
 
 /**
  * Get an ISO date string (YYYY-MM-DD) for `months` months ago (default 2).
@@ -142,7 +142,8 @@ export function mapGraphQLPr(
     // which counts stale re-runs and disagrees with the GitHub merge box.
     checks_status: computeChecksStatus(contextNodes, requiredContexts),
     optional_checks_failing: findOptionalFailures(contextNodes, requiredContexts),
-    checks: contextNodes.map(mapCheckContext),
+    // Deduped like checks_status so re-run attempts don't list as duplicate rows.
+    checks: latestContexts(contextNodes).map(mapCheckContext),
     review_status: deriveReviewStatus(node.reviews?.nodes),
     merged_at: node.mergedAt || null,
     merged_by: node.mergedBy?.login || null,

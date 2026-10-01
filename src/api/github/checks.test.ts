@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { computeChecksStatus, findOptionalFailures, parseRequiredContexts } from "./checks";
+import {
+  computeChecksStatus,
+  findOptionalFailures,
+  latestContexts,
+  parseRequiredContexts,
+} from "./checks";
 
 /** Build a CheckRun context node (GitHub Actions / Checks API). */
 function ck(name: string, conclusion: string | null, completedAt?: string) {
@@ -185,5 +190,34 @@ describe("findOptionalFailures", () => {
 
   it("returns [] when the required set is unknown", () => {
     expect(findOptionalFailures(pr12602, null)).toEqual([]);
+  });
+});
+
+describe("latestContexts", () => {
+  it("keeps only the newest run per check name, returning raw nodes", () => {
+    const stale = {
+      __typename: "CheckRun",
+      name: "ci",
+      conclusion: "FAILURE",
+      completedAt: "2026-01-01T00:00:00Z",
+    };
+    const fresh = {
+      __typename: "CheckRun",
+      name: "ci",
+      conclusion: "SUCCESS",
+      completedAt: "2026-01-02T00:00:00Z",
+    };
+    const lint = {
+      __typename: "StatusContext",
+      context: "lint",
+      state: "SUCCESS",
+      createdAt: "2026-01-01T00:00:00Z",
+    };
+    expect(latestContexts([stale, lint, fresh])).toEqual([fresh, lint]);
+  });
+
+  it("handles null/empty input", () => {
+    expect(latestContexts(null)).toEqual([]);
+    expect(latestContexts([])).toEqual([]);
   });
 });

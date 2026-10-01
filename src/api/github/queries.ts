@@ -40,6 +40,7 @@ const PR_SEARCH_NODE = `... on PullRequest {
   changedFiles
   repository { nameWithOwner }
   labels(first: 10) { nodes { name color } }
+  mergeable
   mergeQueueEntry { id }
   mergeStateStatus
   reviewDecision
@@ -185,6 +186,7 @@ export const SEARCH_ORG_PRS_QUERY = `
           changedFiles
           repository { nameWithOwner }
           labels(first: 10) { nodes { name color } }
+          mergeable
           mergeQueueEntry { id }
           mergeStateStatus
           reviewDecision
@@ -261,6 +263,7 @@ export const SINGLE_PR_QUERY = `
         changedFiles
         repository { nameWithOwner }
         labels(first: 10) { nodes { name color } }
+        mergeable
         mergeQueueEntry { id }
         mergeStateStatus
         reviewDecision
