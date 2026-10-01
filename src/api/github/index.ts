@@ -408,11 +408,8 @@ export async function getPrDetail(args: {
     if (err?.graphqlErrors?.some((e: any) => e?.type === "NOT_FOUND")) {
       throw new ApiError(404, "Pull request not found");
     }
-    const apiErr = toApiError(err);
-    // Errors with no HTTP status (e.g. other GraphQL errors) were a 500 on the server.
-    if (apiErr.status === 0 && !err?.response) {
-      throw new ApiError(500, apiErr.message || "Failed to fetch pull request");
-    }
-    throw apiErr;
+    // githubGraphql already maps HTTP/network failures to ApiError (rethrown above),
+    // so what's left is a GraphQL error with no HTTP status — a 500 on the old server.
+    throw new ApiError(500, toApiError(err).message || "Failed to fetch pull request");
   }
 }
