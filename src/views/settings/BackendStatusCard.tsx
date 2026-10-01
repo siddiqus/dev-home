@@ -41,18 +41,18 @@ export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
                 marginLeft: "auto",
               }}
             >
-              Version {backendVersion}
+              App version {backendVersion}
             </span>
           )}
         </div>
 
         {!backendOnline && (
-          <Alert variant="danger" className="py-2 mb-0">
+          <Alert variant="danger" className={`py-2 ${configured ? "mb-0" : "mb-2"}`}>
             The Jira proxy is not reachable, so Jira data cannot load. GitHub data is unaffected.
           </Alert>
         )}
 
-        {backendOnline && !configured && (
+        {!configured && (
           <Alert variant="warning" className="py-2 mb-0">
             Not configured yet. Fill in your credentials below and save. They stay in this browser.
           </Alert>
