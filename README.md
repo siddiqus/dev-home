@@ -138,7 +138,7 @@ The installed app opens in its own window. Offline, it only works with your loca
 
 ## Deployment
 
-The recommended host is Cloudflare Workers (free plan): run `yarn wrangler login` once, then `yarn deploy:cf`. Netlify (`npx netlify-cli deploy --prod`), Docker and any Node.js host are also supported. See [docs/deploy.md](docs/deploy.md) for the full guide, including environment variables, rate limiting and security considerations.
+The recommended host is Cloudflare Workers (free plan): run `yarn wrangler login` once, then `yarn deploy:cf`. Docker and any Node.js host are also supported. See [docs/deploy.md](docs/deploy.md) for the full guide, including environment variables, rate limiting and security considerations.
 
 ## Troubleshooting
 
