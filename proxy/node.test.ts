@@ -3,17 +3,17 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createServer } from "./node";
 
 let server: http.Server;
 let distDir: string;
 let port: number;
 
-/** Raw GET so paths like /../x reach the server unnormalised. */
+/** Raw request so paths like /../x reach the server unnormalised. */
 function request(
   urlPath: string,
-  opts: { method?: string; headers?: http.OutgoingHttpHeaders; port?: number } = {},
+  opts: { method?: string; headers?: http.OutgoingHttpHeaders; port?: number; body?: string } = {},
 ): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
     http
@@ -33,7 +33,7 @@ function request(
         },
       )
       .on("error", reject)
-      .end();
+      .end(opts.body);
   });
 }
 
@@ -123,6 +123,63 @@ describe("node server", () => {
     expect(res.headers["cache-control"]).toBe("no-store");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["content-security-policy"]).toContain("default-src 'self'");
+  });
+
+  it("forwards a POST body through the proxy to the upstream", async () => {
+    const upstream = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(JSON.stringify({ issues: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", "Set-Cookie": "s=1" },
+        }),
+    );
+    vi.stubGlobal("fetch", upstream);
+    try {
+      const body = JSON.stringify({ jql: "assignee = currentUser()", fields: ["summary"] });
+      const res = await request("/jira-proxy/rest/api/3/search/jql?x=1", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Basic abc",
+          cookie: "session=secret",
+          "x-jira-base-url": "https://acme.atlassian.net",
+        },
+        body,
+      });
+      expect(res.status).toBe(200);
+      expect(JSON.parse(res.body)).toEqual({ issues: [] });
+      expect(res.headers["set-cookie"]).toBeUndefined();
+
+      expect(upstream).toHaveBeenCalledTimes(1);
+      const [url, init] = upstream.mock.calls[0];
+      expect(url).toBe("https://acme.atlassian.net/rest/api/3/search/jql?x=1");
+      expect(init?.method).toBe("POST");
+      expect(new TextDecoder().decode(init?.body as ArrayBuffer)).toBe(body);
+      const headers = init?.headers as Headers;
+      expect([...headers.keys()].sort()).toEqual(["authorization", "content-type"]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("returns 413 for a chunked POST body over 64 KB", async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+    try {
+      const res = await request("/jira-proxy/rest/api/3/search/jql", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "transfer-encoding": "chunked",
+          "x-jira-base-url": "https://acme.atlassian.net",
+        },
+        body: "x".repeat(70 * 1024),
+      });
+      expect(res.status).toBe(413);
+      expect(upstream).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("returns a generic 500 with security headers when the proxy throws", async () => {
