@@ -10,10 +10,10 @@ import {
 } from "./notifications";
 import {
   PR_CHECKS_ROLLUP,
+  REVIEWS_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
   SEARCH_ORG_PRS_QUERY,
-  SEARCH_PRS_QUERY,
   SINGLE_PR_QUERY,
 } from "./queries";
 import { getRequiredContexts, mapOpenPrsWithChecks } from "./requiredContexts";
@@ -66,16 +66,20 @@ export async function getReviews(): Promise<{ reviews: any[]; reviewing: any[] }
   const config = requireSettings();
   const user = config.githubUsername;
   const base = `type:pr state:open updated:>=${monthsAgo()}`;
-  const search = (q: string) =>
-    githubGraphql<{ search: { nodes: any[] } }>(SEARCH_PRS_QUERY, { query: q, first: 50 }).then(
-      (r) => (r.search.nodes || []).filter((n: any) => n && n.number),
-    );
 
-  const [requested, reviewedBy, commented] = await Promise.all([
-    search(`review-requested:${user} ${base}`),
-    search(`reviewed-by:${user} -author:${user} ${base}`),
-    search(`commenter:${user} -author:${user} ${base}`),
-  ]);
+  const result = await githubGraphql<
+    Record<"requested" | "reviewedBy" | "commented", { nodes: any[] }>
+  >(REVIEWS_QUERY, {
+    requestedQuery: `review-requested:${user} ${base}`,
+    reviewedQuery: `reviewed-by:${user} -author:${user} ${base}`,
+    commentedQuery: `commenter:${user} -author:${user} ${base}`,
+    first: 50,
+  });
+  const prNodes = (key: "requested" | "reviewedBy" | "commented") =>
+    (result[key]?.nodes || []).filter((n: any) => n && n.number);
+  const requested = prNodes("requested");
+  const reviewedBy = prNodes("reviewedBy");
+  const commented = prNodes("commented");
 
   const engagedNodes = new Map<string, any>();
   for (const n of [...reviewedBy, ...commented]) {
