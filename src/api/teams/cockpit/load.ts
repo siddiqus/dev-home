@@ -5,8 +5,8 @@
  *
  * STUB: implement per-member rollups + balance with TDD per spec §5.
  */
-import { classifyStatus } from "../teamAggregation";
-import type { RawPR, RosterEntry } from "../teamAggregation";
+import { classifyStatus } from "../aggregation";
+import type { RawPR, RosterEntry } from "../aggregation";
 import type { AtRiskIssue, EnrichedIssue, LoadBalance, WorkloadEntry } from "./types";
 
 function emptyByStatus() {

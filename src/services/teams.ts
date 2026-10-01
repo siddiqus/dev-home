@@ -1,8 +1,8 @@
-import { apiClient } from "./config";
 import { createCollection, sqliteNow } from "../lib/localStore";
 import { buildBurnup } from "../../shared/burnup";
 import { getSnapshotRows, recordSnapshot } from "./snapshots";
 import { searchUsers, searchBoards, getBoardSprints } from "../api/jira";
+import { postTeamDashboard } from "../api/teams/dashboard";
 import type {
   Team,
   TeamMember,
@@ -179,7 +179,7 @@ export async function fetchTeamDashboard(
     githubUsername: m.github_username,
   }));
 
-  const { data } = await apiClient.post("/teams/dashboard", {
+  const data: any = await postTeamDashboard({
     team: {
       id: team.id,
       name: team.name,

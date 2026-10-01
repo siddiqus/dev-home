@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { computePrFlow } from "./prFlow";
-import type { RawPR } from "../teamAggregation";
+import type { RawPR } from "../aggregation";
 import type { EnrichedIssue } from "./types";
 
 describe("computePrFlow", () => {

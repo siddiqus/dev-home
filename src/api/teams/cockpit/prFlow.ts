@@ -4,8 +4,8 @@
  *
  * STUB: implement metrics with TDD per spec §5.
  */
-import { extractTicketKey, prSource } from "../teamAggregation";
-import type { RawPR } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../aggregation";
+import type { RawPR } from "../aggregation";
 import type { EnrichedIssue, PrFlow } from "./types";
 
 export function computePrFlow(prs: RawPR[], issues: EnrichedIssue[], now: Date): PrFlow {

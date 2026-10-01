@@ -4,7 +4,7 @@
  * (comments are not fetched); the author's last action is their last commit.
  * Bots (__typename "Bot") and Team review requests never count as a reviewer.
  */
-import type { RawPR, RawReview, RawReviewRequest } from "../teamAggregation";
+import type { RawPR, RawReview, RawReviewRequest } from "../aggregation";
 import type { ReviewQueueEntry } from "./types";
 
 /** v1 ignore list. Bots are excluded structurally via __typename, not by login. */

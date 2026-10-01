@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { enrichIssue, groupPRsByTicket } from "./risk";
-import type { RawIssue, RawPR } from "../teamAggregation";
+import type { RawIssue, RawPR } from "../aggregation";
 import type { SprintInfo } from "./types";
 import { DEFAULT_COCKPIT_CONFIG } from "./config";
 
