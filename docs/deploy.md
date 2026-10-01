@@ -44,7 +44,7 @@ Browser (static Vite app)
 
 ## Cloudflare Workers (recommended, free)
 
-One Worker named `dev-cc` serves the static app from `dist/` (Workers Static Assets) and runs the proxy on `/jira-proxy/*`, on the same origin. The configuration is in `wrangler.jsonc`:
+One Worker named `dev-home` serves the static app from `dist/` (Workers Static Assets) and runs the proxy on `/jira-proxy/*`, on the same origin. The configuration is in `wrangler.jsonc`:
 
 - `main: proxy/worker.ts`
 - `assets.directory: ./dist`
@@ -64,7 +64,7 @@ yarn wrangler login   # one-time: authorize wrangler with your Cloudflare accoun
 yarn deploy:cf        # = yarn build && wrangler deploy
 ```
 
-The app is then live at `https://dev-cc.<your-subdomain>.workers.dev`.
+The app is then live at `https://dev-home.<your-subdomain>.workers.dev`.
 
 ### Free-tier fit
 
