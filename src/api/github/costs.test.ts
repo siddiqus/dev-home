@@ -61,6 +61,8 @@ let originalAdapter: any;
 let inbox: any[];
 /** When set, /notifications answers 304 to a matching If-Modified-Since. */
 let notModified: boolean;
+/** When set, /notifications answers 304 regardless of request headers. */
+let alwaysNotModified: boolean;
 
 function urlOf(config: any): string {
   const url = String(config.url);
@@ -94,11 +96,15 @@ beforeEach(() => {
   resetMentionsCache();
   inbox = [];
   notModified = false;
+  alwaysNotModified = false;
   originalAdapter = axios.defaults.adapter;
   adapter = vi.fn(async (config: any) => {
     const url = urlOf(config);
     if (url.endsWith("/notifications")) {
-      if (notModified && headerOf(config, "If-Modified-Since") === LAST_MODIFIED) {
+      if (
+        alwaysNotModified ||
+        (notModified && headerOf(config, "If-Modified-Since") === LAST_MODIFIED)
+      ) {
         const res = response(config, "", 304);
         if (config.validateStatus && !config.validateStatus(304)) {
           const err: any = new Error("Not Modified");
@@ -120,6 +126,7 @@ beforeEach(() => {
 
 afterEach(() => {
   axios.defaults.adapter = originalAdapter;
+  vi.useRealTimers();
 });
 
 describe("getGithubMentions caching", () => {
@@ -194,6 +201,85 @@ describe("getGithubMentions caching", () => {
     await getGithubMentions();
     expect(subjectCalls()).toHaveLength(50);
     expect(subjectCalls()).not.toContain(`${API}/repos/test-org/app/pulls/10`);
+  });
+
+  it("evicts cached state for a thread that left the inbox", async () => {
+    inbox = [notification(1), notification(2)];
+    await getGithubMentions();
+
+    inbox = [notification(1)];
+    await getGithubMentions();
+
+    // Thread 2 returns with the same updated_at, but its cache entries are gone.
+    adapter.mockClear();
+    inbox = [notification(1), notification(2)];
+    await getGithubMentions();
+    expect(subjectCalls()).toEqual([`${API}/repos/test-org/app/pulls/2`]);
+    expect(commentCalls()).toEqual([`${API}/repos/test-org/app/issues/comments/2`]);
+  });
+
+  it("rechecks cached open subjects after 30 minutes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+    inbox = [notification(1)];
+    await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(1);
+
+    adapter.mockClear();
+    vi.setSystemTime(new Date("2026-10-01T12:29:00Z"));
+    await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(0);
+
+    vi.setSystemTime(new Date("2026-10-01T12:31:00Z"));
+    await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(1);
+  });
+
+  it("keeps cached closed subjects until updated_at changes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+    const base = adapter.getMockImplementation() as (config: any) => Promise<any>;
+    adapter.mockImplementation(async (config: any) =>
+      /\/pulls\/1$/.test(urlOf(config)) ? response(config, { state: "closed" }) : base(config),
+    );
+    inbox = [notification(1)];
+    await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
+    expect(subjectCalls()).toHaveLength(1);
+
+    adapter.mockClear();
+    vi.setSystemTime(new Date("2026-10-01T14:00:00Z"));
+    await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
+    expect(subjectCalls()).toHaveLength(0);
+  });
+
+  it("drops the conditional header when the since window changes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+    inbox = [notification(1)];
+    await getGithubMentions();
+
+    adapter.mockClear();
+    notModified = true;
+    vi.setSystemTime(new Date("2026-10-02T12:00:00Z"));
+    const { mentions } = await getGithubMentions();
+    const [call] = notificationCalls();
+    expect(call.params.since).toBe("2026-08-02T00:00:00Z");
+    expect(headerOf(call, "If-Modified-Since")).toBeUndefined();
+    expect(mentions).toHaveLength(1);
+  });
+
+  it("treats a 304 with nothing cached as an empty list, then does a full fetch", async () => {
+    alwaysNotModified = true;
+    inbox = [notification(1)];
+    await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
+    expect(subjectCalls()).toHaveLength(0);
+    expect(commentCalls()).toHaveLength(0);
+
+    adapter.mockClear();
+    alwaysNotModified = false;
+    const { mentions } = await getGithubMentions();
+    expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBeUndefined();
+    expect(mentions).toHaveLength(1);
   });
 
   it("is reset when SETTINGS_EVENT fires on window", async () => {

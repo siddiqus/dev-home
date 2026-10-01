@@ -55,8 +55,13 @@ const threadComments = new Map<string, { updatedAt: string; comments: any[] }>()
 /**
  * Subject open/closed state per notification thread, reused while the thread's
  * `updated_at` is unchanged (closing or merging a PR updates the notification).
+ * "Open" entries also expire after SUBJECT_OPEN_TTL_MS: GitHub doesn't notify
+ * the actor, so a PR the user closes themselves leaves `updated_at` untouched.
  */
-const subjectStates = new Map<string, { updatedAt: string; open: boolean }>();
+const subjectStates = new Map<string, { updatedAt: string; open: boolean; checkedAt: number }>();
+
+/** How long a cached "open" subject state is trusted before it's rechecked. */
+export const SUBJECT_OPEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Drop the cached notification list, subject states and per-thread comments. Cleared whenever
@@ -73,10 +78,25 @@ if (typeof window !== "undefined") {
 }
 
 /**
+ * Drop per-thread subject states and comments for threads not in `threadIds`
+ * (the current capped set), so the caches stay bounded in long-lived tabs.
+ */
+export function pruneMentionsCache(threadIds: Iterable<string>): void {
+  const keep = new Set(threadIds);
+  for (const map of [threadComments, subjectStates]) {
+    for (const key of map.keys()) {
+      if (!keep.has(key)) map.delete(key);
+    }
+  }
+}
+
+/**
  * Fetch all pages of notifications from the GitHub REST API,
  * filtered to only relevant participation reasons.
  * The first page is a conditional request when a previous list is cached;
- * a 304 returns the cached list without fetching further pages.
+ * a 304 returns the cached list without fetching further pages. A 304 with
+ * nothing cached for this window (not expected) yields an empty list and
+ * leaves the cache empty, so the next call does a full fetch.
  */
 export async function fetchAllNotifications(github: AxiosInstance, since: string): Promise<any[]> {
   const all: any[] = [];
@@ -89,14 +109,14 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
     const conditional = page === 1 && cached?.lastModified;
     const response = await github.get("/notifications", {
       params: { participating: true, all: true, per_page: perPage, since, page },
-      ...(conditional
-        ? {
-            headers: { "If-Modified-Since": conditional },
-            validateStatus: (s: number) => (s >= 200 && s < 300) || s === 304,
-          }
-        : {}),
+      ...(conditional ? { headers: { "If-Modified-Since": conditional } } : {}),
+      validateStatus: (s: number) => (s >= 200 && s < 300) || s === 304,
     });
-    if (response.status === 304 && cached) return cached.notifications;
+    if (response.status === 304) {
+      if (cached) return cached.notifications;
+      notificationsCache = { since: null, lastModified: null, notifications: [] };
+      return [];
+    }
     if (page === 1) lastModified = response.headers?.["last-modified"] ?? null;
 
     const data = response.data;
@@ -114,7 +134,8 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
 /**
  * Filter out notifications whose subject (PR/issue) is no longer open.
  * Fetches the subject URL in batches to check state; threads whose
- * `updated_at` matches a cached state reuse it without a request.
+ * `updated_at` matches a cached state reuse it without a request (cached
+ * "open" states are rechecked after SUBJECT_OPEN_TTL_MS).
  */
 export async function filterOpenNotifications(
   notifications: any[],
@@ -131,7 +152,11 @@ export async function filterOpenNotifications(
         if (!subjectUrl) return notification;
         const key = String(notification.id);
         const cached = subjectStates.get(key);
-        if (cached && cached.updatedAt === notification.updated_at) {
+        if (
+          cached &&
+          cached.updatedAt === notification.updated_at &&
+          (!cached.open || Date.now() - cached.checkedAt < SUBJECT_OPEN_TTL_MS)
+        ) {
           return cached.open ? notification : null;
         }
         try {
@@ -139,7 +164,11 @@ export async function filterOpenNotifications(
           // PRs have "state" (open/closed) and "merged" boolean
           // Issues have "state" (open/closed)
           const open = !(subject.state && subject.state !== "open");
-          subjectStates.set(key, { updatedAt: notification.updated_at, open });
+          subjectStates.set(key, {
+            updatedAt: notification.updated_at,
+            open,
+            checkedAt: Date.now(),
+          });
           return open ? notification : null;
         } catch {
           // If we can't fetch the subject, include it (fail open); not cached, so it's retried

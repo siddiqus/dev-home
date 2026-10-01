@@ -7,6 +7,7 @@ import {
   fetchAllNotifications,
   fetchCommentsInBatches,
   filterOpenNotifications,
+  pruneMentionsCache,
 } from "./notifications";
 import {
   REVIEWS_QUERY,
@@ -244,6 +245,7 @@ export async function getGithubMentions(): Promise<{ mentions: any[] }> {
   const newest = [...allNotifications]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, MAX_MENTION_THREADS);
+  pruneMentionsCache(newest.map((n) => String(n.id)));
   const notifications = await filterOpenNotifications(newest, github);
   const mentions = await fetchCommentsInBatches(notifications, github);
 

@@ -19,8 +19,8 @@ export const PR_CHECKS_ROLLUP = `statusCheckRollup {
 }`;
 
 /**
- * PR node selection shared by SEARCH_PRS_QUERY and REVIEWS_QUERY, so the
- * single-search and aliased-search variants always return the same fields.
+ * PR node selection for each aliased search in REVIEWS_QUERY, defined once so
+ * the three searches always return the same fields.
  */
 const PR_SEARCH_NODE = `... on PullRequest {
   databaseId
@@ -51,16 +51,6 @@ const PR_SEARCH_NODE = `... on PullRequest {
     }
   }
 }`;
-
-export const SEARCH_PRS_QUERY = `
-  query SearchPRs($query: String!, $first: Int!) {
-    search(query: $query, type: ISSUE, first: $first) {
-      nodes {
-        ${PR_SEARCH_NODE}
-      }
-    }
-  }
-`;
 
 /**
  * The three review-plate searches (review requested, reviewed by, commented on)
