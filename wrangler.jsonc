@@ -8,5 +8,7 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/jira-proxy/*"]
   },
+  "routes": [{ "pattern": "app.devhome.fyi", "custom_domain": true }],
+  "workers_dev": true,
   "observability": { "enabled": false }
 }

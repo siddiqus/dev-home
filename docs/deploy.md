@@ -102,7 +102,16 @@ WAF rate-limiting rules belong to a zone. They only apply when the Worker is on 
 
 ### Custom domain
 
-To add your own domain, go to your Worker in the dashboard, then **Settings**, then **Domains & Routes**, and add a custom domain or route. The domain must be in a zone on your Cloudflare account. This is also what makes the WAF rate-limiting rule above apply.
+The custom domain is set in `wrangler.jsonc`, so every deploy (including CI) keeps it:
+
+```jsonc
+"routes": [{ "pattern": "app.example.com", "custom_domain": true }],
+"workers_dev": true,
+```
+
+The domain must be in an active zone on your Cloudflare account. Use `custom_domain: true` rather than a plain route: Cloudflare then creates the DNS record and the HTTPS certificate itself, while a plain route needs a proxied DNS record that you create yourself. A new zone's certificate can take a few minutes to issue. `workers_dev: true` keeps the `workers.dev` address working too. Wrangler turns it off when `routes` is set, so remove the line once you no longer need that address. A custom domain is also what makes the WAF rate-limiting rule above apply.
+
+To redirect `http://` to `https://`, turn on **SSL/TLS → Edge Certificates → Always Use HTTPS** for the zone.
 
 ### Updating
 
