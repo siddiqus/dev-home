@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { apiClient, credentialHeaders, isConfigured, loadSettings, saveSettings } from "./config";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { checkBackendHealth, isConfigured, loadSettings, saveSettings } from "./config";
 
 const full = {
   jiraBaseUrl: "https://acme.atlassian.net",
@@ -30,32 +30,39 @@ describe("browser settings", () => {
     expect(isConfigured({ ...full, githubToken: "" })).toBe(false);
   });
 
-  it("builds credential headers, omitting empty org", () => {
-    expect(credentialHeaders(full)).toEqual({
-      "x-jira-base-url": "https://acme.atlassian.net",
-      "x-jira-email": "me@acme.com",
-      "x-jira-api-token": "jt",
-      "x-github-token": "gt",
-      "x-github-username": "me",
-    });
-  });
-
-  it("apiClient attaches headers from current settings", async () => {
-    saveSettings(full);
-    let captured: Record<string, unknown> = {};
-    await apiClient.get("/health", {
-      adapter: async (cfg) => {
-        captured = Object.fromEntries(Object.entries(cfg.headers ?? {}));
-        return { data: {}, status: 200, statusText: "OK", headers: {}, config: cfg };
-      },
-    });
-    expect(captured["x-github-token"]).toBe("gt");
-  });
-
   it("guards hiddenTabs with Array.isArray for bad stored data", () => {
     localStorage.setItem("dev-home-settings", JSON.stringify({ hiddenTabs: "not-an-array" }));
     const settings = loadSettings();
     expect(Array.isArray(settings.hiddenTabs)).toBe(true);
     expect(settings.hiddenTabs).toEqual([]);
+  });
+});
+
+describe("checkBackendHealth", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reports online when the Jira proxy health check answers ok", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ status: "ok" }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await checkBackendHealth()).toEqual({ online: true, version: "test" });
+    expect(fetchMock).toHaveBeenCalledWith("/jira-proxy/health");
+  });
+
+  it("reports offline on a non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "Not found" }, { status: 404 })),
+    );
+    expect(await checkBackendHealth()).toEqual({ online: false, version: "test" });
+  });
+
+  it("reports offline when the request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    expect(await checkBackendHealth()).toEqual({ online: false, version: "test" });
   });
 });

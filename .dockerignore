@@ -1,6 +1,8 @@
 node_modules
 dist
-dist-electron
 dist-server
-yarn.lock
+data
+release
+.git
+.superpowers
 *.log

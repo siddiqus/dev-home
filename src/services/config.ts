@@ -1,4 +1,4 @@
-import axios from "axios";
+import { JIRA_PROXY_BASE } from "../api/http/jira";
 
 export interface AppSettings {
   jiraBaseUrl: string;
@@ -46,33 +46,13 @@ export function isConfigured(s: AppSettings): boolean {
   return !!(s.jiraBaseUrl && s.jiraEmail && s.jiraApiToken && s.githubToken && s.githubUsername);
 }
 
-/** Credentials travel with each request; the server keeps nothing. */
-export function credentialHeaders(s: AppSettings): Record<string, string> {
-  const headers: Record<string, string> = {
-    "x-jira-base-url": s.jiraBaseUrl.replace(/\/+$/, ""),
-    "x-jira-email": s.jiraEmail,
-    "x-jira-api-token": s.jiraApiToken,
-    "x-github-token": s.githubToken,
-    "x-github-username": s.githubUsername,
-  };
-  if (s.githubOrg) headers["x-github-org"] = s.githubOrg;
-  return headers;
-}
-
-export const API_BASE = "/api";
-
-export const apiClient = axios.create({ baseURL: API_BASE });
-
-apiClient.interceptors.request.use((cfg) => {
-  cfg.headers.set(credentialHeaders(loadSettings()));
-  return cfg;
-});
-
+/** Checks the Jira passthrough proxy; the version is the app build's own. */
 export async function checkBackendHealth(): Promise<{ online: boolean; version: string }> {
   try {
-    const { data } = await apiClient.get("/health");
-    return { online: data.status === "ok", version: data.version || "" };
+    const res = await fetch(`${JIRA_PROXY_BASE}/health`);
+    const body = await res.json();
+    return { online: res.ok && body?.status === "ok", version: __APP_VERSION__ };
   } catch {
-    return { online: false, version: "" };
+    return { online: false, version: __APP_VERSION__ };
   }
 }

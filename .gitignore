@@ -1,8 +1,7 @@
 node_modules
 dist
 dist-electron
-.next/
-out/
+dist-server/
 .env
 *.log
 .DS_Store

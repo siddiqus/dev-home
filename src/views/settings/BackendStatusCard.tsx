@@ -22,7 +22,7 @@ export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
     <Card className="mb-3">
       <Card.Body>
         <div className="d-flex align-items-center gap-2 mb-3">
-          <h6 className="mb-0">Backend Server</h6>
+          <h6 className="mb-0">Jira proxy</h6>
           <StatusDot variant={backendOnline ? "online" : "offline"} />
           <span
             style={{
@@ -33,7 +33,7 @@ export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
           >
             {backendOnline ? "Online" : "Offline"}
           </span>
-          {backendOnline && backendVersion && (
+          {backendVersion && (
             <span
               style={{
                 fontSize: "0.7rem",
@@ -41,22 +41,20 @@ export const BackendStatusCard: React.FC<BackendStatusCardProps> = ({
                 marginLeft: "auto",
               }}
             >
-              v{backendVersion}
+              Version {backendVersion}
             </span>
           )}
         </div>
 
         {!backendOnline && (
           <Alert variant="danger" className="py-2 mb-0">
-            The backend server is not reachable. Start it by running:{" "}
-            <code>cd server && yarn dev</code>
+            The Jira proxy is not reachable, so Jira data cannot load. GitHub data is unaffected.
           </Alert>
         )}
 
         {backendOnline && !configured && (
           <Alert variant="warning" className="py-2 mb-0">
-            The backend server is running but not configured. Fill in your credentials below and
-            save to configure the server.
+            Not configured yet. Fill in your credentials below and save. They stay in this browser.
           </Alert>
         )}
 

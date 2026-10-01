@@ -8,7 +8,7 @@
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -19,28 +19,22 @@
     "incremental": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
+    "types": [
+      "vite/client",
+      "node"
     ],
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@server/*": [
-        "./server/src/*"
       ]
     }
   },
   "include": [
-    "next-env.d.ts",
-    "app",
     "src",
-    "server/src",
     "shared",
     "proxy",
-    ".next/types/**/*.ts"
+    "vite.config.ts",
+    "vitest.config.ts"
   ],
   "exclude": [
     "node_modules"

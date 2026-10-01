@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dev Home</title>
+    <meta name="description" content="Developer Home Dashboard - JIRA & GitHub integration" />
+    <link rel="icon" href="/favicon.png" />
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("dev-home-theme");
+          var resolved =
+            pref === "light" || pref === "dark"
+              ? pref
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {
+          /* localStorage/matchMedia unavailable — fall back to CSS default */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

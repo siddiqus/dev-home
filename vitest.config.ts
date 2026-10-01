@@ -4,10 +4,10 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  define: { __APP_VERSION__: JSON.stringify("test") },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@server": path.resolve(__dirname, "./server/src"),
     },
   },
   test: {
@@ -20,14 +20,6 @@ export default defineConfig({
           environment: "jsdom",
           setupFiles: ["./src/test/setup.ts"],
           include: ["src/**/*.{test,spec}.{ts,tsx}", "shared/**/*.{test,spec}.ts"],
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "server",
-          environment: "node",
-          include: ["server/src/**/*.{test,spec}.ts"],
         },
       },
       {
