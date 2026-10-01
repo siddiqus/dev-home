@@ -54,7 +54,7 @@ One Worker named `dev-home` serves the static app from `dist/` (Workers Static A
 ### Prerequisites
 
 - A Cloudflare account (the free plan is enough)
-- Node.js and Yarn
+- Node.js 22.12+ and Yarn
 - Dependencies installed with `yarn install`. `wrangler` is a devDependency, so run it as `yarn wrangler`.
 
 ### Deploy
@@ -125,7 +125,7 @@ yarn deploy:cf
 
 ## Docker / any Node host (self-host)
 
-`yarn build` produces the static app in `dist/`. It also bundles the Node server into `dist-server/server.mjs`, which has no runtime dependencies. The server serves `dist/` with an SPA fallback and security headers, and routes `/jira-proxy/*` to the proxy.
+You need Node.js 22.12+ to install dependencies and build. `yarn build` produces the static app in `dist/`. It also bundles the Node server into `dist-server/server.mjs`, which has no runtime dependencies. The server serves `dist/` with an SPA fallback and security headers, and routes `/jira-proxy/*` to the proxy.
 
 ```bash
 yarn install
@@ -158,6 +158,19 @@ docker run -p 3000:3000 -e JIRA_ALLOWED_HOSTS=jira.example.com dev-home
 
 The Node server speaks plain HTTP. In production, put it behind a reverse proxy or load balancer that terminates HTTPS, such as Caddy, nginx or your platform's ingress.
 
+When `ALLOWED_ORIGINS` is unset, the proxy only accepts browser requests whose `Origin` matches the request's `Host` header. Your reverse proxy must therefore forward the original `Host`. Caddy, Traefik and ingress-nginx do this by default. Plain nginx does not: it sends the upstream address (for example `127.0.0.1:3000`), so every Jira search fails with 403. Do one of the following:
+
+- Forward the original host. For nginx:
+
+  ```nginx
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+  }
+  ```
+
+- Or set `ALLOWED_ORIGINS` to the app's public origin, for example `ALLOWED_ORIGINS=https://devhome.example.com`.
+
 ## Separate proxy origin (advanced)
 
 By default the app calls the proxy on its own origin at `/jira-proxy`. To serve the app from one origin and the proxy from another:
@@ -175,7 +188,7 @@ By default the app calls the proxy on its own origin at `/jira-proxy`. To serve 
 
 | Variable | Where | Default | Description |
 |---|---|---|---|
-| `ALLOWED_ORIGINS` | Proxy (Worker or Node) | unset (same-origin only) | Comma-separated list of exact origins allowed to call the proxy from a browser, such as `https://devhome.example.com`. Only needed for a separate proxy origin. |
+| `ALLOWED_ORIGINS` | Proxy (Worker or Node) | unset (same-origin only) | Comma-separated list of exact origins allowed to call the proxy from a browser, such as `https://devhome.example.com`. Needed for a separate proxy origin, or behind a reverse proxy that does not forward the original `Host`. |
 | `JIRA_ALLOWED_HOSTS` | Proxy (Worker or Node) | unset | Comma-separated list of exact Jira hostnames allowed in addition to `*.atlassian.net`, such as `jira.example.com,jira-internal.corp`. |
 | `PORT` | Node server only | `3000` | Port the Node server listens on. |
 | `VITE_JIRA_PROXY_URL` | Build time | `/jira-proxy` | Proxy base URL compiled into the app. Only needed for a separate proxy origin. |
@@ -195,6 +208,8 @@ No credentials are configured on the server. Users enter their Jira and GitHub c
    ```
 
 If Settings shows **Jira proxy: offline**, check that `/jira-proxy/*` reaches the Worker or Node server. If you use a separate proxy origin, also check `VITE_JIRA_PROXY_URL`, `ALLOWED_ORIGINS` and the CSP `connect-src` setting.
+
+If Settings shows **Jira proxy: online** but Jira requests fail with 403 `Origin not allowed`, the proxy sees a different `Host` than the browser's origin. This usually means a reverse proxy in front of the Node server rewrites `Host`. Forward the original host (`proxy_set_header Host $host;` for nginx) or set `ALLOWED_ORIGINS`. See [Docker](#docker).
 
 ## Migrating data from the desktop app
 

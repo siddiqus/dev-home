@@ -5,7 +5,18 @@ import { handle, type ProxyEnv } from "./core";
  * only /jira-proxy/* reaches this code (see run_worker_first in wrangler.jsonc).
  */
 export default {
-  fetch(request: Request, env: ProxyEnv): Promise<Response> {
-    return handle(request, env);
+  async fetch(request: Request, env: ProxyEnv): Promise<Response> {
+    const response = await handle(request, env);
+    // Upstream Content-Type is passed through on the app's origin, so stop sniffing.
+    if (!response.headers.has("X-Content-Type-Options")) {
+      const headers = new Headers(response.headers);
+      headers.set("X-Content-Type-Options", "nosniff");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+    return response;
   },
 };

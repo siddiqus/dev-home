@@ -25,7 +25,7 @@ All personal data (notes, teams, filters, focus state) lives in your browser's l
 
 ## Prerequisites
 
-- Node.js (v20+)
+- Node.js 22.12+
 - Yarn
 - A Jira account with an API token
 - A GitHub personal access token
