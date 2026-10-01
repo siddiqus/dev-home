@@ -117,17 +117,25 @@ export async function getJiraMentions(): Promise<{ comments: any[] }> {
   const username = config.jiraEmail.split("@")[0];
 
   const jql = `text ~ "${config.jiraEmail}" AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
-  const fields = ["summary"];
+  // Comments come inline with the search; only truncated lists need a follow-up call.
+  const fields = ["summary", "comment"];
   const maxResults = 20;
 
   const { data: searchData } = await jira.post("/search/jql", { jql, fields, maxResults });
   const issues = searchData.issues || [];
 
-  // Fetch comments for each issue in parallel
+  const issueComments = async (issue: any): Promise<any[]> => {
+    const inline = issue.fields?.comment;
+    if (Array.isArray(inline?.comments) && !(inline.total > inline.comments.length)) {
+      return inline.comments;
+    }
+    const { data: commentData } = await jira.get(`/issue/${issue.key}/comment`);
+    return commentData.comments || [];
+  };
+
   const commentPromises = issues.map(async (issue: any) => {
     try {
-      const { data: commentData } = await jira.get(`/issue/${issue.key}/comment`);
-      const comments = commentData.comments || [];
+      const comments = await issueComments(issue);
 
       // Filter comments that mention the user's email or username
       return comments
