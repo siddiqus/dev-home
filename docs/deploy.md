@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Dev Home is a static single-page app (built with Vite) plus a small Jira passthrough proxy. The recommended host is Cloudflare Workers, which serves both from one deploy on the free plan. You can also self-host it with Docker or any Node.js host.
+Dev Home is a static single-page app (built with Vite) plus a small Jira passthrough proxy. The recommended host is Cloudflare Workers, which serves both from one deploy on the free plan. Netlify is also supported, and you can self-host it with Docker or any Node.js host.
 
 ## How it works
 
@@ -123,6 +123,34 @@ yarn deploy:cf
 
 `wrangler` uses these variables instead of `wrangler login`.
 
+## Netlify
+
+One Netlify site serves the static app from `dist/` and runs the proxy as a Netlify Function on `/jira-proxy/*`, on the same origin. The configuration is in `netlify.toml`, the function entry is `netlify/functions/jira-proxy.ts`, and Netlify applies the security headers from `public/_headers`.
+
+### Deploy from your machine
+
+You need Node.js 22.12+ and a Netlify account. The Netlify CLI is not a project dependency, so run it with `npx`:
+
+```bash
+npx netlify-cli login                         # one-time
+npx netlify-cli deploy --site-name <name>     # first deploy: creates the site, gives a draft URL
+npx netlify-cli deploy --prod                 # publish to production
+```
+
+`deploy` runs `yarn build` and bundles the function locally, then uploads the result. Later deploys only need the last command.
+
+### Deploy from Git (optional)
+
+Connect the repository in the Netlify dashboard. Netlify reads `netlify.toml`, so no build settings need to be entered by hand.
+
+### Environment variables
+
+Set `ALLOWED_ORIGINS` and `JIRA_ALLOWED_HOSTS` (both optional, see [Environment variables](#environment-variables)) under **Site configuration → Environment variables**, or with `npx netlify-cli env:set NAME value`. Redeploy after changing them.
+
+### Limits
+
+Synchronous Netlify Functions time out after about 10 seconds, shorter than the proxy's own 25-second upstream timeout, so a very slow Jira response returns a Netlify error instead of the proxy's 502. Check your plan's function invocation allowance against roughly 300 proxy requests per active user per day. Static files don't invoke the function.
+
 ## Docker / any Node host (self-host)
 
 You need Node.js 22.12+ to install dependencies and build. `yarn build` produces the static app in `dist/`. It also bundles the Node server into `dist-server/server.mjs`, which has no runtime dependencies. The server serves `dist/` with an SPA fallback and security headers, and routes `/jira-proxy/*` to the proxy.
@@ -182,14 +210,14 @@ By default the app calls the proxy on its own origin at `/jira-proxy`. To serve 
    ```
 
 2. On the proxy deployment, set `ALLOWED_ORIGINS` to the app's origin, for example `ALLOWED_ORIGINS=https://devhome.example.com`.
-3. Add the proxy origin to the `connect-src` directive of the Content-Security-Policy. Change it in both `public/_headers` (Cloudflare) and `proxy/securityHeaders.ts` (Node server), for example `connect-src 'self' https://api.github.com https://proxy.example.com`.
+3. Add the proxy origin to the `connect-src` directive of the Content-Security-Policy. Change it in both `public/_headers` (Cloudflare and Netlify) and `proxy/securityHeaders.ts` (Node server), for example `connect-src 'self' https://api.github.com https://proxy.example.com`.
 
 ## Environment variables
 
 | Variable | Where | Default | Description |
 |---|---|---|---|
-| `ALLOWED_ORIGINS` | Proxy (Worker or Node) | unset (same-origin only) | Comma-separated list of exact origins allowed to call the proxy from a browser, such as `https://devhome.example.com`. Needed for a separate proxy origin, or behind a reverse proxy that does not forward the original `Host`. |
-| `JIRA_ALLOWED_HOSTS` | Proxy (Worker or Node) | unset | Comma-separated list of exact Jira hostnames allowed in addition to `*.atlassian.net`, such as `jira.example.com,jira-internal.corp`. |
+| `ALLOWED_ORIGINS` | Proxy (Worker, Netlify or Node) | unset (same-origin only) | Comma-separated list of exact origins allowed to call the proxy from a browser, such as `https://devhome.example.com`. Needed for a separate proxy origin, or behind a reverse proxy that does not forward the original `Host`. |
+| `JIRA_ALLOWED_HOSTS` | Proxy (Worker, Netlify or Node) | unset | Comma-separated list of exact Jira hostnames allowed in addition to `*.atlassian.net`, such as `jira.example.com,jira-internal.corp`. |
 | `PORT` | Node server only | `3000` | Port the Node server listens on. |
 | `VITE_JIRA_PROXY_URL` | Build time | `/jira-proxy` | Proxy base URL compiled into the app. Only needed for a separate proxy origin. |
 
@@ -207,7 +235,7 @@ No credentials are configured on the server. Users enter their Jira and GitHub c
    # {"status":"ok"}
    ```
 
-If Settings shows **Jira proxy: offline**, check that `/jira-proxy/*` reaches the Worker or Node server. If you use a separate proxy origin, also check `VITE_JIRA_PROXY_URL`, `ALLOWED_ORIGINS` and the CSP `connect-src` setting.
+If Settings shows **Jira proxy: offline**, check that `/jira-proxy/*` reaches the Worker, Netlify Function or Node server. If you use a separate proxy origin, also check `VITE_JIRA_PROXY_URL`, `ALLOWED_ORIGINS` and the CSP `connect-src` setting.
 
 If Settings shows **Jira proxy: online** but Jira requests fail with 403 `Origin not allowed`, the proxy sees a different `Host` than the browser's origin. This usually means a reverse proxy in front of the Node server rewrites `Host`. Forward the original host (`proxy_set_header Host $host;` for nginx) or set `ALLOWED_ORIGINS`. See [Docker](#docker).
 
