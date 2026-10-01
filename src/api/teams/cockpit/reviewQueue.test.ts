@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeReviewQueue } from "./reviewQueue";
-import type { RawPR } from "../teamAggregation";
+import type { RawPR } from "../aggregation";
 
 function mkPr(overrides: Partial<RawPR>): RawPR {
   return {

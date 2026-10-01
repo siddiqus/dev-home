@@ -1,23 +1,21 @@
-import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
-import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
-import { graphql } from "../clients/githubGraphqlClient";
+import { githubGraphql, jiraClient, jiraAgileClient, ApiError } from "../http";
 import {
   partitionOffBoardPRs,
   groupByEpic,
   type RawIssue,
   type RawPR,
   type RosterEntry,
-} from "../services/teamAggregation";
-import { enrichIssue, groupPRsByTicket } from "../services/dashboard/risk";
-import { buildNeedsAttention } from "../services/dashboard/attention";
-import { computePace } from "../services/dashboard/pace";
-import { computeLoadDistribution, computeLoadBalance } from "../services/dashboard/load";
-import { computePrFlow } from "../services/dashboard/prFlow";
-import { computeHygiene } from "../services/dashboard/hygiene";
-import { mapPullRequestNode, dedupePRs } from "../services/dashboard/prFetch";
-import { computeReviewQueue } from "../services/dashboard/reviewQueue";
-import { DEFAULT_COCKPIT_CONFIG } from "../services/dashboard/config";
-import type { SprintInfo, Burnup } from "../services/dashboard/types";
+} from "./aggregation";
+import { enrichIssue, groupPRsByTicket } from "./cockpit/risk";
+import { buildNeedsAttention } from "./cockpit/attention";
+import { computePace } from "./cockpit/pace";
+import { computeLoadDistribution, computeLoadBalance } from "./cockpit/load";
+import { computePrFlow } from "./cockpit/prFlow";
+import { computeHygiene } from "./cockpit/hygiene";
+import { mapPullRequestNode, dedupePRs } from "./cockpit/prFetch";
+import { computeReviewQueue } from "./cockpit/reviewQueue";
+import { DEFAULT_COCKPIT_CONFIG } from "./cockpit/config";
+import type { SprintInfo, Burnup } from "./cockpit/types";
 
 const MEMBER_PRS_QUERY = `
   query($q: String!) {
@@ -48,7 +46,7 @@ function twoWeeksAgoISO(): string {
 
 async function runSearch(q: string, fallbackLogin: string): Promise<RawPR[]> {
   try {
-    const data = await graphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
+    const data = await githubGraphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
     return (data.search.nodes || []).map((n: any) => mapPullRequestNode(n, fallbackLogin));
   } catch {
     return [];
@@ -118,21 +116,33 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
   });
 }
 
+export interface PostTeamDashboardArgs {
+  team: {
+    id: number;
+    name: string;
+    jira_board_id: number | null;
+    jira_board_name: string | null;
+  } | null;
+  members: Array<{
+    accountId: string;
+    displayName: string;
+    githubUsername: string;
+  }>;
+  sprintId?: number | null;
+}
+
 /**
- * POST /api/teams/dashboard
  * Aggregate Jira issues + GitHub PRs for the team's roster.
- * Body: { team: { id, name, jira_board_id, jira_board_name }, members: [...], sprintId }
  */
-export async function postTeamDashboard(req: Request, res: Response) {
-  const { team, members, sprintId: requestedSprintId } = req.body || {};
+export async function postTeamDashboard(args: PostTeamDashboardArgs) {
+  const { team, members, sprintId: requestedSprintId } = args;
   if (
     !team ||
     typeof team.id !== "number" ||
     typeof team.name !== "string" ||
     !Array.isArray(members)
   ) {
-    res.status(400).json({ error: "team and members are required" });
-    return;
+    throw new ApiError(400, "team and members are required");
   }
 
   const roster: RosterEntry[] = members.map((m: any) => ({
@@ -152,7 +162,7 @@ export async function postTeamDashboard(req: Request, res: Response) {
   if (accountIds.length > 0) {
     try {
       if (team.jira_board_id) {
-        const agile = createJiraAgileClient();
+        const agile = jiraAgileClient();
         // Paginate: a board can carry hundreds of sprints and the Agile API
         // returns them oldest-first, so the active/recent ones we care about
         // sit at the END. Fetching a single un-paginated page would miss them.
@@ -200,7 +210,7 @@ export async function postTeamDashboard(req: Request, res: Response) {
           issues = mapAgileIssues(issueData.issues || []);
         }
       } else {
-        const jira = createJiraClient();
+        const jira = jiraClient();
         const idList = accountIds.map((a) => `"${a}"`).join(", ");
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
         const fieldsArray = [
@@ -276,7 +286,7 @@ export async function postTeamDashboard(req: Request, res: Response) {
     : null;
   const burnup: Burnup = { trackingSince: null, points: [] };
 
-  res.json({
+  return {
     team: {
       id: team.id,
       name: team.name,
@@ -298,5 +308,5 @@ export async function postTeamDashboard(req: Request, res: Response) {
     snapshot,
     syncedAt: now.toISOString(),
     errors,
-  });
+  };
 }

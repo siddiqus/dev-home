@@ -5,8 +5,8 @@
  * STUB: returns a well-formed but naive enrichment. Implement flags + scoring
  * per docs/superpowers/specs/2026-07-02-sprint-cockpit-design.md (§5) with TDD.
  */
-import { extractTicketKey, prSource } from "../teamAggregation";
-import type { RawPR, RawIssue } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../aggregation";
+import type { RawPR, RawIssue } from "../aggregation";
 import type { EnrichedIssue, LinkedPR, SprintInfo } from "./types";
 import { type CockpitConfig, RISK_WEIGHTS, riskLevelFor } from "./config";
 

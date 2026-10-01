@@ -8,8 +8,8 @@
  *
  * STUB: implement with TDD per spec §5/§6.
  */
-import { extractTicketKey, prSource } from "../teamAggregation";
-import type { RawPR } from "../teamAggregation";
+import { extractTicketKey, prSource } from "../aggregation";
+import type { RawPR } from "../aggregation";
 import type { EnrichedIssue, Hygiene, Ref } from "./types";
 
 export function computeHygiene(

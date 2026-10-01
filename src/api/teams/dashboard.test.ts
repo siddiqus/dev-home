@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mapAgileIssues } from "./teams";
+import { mapAgileIssues, postTeamDashboard } from "./dashboard";
+import { ApiError } from "../http";
 
 // Shapes below mirror what Jira's Agile API actually returns for the `epic`
 // field object (verified against live boards): `name` is the deprecated
@@ -34,5 +35,15 @@ describe("mapAgileIssues — epic name resolution", () => {
     const [mapped] = mapAgileIssues([agileIssue(undefined)]);
     expect(mapped.epicKey).toBeNull();
     expect(mapped.epicName).toBeNull();
+  });
+});
+
+describe("postTeamDashboard — input validation", () => {
+  it("rejects when team is null", async () => {
+    await expect(postTeamDashboard({ team: null, members: [] })).rejects.toThrow(ApiError);
+    await expect(postTeamDashboard({ team: null, members: [] })).rejects.toMatchObject({
+      status: 400,
+      message: "team and members are required",
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mapPullRequestNode, dedupePRs } from "./prFetch";
-import type { RawPR } from "../teamAggregation";
+import type { RawPR } from "../aggregation";
 
 const node = {
   number: 7,

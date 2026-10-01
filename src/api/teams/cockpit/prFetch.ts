@@ -2,7 +2,7 @@
  * Pure mapping helpers for the member-PR GraphQL fetch. Kept out of the route
  * file so they can be unit-tested without importing Express/DB/graphql clients.
  */
-import type { RawPR, RawReview, RawReviewRequest } from "../teamAggregation";
+import type { RawPR, RawReview, RawReviewRequest } from "../aggregation";
 
 /** Map a GraphQL PullRequest node to RawPR (new fields + preserved legacy scalars). */
 export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {

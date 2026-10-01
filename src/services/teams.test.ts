@@ -9,7 +9,10 @@ import {
   removeTeamMember,
   updateTeam,
 } from "./teams";
-import { apiClient } from "./config";
+
+vi.mock("../api/teams/dashboard", () => ({
+  postTeamDashboard: vi.fn(),
+}));
 
 describe("teams (localStorage)", () => {
   beforeEach(() => {
@@ -54,16 +57,15 @@ describe("teams (localStorage)", () => {
   });
 
   it("posts roster to the stateless dashboard and records the snapshot", async () => {
+    const { postTeamDashboard } = await import("../api/teams/dashboard");
     const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
     await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
-    const post = vi.spyOn(apiClient, "post").mockResolvedValue({
-      data: {
-        burnup: { trackingSince: null, points: [] },
-        snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
-      },
+    vi.mocked(postTeamDashboard).mockResolvedValue({
+      burnup: { trackingSince: null, points: [] },
+      snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
     } as any);
     const d = await fetchTeamDashboard(t.id, 11);
-    expect(post).toHaveBeenCalledWith("/teams/dashboard", {
+    expect(postTeamDashboard).toHaveBeenCalledWith({
       team: { id: t.id, name: "T", jira_board_id: 3, jira_board_name: "B" },
       members: [{ accountId: "j", displayName: "A", githubUsername: "a" }],
       sprintId: 11,
@@ -73,13 +75,12 @@ describe("teams (localStorage)", () => {
   });
 
   it("returns dashboard with burnup when recordSnapshot fails", async () => {
+    const { postTeamDashboard } = await import("../api/teams/dashboard");
     const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
     await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
-    vi.spyOn(apiClient, "post").mockResolvedValue({
-      data: {
-        burnup: { trackingSince: null, points: [] },
-        snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
-      },
+    vi.mocked(postTeamDashboard).mockResolvedValue({
+      burnup: { trackingSince: null, points: [] },
+      snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
     } as any);
 
     const orig = Storage.prototype.setItem;

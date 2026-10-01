@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { computeLoadDistribution, computeLoadBalance } from "./load";
 import type { EnrichedIssue, WorkloadEntry } from "./types";
-import type { RawPR, RosterEntry } from "../teamAggregation";
+import type { RawPR, RosterEntry } from "../aggregation";
 
 const now = new Date("2026-07-02T12:00:00Z");
 
