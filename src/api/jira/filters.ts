@@ -1,10 +1,12 @@
-import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
-import { createJiraClient } from "../clients/jiraApiClient";
+import { jiraClient } from "../http";
+import { ApiError } from "../http/errors";
 
-// ── JIRA Remote Filters (user's own filters) ───────────────────────────
-
-export async function getRemoteFilters(_req: Request, res: Response) {
-  const jira = createJiraClient();
+/**
+ * GET /api/jira-filters/remote → getRemoteFilters()
+ * JIRA Remote Filters (user's own filters)
+ */
+export async function getRemoteFilters(): Promise<{ filters: any[] }> {
+  const jira = jiraClient();
   const { data } = await jira.get("/filter/my");
   const filters = (Array.isArray(data) ? data : []).map((f: any) => ({
     id: f.id,
@@ -12,20 +14,24 @@ export async function getRemoteFilters(_req: Request, res: Response) {
     jql: f.jql,
     favourite: f.favourite,
   }));
-  res.json({ filters });
+  return { filters };
 }
 
-// ── JQL Search ──────────────────────────────────────────────────────────
-
-export async function postJqlSearch(req: Request, res: Response) {
-  const { jql, nextPageToken } = req.body;
+/**
+ * POST /api/jira-filters/search → postJqlSearch({ jql, nextPageToken })
+ * JQL Search
+ */
+export async function postJqlSearch(args: {
+  jql: string;
+  nextPageToken?: string | null;
+}): Promise<{ issues: any[]; total: number; nextPageToken: string | null }> {
+  const { jql, nextPageToken } = args;
 
   if (!jql || typeof jql !== "string" || jql.trim().length === 0) {
-    res.status(400).json({ error: "jql is required" });
-    return;
+    throw new ApiError(400, "jql is required");
   }
 
-  const jira = createJiraClient();
+  const jira = jiraClient();
   const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
   const maxResults = 50;
 
@@ -64,9 +70,9 @@ export async function postJqlSearch(req: Request, res: Response) {
     updated: issue.fields?.updated,
   }));
 
-  res.json({
+  return {
     issues,
     total: data.total || issues.length,
     nextPageToken: data.nextPageToken || null,
-  });
+  };
 }

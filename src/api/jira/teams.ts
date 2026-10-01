@@ -1,20 +1,17 @@
-import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
-import axios from "axios";
-import { createJiraClient, createJiraAgileClient } from "../clients/jiraApiClient";
-import { getConfig } from "../config";
+import { jiraClient, jiraClientV2, jiraAgileClient } from "../http";
+import { ApiError } from "../http/errors";
 
 /**
- * GET /api/teams-jira/users/search?q=
+ * GET /api/teams-jira/users/search?q= → searchUsers({ q })
  * Type-ahead search for Jira users. Returns accountId (stable match key),
  * displayName, emailAddress (often null due to privacy), and a small avatar.
  */
-export async function searchUsers(req: Request, res: Response) {
-  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+export async function searchUsers(args: { q: string }): Promise<{ users: any[] }> {
+  const q = typeof args.q === "string" ? args.q.trim() : "";
   if (!q) {
-    res.json({ users: [] });
-    return;
+    return { users: [] };
   }
-  const jira = createJiraClient();
+  const jira = jiraClient();
   const mapUser = (u: any) => ({
     accountId: u.accountId,
     displayName: u.displayName,
@@ -29,16 +26,10 @@ export async function searchUsers(req: Request, res: Response) {
     // The v3 `query` param often misses users whose email visibility is
     // private. Fall back to the v2 endpoint which still supports searching
     // by email via the `username` param on Jira Cloud.
-    const config = getConfig();
-    const credentials = Buffer.from(`${config.jiraEmail}:${config.jiraApiToken}`).toString(
-      "base64",
-    );
+    const jiraV2 = jiraClientV2();
     requests.push(
-      axios
-        .get(`${config.jiraBaseUrl}/rest/api/2/user/search`, {
-          params: { username: q, maxResults: 20 },
-          headers: { Authorization: `Basic ${credentials}`, Accept: "application/json" },
-        })
+      jiraV2
+        .get("/user/search", { params: { username: q, maxResults: 20 } })
         .then((r) => r.data || [])
         .catch(() => []),
     );
@@ -54,16 +45,16 @@ export async function searchUsers(req: Request, res: Response) {
       }
     }
   }
-  res.json({ users });
+  return { users };
 }
 
 /**
- * GET /api/teams-jira/boards/search?q=
+ * GET /api/teams-jira/boards/search?q= → searchBoards({ q })
  * Search scrum boards by name. Returns id, name, and project location.
  */
-export async function searchBoards(req: Request, res: Response) {
-  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-  const agile = createJiraAgileClient();
+export async function searchBoards(args: { q: string }): Promise<{ boards: any[] }> {
+  const q = typeof args.q === "string" ? args.q.trim() : "";
+  const agile = jiraAgileClient();
   const boards: any[] = [];
   let startAt = 0;
   const maxResults = 50;
@@ -83,20 +74,19 @@ export async function searchBoards(req: Request, res: Response) {
     if (data.isLast || (data.values || []).length < maxResults) break;
     startAt += maxResults;
   }
-  res.json({ boards });
+  return { boards };
 }
 
 /**
- * GET /api/teams-jira/boards/:id/sprints
+ * GET /api/teams-jira/boards/:id/sprints → getBoardSprints({ id })
  * Return active + recent closed sprints for a board, newest first.
  */
-export async function getBoardSprints(req: Request, res: Response) {
-  const boardId = parseInt(req.params.id, 10);
+export async function getBoardSprints(args: { id: number }): Promise<{ sprints: any[] }> {
+  const boardId = args.id;
   if (isNaN(boardId)) {
-    res.status(400).json({ error: "invalid board id" });
-    return;
+    throw new ApiError(400, "invalid board id");
   }
-  const agile = createJiraAgileClient();
+  const agile = jiraAgileClient();
   const sprints: any[] = [];
   let startAt = 0;
   const maxResults = 50;
@@ -122,5 +112,5 @@ export async function getBoardSprints(req: Request, res: Response) {
     if (b.state === "active" && a.state !== "active") return 1;
     return new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
   });
-  res.json({ sprints });
+  return { sprints };
 }
