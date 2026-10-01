@@ -114,7 +114,18 @@ yarn deploy:cf
 
 ### Deploy from CI (optional)
 
-Create a Cloudflare API token that can edit Workers. Store it and your account ID as CI secrets, expose them as the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` environment variables, and run:
+`.github/workflows/deploy.yml` runs typecheck, lint and tests, then deploys on every push to `master`. You can also start it by hand from the **Actions** tab. It needs two repository secrets:
+
+1. Create the token. In the Cloudflare dashboard, go to **My Profile**, then **API Tokens**, then **Create Token**, and use the **Edit Cloudflare Workers** template. Limit it to your account (and to no zones, unless you use a custom domain).
+2. Find your account ID with `yarn wrangler whoami`, or on the Workers & Pages overview page.
+3. Add both as secrets, either in GitHub under **Settings**, then **Secrets and variables**, then **Actions**, or with the GitHub CLI:
+
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN     # paste the token when prompted
+   gh secret set CLOUDFLARE_ACCOUNT_ID --body <account-id>
+   ```
+
+For other CI systems, expose the same two values as the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` environment variables and run:
 
 ```bash
 yarn install --frozen-lockfile
