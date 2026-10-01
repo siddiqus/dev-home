@@ -84,6 +84,10 @@ function commentCalls(): string[] {
     .filter((u: string) => u.includes("/issues/comments/"));
 }
 
+function subjectCalls(): string[] {
+  return adapter.mock.calls.map(([c]) => urlOf(c)).filter((u: string) => /\/pulls\/\d+$/.test(u));
+}
+
 beforeEach(() => {
   localStorage.clear();
   saveSettings(BASE_SETTINGS);
@@ -155,6 +159,41 @@ describe("getGithubMentions caching", () => {
     expect(mentions).toHaveLength(50);
     // Newest 50 = ids 11..60
     expect(Math.min(...mentions.map((m) => m.id))).toBe(11);
+  });
+
+  it("makes no subject requests on a refresh with unchanged notifications", async () => {
+    inbox = [notification(1), notification(2)];
+    await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(2);
+
+    adapter.mockClear();
+    const { mentions } = await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(0);
+    expect(mentions).toHaveLength(2);
+  });
+
+  it("re-checks the subject when a thread's updated_at changes, and drops it once closed", async () => {
+    inbox = [notification(1, "2026-09-01T00:00:00Z")];
+    await getGithubMentions();
+
+    adapter.mockClear();
+    inbox = [notification(1, "2026-09-10T00:00:00Z")];
+    const base = adapter.getMockImplementation() as (config: any) => Promise<any>;
+    adapter.mockImplementation(async (config: any) =>
+      /\/pulls\/1$/.test(urlOf(config)) ? response(config, { state: "closed" }) : base(config),
+    );
+    const { mentions } = await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(1);
+    expect(mentions).toEqual([]);
+  });
+
+  it("looks up at most 50 subjects when there are more than 50 notifications", async () => {
+    inbox = Array.from({ length: 60 }, (_, i) =>
+      notification(i + 1, new Date(Date.UTC(2026, 8, 1, 0, i + 1)).toISOString()),
+    );
+    await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(50);
+    expect(subjectCalls()).not.toContain(`${API}/repos/test-org/app/pulls/10`);
   });
 
   it("is reset when SETTINGS_EVENT fires on window", async () => {
@@ -264,7 +303,7 @@ describe("multi-author / multi-repo PR searches", () => {
     expect(body.variables.query).toBe(
       buildOrgPrsQuery({ org: "test-org", authors: AUTHORS, repos: REPOS }),
     );
-    expect(body.variables.first).toBe(50);
+    expect(body.variables.first).toBe(100);
   });
 
   it("fetchRecentlyMergedPRs makes exactly one HTTP call for 3 authors x 2 repos", async () => {
@@ -275,6 +314,11 @@ describe("multi-author / multi-repo PR searches", () => {
       "repo:test-org/app repo:test-org/api author:alice author:bob author:carol",
     );
     expect(body.variables.first).toBe(50);
+  });
+
+  it("fetchOrgPRsMulti keeps the page of 10 for a single author and repo", async () => {
+    await fetchOrgPRsMulti(["alice"], ["test-org/app"]);
+    expect(graphqlBodies()[0].variables.first).toBe(10);
   });
 
   it("getMergedPrs keeps first: 20 for a single author and repo", async () => {

@@ -53,12 +53,19 @@ let notificationsCache: {
 const threadComments = new Map<string, { updatedAt: string; comments: any[] }>();
 
 /**
- * Drop the cached notification list and per-thread comments. Cleared whenever
+ * Subject open/closed state per notification thread, reused while the thread's
+ * `updated_at` is unchanged (closing or merging a PR updates the notification).
+ */
+const subjectStates = new Map<string, { updatedAt: string; open: boolean }>();
+
+/**
+ * Drop the cached notification list, subject states and per-thread comments. Cleared whenever
  * settings change (a new token or user sees a different inbox).
  */
 export function resetMentionsCache(): void {
   notificationsCache = { since: null, lastModified: null, notifications: [] };
   threadComments.clear();
+  subjectStates.clear();
 }
 
 if (typeof window !== "undefined") {
@@ -106,7 +113,8 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
 
 /**
  * Filter out notifications whose subject (PR/issue) is no longer open.
- * Fetches the subject URL in batches to check state.
+ * Fetches the subject URL in batches to check state; threads whose
+ * `updated_at` matches a cached state reuse it without a request.
  */
 export async function filterOpenNotifications(
   notifications: any[],
@@ -121,14 +129,20 @@ export async function filterOpenNotifications(
       batch.map(async (notification: any) => {
         const subjectUrl = notification.subject?.url;
         if (!subjectUrl) return notification;
+        const key = String(notification.id);
+        const cached = subjectStates.get(key);
+        if (cached && cached.updatedAt === notification.updated_at) {
+          return cached.open ? notification : null;
+        }
         try {
           const { data: subject } = await github.get(subjectUrl);
           // PRs have "state" (open/closed) and "merged" boolean
           // Issues have "state" (open/closed)
-          if (subject.state && subject.state !== "open") return null;
-          return notification;
+          const open = !(subject.state && subject.state !== "open");
+          subjectStates.set(key, { updatedAt: notification.updated_at, open });
+          return open ? notification : null;
         } catch {
-          // If we can't fetch the subject, include it (fail open)
+          // If we can't fetch the subject, include it (fail open); not cached, so it's retried
           return notification;
         }
       }),

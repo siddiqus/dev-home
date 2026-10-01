@@ -152,8 +152,8 @@ export async function getOrgPrs(
   const cursor = typeof args.cursor === "string" ? args.cursor : undefined;
   const q = buildOrgPrsQuery({ org, authors, repos });
   // Pages of 10 for single-filter browsing; a multi-filter query replaces a
-  // fan-out of calls and isn't paginated, so give it a larger page.
-  const first = authors.length > 1 || repos.length > 1 ? 50 : 10;
+  // fan-out of calls and isn't paginated, so it takes the GraphQL max of 100.
+  const first = authors.length > 1 || repos.length > 1 ? 100 : 10;
 
   const result = await githubGraphql<{
     search: { nodes: any[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
@@ -229,8 +229,9 @@ export async function getOrgRepos(): Promise<{ repos: { full_name: string; name:
 /**
  * Formerly GET /api/github/mentions.
  * Fetch GitHub mentions from the notifications API (participating, all, 2-month window).
- * Only the newest MAX_MENTION_THREADS open threads are processed; the notification
- * list and per-thread comments are cached between calls (see ./notifications).
+ * Only the newest MAX_MENTION_THREADS threads are processed (closed ones are then
+ * dropped); the notification list, subject states and per-thread comments are
+ * cached between calls (see ./notifications).
  * Note: comments on the user's own PRs are returned by getPrs() as pr_comments
  * and merged on the frontend, avoiding a duplicate GraphQL call.
  */
@@ -239,9 +240,11 @@ export async function getGithubMentions(): Promise<{ mentions: any[] }> {
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
   const allNotifications = await fetchAllNotifications(github, since);
-  const notifications = (await filterOpenNotifications(allNotifications, github))
+  // Cap before the open-state check so at most MAX_MENTION_THREADS subjects are looked up.
+  const newest = [...allNotifications]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, MAX_MENTION_THREADS);
+  const notifications = await filterOpenNotifications(newest, github);
   const mentions = await fetchCommentsInBatches(notifications, github);
 
   // Filter out bot mentions and deduplicate by id
