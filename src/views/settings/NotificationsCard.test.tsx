@@ -119,4 +119,27 @@ describe("NotificationsCard", () => {
       screen.getByText(/reminders and pomodoro alerts only fire while dev home is open/i),
     ).toBeInTheDocument();
   });
+
+  it("shows denied state when user denies the permission request (no toast)", async () => {
+    requestPermissionSpy.mockResolvedValue("denied");
+    class MockNotification {
+      static permission = "default";
+      static requestPermission = requestPermissionSpy;
+    }
+    // @ts-expect-error assigning test double
+    global.Notification = MockNotification;
+
+    render(<NotificationsCard />);
+
+    const button = screen.getByRole("button", { name: /enable notifications/i });
+    fireEvent.click(button);
+
+    // After permission is denied, should show denied alert (not success toast)
+    await waitFor(() => {
+      expect(screen.getByText(/notifications are blocked/i)).toBeInTheDocument();
+    });
+
+    // Should NOT show the success toast
+    expect(screen.queryByRole("status")).toHaveTextContent("");
+  });
 });

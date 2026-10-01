@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
@@ -9,6 +9,8 @@ export const NotificationsCard: React.FC = () => {
     "unsupported",
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Read permission on mount and whenever it might have changed
   useEffect(() => {
@@ -19,18 +21,30 @@ export const NotificationsCard: React.FC = () => {
     setPermission(Notification.permission);
   }, []);
 
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleEnableNotifications = async () => {
     if (typeof Notification === "undefined") return;
 
+    setIsRequesting(true);
     try {
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result === "granted") {
         setSuccessMessage("Notifications enabled.");
-        setTimeout(() => setSuccessMessage(null), 3000);
+        timeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
       console.error("Failed to request notification permission:", err);
+    } finally {
+      setIsRequesting(false);
     }
   };
 
@@ -66,8 +80,13 @@ export const NotificationsCard: React.FC = () => {
           )}
 
           {permission === "default" && (
-            <Button variant="outline-primary" size="sm" onClick={handleEnableNotifications}>
-              Enable notifications
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={handleEnableNotifications}
+              disabled={isRequesting}
+            >
+              {isRequesting ? "Requesting..." : "Enable notifications"}
             </Button>
           )}
         </Card.Body>
