@@ -169,42 +169,6 @@
   color: var(--color-text-secondary);
 }
 
-/* --- Checks log view (replaces list when viewing logs) --- */
-.description-modal .checks-log-view {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.description-modal .checks-log-view-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-  flex-shrink: 0;
-}
-
-.description-modal .checks-log-view-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.description-modal .checks-back-btn {
-  background: none;
-  border: none;
-  color: var(--color-accent);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.description-modal .checks-back-btn:hover {
-  text-decoration: underline;
-}
-
 /* --- Check run row --- */
 .description-modal .check-run-row {
   display: flex;
@@ -222,12 +186,6 @@
 .description-modal .check-run-row:hover {
   background-color: var(--color-bg-hover);
   filter: brightness(0.92);
-}
-
-.description-modal .check-run-row--selected {
-  background-color: var(--color-bg-app);
-  border-left: 2px solid var(--color-accent);
-  padding-left: 10px;
 }
 
 .description-modal .check-run-actions {
@@ -255,56 +213,6 @@
 .description-modal .check-run-action-btn:hover {
   background-color: var(--color-status-neutral-bg);
   color: var(--color-text-primary);
-}
-
-/* --- Log viewer --- */
-.description-modal .log-viewer {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.description-modal .log-viewer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border-subtle);
-  flex-shrink: 0;
-}
-
-.description-modal .log-viewer-content {
-  flex: 1;
-  overflow: auto;
-  margin: 0;
-  padding: var(--space-4);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  background-color: var(--color-bg-app);
-  color: var(--color-text-primary);
-  white-space: pre-wrap;
-  word-break: break-all;
-  border: none;
-  border-radius: 0;
-  outline: none;
-}
-
-.description-modal .log-viewer-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 100%;
-}
-
-.description-modal .log-viewer-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-status-danger, #f85149);
 }
 
 /* --- Footer --- */

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { searchJiraUsers } from "../../services/teams";
-import { apiClient } from "../../services/config";
+import { fetchOrgMembers } from "../../services/github";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import type { JiraUserResult } from "../../types/teams";
 
@@ -38,10 +38,9 @@ export function MemberSearchRow({ onAdd }: Props) {
   // dropdown filter client-side.
   useEffect(() => {
     let cancelled = false;
-    apiClient
-      .get("/github/org-members")
-      .then(({ data }) => {
-        if (!cancelled) setGhMembers(data.members || []);
+    fetchOrgMembers()
+      .then((members) => {
+        if (!cancelled) setGhMembers(members || []);
       })
       .catch(() => {
         if (!cancelled) setGhMembers([]);

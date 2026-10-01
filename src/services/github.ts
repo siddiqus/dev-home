@@ -1,8 +1,18 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
-import { apiClient } from "./config";
+import {
+  getGithubMentions,
+  getMergedPrs,
+  getOrgMembers,
+  getOrgPrs,
+  getOrgPrsMultiRepo,
+  getOrgRepos,
+  getPrDetail,
+  getPrs,
+  getReviews,
+} from "../api/github";
 
 export async function fetchOpenPRs(): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
-  const { data } = await apiClient.get("/github/prs");
+  const data = await getPrs();
   return { prs: data.prs, prComments: data.pr_comments || [] };
 }
 
@@ -14,12 +24,12 @@ export interface ReviewPRs {
 }
 
 export async function fetchReviewRequests(): Promise<ReviewPRs> {
-  const { data } = await apiClient.get("/github/reviews");
+  const data = await getReviews();
   return { reviews: data.reviews, reviewing: data.reviewing ?? [] };
 }
 
 export async function fetchMentions(): Promise<GitHubComment[]> {
-  const { data } = await apiClient.get("/github/mentions");
+  const data = await getGithubMentions();
   return data.mentions;
 }
 
@@ -33,11 +43,11 @@ export async function fetchOrgPRs(
   author?: string,
   repo?: string,
 ): Promise<OrgPRsPage> {
-  const params: Record<string, string> = {};
+  const params: { cursor?: string; author?: string; repo?: string } = {};
   if (cursor) params.cursor = cursor;
   if (author) params.author = author;
   if (repo) params.repo = repo;
-  const { data } = await apiClient.get("/github/org-prs", { params });
+  const data = await getOrgPrs(params);
   return data;
 }
 
@@ -46,9 +56,9 @@ export async function fetchOrgPRs(
  * Optionally filter by a single author on the backend.
  */
 async function fetchOrgPRsMultiRepo(repos: string[], author?: string): Promise<GitHubPR[]> {
-  const params: Record<string, string> = { repos: repos.join(",") };
+  const params: { repos: string; author?: string } = { repos: repos.join(",") };
   if (author) params.author = author;
-  const { data } = await apiClient.get("/github/org-prs-multi-repo", { params });
+  const data = await getOrgPrsMultiRepo(params);
   return data.prs;
 }
 
@@ -100,20 +110,22 @@ export async function fetchRecentlyMergedPRs(
     const calls: Promise<GitHubPR[]>[] = [];
     for (const author of authorCombos) {
       for (const repo of repoCombos) {
-        const params: Record<string, string> = { scope: "org" };
+        const params: { scope: "user" | "org"; author?: string; repo?: string } = {
+          scope: "org",
+        };
         if (author) params.author = author;
         if (repo) params.repo = repo;
-        calls.push(apiClient.get("/github/merged-prs", { params }).then((r) => r.data.prs));
+        calls.push(getMergedPrs(params).then((r) => r.prs));
       }
     }
     const results = await Promise.all(calls);
     return dedupeAndSort(results.flat());
   }
 
-  const params: Record<string, string> = { scope };
+  const params: { scope: "user" | "org"; author?: string; repo?: string } = { scope };
   if (authors && authors[0]) params.author = authors[0];
   if (repos && repos[0]) params.repo = repos[0];
-  const { data } = await apiClient.get("/github/merged-prs", { params });
+  const data = await getMergedPrs(params);
   return data.prs;
 }
 
@@ -123,7 +135,7 @@ export interface OrgMember {
 }
 
 export async function fetchOrgMembers(): Promise<OrgMember[]> {
-  const { data } = await apiClient.get("/github/org-members");
+  const data = await getOrgMembers();
   return data.members;
 }
 
@@ -133,19 +145,12 @@ export interface OrgRepo {
 }
 
 export async function fetchOrgRepos(): Promise<OrgRepo[]> {
-  const { data } = await apiClient.get("/github/org-repos");
+  const data = await getOrgRepos();
   return data.repos;
-}
-
-export async function fetchJobLogs(owner: string, repo: string, jobId: string): Promise<string> {
-  const { data } = await apiClient.get("/github/job-logs", {
-    params: { owner, repo, job_id: jobId },
-  });
-  return data.logs;
 }
 
 /** Fetch a single PR (body + checks) by repo and number. */
 export async function fetchPR(owner: string, repo: string, number: number): Promise<GitHubPR> {
-  const { data } = await apiClient.get(`/github/pr/${owner}/${repo}/${number}`);
+  const data = await getPrDetail({ owner, repo, number });
   return data.pr;
 }

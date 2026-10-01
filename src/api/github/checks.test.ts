@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecksStatus, findOptionalFailures, parseRequiredContexts } from "./githubChecks";
+import { computeChecksStatus, findOptionalFailures, parseRequiredContexts } from "./checks";
 
 /** Build a CheckRun context node (GitHub Actions / Checks API). */
 function ck(name: string, conclusion: string | null, completedAt?: string) {
