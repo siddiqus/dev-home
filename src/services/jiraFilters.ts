@@ -1,6 +1,6 @@
 import { JiraIssue } from "../types";
-import { apiClient } from "./config";
 import { createCollection, sqliteNow } from "../lib/localStore";
+import { getRemoteFilters, postJqlSearch } from "../api/jira";
 
 export interface JqlFilter {
   id: number;
@@ -56,16 +56,14 @@ export async function deleteLocalJqlFilter(id: number): Promise<void> {
 }
 
 export async function fetchRemoteJiraFilters(): Promise<RemoteJiraFilter[]> {
-  const { data } = await apiClient.get("/jira-filters/remote");
-  return data.filters;
+  const { filters } = await getRemoteFilters();
+  return filters;
 }
 
 export async function searchJql(
   jql: string,
   nextPageToken?: string | null,
 ): Promise<{ issues: JiraIssue[]; total: number; nextPageToken: string | null }> {
-  const payload: Record<string, any> = { jql };
-  if (nextPageToken) payload.nextPageToken = nextPageToken;
-  const { data } = await apiClient.post("/jira-filters/search", payload);
-  return { issues: data.issues, total: data.total, nextPageToken: data.nextPageToken };
+  const result = await postJqlSearch({ jql, nextPageToken: nextPageToken ?? null });
+  return { issues: result.issues, total: result.total, nextPageToken: result.nextPageToken };
 }

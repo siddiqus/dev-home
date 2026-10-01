@@ -1,14 +1,12 @@
-import type { ApiRequest as Request, ApiResponse as Response } from "../http/nextHandler";
-import { getConfig } from "../config";
-import { createJiraClient } from "../clients/jiraApiClient";
-import { adfToMarkdown } from "../utils/adf";
+import { jiraClient, requireSettings } from "../http";
+import { adfToMarkdown } from "./adf";
 
 /**
- * GET /api/jira/issues
+ * GET /api/jira/issues → getIssues()
  * Fetch unresolved issues assigned to the current user.
  */
-export async function getIssues(_req: Request, res: Response) {
-  const jira = createJiraClient();
+export async function getIssues(): Promise<{ issues: any[] }> {
+  const jira = jiraClient();
 
   const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
   const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
@@ -42,21 +40,20 @@ export async function getIssues(_req: Request, res: Response) {
     updated: issue.fields?.updated,
   }));
 
-  res.json({ issues });
+  return { issues };
 }
 
 /**
- * POST /api/jira/issues/bulk
+ * POST /api/jira/issues/bulk → postIssuesBulk({ keys })
  * Fetch issues by their keys (e.g. ["CCP-123", "CCP-456"]).
  */
-export async function postIssuesBulk(req: Request, res: Response) {
-  const { keys } = req.body;
+export async function postIssuesBulk(args: { keys: string[] }): Promise<{ issues: any[] }> {
+  const { keys } = args;
   if (!Array.isArray(keys) || keys.length === 0) {
-    res.json({ issues: [] });
-    return;
+    return { issues: [] };
   }
 
-  const jira = createJiraClient();
+  const jira = jiraClient();
   const keyList = keys.map((k: string) => `"${k}"`).join(", ");
   const jql = `key IN (${keyList}) ORDER BY updated DESC`;
   const fields = [
@@ -105,16 +102,16 @@ export async function postIssuesBulk(req: Request, res: Response) {
     },
   }));
 
-  res.json({ issues });
+  return { issues };
 }
 
 /**
- * GET /api/jira/mentions
+ * GET /api/jira/mentions → getJiraMentions()
  * Fetch recent comments that mention the current user.
  */
-export async function getJiraMentions(_req: Request, res: Response) {
-  const config = getConfig();
-  const jira = createJiraClient();
+export async function getJiraMentions(): Promise<{ comments: any[] }> {
+  const config = requireSettings();
+  const jira = jiraClient();
 
   // Extract username from email (part before @)
   const username = config.jiraEmail.split("@")[0];
@@ -171,5 +168,5 @@ export async function getJiraMentions(_req: Request, res: Response) {
     return new Date(b.updated).getTime() - new Date(a.updated).getTime();
   });
 
-  res.json({ comments: allComments });
+  return { comments: allComments };
 }

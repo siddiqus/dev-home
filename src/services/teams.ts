@@ -2,6 +2,7 @@ import { apiClient } from "./config";
 import { createCollection, sqliteNow } from "../lib/localStore";
 import { buildBurnup } from "../../shared/burnup";
 import { getSnapshotRows, recordSnapshot } from "./snapshots";
+import { searchUsers, searchBoards, getBoardSprints } from "../api/jira";
 import type {
   Team,
   TeamMember,
@@ -149,18 +150,18 @@ export async function removeTeamMember(teamId: number, memberId: number): Promis
 }
 
 export async function searchJiraUsers(q: string): Promise<JiraUserResult[]> {
-  const { data } = await apiClient.get("/teams-jira/users/search", { params: { q } });
-  return data.users || [];
+  const { users } = await searchUsers({ q });
+  return users || [];
 }
 
 export async function searchJiraBoards(q: string): Promise<JiraBoardResult[]> {
-  const { data } = await apiClient.get("/teams-jira/boards/search", { params: { q } });
-  return data.boards || [];
+  const { boards } = await searchBoards({ q });
+  return boards || [];
 }
 
 export async function fetchBoardSprints(boardId: number): Promise<SprintResult[]> {
-  const { data } = await apiClient.get(`/teams-jira/boards/${boardId}/sprints`);
-  return data.sprints || [];
+  const { sprints } = await getBoardSprints({ id: boardId });
+  return sprints || [];
 }
 
 export async function fetchTeamDashboard(
