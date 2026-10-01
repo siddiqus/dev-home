@@ -7,11 +7,11 @@ import prettierPlugin from "eslint-plugin-prettier";
 
 export default [
   {
-    ignores: ["dist/**", "dist-electron/**", ".next/**", "node_modules/**"],
+    ignores: ["dist/**", "dist-server/**", "node_modules/**"],
   },
-  // Frontend (src + app), server, and proxy
+  // Frontend (src) and proxy
   {
-    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}", "server/src/**/*.{ts,tsx}", "proxy/**/*.ts"],
+    files: ["src/**/*.{ts,tsx}", "proxy/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

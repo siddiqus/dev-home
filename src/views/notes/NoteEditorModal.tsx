@@ -68,7 +68,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [initialRemindAtIso, setInitialRemindAtIso] = useState<string | null>(null);
 
   const editor = useEditor({
-    // Tiptap flags Next.js as SSR; create the editor after mount to avoid hydration mismatches.
+    // Create the editor after mount (harmless in the SPA; kept from the SSR era).
     immediatelyRender: false,
     extensions: [
       StarterKit,

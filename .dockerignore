@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-server
+data
+release
+.git
+.superpowers
+*.log
+.env
+.env.*
+server/
