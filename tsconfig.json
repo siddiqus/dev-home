@@ -33,6 +33,7 @@
     "src",
     "shared",
     "proxy",
+    "netlify",
     "vite.config.ts",
     "vitest.config.ts"
   ],

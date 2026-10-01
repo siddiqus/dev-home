@@ -11,7 +11,7 @@ export default [
   },
   // Frontend (src) and proxy
   {
-    files: ["src/**/*.{ts,tsx}", "proxy/**/*.ts"],
+    files: ["src/**/*.{ts,tsx}", "proxy/**/*.ts", "netlify/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
