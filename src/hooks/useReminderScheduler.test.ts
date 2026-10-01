@@ -175,12 +175,12 @@ describe("useReminderScheduler", () => {
     expect(notifySpy).toHaveBeenCalledTimes(1);
   });
 
-  it("requests notification permission on mount when permission is 'default'", () => {
+  it("does NOT request notification permission on mount (user must grant via Settings)", () => {
     // @ts-expect-error override the static for this case
     global.Notification.permission = "default";
     const notes = [makeNote({ id: 1, remind_at: null })];
     renderHook(() => useReminderScheduler(notes));
-    expect(requestPermissionSpy).toHaveBeenCalled();
+    expect(requestPermissionSpy).not.toHaveBeenCalled();
   });
 
   it("clears the interval on unmount (no further notifications)", () => {
