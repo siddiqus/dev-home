@@ -3,6 +3,7 @@ import { ApiError, toApiError } from "../http/errors";
 import { githubGraphql, githubRest } from "../http/github";
 import { extractOwnPRComments, hoursAgo, isBot, mapGraphQLPr, monthsAgo } from "./mapping";
 import {
+  MAX_MENTION_THREADS,
   fetchAllNotifications,
   fetchCommentsInBatches,
   filterOpenNotifications,
@@ -18,6 +19,7 @@ import {
 import { getRequiredContexts, mapOpenPrsWithChecks } from "./requiredContexts";
 
 export { clearRequiredContextsCache } from "./requiredContexts";
+export { resetMentionsCache } from "./notifications";
 
 /**
  * Formerly GET /api/github/prs.
@@ -301,6 +303,8 @@ export async function getOrgRepos(): Promise<{ repos: { full_name: string; name:
 /**
  * Formerly GET /api/github/mentions.
  * Fetch GitHub mentions from the notifications API (participating, all, 2-month window).
+ * Only the newest MAX_MENTION_THREADS open threads are processed; the notification
+ * list and per-thread comments are cached between calls (see ./notifications).
  * Note: comments on the user's own PRs are returned by getPrs() as pr_comments
  * and merged on the frontend, avoiding a duplicate GraphQL call.
  */
@@ -309,7 +313,9 @@ export async function getGithubMentions(): Promise<{ mentions: any[] }> {
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
   const allNotifications = await fetchAllNotifications(github, since);
-  const notifications = await filterOpenNotifications(allNotifications, github);
+  const notifications = (await filterOpenNotifications(allNotifications, github))
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, MAX_MENTION_THREADS);
   const mentions = await fetchCommentsInBatches(notifications, github);
 
   // Filter out bot mentions and deduplicate by id
