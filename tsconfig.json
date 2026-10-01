@@ -39,6 +39,7 @@
     "src",
     "server/src",
     "shared",
+    "proxy",
     ".next/types/**/*.ts"
   ],
   "exclude": [
