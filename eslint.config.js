@@ -9,9 +9,9 @@ export default [
   {
     ignores: ["dist/**", "dist-electron/**", ".next/**", "node_modules/**"],
   },
-  // Frontend (src + app) and server
+  // Frontend (src + app), server, and proxy
   {
-    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}", "server/src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}", "server/src/**/*.{ts,tsx}", "proxy/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

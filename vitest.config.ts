@@ -30,6 +30,14 @@ export default defineConfig({
           include: ["server/src/**/*.{test,spec}.ts"],
         },
       },
+      {
+        extends: true,
+        test: {
+          name: "proxy",
+          environment: "node",
+          include: ["proxy/**/*.{test,spec}.ts"],
+        },
+      },
     ],
   },
 });
