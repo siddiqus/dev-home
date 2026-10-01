@@ -6,3 +6,6 @@ release
 .git
 .superpowers
 *.log
+.env
+.env.*
+server/

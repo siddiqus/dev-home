@@ -1,7 +1,6 @@
 /**
- * Canonical ticket-key parser, shared by the frontend (`src/`) and the server
- * (`server/src/`). This is the single source of truth — do not re-implement the
- * regex elsewhere; import from here instead.
+ * Canonical ticket-key parser for the app (`src/`). This is the single source of
+ * truth — do not re-implement the regex elsewhere; import from here instead.
  *
  * A "ticket key" is a Jira-style key: a project part (a letter followed by one or
  * more letters/digits, e.g. `PROJ`, `ABC2`) then `-` then a number, e.g.

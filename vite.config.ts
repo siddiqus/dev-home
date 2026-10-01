@@ -12,11 +12,18 @@ function jiraProxyDev(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith(`${PROXY_PREFIX}/`)) return next();
-        const response = await handle(toWebRequest(req, `http://${req.headers.host}`), {
-          ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
-          JIRA_ALLOWED_HOSTS: process.env.JIRA_ALLOWED_HOSTS,
-        });
-        await sendWebResponse(res, response);
+        try {
+          const response = await handle(toWebRequest(req, `http://${req.headers.host}`), {
+            ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+            JIRA_ALLOWED_HOSTS: process.env.JIRA_ALLOWED_HOSTS,
+          });
+          await sendWebResponse(res, response);
+        } catch (err) {
+          if (res.headersSent) return next(err);
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "Proxy error" }));
+        }
       });
     },
   };

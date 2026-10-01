@@ -20,9 +20,13 @@ const CONTENT_TYPES: Record<string, string> = {
   ".m4a": "audio/mp4",
 };
 
+function setSecurityHeaders(res: http.ServerResponse): void {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+}
+
 function sendText(res: http.ServerResponse, status: number, body: string): void {
   res.statusCode = status;
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+  setSecurityHeaders(res);
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.end(body);
 }
@@ -61,7 +65,7 @@ function serveStatic(
     return;
   }
   let filePath = resolveStatic(distDir, pathname);
-  if (!filePath && path.extname(pathname) === "") {
+  if (!filePath && path.extname(pathname) === "" && !pathname.startsWith("/assets/")) {
     // SPA fallback: client-side routes render index.html.
     const index = path.join(distDir, "index.html");
     if (isFile(index)) filePath = index;
@@ -72,12 +76,12 @@ function serveStatic(
   }
 
   res.statusCode = 200;
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+  setSecurityHeaders(res);
   res.setHeader(
     "Content-Type",
     CONTENT_TYPES[path.extname(filePath).toLowerCase()] || "application/octet-stream",
   );
-  if (pathname.startsWith("/assets/")) {
+  if (filePath.startsWith(path.join(distDir, "assets") + path.sep)) {
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   } else if (path.basename(filePath) === "index.html") {
     res.setHeader("Cache-Control", "no-cache");
@@ -107,6 +111,8 @@ export function createServer(opts: { distDir: string; env: ProxyEnv }): http.Ser
     }
 
     if (pathname.startsWith(`${PROXY_PREFIX}/`)) {
+      // Defaults only: sendWebResponse sets the proxy's own headers afterwards, so they win.
+      setSecurityHeaders(res);
       try {
         const response = await handle(toWebRequest(req, `http://${req.headers.host}`), opts.env);
         await sendWebResponse(res, response);

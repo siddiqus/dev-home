@@ -28,10 +28,28 @@ export async function sendWebResponse(res: ServerResponse, response: Response): 
     return;
   }
   const reader = response.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    res.write(value);
+  // Stop pulling from upstream if the client goes away.
+  const onClose = () => void reader.cancel().catch(() => {});
+  res.on("close", onClose);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (res.destroyed) return;
+      if (!res.write(value)) {
+        await new Promise<void>((resolve) => {
+          const settle = () => {
+            res.off("drain", settle);
+            res.off("close", settle);
+            resolve();
+          };
+          res.on("drain", settle);
+          res.on("close", settle);
+        });
+      }
+    }
+    res.end();
+  } finally {
+    res.off("close", onClose);
   }
-  res.end();
 }
