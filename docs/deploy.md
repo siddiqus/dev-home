@@ -114,7 +114,7 @@ yarn deploy:cf
 
 ### Deploy from CI (optional)
 
-`.github/workflows/deploy.yml` runs typecheck, lint and tests, then deploys on every push to `master`. You can also start it by hand from the **Actions** tab. It needs two repository secrets:
+`.github/workflows/deploy.yml` runs typecheck, lint and tests, then deploys on every push to `web-vite`. You can also start it by hand from the **Actions** tab. It needs two repository secrets:
 
 1. Create the token. In the Cloudflare dashboard, go to **My Profile**, then **API Tokens**, then **Create Token**, and use the **Edit Cloudflare Workers** template. Limit it to your account (and to no zones, unless you use a custom domain).
 2. Find your account ID with `yarn wrangler whoami`, or on the Workers & Pages overview page.
