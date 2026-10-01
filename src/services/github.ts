@@ -4,7 +4,6 @@ import {
   getMergedPrs,
   getOrgMembers,
   getOrgPrs,
-  getOrgPrsMultiRepo,
   getOrgRepos,
   getPrDetail,
   getPrs,
@@ -43,23 +42,12 @@ export async function fetchOrgPRs(
   author?: string,
   repo?: string,
 ): Promise<OrgPRsPage> {
-  const params: { cursor?: string; author?: string; repo?: string } = {};
+  const params: { cursor?: string; authors?: string[]; repos?: string[] } = {};
   if (cursor) params.cursor = cursor;
-  if (author) params.author = author;
-  if (repo) params.repo = repo;
+  if (author) params.authors = [author];
+  if (repo) params.repos = [repo];
   const data = await getOrgPrs(params);
   return data;
-}
-
-/**
- * Fetch PRs across multiple repos in a single GraphQL query using aliased repository() calls.
- * Optionally filter by a single author on the backend.
- */
-async function fetchOrgPRsMultiRepo(repos: string[], author?: string): Promise<GitHubPR[]> {
-  const params: { repos: string; author?: string } = { repos: repos.join(",") };
-  if (author) params.author = author;
-  const data = await getOrgPrsMultiRepo(params);
-  return data.prs;
 }
 
 function dedupeAndSort(prs: GitHubPR[]): GitHubPR[] {
@@ -78,55 +66,23 @@ function dedupeAndSort(prs: GitHubPR[]): GitHubPR[] {
 /**
  * Fetch org PRs for multiple authors and/or repos using AND semantics:
  * a PR is included if it matches ANY selected author AND is in ANY selected repo.
- * Fans out per-author calls, each scoped to the selected repos.
+ * One search covers every combination (GitHub ORs repeated qualifiers).
  */
 export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Promise<GitHubPR[]> {
-  const hasMultiRepos = repos.length > 1;
-  const authorCombos = authors.length > 0 ? authors : [""];
-
-  const calls: Promise<GitHubPR[]>[] = [];
-  for (const author of authorCombos) {
-    if (hasMultiRepos) {
-      calls.push(fetchOrgPRsMultiRepo(repos, author || undefined));
-    } else {
-      calls.push(
-        fetchOrgPRs(undefined, author || undefined, repos[0] || undefined).then((r) => r.prs),
-      );
-    }
-  }
-
-  const results = await Promise.all(calls);
-  return dedupeAndSort(results.flat());
+  const data = await getOrgPrs({ authors, repos });
+  return dedupeAndSort(data.prs);
 }
 
+/** Recently merged PRs (last 3 days); one search for any number of authors/repos. */
 export async function fetchRecentlyMergedPRs(
   scope: "user" | "org",
   authors?: string[],
   repos?: string[],
 ): Promise<GitHubPR[]> {
-  if (scope === "org" && ((authors && authors.length > 1) || (repos && repos.length > 1))) {
-    const authorCombos = authors && authors.length > 0 ? authors : [""];
-    const repoCombos = repos && repos.length > 0 ? repos : [""];
-    const calls: Promise<GitHubPR[]>[] = [];
-    for (const author of authorCombos) {
-      for (const repo of repoCombos) {
-        const params: { scope: "user" | "org"; author?: string; repo?: string } = {
-          scope: "org",
-        };
-        if (author) params.author = author;
-        if (repo) params.repo = repo;
-        calls.push(getMergedPrs(params).then((r) => r.prs));
-      }
-    }
-    const results = await Promise.all(calls);
-    return dedupeAndSort(results.flat());
-  }
-
-  const params: { scope: "user" | "org"; author?: string; repo?: string } = { scope };
-  if (authors && authors[0]) params.author = authors[0];
-  if (repos && repos[0]) params.repo = repos[0];
-  const data = await getMergedPrs(params);
-  return data.prs;
+  const data = await getMergedPrs({ scope, authors, repos });
+  const multi = scope === "org" && ((authors?.length ?? 0) > 1 || (repos?.length ?? 0) > 1);
+  // Multi-filter results have always been returned newest-updated first.
+  return multi ? dedupeAndSort(data.prs) : data.prs;
 }
 
 export interface OrgMember {

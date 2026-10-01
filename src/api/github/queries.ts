@@ -18,39 +18,64 @@ export const PR_CHECKS_ROLLUP = `statusCheckRollup {
   }
 }`;
 
-export const SEARCH_PRS_QUERY = `
-  query SearchPRs($query: String!, $first: Int!) {
-    search(query: $query, type: ISSUE, first: $first) {
+/**
+ * PR node selection for each aliased search in REVIEWS_QUERY, defined once so
+ * the three searches always return the same fields.
+ */
+const PR_SEARCH_NODE = `... on PullRequest {
+  databaseId
+  number
+  title
+  url
+  state
+  isDraft
+  createdAt
+  updatedAt
+  author { login avatarUrl }
+  body
+  headRefName
+  baseRefName
+  additions
+  deletions
+  changedFiles
+  repository { nameWithOwner }
+  labels(first: 10) { nodes { name color } }
+  mergeQueueEntry { id }
+  mergeStateStatus
+  reviewDecision
+  commits(last: 1) {
+    nodes {
+      commit {
+        ${PR_CHECKS_ROLLUP}
+      }
+    }
+  }
+}`;
+
+/**
+ * The three review-plate searches (review requested, reviewed by, commented on)
+ * as aliases of one query, so getReviews costs a single request.
+ */
+export const REVIEWS_QUERY = `
+  query ReviewPRs(
+    $requestedQuery: String!
+    $reviewedQuery: String!
+    $commentedQuery: String!
+    $first: Int!
+  ) {
+    requested: search(query: $requestedQuery, type: ISSUE, first: $first) {
       nodes {
-        ... on PullRequest {
-          databaseId
-          number
-          title
-          url
-          state
-          isDraft
-          createdAt
-          updatedAt
-          author { login avatarUrl }
-          body
-          headRefName
-          baseRefName
-          additions
-          deletions
-          changedFiles
-          repository { nameWithOwner }
-          labels(first: 10) { nodes { name color } }
-          mergeQueueEntry { id }
-          mergeStateStatus
-          reviewDecision
-          commits(last: 1) {
-            nodes {
-              commit {
-                ${PR_CHECKS_ROLLUP}
-              }
-            }
-          }
-        }
+        ${PR_SEARCH_NODE}
+      }
+    }
+    reviewedBy: search(query: $reviewedQuery, type: ISSUE, first: $first) {
+      nodes {
+        ${PR_SEARCH_NODE}
+      }
+    }
+    commented: search(query: $commentedQuery, type: ISSUE, first: $first) {
+      nodes {
+        ${PR_SEARCH_NODE}
       }
     }
   }

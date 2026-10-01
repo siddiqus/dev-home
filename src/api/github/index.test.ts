@@ -157,16 +157,22 @@ describe("getReviews", () => {
   it("marks requested PRs the viewer already engaged with", async () => {
     adapter.mockImplementation(async (config: any) => {
       if (!String(config.url).endsWith("/graphql")) throw notFound(config);
-      const body = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
-      const q: string = body.variables.query;
-      let nodes: any[] = [];
-      if (q.startsWith("review-requested:")) nodes = [prNode(1), prNode(2)];
-      else if (q.startsWith("reviewed-by:")) nodes = [prNode(1)];
-      else if (q.startsWith("commenter:")) nodes = [prNode(3)];
-      return ok(config, { data: { search: { nodes } } });
+      return ok(config, {
+        data: {
+          requested: { nodes: [prNode(1), prNode(2)] },
+          reviewedBy: { nodes: [prNode(1)] },
+          commented: { nodes: [prNode(3)] },
+        },
+      });
     });
 
     const { reviews, reviewing } = await getReviews();
+    const bodies = graphqlBodies();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].variables).toMatchObject({ first: 50 });
+    expect(bodies[0].variables.requestedQuery).toMatch(/^review-requested:testuser /);
+    expect(bodies[0].variables.reviewedQuery).toMatch(/^reviewed-by:testuser -author:testuser /);
+    expect(bodies[0].variables.commentedQuery).toMatch(/^commenter:testuser -author:testuser /);
     expect(reviews.map((pr) => [pr.number, pr.viewer_engaged])).toEqual([
       [1, true],
       [2, false],

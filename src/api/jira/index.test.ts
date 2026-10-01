@@ -274,6 +274,106 @@ describe("Jira API", () => {
       const result = await getJiraMentions();
       expect(result.comments).toEqual([]);
     });
+
+    describe("inline comments", () => {
+      const mention = (id: string, updated: string) => ({
+        id,
+        author: { displayName: "Alice", avatarUrls: {} },
+        body: {
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "Hi test@example.com" }] },
+          ],
+        },
+        created: "2026-09-01T12:00:00Z",
+        updated,
+      });
+      const ok = (config: any, data: any) => ({
+        data,
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      });
+
+      it("requests comments with the search and makes no per-issue calls when complete", async () => {
+        const adapter = vi.fn(async (config: any) =>
+          ok(config, {
+            issues: [
+              {
+                key: "TEST-1",
+                fields: {
+                  summary: "Issue 1",
+                  comment: { comments: [mention("1", "2026-09-02T12:00:00Z")], total: 1 },
+                },
+              },
+              {
+                key: "TEST-2",
+                fields: { summary: "Issue 2", comment: { comments: [], total: 0 } },
+              },
+            ],
+          }),
+        );
+        axios.defaults.adapter = adapter;
+
+        const result = await getJiraMentions();
+        expect(adapter).toHaveBeenCalledTimes(1);
+        const config = adapter.mock.calls[0][0];
+        const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+        expect(data.fields).toEqual(["summary", "comment"]);
+        expect(result.comments).toEqual([
+          {
+            id: "1",
+            author: { displayName: "Alice", avatarUrls: {} },
+            body: { text: "Hi test@example.com" },
+            created: "2026-09-01T12:00:00Z",
+            updated: "2026-09-02T12:00:00Z",
+            issueKey: "TEST-1",
+            issueSummary: "Issue 1",
+          },
+        ]);
+      });
+
+      it("falls back to the comment endpoint only when the inline list is truncated", async () => {
+        const adapter = vi.fn(async (config: any) => {
+          if (String(config.url).includes("/issue/TEST-2/comment")) {
+            return ok(config, {
+              comments: [
+                mention("2", "2026-09-01T12:00:00Z"),
+                mention("3", "2026-09-05T12:00:00Z"),
+              ],
+            });
+          }
+          return ok(config, {
+            issues: [
+              {
+                key: "TEST-1",
+                fields: {
+                  summary: "Issue 1",
+                  comment: { comments: [mention("1", "2026-09-02T12:00:00Z")], total: 1 },
+                },
+              },
+              {
+                key: "TEST-2",
+                fields: {
+                  summary: "Issue 2",
+                  comment: { comments: [mention("2", "2026-09-01T12:00:00Z")], total: 2 },
+                },
+              },
+            ],
+          });
+        });
+        axios.defaults.adapter = adapter;
+
+        const result = await getJiraMentions();
+        const commentCalls = adapter.mock.calls.filter(([c]: any[]) =>
+          String(c.url).includes("/comment"),
+        );
+        expect(commentCalls).toHaveLength(1);
+        expect(String(commentCalls[0][0].url)).toContain("/issue/TEST-2/comment");
+        expect(result.comments.map((c) => c.id)).toEqual(["3", "1", "2"]);
+      });
+    });
   });
 
   describe("postJqlSearch", () => {

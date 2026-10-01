@@ -5,7 +5,7 @@ import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/gi
 import { extractTicketKey, sourceFromPR } from "../utils/tickets";
 import { DataSource, isRemoteSource } from "../config/tabData";
 
-const POLLING_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
