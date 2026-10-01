@@ -9,6 +9,7 @@ import Spinner from "react-bootstrap/Spinner";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { AppSettings, loadSettings } from "../../services/config";
 import { BackendStatusCard } from "./BackendStatusCard";
+import { NotificationsCard } from "./NotificationsCard";
 import { ThemePicker } from "./ThemePicker";
 import type { ThemePreference } from "../../hooks/useTheme";
 import { MenuItemsToggle } from "./MenuItemsToggle";
@@ -138,6 +139,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         jiraBaseUrl={jiraBaseUrl}
         githubUsername={githubUsername}
       />
+
+      <NotificationsCard />
 
       {/* Error alert (kept inline so it's actionable) */}
       {errorMessage && (

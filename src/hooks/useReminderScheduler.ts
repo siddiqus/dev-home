@@ -66,13 +66,11 @@ export function useReminderScheduler(notes: Note[]): { dueCount: number } {
   const notifiedRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
 
-  // Mount-only: request permission and pre-seed the notified set with every
-  // reminder that is already due, so launch-time overdue reminders don't fire.
+  // Mount-only: pre-seed the notified set with every reminder that is already
+  // due, so launch-time overdue reminders don't fire. (Permission is requested
+  // from the Settings card, not here.)
   if (!seededRef.current) {
     seededRef.current = true;
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
     const { toNotify } = selectDueReminders(notes, Date.now(), notifiedRef.current);
     for (const note of toNotify) {
       notifiedRef.current.add(reminderKey(note));
