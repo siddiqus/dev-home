@@ -19,6 +19,9 @@
                 ? "dark"
                 : "light";
           document.documentElement.setAttribute("data-theme", resolved);
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", resolved === "dark" ? "#0d1117" : "#ffffff");
         } catch (e) {
           /* localStorage/matchMedia unavailable — fall back to CSS default */
         }

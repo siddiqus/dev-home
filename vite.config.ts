@@ -71,6 +71,9 @@ function pwa() {
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/jira-proxy\//],
       cleanupOutdatedCaches: true,
+      // The main chunk is ~1.2 MB; Workbox silently skips files over its 2 MiB default,
+      // which would break offline launch if the bundle grows.
+      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       // No runtimeCaching: API calls (GitHub, /jira-proxy) always go to the network.
       // No skipWaiting/clientsClaim: a new worker waits until the user clicks Reload.
     },
