@@ -351,7 +351,21 @@ describe("Jira proxy core", () => {
     expect(response.status).toBe(200);
     const json = await response.json();
     expect(json).toEqual({ status: "ok" });
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("adds CORS headers to /health for allowed origins", async () => {
+    const response = await handle(
+      new Request("https://proxy.example.com/jira-proxy/health", {
+        headers: { origin: "https://app.example.com" },
+      }),
+      { ALLOWED_ORIGINS: "https://app.example.com" },
+      fetchImpl,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://app.example.com");
   });
 
   it("rejects path traversal attempts with 403", async () => {

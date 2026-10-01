@@ -95,9 +95,13 @@ export async function handle(
   const path = url.pathname.slice(PROXY_PREFIX.length);
   const method = request.method.toUpperCase();
 
-  if (method === "GET" && path === "/health") return json(200, { status: "ok" });
-
   const origin = request.headers.get("origin");
+  if (method === "GET" && path === "/health") {
+    // Health is always answered; CORS only for allowed origins (separate proxy origin setups).
+    const allowed = origin && isOriginAllowed(origin, url, env) ? origin : null;
+    return json(200, { status: "ok" }, corsHeaders(allowed));
+  }
+
   if (origin && !isOriginAllowed(origin, url, env)) {
     return json(403, { error: "Origin not allowed" });
   }
