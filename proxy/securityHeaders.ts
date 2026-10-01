@@ -8,6 +8,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' data:",
     "connect-src 'self' https://api.github.com",
     "media-src 'self'",
+    "manifest-src 'self'",
+    "worker-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

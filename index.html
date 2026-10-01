@@ -6,6 +6,8 @@
     <title>Dev Home</title>
     <meta name="description" content="Developer Home Dashboard - JIRA & GitHub integration" />
     <link rel="icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" />
     <script>
       (function () {
         try {
@@ -17,6 +19,9 @@
                 ? "dark"
                 : "light";
           document.documentElement.setAttribute("data-theme", resolved);
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", resolved === "dark" ? "#0d1117" : "#ffffff");
         } catch (e) {
           /* localStorage/matchMedia unavailable — fall back to CSS default */
         }

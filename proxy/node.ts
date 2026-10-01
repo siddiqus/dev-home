@@ -18,7 +18,21 @@ const CONTENT_TYPES: Record<string, string> = {
   ".txt": "text/plain; charset=utf-8",
   ".map": "application/json; charset=utf-8",
   ".m4a": "audio/mp4",
+  ".webmanifest": "application/manifest+json",
 };
+
+/** Root files that must revalidate on every load: the app entry, PWA service worker and manifest. */
+function isNoCacheFile(distDir: string, filePath: string): boolean {
+  const name = path.basename(filePath);
+  if (name === "index.html") return true;
+  if (path.dirname(filePath) !== distDir) return false;
+  return (
+    name === "sw.js" ||
+    name === "registerSW.js" ||
+    name === "manifest.webmanifest" ||
+    /^workbox-[\w-]+\.js$/.test(name)
+  );
+}
 
 function setSecurityHeaders(res: http.ServerResponse): void {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
@@ -83,7 +97,7 @@ function serveStatic(
   );
   if (filePath.startsWith(path.join(distDir, "assets") + path.sep)) {
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-  } else if (path.basename(filePath) === "index.html") {
+  } else if (isNoCacheFile(distDir, filePath)) {
     res.setHeader("Cache-Control", "no-cache");
   }
   if (req.method === "HEAD") {

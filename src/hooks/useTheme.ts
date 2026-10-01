@@ -7,6 +7,8 @@ export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "dev-home-theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
+// Installed-app title bar colour per theme (--color-bg-app in src/styles/tokens.css).
+const THEME_COLORS: Record<ResolvedTheme, string> = { light: "#ffffff", dark: "#0d1117" };
 
 /** Map a preference to the concrete theme, consulting the OS only for "system". */
 export function resolveTheme(pref: ThemePreference, systemPrefersDark: boolean): ResolvedTheme {
@@ -42,6 +44,9 @@ export function useTheme() {
       const next = resolveTheme(preference, osPrefersDark());
       setResolvedTheme(next);
       document.documentElement.setAttribute("data-theme", next);
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", THEME_COLORS[next]);
     };
     apply();
 

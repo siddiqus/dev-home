@@ -3,26 +3,40 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { SECURITY_HEADERS } from "./securityHeaders";
 
-/** Parse the `/*` block of a Cloudflare `_headers` file into name -> value. */
-function parseHeadersFile(text: string): Record<string, string> {
-  const headers: Record<string, string> = {};
-  let inBlock = false;
+/** Parse a Cloudflare `_headers` file into path pattern -> (name -> value). */
+function parseHeadersFile(text: string): Record<string, Record<string, string>> {
+  const blocks: Record<string, Record<string, string>> = {};
+  let current: Record<string, string> | null = null;
   for (const line of text.split(/\r?\n/)) {
     if (line.trim() === "" || line.trim().startsWith("#")) continue;
     if (!/^\s/.test(line)) {
-      inBlock = line.trim() === "/*";
+      current = blocks[line.trim()] ??= {};
       continue;
     }
-    if (!inBlock) continue;
+    if (!current) continue;
     const idx = line.indexOf(":");
-    headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+    current[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
   }
-  return headers;
+  return blocks;
 }
+
+const headersFile = () =>
+  parseHeadersFile(fs.readFileSync(path.resolve(__dirname, "../public/_headers"), "utf8"));
 
 describe("security headers", () => {
   it("public/_headers matches SECURITY_HEADERS", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../public/_headers"), "utf8");
-    expect(parseHeadersFile(file)).toEqual(SECURITY_HEADERS);
+    expect(headersFile()["/*"]).toEqual(SECURITY_HEADERS);
+  });
+
+  it("allows the PWA manifest and service worker from our origin only", () => {
+    const csp = SECURITY_HEADERS["Content-Security-Policy"];
+    expect(csp).toContain("manifest-src 'self'");
+    expect(csp).toContain("worker-src 'self'");
+  });
+
+  it("public/_headers makes the service worker and manifest revalidate", () => {
+    const blocks = headersFile();
+    expect(blocks["/sw.js"]).toEqual({ "Cache-Control": "no-cache" });
+    expect(blocks["/manifest.webmanifest"]).toEqual({ "Cache-Control": "no-cache" });
   });
 });
