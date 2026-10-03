@@ -13,6 +13,23 @@ interface JiraIssueTableProps {
   baseUrl?: string;
 }
 
+const PersonCell: React.FC<{ person: JiraIssue["reporter"]; emptyLabel: string }> = ({
+  person,
+  emptyLabel,
+}) =>
+  person ? (
+    <div className="d-flex align-items-center gap-2">
+      <Avatar
+        src={person.avatarUrls ? person.avatarUrls["48x48"] : ""}
+        alt={person.displayName}
+        size="sm"
+      />
+      <span style={{ fontSize: "0.8125rem" }}>{person.displayName}</span>
+    </div>
+  ) : (
+    <span className="text-secondary-custom">{emptyLabel}</span>
+  );
+
 export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
 
@@ -26,6 +43,7 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
             <th>Summary</th>
             <th>Status</th>
             <th>Assignee</th>
+            <th>Reporter</th>
             <th>Project</th>
             <th>Created</th>
             <th>Updated</th>
@@ -78,18 +96,10 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
                   />
                 </td>
                 <td>
-                  {issue.assignee ? (
-                    <div className="d-flex align-items-center gap-2">
-                      <Avatar
-                        src={issue.assignee.avatarUrls ? issue.assignee.avatarUrls["48x48"] : ""}
-                        alt={issue.assignee.displayName}
-                        size="sm"
-                      />
-                      <span style={{ fontSize: "0.8125rem" }}>{issue.assignee.displayName}</span>
-                    </div>
-                  ) : (
-                    <span className="text-secondary-custom">Unassigned</span>
-                  )}
+                  <PersonCell person={issue.assignee} emptyLabel="Unassigned" />
+                </td>
+                <td>
+                  <PersonCell person={issue.reporter} emptyLabel="—" />
                 </td>
                 <td>
                   <Badge variant="neutral">{issue.project.key}</Badge>

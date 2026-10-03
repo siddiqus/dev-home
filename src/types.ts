@@ -25,6 +25,12 @@ export interface JiraIssue {
       "48x48": string;
     };
   };
+  reporter?: {
+    displayName: string;
+    avatarUrls: {
+      "48x48": string;
+    };
+  } | null;
   project: {
     key: string;
     name: string;

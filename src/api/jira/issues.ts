@@ -9,7 +9,16 @@ export async function getIssues(): Promise<{ issues: any[] }> {
   const jira = jiraClient();
 
   const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
-  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
+  const fields = [
+    "summary",
+    "status",
+    "priority",
+    "assignee",
+    "reporter",
+    "project",
+    "created",
+    "updated",
+  ];
 
   const { data } = await jira.post("/search/jql", { jql, fields });
 
@@ -30,6 +39,12 @@ export async function getIssues(): Promise<{ issues: any[] }> {
       ? {
           displayName: issue.fields.assignee.displayName,
           avatarUrls: issue.fields.assignee.avatarUrls,
+        }
+      : null,
+    reporter: issue.fields?.reporter
+      ? {
+          displayName: issue.fields.reporter.displayName,
+          avatarUrls: issue.fields.reporter.avatarUrls,
         }
       : null,
     project: {
@@ -61,6 +76,7 @@ export async function postIssuesBulk(args: { keys: string[] }): Promise<{ issues
     "status",
     "priority",
     "assignee",
+    "reporter",
     "project",
     "created",
     "updated",
@@ -87,6 +103,12 @@ export async function postIssuesBulk(args: { keys: string[] }): Promise<{ issues
       ? {
           displayName: issue.fields.assignee.displayName,
           avatarUrls: issue.fields.assignee.avatarUrls,
+        }
+      : null,
+    reporter: issue.fields?.reporter
+      ? {
+          displayName: issue.fields.reporter.displayName,
+          avatarUrls: issue.fields.reporter.avatarUrls,
         }
       : null,
     project: {

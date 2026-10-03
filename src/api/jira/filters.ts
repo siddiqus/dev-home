@@ -32,7 +32,16 @@ export async function postJqlSearch(args: {
   }
 
   const jira = jiraClient();
-  const fields = ["summary", "status", "priority", "assignee", "project", "created", "updated"];
+  const fields = [
+    "summary",
+    "status",
+    "priority",
+    "assignee",
+    "reporter",
+    "project",
+    "created",
+    "updated",
+  ];
   const maxResults = 50;
 
   const payload: Record<string, any> = { jql: jql.trim(), fields, maxResults };
@@ -60,6 +69,12 @@ export async function postJqlSearch(args: {
       ? {
           displayName: issue.fields.assignee.displayName,
           avatarUrls: issue.fields.assignee.avatarUrls,
+        }
+      : null,
+    reporter: issue.fields?.reporter
+      ? {
+          displayName: issue.fields.reporter.displayName,
+          avatarUrls: issue.fields.reporter.avatarUrls,
         }
       : null,
     project: {
