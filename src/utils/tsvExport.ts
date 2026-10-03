@@ -13,7 +13,7 @@ function toLocalDate(iso?: string): string {
   return d.toLocaleDateString();
 }
 
-const HEADERS = ["key", "summary", "status", "assignee", "created", "updated"];
+const HEADERS = ["key", "summary", "status", "assignee", "reporter", "created", "updated"];
 
 /**
  * Serialize Jira issues to a tab-separated grid. The first line is the header row;
@@ -30,6 +30,7 @@ export function issuesToTsv(issues: JiraIssue[]): string {
         clean(issue.summary),
         clean(issue.status?.name),
         clean(issue.assignee?.displayName ?? "Unassigned"),
+        clean(issue.reporter?.displayName),
         toLocalDate(issue.created),
         toLocalDate(issue.updated),
       ].join("\t"),

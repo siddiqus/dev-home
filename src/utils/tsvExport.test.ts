@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { issuesToTsv } from "./tsvExport";
 import { JiraIssue } from "../types";
 
-const HEADER = ["key", "summary", "status", "assignee", "created", "updated"].join("\t");
+const HEADER = ["key", "summary", "status", "assignee", "reporter", "created", "updated"].join(
+  "\t",
+);
 
 function makeIssue(overrides: Record<string, unknown> = {}): JiraIssue {
   return {
@@ -12,6 +14,10 @@ function makeIssue(overrides: Record<string, unknown> = {}): JiraIssue {
     priority: { name: "High", iconUrl: "" },
     assignee: {
       displayName: "Ada Lovelace",
+      avatarUrls: { "48x48": "" },
+    },
+    reporter: {
+      displayName: "Grace Hopper",
       avatarUrls: { "48x48": "" },
     },
     project: { key: "PROJ", name: "Project" },
@@ -31,6 +37,7 @@ describe("issuesToTsv", () => {
       "summary",
       "status",
       "assignee",
+      "reporter",
       "created",
       "updated",
     ]);
@@ -45,8 +52,9 @@ describe("issuesToTsv", () => {
     expect(cells[1]).toBe(issue.summary);
     expect(cells[2]).toBe(issue.status.name);
     expect(cells[3]).toBe(issue.assignee!.displayName);
-    expect(cells[4]).toBe(new Date(issue.created).toLocaleDateString());
-    expect(cells[5]).toBe(new Date(issue.updated).toLocaleDateString());
+    expect(cells[4]).toBe(issue.reporter!.displayName);
+    expect(cells[5]).toBe(new Date(issue.created).toLocaleDateString());
+    expect(cells[6]).toBe(new Date(issue.updated).toLocaleDateString());
   });
 
   it("uses 'Unassigned' when assignee is null", () => {
@@ -55,11 +63,17 @@ describe("issuesToTsv", () => {
     expect(cells[3]).toBe("Unassigned");
   });
 
+  it("leaves the reporter cell empty when reporter is null", () => {
+    const tsv = issuesToTsv([makeIssue({ reporter: null })]);
+    const cells = tsv.split("\n")[1].split("\t");
+    expect(cells[4]).toBe("");
+  });
+
   it("collapses tab/newline/carriage-return runs in a cell to single spaces", () => {
     const tsv = issuesToTsv([makeIssue({ summary: "a\tb\nc\rd\t\n\re" })]);
     const row = tsv.split("\n")[1];
-    // Exactly 5 separators for 6 columns; no stray tabs from the cell content.
-    expect(row.split("\t")).toHaveLength(6);
+    // Exactly 6 separators for 7 columns; no stray tabs from the cell content.
+    expect(row.split("\t")).toHaveLength(7);
     const summaryCell = row.split("\t")[1];
     expect(summaryCell).not.toMatch(/[\t\n\r]/);
     expect(summaryCell).toBe("a b c d e");
@@ -69,8 +83,8 @@ describe("issuesToTsv", () => {
     const iso = "2026-07-01T10:00:00Z";
     const tsv = issuesToTsv([makeIssue({ created: "", updated: iso })]);
     const cells = tsv.split("\n")[1].split("\t");
-    expect(cells[4]).toBe("");
-    expect(cells[5]).toBe(new Date(iso).toLocaleDateString());
+    expect(cells[5]).toBe("");
+    expect(cells[6]).toBe(new Date(iso).toLocaleDateString());
   });
 
   it("returns exactly the header row for an empty issues array", () => {
