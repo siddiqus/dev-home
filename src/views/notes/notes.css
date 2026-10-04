@@ -29,3 +29,7 @@
   overflow: hidden;
   white-space: pre-wrap;
 }
+
+.notes-search .search-input-field {
+  width: 220px;
+}

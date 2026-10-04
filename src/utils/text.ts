@@ -76,3 +76,15 @@ export function deriveTitleFromContent(content: string | undefined, maxLength = 
   if (plain.length <= maxLength) return plain;
   return plain.slice(0, maxLength).trimEnd() + "...";
 }
+
+/**
+ * Case-insensitive substring match across a note's title, content, reference
+ * and derived display title. An empty/whitespace query matches everything.
+ */
+export function noteMatchesQuery(note: Note, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return [note.title, note.content, note.reference_id, getNoteDisplayTitle(note)].some((field) =>
+    field?.toLowerCase().includes(q),
+  );
+}

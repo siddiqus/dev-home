@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
-import { IconNote, IconCheck, IconPlus } from "@tabler/icons-react";
+import { SearchInput } from "../../components/SearchInput";
+import { IconNote, IconCheck, IconPlus, IconSearch } from "@tabler/icons-react";
 import { Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { NoteCard } from "./NoteCard";
 import { parseTimestamp } from "../../utils/time";
+import { noteMatchesQuery } from "../../utils/text";
 import "./notes.css";
 
 interface PersonalNotesProps {
@@ -33,6 +35,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   jiraBaseUrl,
 }) => {
   const [activeTab, setActiveTab] = useState<"unresolved" | "resolved">("unresolved");
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (loading && notes.length === 0) {
     return (
@@ -81,8 +84,10 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
     return [...due, ...rest];
   };
 
-  const unresolved = sortRemindersFirst(notes.filter((n) => n.resolved === 0));
-  const resolved = sortPinnedFirst(notes.filter((n) => n.resolved === 1));
+  const matching = notes.filter((n) => noteMatchesQuery(n, searchQuery));
+  const unresolved = sortRemindersFirst(matching.filter((n) => n.resolved === 0));
+  const resolved = sortPinnedFirst(matching.filter((n) => n.resolved === 1));
+  const isSearching = searchQuery.trim() !== "";
 
   const activeNotes = activeTab === "unresolved" ? unresolved : resolved;
 
@@ -116,13 +121,27 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
         />
-        <Button variant="outline-secondary" size="sm" onClick={onAdd}>
-          <IconPlus size={14} className="me-1" />
-          Add Note
-        </Button>
+        <div className="d-flex align-items-center gap-2">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search notes..."
+            className="notes-search"
+          />
+          <Button variant="outline-secondary" size="sm" onClick={onAdd}>
+            <IconPlus size={14} className="me-1" />
+            Add Note
+          </Button>
+        </div>
       </div>
 
-      {activeNotes.length === 0 ? (
+      {activeNotes.length === 0 && isSearching ? (
+        <EmptyState
+          icon={<IconSearch size={48} stroke={1} />}
+          title="No matching notes"
+          description={`No ${activeTab} notes match "${searchQuery.trim()}".`}
+        />
+      ) : activeNotes.length === 0 ? (
         <EmptyState
           icon={
             activeTab === "unresolved" ? (
