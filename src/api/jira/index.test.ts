@@ -514,6 +514,8 @@ describe("Jira API", () => {
         jql: "assignee = currentUser()",
         favourite: true,
       });
+      const config = vi.mocked(axios.defaults.adapter as any).mock.calls[0][0];
+      expect(config.params).toEqual({ includeFavourites: true });
     });
   });
 

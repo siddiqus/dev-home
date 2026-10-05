@@ -8,7 +8,8 @@ import { BASE_ISSUE_FIELDS, mapIssue } from "./issues";
  */
 export async function getRemoteFilters(): Promise<{ filters: any[] }> {
   const jira = jiraClient();
-  const { data } = await jira.get("/filter/my");
+  // Include filters the user starred, not only ones they own.
+  const { data } = await jira.get("/filter/my", { params: { includeFavourites: true } });
   const filters = (Array.isArray(data) ? data : []).map((f: any) => ({
     id: f.id,
     name: f.name,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Spinner from "react-bootstrap/Spinner";
 import {
   IconSearch,
@@ -28,6 +28,10 @@ import "./JiraIssueSearch.css";
 
 interface JiraIssueSearchProps {
   baseUrl?: string;
+}
+
+function errorMessage(err: any, fallback: string): string {
+  return err?.response?.data?.error || err?.message || fallback;
 }
 
 export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => {
@@ -62,21 +66,26 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     }
   }, []);
 
-  const loadRemoteFilters = useCallback(async () => {
+  // Jira filters are cached for a day; the refresh button forces a reload.
+  const loadRemoteFilters = useCallback(async (force = false) => {
     const CACHE_KEY = "dev-home-jira-remote-filters";
     const DAY_MS = 24 * 60 * 60 * 1000;
 
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw);
-        if (Date.now() - cached.ts < DAY_MS) {
-          setRemoteFilters(cached.filters);
-          return;
+    if (force) {
+      localStorage.removeItem(CACHE_KEY);
+    } else {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (Date.now() - cached.ts < DAY_MS) {
+            setRemoteFilters(cached.filters);
+            return;
+          }
         }
+      } catch {
+        // ignore corrupt cache
       }
-    } catch {
-      // ignore corrupt cache
     }
 
     setLoadingRemoteFilters(true);
@@ -84,25 +93,8 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
       const filters = await fetchRemoteJiraFilters();
       setRemoteFilters(filters);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ filters, ts: Date.now() }));
-    } catch {
-      // silent
-    } finally {
-      setLoadingRemoteFilters(false);
-    }
-  }, []);
-
-  const forceRefreshRemoteFilters = useCallback(async () => {
-    localStorage.removeItem("dev-home-jira-remote-filters");
-    setLoadingRemoteFilters(true);
-    try {
-      const filters = await fetchRemoteJiraFilters();
-      setRemoteFilters(filters);
-      localStorage.setItem(
-        "dev-home-jira-remote-filters",
-        JSON.stringify({ filters, ts: Date.now() }),
-      );
-    } catch {
-      // silent
+    } catch (err: any) {
+      setSearchError(`Couldn't load Jira filters: ${errorMessage(err, "request failed")}`);
     } finally {
       setLoadingRemoteFilters(false);
     }
@@ -113,9 +105,15 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     loadRemoteFilters();
   }, [loadFilters, loadRemoteFilters]);
 
+  // Bumped by every new search so a slow response (or load-more page) for an
+  // older query can't land on top of the current results.
+  const searchIdRef = useRef(0);
+
   const runSearch = useCallback(async (query: string, label?: string) => {
     if (!query.trim()) return;
+    const searchId = ++searchIdRef.current;
     setSearching(true);
+    setLoadingMore(false);
     setSearchError(null);
     setHasSearched(true);
     setExportTruncated(false);
@@ -123,50 +121,54 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     if (label !== undefined) setActiveFilterName(label || null);
     try {
       const { issues, nextPageToken: npt } = await searchJql(query, null);
+      if (searchId !== searchIdRef.current) return;
       setResults(issues);
       setNextToken(npt);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || "Search failed";
-      setSearchError(msg);
+      if (searchId !== searchIdRef.current) return;
+      setSearchError(errorMessage(err, "Search failed"));
       setResults([]);
       setNextToken(null);
     } finally {
-      setSearching(false);
+      if (searchId === searchIdRef.current) setSearching(false);
     }
   }, []);
 
   const loadMore = useCallback(async () => {
     if (!nextToken || loadingMore) return;
+    const searchId = searchIdRef.current;
     setLoadingMore(true);
     setSearchError(null);
     try {
       const { issues, nextPageToken: npt } = await searchJql(activeQuery, nextToken);
+      if (searchId !== searchIdRef.current) return;
       setResults((prev) => [...prev, ...issues]);
       setNextToken(npt);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || "Failed to load more";
-      setSearchError(msg);
+      if (searchId !== searchIdRef.current) return;
+      setSearchError(errorMessage(err, "Failed to load more"));
     } finally {
-      setLoadingMore(false);
+      if (searchId === searchIdRef.current) setLoadingMore(false);
     }
   }, [activeQuery, nextToken, loadingMore]);
 
   const handleExport = useCallback(async () => {
-    if (exporting || !activeQuery.trim()) return;
+    if (exporting || searching || !activeQuery.trim()) return;
     setExporting(true);
     setExportTruncated(false);
     setSearchError(null);
     try {
+      // Start from the pages already on screen and fetch only the rest.
       const MAX_PAGES = 100;
-      const all: JiraIssue[] = [];
-      let token: string | null = null;
-      let pages = 0;
-      do {
+      const all: JiraIssue[] = [...results];
+      let token: string | null = nextToken;
+      let pages = Math.ceil(results.length / 50);
+      while (token && pages < MAX_PAGES) {
         const { issues, nextPageToken: npt } = await searchJql(activeQuery, token);
         all.push(...issues);
         token = npt;
         pages++;
-      } while (token && pages < MAX_PAGES);
+      }
       if (token) setExportTruncated(true); // cap reached with more remaining
       const tsv = issuesToTsv(all);
       const date = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local tz
@@ -178,12 +180,11 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
         : "jira-export";
       downloadTextFile(`${base}-${date}.tsv`, tsv);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || "Export failed";
-      setSearchError(msg);
+      setSearchError(errorMessage(err, "Export failed"));
     } finally {
       setExporting(false);
     }
-  }, [exporting, activeQuery, activeFilterName]);
+  }, [exporting, searching, activeQuery, activeFilterName, results, nextToken]);
 
   const handleRun = () => runSearch(jql);
 
@@ -196,15 +197,23 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
 
   const handleSave = async () => {
     if (!filterName.trim() || !jql.trim()) return;
-    await createLocalJqlFilter(filterName.trim(), jql.trim());
-    setFilterName("");
-    setShowSaveInput(false);
-    loadFilters();
+    try {
+      await createLocalJqlFilter(filterName.trim(), jql.trim());
+      setFilterName("");
+      setShowSaveInput(false);
+      loadFilters();
+    } catch (err: any) {
+      setSearchError(errorMessage(err, "Couldn't save filter"));
+    }
   };
 
   const handleDeleteLocal = async (id: number) => {
-    await deleteLocalJqlFilter(id);
-    loadFilters();
+    try {
+      await deleteLocalJqlFilter(id);
+      loadFilters();
+    } catch (err: any) {
+      setSearchError(errorMessage(err, "Couldn't delete filter"));
+    }
   };
 
   const localDropdownItems = useMemo(
@@ -272,7 +281,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
         />
         <button
           className="btn btn-sm btn-icon-only"
-          onClick={forceRefreshRemoteFilters}
+          onClick={() => loadRemoteFilters(true)}
           disabled={loadingRemoteFilters}
           title="Refresh JIRA filters"
           style={{
