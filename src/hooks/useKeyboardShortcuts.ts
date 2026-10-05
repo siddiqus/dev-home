@@ -5,7 +5,7 @@ const tabShortcuts: Record<string, string> = {
   1: "focus",
   2: "board",
   3: "notes",
-  4: "jira-tasks",
+  4: "jira",
   5: "jira-mentions",
   6: "prs",
   7: "reviews",
