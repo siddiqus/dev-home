@@ -1,5 +1,5 @@
 /* New-version toast: fixed at the bottom of the viewport so showing it never reflows the
-   page. Mirrors .settings-saved-toast, but neutral and interactive. */
+   page. Mirrors .app-toast, but neutral and interactive. */
 .update-toast {
   position: fixed;
   bottom: var(--space-4);

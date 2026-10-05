@@ -199,8 +199,9 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           <span className="multi-select-count-wrapper">
             <span className="multi-select-count">{values.length}</span>
             <span className="multi-select-tooltip">
-              {selectedLabels.map((label) => (
-                <span key={label} className="multi-select-tooltip-item">
+              {/* Labels can repeat (e.g. two repos with the same name). */}
+              {selectedLabels.map((label, i) => (
+                <span key={`${i}:${label}`} className="multi-select-tooltip-item">
                   {label}
                 </span>
               ))}

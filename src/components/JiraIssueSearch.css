@@ -101,7 +101,9 @@
 
 /* Delete icon inside dropdown items */
 .jql-dropdown-delete {
-  transition: opacity 150ms ease, color 150ms ease;
+  transition:
+    opacity 150ms ease,
+    color 150ms ease;
 }
 
 .jql-dropdown-delete:hover {
@@ -166,13 +168,4 @@
   color: var(--color-status-danger);
   border: 1px solid var(--color-alert-danger-border);
   font-size: 0.8125rem;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.spin {
-  animation: spin 1s linear infinite;
 }

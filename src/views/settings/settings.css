@@ -16,7 +16,9 @@
   border-radius: 10px;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   width: 110px;
   overflow: hidden;
 }
@@ -109,30 +111,4 @@
   margin: 10px 0 0;
   font-size: 0.75rem;
   color: var(--color-text-muted);
-}
-
-/* --- Saved confirmation toast ---
-   Fixed at the bottom of the viewport so showing/hiding it never reflows the
-   settings content above it. */
-.settings-saved-toast {
-  position: fixed;
-  bottom: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%) translateY(12px);
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: var(--color-status-success);
-  color: #fff;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
-  z-index: 1080;
-}
-
-.settings-saved-toast.is-visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }

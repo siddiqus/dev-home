@@ -157,16 +157,7 @@
 
 /* Spin the refresh icon while a refresh is in progress. */
 .sidebar-refresh-icon.spinning {
-  animation: sidebar-refresh-spin 0.8s linear infinite;
-}
-
-@keyframes sidebar-refresh-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

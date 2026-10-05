@@ -156,7 +156,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
                   <span style={{ minWidth: 0 }}>
                     <span className="text-secondary-custom">{pr.repo_full_name}</span>{" "}
                     <span className="text-secondary-custom">#{pr.number}</span>
-                    <div>{pr.title}</div>
+                    <span className="d-block">{pr.title}</span>
                   </span>
                 </a>
               ))}

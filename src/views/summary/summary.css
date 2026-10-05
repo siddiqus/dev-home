@@ -81,13 +81,3 @@
   text-align: center;
   flex-shrink: 0;
 }
-
-/* Shared with notes view */
-/* 3-line truncation for note content preview */
-.note-content-truncate {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  white-space: pre-wrap;
-}

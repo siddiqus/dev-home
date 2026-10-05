@@ -25,6 +25,7 @@ import { SummaryItem } from "./SummaryItem";
 import { EmptyState } from "../../components/EmptyState";
 import "./summary.css";
 import { jiraBrowseUrl } from "../../utils/tickets";
+import { getBadgeVariant } from "../../components/StatusBadge";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -109,16 +110,6 @@ function EmptyRow({ text }: { text: string }) {
       {text}
     </div>
   );
-}
-
-const STATUS_BADGE_VARIANTS: Record<string, BadgeVariant> = {
-  green: "success",
-  yellow: "warning",
-  blue: "info",
-};
-
-function statusBadgeVariant(colorName: string): BadgeVariant {
-  return STATUS_BADGE_VARIANTS[colorName] || "neutral";
 }
 
 export const SummaryView: React.FC<SummaryViewProps> = ({
@@ -388,7 +379,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 subtitle={issue.project.name}
                 time={issue.updated}
                 badge={issue.status.name}
-                badgeVariant={statusBadgeVariant(issue.status.statusCategory.colorName)}
+                badgeVariant={getBadgeVariant(issue.status.statusCategory.colorName)}
                 onClick={() => setSelectedIssue(issue)}
               />
             ))

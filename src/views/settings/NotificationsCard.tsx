@@ -3,6 +3,7 @@ import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import { IconBell } from "@tabler/icons-react";
+import { Toast } from "../../components/Toast";
 
 export const NotificationsCard: React.FC = () => {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
@@ -93,9 +94,7 @@ export const NotificationsCard: React.FC = () => {
       </Card>
 
       {/* Success toast — fixed at the bottom like other settings cards */}
-      <div className={`settings-saved-toast ${successMessage ? "is-visible" : ""}`} role="status">
-        {successMessage}
-      </div>
+      <Toast message={successMessage ?? ""} visible={!!successMessage} />
     </>
   );
 };

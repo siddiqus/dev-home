@@ -20,7 +20,10 @@
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 
 .pr-table-collapse-btn:hover {
@@ -189,31 +192,6 @@
 .pr-card-notes svg {
   color: var(--color-text-muted);
   flex-shrink: 0;
-}
-
-/* Copied-to-clipboard toast: fixed at the bottom of the viewport so showing/
-   hiding it never reflows the PR list. Mirrors .settings-saved-toast. */
-.pr-copy-toast {
-  position: fixed;
-  bottom: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%) translateY(12px);
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: var(--color-status-success);
-  color: #fff;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
-  z-index: 1080;
-}
-
-.pr-copy-toast.is-visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }
 
 /* ---- right column ---- */

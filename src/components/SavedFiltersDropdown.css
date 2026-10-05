@@ -99,13 +99,6 @@
   flex-shrink: 0;
 }
 
-.saved-filter-updated-btn {
-  border-color: var(--color-status-success, #3fb950) !important;
-  color: var(--color-status-success, #3fb950) !important;
-  background: rgba(63, 185, 80, 0.1);
-  pointer-events: none;
-}
-
 .saved-filter-rename-input {
   border: 1px solid var(--color-accent, #388bfd);
   border-radius: 4px;

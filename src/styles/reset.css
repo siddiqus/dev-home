@@ -70,7 +70,6 @@ body {
   outline-offset: 1px;
 }
 
-
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -135,4 +134,33 @@ a,
 
 .container-fluid {
   max-width: 100%;
+}
+
+/* Spinning icon (refresh buttons while loading). */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* 3-line truncation for note content previews (notes view, summary). */
+.note-content-truncate {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
 }

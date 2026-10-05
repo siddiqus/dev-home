@@ -8,6 +8,7 @@ import {
   IconCheck,
 } from "@tabler/icons-react";
 import "./SavedFiltersDropdown.css";
+import { Toast, useToast } from "./Toast";
 
 export interface SavedFilter {
   id: number;
@@ -49,7 +50,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
   const [filterName, setFilterName] = useState("");
   const [editingFilterId, setEditingFilterId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
-  const [showUpdatedFeedback, setShowUpdatedFeedback] = useState(false);
+  const updatedToast = useToast(1500);
   const containerRef = useRef<HTMLDivElement>(null);
   const saveInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +61,9 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
         setOpen(false);
         setShowSaveInput(false);
         setFilterName("");
+        // Don't reopen into a half-finished rename.
+        setEditingFilterId(null);
+        setEditName("");
       }
     };
     document.addEventListener("mousedown", handler);
@@ -111,8 +115,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
   const handleUpdateFilter = () => {
     if (activeFilterId == null) return;
     onUpdate(activeFilterId, { filter_config: { authors: currentAuthors, repos: currentRepos } });
-    setShowUpdatedFeedback(true);
-    setTimeout(() => setShowUpdatedFeedback(false), 1500);
+    updatedToast.show("Filter updated");
   };
 
   const handleRename = (id: number) => {
@@ -190,7 +193,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
       </button>
 
       {/* Update button (appears when active filter diverges) */}
-      {activeFilterId != null && hasFilterDiverged && !showUpdatedFeedback && (
+      {activeFilterId != null && hasFilterDiverged && (
         <button
           className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
           style={{ fontSize: "0.8125rem", padding: "0 8px", height: 28 }}
@@ -217,16 +220,7 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
         </button>
       )}
 
-      {/* Updated feedback */}
-      {showUpdatedFeedback && (
-        <span
-          className="btn btn-sm d-flex align-items-center gap-1 saved-filter-updated-btn"
-          style={{ fontSize: "0.8125rem", padding: "0 8px", height: 28 }}
-        >
-          <IconCheck size={14} />
-          Updated!
-        </span>
-      )}
+      <Toast message={updatedToast.message} visible={updatedToast.visible} />
 
       {/* Inline save input */}
       {showSaveInput && (
@@ -247,14 +241,18 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
           >
             Save
           </button>
-          <IconX
-            size={14}
-            style={{ opacity: 0.5, cursor: "pointer" }}
+          <button
+            type="button"
+            className="btn btn-link btn-sm p-0 d-flex text-reset"
+            style={{ opacity: 0.5 }}
+            aria-label="Cancel"
             onClick={() => {
               setShowSaveInput(false);
               setFilterName("");
             }}
-          />
+          >
+            <IconX size={14} />
+          </button>
         </div>
       )}
 

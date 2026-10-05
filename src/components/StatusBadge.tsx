@@ -6,7 +6,8 @@ interface StatusBadgeProps {
   colorName: string;
 }
 
-function getBadgeVariant(colorName: string): BadgeVariant {
+/** Badge variant for a Jira status-category colour. */
+export function getBadgeVariant(colorName: string): BadgeVariant {
   const normalized = colorName.toLowerCase();
 
   switch (normalized) {

@@ -28,6 +28,7 @@ import { useOptionalNotes } from "../context/NotesContext";
 import { normalizeNoteRef, prNoteKey } from "../utils/prNotes";
 import "./PRTable.css";
 import { jiraBrowseUrl } from "../utils/tickets";
+import { Toast, useToast } from "./Toast";
 
 type PRTableVariant =
   | "my-prs"
@@ -176,26 +177,23 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  // Transient "copied to clipboard" confirmation. Rendered as a fixed bottom
-  // toast so it never reflows the PR list when it shows/hides. The message stays
-  // set while the toast fades out; only `copyToastVisible` toggles the animation.
-  const [copyToastMsg, setCopyToastMsg] = useState("");
-  const [copyToastVisible, setCopyToastVisible] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Transient "copied to clipboard" confirmation.
+  const copyToast = useToast();
+  const showCopyToast = copyToast.show;
 
-  const copyToClipboard = useCallback((text: string, message: string) => {
-    navigator.clipboard
-      ?.writeText(text)
-      .then(() => {
-        setCopyToastMsg(message);
-        setCopyToastVisible(true);
-        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-        copyTimerRef.current = setTimeout(() => setCopyToastVisible(false), 2000);
-      })
-      .catch(() => {
-        /* clipboard unavailable (e.g. insecure context) — silently ignore */
-      });
-  }, []);
+  const copyToClipboard = useCallback(
+    (text: string, message: string) => {
+      navigator.clipboard
+        ?.writeText(text)
+        .then(() => {
+          showCopyToast(message);
+        })
+        .catch(() => {
+          /* clipboard unavailable (e.g. insecure context) — silently ignore */
+        });
+    },
+    [showCopyToast],
+  );
 
   const handleCopyBranch = useCallback(
     (branch: string) => copyToClipboard(branch, "Copied branch name to clipboard"),
@@ -205,13 +203,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const handleCopyLink = useCallback(
     (url: string) => copyToClipboard(url, "Copied PR link to clipboard"),
     [copyToClipboard],
-  );
-
-  useEffect(
-    () => () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    },
-    [],
   );
 
   const storageKey = `dev-home-pr-collapsed-${variant}${storageKeyScope ? `-${storageKeyScope}` : ""}`;
@@ -401,11 +392,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
         pr={selectedPR ?? undefined}
       />
 
-      {/* Copied-to-clipboard confirmation — fixed at the bottom so it doesn't
-          shift the PR list when it appears/disappears. */}
-      <div className={`pr-copy-toast ${copyToastVisible ? "is-visible" : ""}`} role="status">
-        {copyToastMsg}
-      </div>
+      <Toast message={copyToast.message} visible={copyToast.visible} />
     </>
   );
 });

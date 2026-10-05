@@ -3,6 +3,7 @@ import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
 import { createBackup, restoreBackup } from "../../lib/backup";
+import { Toast } from "../../components/Toast";
 
 export const DataBackupCard: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,9 +94,7 @@ export const DataBackupCard: React.FC = () => {
       </Card>
 
       {/* Success toast — fixed at the bottom like SettingsView's */}
-      <div className={`settings-saved-toast ${successMessage ? "is-visible" : ""}`} role="status">
-        {successMessage}
-      </div>
+      <Toast message={successMessage ?? ""} visible={!!successMessage} />
     </>
   );
 };

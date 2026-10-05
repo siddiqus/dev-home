@@ -16,6 +16,7 @@ import { MenuItemsToggle } from "./MenuItemsToggle";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { DataBackupCard } from "./DataBackupCard";
 import "./settings.css";
+import { Toast } from "../../components/Toast";
 
 interface SettingsViewProps {
   backendOnline: boolean;
@@ -280,9 +281,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <DataBackupCard />
 
       {/* Saved confirmation — fixed at the bottom so it doesn't shift the layout */}
-      <div className={`settings-saved-toast ${successMessage ? "is-visible" : ""}`} role="status">
-        {successMessage}
-      </div>
+      <Toast message={successMessage ?? ""} visible={!!successMessage} />
     </div>
   );
 };
