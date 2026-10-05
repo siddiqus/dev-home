@@ -6,17 +6,13 @@ import {
   IconGitPullRequestDraft,
 } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
+import { RED_STATUSES } from "../api/github/checks";
 
 /** The four buckets an open PR can fall into on the "My PRs" page. */
 export type OpenPRSection = "ready" | "needs-action" | "pending" | "draft";
 
 /** Check-rollup states rendered red in ChecksStatusIcon — i.e. CI is failing. */
-export const RED_CHECK_STATUSES: ReadonlySet<string> = new Set([
-  "FAILURE",
-  "ERROR",
-  "STARTUP_FAILURE",
-  "TIMED_OUT",
-]);
+export const RED_CHECK_STATUSES: ReadonlySet<string> = RED_STATUSES;
 
 /** Review states that mean a reviewer left non-approving feedback to address. */
 export const NON_APPROVING_REVIEW_STATUSES: ReadonlySet<string> = new Set([

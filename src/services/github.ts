@@ -52,27 +52,15 @@ export async function fetchOrgPRs(
   return data;
 }
 
-function dedupeAndSort(prs: GitHubPR[]): GitHubPR[] {
-  const seen = new Set<number>();
-  const unique: GitHubPR[] = [];
-  for (const pr of prs) {
-    if (!seen.has(pr.id)) {
-      seen.add(pr.id);
-      unique.push(pr);
-    }
-  }
-  unique.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  return unique;
-}
-
 /**
  * Fetch org PRs for multiple authors and/or repos using AND semantics:
  * a PR is included if it matches ANY selected author AND is in ANY selected repo.
- * One search covers every combination (GitHub ORs repeated qualifiers).
+ * One search covers every combination (GitHub ORs repeated qualifiers), sorted
+ * newest-updated first by the query itself.
  */
 export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Promise<GitHubPR[]> {
   const data = await getOrgPrs({ authors, repos });
-  return dedupeAndSort(data.prs);
+  return data.prs;
 }
 
 /** Recently merged PRs (last 3 days); one search for any number of authors/repos. */
@@ -82,9 +70,7 @@ export async function fetchRecentlyMergedPRs(
   repos?: string[],
 ): Promise<GitHubPR[]> {
   const data = await getMergedPrs({ scope, authors, repos });
-  const multi = scope === "org" && ((authors?.length ?? 0) > 1 || (repos?.length ?? 0) > 1);
-  // Multi-filter results have always been returned newest-updated first.
-  return multi ? dedupeAndSort(data.prs) : data.prs;
+  return data.prs;
 }
 
 export interface OrgMember {

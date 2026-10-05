@@ -16,7 +16,7 @@
  */
 
 /** Normalized statuses rendered red — i.e. a genuinely failing check. */
-const RED_STATUSES: ReadonlySet<string> = new Set([
+export const RED_STATUSES: ReadonlySet<string> = new Set([
   "FAILURE",
   "ERROR",
   "STARTUP_FAILURE",

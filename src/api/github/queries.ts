@@ -18,12 +18,8 @@ export const PR_CHECKS_ROLLUP = `statusCheckRollup {
   }
 }`;
 
-/**
- * PR node selection for each aliased search in REVIEWS_QUERY, defined once so
- * the three searches always return the same fields.
- */
-const PR_SEARCH_NODE = `... on PullRequest {
-  databaseId
+/** Fields every PR query selects; mapGraphQLPr reads these for the base shape. */
+const PR_BASE_FIELDS = `databaseId
   number
   title
   url
@@ -39,8 +35,10 @@ const PR_SEARCH_NODE = `... on PullRequest {
   deletions
   changedFiles
   repository { nameWithOwner }
-  labels(first: 10) { nodes { name color } }
-  mergeable
+  labels(first: 10) { nodes { name color } }`;
+
+/** Merge-readiness fields for open-PR queries (conflicts, queue, review, CI). */
+const PR_STATUS_FIELDS = `mergeable
   mergeQueueEntry { id }
   mergeStateStatus
   reviewDecision
@@ -50,7 +48,15 @@ const PR_SEARCH_NODE = `... on PullRequest {
         ${PR_CHECKS_ROLLUP}
       }
     }
-  }
+  }`;
+
+/**
+ * PR node selection for each aliased search in REVIEWS_QUERY, defined once so
+ * the three searches always return the same fields.
+ */
+const PR_SEARCH_NODE = `... on PullRequest {
+  ${PR_BASE_FIELDS}
+  ${PR_STATUS_FIELDS}
 }`;
 
 /**
@@ -91,34 +97,8 @@ export const SEARCH_MY_PRS_QUERY = `
     search(query: $query, type: ISSUE, first: $first) {
       nodes {
         ... on PullRequest {
-          databaseId
-          number
-          title
-          url
-          state
-          isDraft
-          createdAt
-          updatedAt
-          author { login avatarUrl }
-          body
-          headRefName
-          baseRefName
-          additions
-          deletions
-          changedFiles
-          repository { nameWithOwner }
-          labels(first: 10) { nodes { name color } }
-          commits(last: 1) {
-            nodes {
-              commit {
-                ${PR_CHECKS_ROLLUP}
-              }
-            }
-          }
-          mergeable
-          mergeQueueEntry { id }
-          mergeStateStatus
-          reviewDecision
+          ${PR_BASE_FIELDS}
+          ${PR_STATUS_FIELDS}
           reviews(last: 20) {
             nodes {
               state
@@ -169,34 +149,8 @@ export const SEARCH_ORG_PRS_QUERY = `
       }
       nodes {
         ... on PullRequest {
-          databaseId
-          number
-          title
-          url
-          state
-          isDraft
-          createdAt
-          updatedAt
-          author { login avatarUrl }
-          body
-          headRefName
-          baseRefName
-          additions
-          deletions
-          changedFiles
-          repository { nameWithOwner }
-          labels(first: 10) { nodes { name color } }
-          mergeable
-          mergeQueueEntry { id }
-          mergeStateStatus
-          reviewDecision
-          commits(last: 1) {
-            nodes {
-              commit {
-                ${PR_CHECKS_ROLLUP}
-              }
-            }
-          }
+          ${PR_BASE_FIELDS}
+          ${PR_STATUS_FIELDS}
           reviews(last: 20) {
             nodes {
               state
@@ -217,25 +171,9 @@ export const SEARCH_MERGED_PRS_QUERY = `
     search(query: $query, type: ISSUE, first: $first) {
       nodes {
         ... on PullRequest {
-          databaseId
-          number
-          title
-          url
-          state
-          isDraft
-          createdAt
-          updatedAt
+          ${PR_BASE_FIELDS}
           mergedAt
           mergedBy { login }
-          author { login avatarUrl }
-          body
-          headRefName
-          baseRefName
-          additions
-          deletions
-          changedFiles
-          repository { nameWithOwner }
-          labels(first: 10) { nodes { name color } }
         }
       }
     }
@@ -246,34 +184,8 @@ export const SINGLE_PR_QUERY = `
   query SinglePR($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        databaseId
-        number
-        title
-        url
-        state
-        isDraft
-        createdAt
-        updatedAt
-        author { login avatarUrl }
-        body
-        headRefName
-        baseRefName
-        additions
-        deletions
-        changedFiles
-        repository { nameWithOwner }
-        labels(first: 10) { nodes { name color } }
-        mergeable
-        mergeQueueEntry { id }
-        mergeStateStatus
-        reviewDecision
-        commits(last: 1) {
-          nodes {
-            commit {
-              ${PR_CHECKS_ROLLUP}
-            }
-          }
-        }
+        ${PR_BASE_FIELDS}
+        ${PR_STATUS_FIELDS}
         reviews(last: 20) {
           nodes { state author { login } }
         }

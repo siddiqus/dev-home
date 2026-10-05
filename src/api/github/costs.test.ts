@@ -332,7 +332,7 @@ describe("buildMergedPrsQuery", () => {
         repos: ["test-org/app"],
         since: SINCE,
       }),
-    ).toBe(`author:testuser type:pr is:merged merged:>=${SINCE}`);
+    ).toBe(`author:testuser type:pr is:merged merged:>=${SINCE} sort:updated-desc`);
   });
 
   it("returns null for scope org without an org", () => {
@@ -360,7 +360,7 @@ describe("buildMergedPrsQuery", () => {
             repos,
             since: SINCE,
           }),
-        ).toBe(`type:pr is:merged merged:>=${SINCE} ${repoPart}${authorPart}`);
+        ).toBe(`type:pr is:merged merged:>=${SINCE} ${repoPart}${authorPart} sort:updated-desc`);
       });
     }
   }

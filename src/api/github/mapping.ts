@@ -36,25 +36,45 @@ export function mapCheckContext(ctx: any) {
 }
 
 /**
- * Derive an overall review status from a list of review nodes.
- * Returns "APPROVED", "CHANGES_REQUESTED", "REVIEWED", or null.
- * Uses the latest review per author to determine the current state.
+ * Derive an overall review status: "APPROVED", "CHANGES_REQUESTED", "REVIEWED"
+ * (only non-approving comments), or null.
+ *
+ * Mirrors GitHub's rules: each reviewer's latest APPROVED / CHANGES_REQUESTED
+ * stands until they submit another one (a later comment-only review doesn't
+ * erase it; a dismissal does). The PR author's own thread replies and bots
+ * aren't reviews. When GitHub reports a `reviewDecision` (branch protection
+ * requires reviews) it's authoritative: APPROVED / CHANGES_REQUESTED win, and
+ * REVIEW_REQUIRED means approvals so far aren't enough.
  */
-export function deriveReviewStatus(reviews: any[] | undefined): string | null {
-  if (!reviews || reviews.length === 0) return null;
-
-  // Keep only the latest review per author
-  const latestByAuthor = new Map<string, string>();
-  for (const r of reviews) {
-    const login = r.author?.login || "";
-    if (!login) continue;
-    // reviews are ordered oldest-first from the API; later entries overwrite
-    latestByAuthor.set(login, r.state);
+export function deriveReviewStatus(
+  reviews: any[] | undefined,
+  opts: { author?: string; reviewDecision?: string | null } = {},
+): string | null {
+  const { reviewDecision } = opts;
+  if (reviewDecision === "APPROVED" || reviewDecision === "CHANGES_REQUESTED") {
+    return reviewDecision;
   }
 
-  const states = [...latestByAuthor.values()];
-  if (states.some((s) => s === "CHANGES_REQUESTED")) return "CHANGES_REQUESTED";
-  if (states.some((s) => s === "APPROVED")) return "APPROVED";
+  const author = opts.author?.toLowerCase();
+  // Reviews are ordered oldest-first from the API.
+  const byReviewer = new Map<string, string>();
+  for (const r of reviews || []) {
+    const login = r.author?.login || "";
+    if (!login || isBot(login) || login.toLowerCase() === author) continue;
+    if (r.state === "APPROVED" || r.state === "CHANGES_REQUESTED") {
+      byReviewer.set(login, r.state);
+    } else if (r.state === "DISMISSED") {
+      byReviewer.set(login, "COMMENTED");
+    } else if (r.state === "COMMENTED" && !byReviewer.has(login)) {
+      byReviewer.set(login, "COMMENTED");
+    }
+  }
+
+  const states = [...byReviewer.values()];
+  if (states.includes("CHANGES_REQUESTED")) return "CHANGES_REQUESTED";
+  if (states.includes("APPROVED")) {
+    return reviewDecision === "REVIEW_REQUIRED" ? null : "APPROVED";
+  }
   if (states.length > 0) return "REVIEWED";
   return null;
 }
@@ -144,7 +164,10 @@ export function mapGraphQLPr(
     optional_checks_failing: findOptionalFailures(contextNodes, requiredContexts),
     // Deduped like checks_status so re-run attempts don't list as duplicate rows.
     checks: latestContexts(contextNodes).map(mapCheckContext),
-    review_status: deriveReviewStatus(node.reviews?.nodes),
+    review_status: deriveReviewStatus(node.reviews?.nodes, {
+      author: node.author?.login,
+      reviewDecision: node.reviewDecision,
+    }),
     merged_at: node.mergedAt || null,
     merged_by: node.mergedBy?.login || null,
     in_merge_queue: !!node.mergeQueueEntry,

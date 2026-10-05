@@ -289,11 +289,13 @@ export function buildMergedPrsQuery(args: {
   since: string;
 }): string | null {
   const base = `type:pr is:merged merged:>=${args.since}`;
-  if (args.scope !== "org") return `author:${args.username} ${base}`;
+  const sort = " sort:updated-desc";
+  if (args.scope !== "org") return `author:${args.username} ${base}${sort}`;
   if (!args.org) return null;
   return (
     `${base} ${scopeQualifiers(args.org, cleanList(args.repos))}` +
-    authorQualifiers(cleanList(args.authors))
+    authorQualifiers(cleanList(args.authors)) +
+    sort
   );
 }
 
