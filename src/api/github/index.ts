@@ -28,14 +28,15 @@ export { resetMentionsCache } from "./notifications";
  * Also returns pr_comments: comments on the user's PRs by other people (non-bot),
  * so the frontend can merge them into mentions without a second GraphQL call.
  */
-export async function getPrs(): Promise<{ prs: any[]; pr_comments: any[] }> {
+export async function getPrs(signal?: AbortSignal): Promise<{ prs: any[]; pr_comments: any[] }> {
   const config = requireSettings();
   const q = `author:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
-  const result = await githubGraphql<{ search: { nodes: any[] } }>(SEARCH_MY_PRS_QUERY, {
-    query: q,
-    first: 50,
-  });
+  const result = await githubGraphql<{ search: { nodes: any[] } }>(
+    SEARCH_MY_PRS_QUERY,
+    { query: q, first: 50 },
+    { signal },
+  );
 
   const nodes = result.search.nodes || [];
   const prs = (await mapOpenPrsWithChecks(nodes, config.githubUsername)).filter(
@@ -62,19 +63,25 @@ function prNodeKey(n: any): string {
  *    or commented on — i.e. reviews in progress. GitHub drops you from
  *    `review-requested:` once you submit a review, so this needs its own search.
  */
-export async function getReviews(): Promise<{ reviews: any[]; reviewing: any[] }> {
+export async function getReviews(
+  signal?: AbortSignal,
+): Promise<{ reviews: any[]; reviewing: any[] }> {
   const config = requireSettings();
   const user = config.githubUsername;
   const base = `type:pr state:open updated:>=${monthsAgo()}`;
 
   const result = await githubGraphql<
     Record<"requested" | "reviewedBy" | "commented", { nodes: any[] }>
-  >(REVIEWS_QUERY, {
-    requestedQuery: `review-requested:${user} ${base}`,
-    reviewedQuery: `reviewed-by:${user} -author:${user} ${base}`,
-    commentedQuery: `commenter:${user} -author:${user} ${base}`,
-    first: 50,
-  });
+  >(
+    REVIEWS_QUERY,
+    {
+      requestedQuery: `review-requested:${user} ${base}`,
+      reviewedQuery: `reviewed-by:${user} -author:${user} ${base}`,
+      commentedQuery: `commenter:${user} -author:${user} ${base}`,
+      first: 50,
+    },
+    { signal },
+  );
   const prNodes = (key: "requested" | "reviewedBy" | "commented") =>
     (result[key]?.nodes || []).filter((n: any) => n && n.number);
   const requested = prNodes("requested");
@@ -236,11 +243,11 @@ export async function getOrgRepos(): Promise<{ repos: { full_name: string; name:
  * Note: comments on the user's own PRs are returned by getPrs() as pr_comments
  * and merged on the frontend, avoiding a duplicate GraphQL call.
  */
-export async function getGithubMentions(): Promise<{ mentions: any[] }> {
+export async function getGithubMentions(signal?: AbortSignal): Promise<{ mentions: any[] }> {
   const github = githubRest();
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
-  const allNotifications = await fetchAllNotifications(github, since);
+  const allNotifications = await fetchAllNotifications(github, since, signal);
   // Cap before the open-state check so at most MAX_MENTION_THREADS subjects are looked up.
   const newest = [...allNotifications]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())

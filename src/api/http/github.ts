@@ -24,6 +24,7 @@ export function githubRest(): AxiosInstance {
 export async function githubGraphql<T = any>(
   query: string,
   variables: Record<string, any> = {},
+  opts: { signal?: AbortSignal } = {},
 ): Promise<T> {
   const { githubToken } = requireSettings();
   let body: GraphQLResponse<T>;
@@ -31,7 +32,10 @@ export async function githubGraphql<T = any>(
     const response = await axios.post<GraphQLResponse<T>>(
       `${GITHUB_API}/graphql`,
       { query, variables },
-      { headers: { Authorization: `Bearer ${githubToken}`, "Content-Type": "application/json" } },
+      {
+        headers: { Authorization: `Bearer ${githubToken}`, "Content-Type": "application/json" },
+        signal: opts.signal,
+      },
     );
     body = response.data;
   } catch (err) {

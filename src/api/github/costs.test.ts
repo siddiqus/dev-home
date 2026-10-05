@@ -168,6 +168,21 @@ describe("getGithubMentions caching", () => {
     expect(Math.min(...mentions.map((m) => m.id))).toBe(11);
   });
 
+  it("stops paging once a full page yields 50 threads", async () => {
+    inbox = Array.from({ length: 100 }, (_, i) => notification(i + 1));
+    await getGithubMentions();
+    expect(notificationCalls()).toHaveLength(1);
+  });
+
+  it("reuses the subject response when the latest comment URL is the subject itself", async () => {
+    const n = notification(1);
+    n.subject.latest_comment_url = n.subject.url;
+    inbox = [n];
+    const { mentions } = await getGithubMentions();
+    expect(subjectCalls()).toHaveLength(1);
+    expect(mentions).toHaveLength(0); // the subject stub has no author, so it's filtered
+  });
+
   it("makes no subject requests on a refresh with unchanged notifications", async () => {
     inbox = [notification(1), notification(2)];
     await getGithubMentions();

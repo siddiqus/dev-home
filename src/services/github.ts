@@ -10,8 +10,10 @@ import {
   getReviews,
 } from "../api/github";
 
-export async function fetchOpenPRs(): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
-  const data = await getPrs();
+export async function fetchOpenPRs(
+  signal?: AbortSignal,
+): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
+  const data = await getPrs(signal);
   return { prs: data.prs, prComments: data.pr_comments || [] };
 }
 
@@ -22,13 +24,13 @@ export interface ReviewPRs {
   reviewing: GitHubPR[];
 }
 
-export async function fetchReviewRequests(): Promise<ReviewPRs> {
-  const data = await getReviews();
+export async function fetchReviewRequests(signal?: AbortSignal): Promise<ReviewPRs> {
+  const data = await getReviews(signal);
   return { reviews: data.reviews, reviewing: data.reviewing ?? [] };
 }
 
-export async function fetchMentions(): Promise<GitHubComment[]> {
-  const data = await getGithubMentions();
+export async function fetchMentions(signal?: AbortSignal): Promise<GitHubComment[]> {
+  const data = await getGithubMentions(signal);
   return data.mentions;
 }
 

@@ -91,14 +91,19 @@ export function pruneMentionsCache(threadIds: Iterable<string>): void {
 }
 
 /**
- * Fetch all pages of notifications from the GitHub REST API,
- * filtered to only relevant participation reasons.
+ * Fetch pages of notifications from the GitHub REST API (newest first),
+ * filtered to only relevant participation reasons. Paging stops once a page
+ * brings the count to MAX_MENTION_THREADS, since only the newest are used.
  * The first page is a conditional request when a previous list is cached;
  * a 304 returns the cached list without fetching further pages. A 304 with
  * nothing cached for this window (not expected) yields an empty list and
  * leaves the cache empty, so the next call does a full fetch.
  */
-export async function fetchAllNotifications(github: AxiosInstance, since: string): Promise<any[]> {
+export async function fetchAllNotifications(
+  github: AxiosInstance,
+  since: string,
+  signal?: AbortSignal,
+): Promise<any[]> {
   const all: any[] = [];
   let page = 1;
   const perPage = 100;
@@ -111,6 +116,7 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
       params: { participating: true, all: true, per_page: perPage, since, page },
       ...(conditional ? { headers: { "If-Modified-Since": conditional } } : {}),
       validateStatus: (s: number) => (s >= 200 && s < 300) || s === 304,
+      signal,
     });
     if (response.status === 304) {
       if (cached) return cached.notifications;
@@ -123,7 +129,7 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
     for (const n of data) {
       if (ALLOWED_REASONS.has(n.reason)) all.push(n);
     }
-    if (data.length < perPage) break;
+    if (data.length < perPage || all.length >= MAX_MENTION_THREADS) break;
     page++;
   }
 
@@ -135,7 +141,8 @@ export async function fetchAllNotifications(github: AxiosInstance, since: string
  * Filter out notifications whose subject (PR/issue) is no longer open.
  * Fetches the subject URL in batches to check state; threads whose
  * `updated_at` matches a cached state reuse it without a request (cached
- * "open" states are rechecked after SUBJECT_OPEN_TTL_MS).
+ * "open" states are rechecked after SUBJECT_OPEN_TTL_MS). Freshly fetched
+ * subjects are attached as `_subject` so the comment step can reuse them.
  */
 export async function filterOpenNotifications(
   notifications: any[],
@@ -169,7 +176,7 @@ export async function filterOpenNotifications(
             open,
             checkedAt: Date.now(),
           });
-          return open ? notification : null;
+          return open ? { ...notification, _subject: subject } : null;
         } catch {
           // If we can't fetch the subject, include it (fail open); not cached, so it's retried
           return notification;
@@ -186,7 +193,12 @@ export async function filterOpenNotifications(
 async function fetchNotificationComment(notification: any, github: AxiosInstance): Promise<any> {
   const commentUrl = notification.subject?.latest_comment_url;
   if (commentUrl) {
-    const { data: comment } = await github.get(commentUrl);
+    // When the latest event is the PR/issue itself, its URL is the subject URL,
+    // which the open-state check may already have fetched.
+    const comment =
+      commentUrl === notification.subject?.url && notification._subject
+        ? notification._subject
+        : (await github.get(commentUrl)).data;
     return {
       id: comment.id,
       html_url: comment.html_url,

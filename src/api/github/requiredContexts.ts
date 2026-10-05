@@ -3,8 +3,15 @@ import { githubRest } from "../http/github";
 import { parseRequiredContexts } from "./checks";
 import { mapGraphQLPr } from "./mapping";
 
-/** Cache of required status-check context names, keyed by `owner/repo@branch`. */
-const requiredContextsCache = new Map<string, { value: Set<string> | null; expires: number }>();
+/**
+ * Cache of required status-check context names, keyed by `owner/repo@branch`.
+ * Holds promises so concurrent lookups (e.g. My PRs and Reviews loading at the
+ * same time) share one request pair.
+ */
+const requiredContextsCache = new Map<
+  string,
+  { value: Promise<Set<string> | null>; expires: number }
+>();
 const REQUIRED_CONTEXTS_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const REQUIRED_CONTEXTS_MAX_ENTRIES = 500;
 
@@ -22,6 +29,12 @@ function pruneRequiredContextsCache(now: number): void {
       if (++deleted >= toDelete) break;
     }
   }
+}
+
+/** 403/404 mean "no protection visible to this token": a stable answer worth caching. */
+function isDefinitiveMiss(err: unknown): boolean {
+  const status = (err as { status?: number })?.status;
+  return status === 403 || status === 404;
 }
 
 /**
@@ -55,25 +68,30 @@ export async function getRequiredContexts(
 
   const github = githubRest();
   const enc = encodeURIComponent(branch);
-  let protection: any = null;
-  let rules: any = null;
-  try {
-    const resp = await github.get(
-      `/repos/${owner}/${repo}/branches/${enc}/protection/required_status_checks`,
+  // Transient failures (network, 5xx, rate limit) still resolve to the
+  // fail-open answer, but the entry is evicted so the next refresh retries.
+  let transient = false;
+  const lookup = (url: string) =>
+    github.get(url).then(
+      (resp) => resp.data,
+      (err) => {
+        if (!isDefinitiveMiss(err)) transient = true;
+        return null;
+      },
     );
-    protection = resp.data;
-  } catch {
-    // 404 (unprotected / no required checks) or 403 (no admin) — fall through.
-  }
-  try {
-    const resp = await github.get(`/repos/${owner}/${repo}/rules/branches/${enc}`);
-    rules = resp.data;
-  } catch {
+  const value = Promise.all([
+    // 404 (unprotected / no required checks) or 403 (no admin) yield null.
+    lookup(`/repos/${owner}/${repo}/branches/${enc}/protection/required_status_checks`),
     // Rulesets unavailable — protection alone (or nothing) is fine.
-  }
+    lookup(`/repos/${owner}/${repo}/rules/branches/${enc}`),
+  ]).then(([protection, rules]) => {
+    if (transient && requiredContextsCache.get(key)?.value === value) {
+      requiredContextsCache.delete(key);
+    }
+    const names = parseRequiredContexts(protection, rules);
+    return names.size > 0 ? names : null;
+  });
 
-  const names = parseRequiredContexts(protection, rules);
-  const value = names.size > 0 ? names : null;
   pruneRequiredContextsCache(now);
   requiredContextsCache.set(key, { value, expires: now + REQUIRED_CONTEXTS_TTL_MS });
   return value;
