@@ -158,6 +158,7 @@ export default function App() {
     notes,
     unresolvedNotes,
     loading: notesLoading,
+    loaded: notesLoaded,
     addNote,
     editNote,
     resolveNote,
@@ -169,7 +170,7 @@ export default function App() {
   } = notesApi;
   // App-level so reminders fire regardless of the active tab. dueReminderCount
   // drives the Notes sidebar badge and updates ~every 15s as reminders come due.
-  const { dueCount: dueReminderCount } = useReminderScheduler(notes);
+  const { dueCount: dueReminderCount } = useReminderScheduler(notes, notesLoaded);
   const kanbanNotes = useMemo(
     () =>
       unresolvedNotes.filter((n) => {

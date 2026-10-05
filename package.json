@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "bump": "sh ./scripts/bump-version.sh",
     "prepare": "husky",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "pre-push-check": "npm run test && npm run lint && npm run typecheck"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

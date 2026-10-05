@@ -48,7 +48,7 @@ function makeNotesApi(notes: Note[]): NotesApi {
   return {
     notes,
     unresolvedNotes: notes.filter((n) => n.resolved === 0),
-    reminderNotes: notes.filter((n) => n.remind_at !== null),
+    loaded: true,
     loading: false,
     error: null,
     addNote: vi.fn(),

@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Note, NoteType } from "../types";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../services/notes";
 
 export function useNotes(active: boolean) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
+  // True once the first load has completed, so consumers can tell "no notes"
+  // apart from "not loaded yet" (e.g. the reminder scheduler's launch seeding).
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadNotes = useCallback(async () => {
@@ -14,6 +17,7 @@ export function useNotes(active: boolean) {
     try {
       const data = await fetchNotes();
       setNotes(data);
+      setLoaded(true);
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
@@ -25,8 +29,8 @@ export function useNotes(active: boolean) {
     loadNotes();
   }, [loadNotes]);
 
-  const unresolvedNotes = notes.filter((n) => n.resolved === 0);
-  const reminderNotes = notes.filter((n) => n.remind_at !== null);
+  // Memoized so downstream memos (focus, kanban, pomodoro) keep a stable input.
+  const unresolvedNotes = useMemo(() => notes.filter((n) => n.resolved === 0), [notes]);
 
   const addNote = useCallback(
     async (
@@ -124,19 +128,36 @@ export function useNotes(active: boolean) {
     }
   }, []);
 
-  return {
-    notes,
-    unresolvedNotes,
-    reminderNotes,
-    loading,
-    error,
-    addNote,
-    editNote,
-    resolveNote,
-    unresolveNote,
-    pinNote,
-    unpinNote,
-    removeNote,
-    refresh: loadNotes,
-  };
+  return useMemo(
+    () => ({
+      notes,
+      unresolvedNotes,
+      loading,
+      loaded,
+      error,
+      addNote,
+      editNote,
+      resolveNote,
+      unresolveNote,
+      pinNote,
+      unpinNote,
+      removeNote,
+      refresh: loadNotes,
+    }),
+    [
+      notes,
+      unresolvedNotes,
+      loading,
+      loaded,
+      error,
+      addNote,
+      editNote,
+      resolveNote,
+      unresolveNote,
+      pinNote,
+      unpinNote,
+      removeNote,
+      loadNotes,
+    ],
+  );
 }

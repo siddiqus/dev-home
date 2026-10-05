@@ -151,6 +151,22 @@ describe("useReminderScheduler", () => {
     expect(result.current.dueCount).toBe(1);
   });
 
+  it("does NOT desktop-notify overdue reminders when notes load after mount", () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const loadedNotes = [makeNote({ id: 1, remind_at: past })];
+
+    // Real app: notes start empty/unloaded and arrive in a later render.
+    const { result, rerender } = renderHook(
+      ({ notes, loaded }: { notes: Note[]; loaded: boolean }) =>
+        useReminderScheduler(notes, loaded),
+      { initialProps: { notes: [] as Note[], loaded: false } },
+    );
+    rerender({ notes: loadedNotes, loaded: true });
+
+    expect(notifySpy).not.toHaveBeenCalled();
+    expect(result.current.dueCount).toBe(1);
+  });
+
   it("fires exactly one desktop notification for a reminder that becomes due after a tick", () => {
     // Due 10s in the future — not due at mount.
     const soon = new Date(Date.now() + 10_000).toISOString();

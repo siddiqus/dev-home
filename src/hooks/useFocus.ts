@@ -107,6 +107,22 @@ export function useFocus(args: UseFocusArgs) {
     });
   }, [baseItems, stateByItem]);
 
+  // Re-rank when the soonest snooze expires; inputs are memoized, so nothing
+  // else would trigger a recompute just because time passed.
+  const [wakeTick, setWakeTick] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    let soonest = Infinity;
+    for (const i of itemsWithState) {
+      const until = i.signals.snoozedUntil;
+      if (until && until > now && until < soonest) soonest = until;
+    }
+    if (soonest === Infinity) return;
+    // Clamp to setTimeout's max delay (~24.8 days).
+    const id = setTimeout(() => setWakeTick((t) => t + 1), Math.min(soonest - now, 2 ** 31 - 1));
+    return () => clearTimeout(id);
+  }, [itemsWithState, wakeTick]);
+
   const groups = useMemo<FocusGroups>(() => {
     const now = Date.now();
     const active = itemsWithState.filter((i) => !i.signals.isDismissed);
@@ -118,7 +134,7 @@ export function useFocus(args: UseFocusArgs) {
     const snoozed = active.filter((i) => i.signals.snoozedUntil && i.signals.snoozedUntil > now);
     const dismissed = itemsWithState.filter((i) => i.signals.isDismissed);
     return { pinned, topPriority, rest, snoozed, dismissed };
-  }, [itemsWithState]);
+  }, [itemsWithState, wakeTick]);
 
   const optimisticPatch = useCallback((itemId: string, patch: Partial<FocusStateItem>) => {
     setStateByItem((prev) => ({

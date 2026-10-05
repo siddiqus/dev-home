@@ -55,7 +55,7 @@ function fireNotification(note: Note): void {
  * already overdue at launch are NOT desktop-notified (they're pre-seeded into
  * the notified set) but still count toward `dueCount` for in-app surfacing.
  */
-export function useReminderScheduler(notes: Note[]): { dueCount: number } {
+export function useReminderScheduler(notes: Note[], loaded = true): { dueCount: number } {
   const [dueCount, setDueCount] = useState(0);
 
   // Latest notes, read inside the interval tick so we never recreate the
@@ -66,10 +66,12 @@ export function useReminderScheduler(notes: Note[]): { dueCount: number } {
   const notifiedRef = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
 
-  // Mount-only: pre-seed the notified set with every reminder that is already
-  // due, so launch-time overdue reminders don't fire. (Permission is requested
-  // from the Settings card, not here.)
-  if (!seededRef.current) {
+  // One-time: once notes have loaded, pre-seed the notified set with every
+  // reminder that is already due, so launch-time overdue reminders don't fire.
+  // Gated on `loaded` because notes load asynchronously — seeding against the
+  // initial empty array would let every overdue reminder fire on each launch.
+  // (Permission is requested from the Settings card, not here.)
+  if (!seededRef.current && loaded) {
     seededRef.current = true;
     const { toNotify } = selectDueReminders(notes, Date.now(), notifiedRef.current);
     for (const note of toNotify) {
@@ -78,8 +80,10 @@ export function useReminderScheduler(notes: Note[]): { dueCount: number } {
   }
 
   // Stable interval created once. The tick reads the latest notes via the ref.
+  // Until seeding has happened, notes are still empty, so ticks are no-ops.
   useEffect(() => {
     const tick = () => {
+      if (!seededRef.current) return;
       const result = selectDueReminders(notesRef.current, Date.now(), notifiedRef.current);
       for (const note of result.toNotify) {
         fireNotification(note);
@@ -95,8 +99,9 @@ export function useReminderScheduler(notes: Note[]): { dueCount: number } {
 
   // When the notes array changes (new/edited/resolved reminders), run one
   // immediate pass so changes are picked up before the next interval tick.
-  // This does NOT re-seed the notified set — seeding is mount-only above.
+  // This does NOT re-seed the notified set — seeding happens once above.
   useEffect(() => {
+    if (!seededRef.current) return;
     const result = selectDueReminders(notes, Date.now(), notifiedRef.current);
     for (const note of result.toNotify) {
       fireNotification(note);
