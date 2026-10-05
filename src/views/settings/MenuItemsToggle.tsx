@@ -2,7 +2,7 @@ import React from "react";
 import Card from "react-bootstrap/Card";
 import Form from "react-bootstrap/Form";
 import { AppSettings } from "../../services/config";
-import { TOGGLEABLE_TABS } from "../../config/navTabs";
+import { TOGGLEABLE_GROUPS } from "../../config/navTabs";
 import "./MenuItemsToggle.css";
 
 interface MenuItemsToggleProps {
@@ -29,16 +29,21 @@ export const MenuItemsToggle: React.FC<MenuItemsToggleProps> = ({ formState, set
           Choose which items appear in the sidebar. Summary is always shown.
         </p>
         <div className="menu-toggle-list">
-          {TOGGLEABLE_TABS.map((tab) => (
-            <label key={tab.key} className="menu-toggle-row" htmlFor={`menu-toggle-${tab.key}`}>
-              <span>{tab.label}</span>
-              <Form.Check
-                type="switch"
-                id={`menu-toggle-${tab.key}`}
-                checked={!hiddenTabs.includes(tab.key)}
-                onChange={(e) => toggleTab(tab.key, e.target.checked)}
-              />
-            </label>
+          {TOGGLEABLE_GROUPS.map((group) => (
+            <div key={group.key} className="menu-toggle-group">
+              {group.label && <div className="menu-toggle-group-label">{group.label}</div>}
+              {group.tabs.map((tab) => (
+                <label key={tab.key} className="menu-toggle-row" htmlFor={`menu-toggle-${tab.key}`}>
+                  <span>{tab.label}</span>
+                  <Form.Check
+                    type="switch"
+                    id={`menu-toggle-${tab.key}`}
+                    checked={!hiddenTabs.includes(tab.key)}
+                    onChange={(e) => toggleTab(tab.key, e.target.checked)}
+                  />
+                </label>
+              ))}
+            </div>
           ))}
         </div>
       </Card.Body>

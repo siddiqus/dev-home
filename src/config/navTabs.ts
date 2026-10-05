@@ -2,8 +2,8 @@
  * Shared definition of the sidebar tabs and their groups.
  *
  * NAV_GROUPS is the source of truth for sidebar structure (order + grouping).
- * NAV_TABS is the flattened list, used by Settings → Appearance to decide which
- * tabs can be toggled on/off. The conditional tabs (org-prs) are listed
+ * TOGGLEABLE_GROUPS mirrors that structure for Settings → Appearance, minus the
+ * tabs that can't be toggled off. The conditional tabs (org-prs) are listed
  * here for structure; their runtime visibility (githubOrg) is
  * still decided in App.tsx.
  *
@@ -68,5 +68,12 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Flattened list of all tabs, in sidebar order. */
 export const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((g) => g.tabs);
 
-/** Tabs the user is allowed to hide. Summary is always shown as a landing tab. */
-export const TOGGLEABLE_TABS: NavTab[] = NAV_TABS.filter((t) => t.key !== "summary");
+/**
+ * Sidebar groups restricted to the tabs the user is allowed to hide, so the
+ * settings toggle list mirrors the sidebar's sections. Summary is always shown
+ * as a landing tab.
+ */
+export const TOGGLEABLE_GROUPS: NavGroup[] = NAV_GROUPS.map((g) => ({
+  ...g,
+  tabs: g.tabs.filter((t) => t.key !== "summary"),
+})).filter((g) => g.tabs.length > 0);
