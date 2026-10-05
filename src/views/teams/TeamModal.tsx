@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import { IconTrash } from "@tabler/icons-react";
@@ -37,6 +37,13 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
   const [workingId, setWorkingId] = useState<number | null>(team?.id ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Adding/removing members (and the lazy create they trigger) persists
+  // immediately, so closing without Save must still refresh the parent.
+  const changedRef = useRef(false);
+  const handleClose = () => {
+    if (changedRef.current) onSaved();
+    onClose();
+  };
 
   // Reset all local state whenever the modal opens for a (different) team.
   useEffect(() => {
@@ -48,6 +55,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
     setWorkingId(team?.id ?? null);
     setError(null);
     setSaving(false);
+    changedRef.current = false;
     if (team) {
       fetchTeamMembers(team.id)
         .then(setMembers)
@@ -85,6 +93,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
     if (!name.trim()) throw new Error("Enter a team name first");
     const created = await createTeam({ name: name.trim(), boardId, boardName });
     setWorkingId(created.id);
+    changedRef.current = true;
     return created.id;
   };
 
@@ -98,6 +107,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
     try {
       const id = await ensureTeam();
       await addTeamMember(id, member);
+      changedRef.current = true;
       setMembers(await fetchTeamMembers(id));
     } catch (e: any) {
       setError(e?.message || "Failed to add member");
@@ -110,6 +120,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
     setError(null);
     try {
       await removeTeamMember(workingId, memberId);
+      changedRef.current = true;
       setMembers(await fetchTeamMembers(workingId));
     } catch (e: any) {
       setError(e?.message || "Failed to remove member");
@@ -143,7 +154,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
   };
 
   return (
-    <Modal show={show} onHide={onClose} size="lg" centered>
+    <Modal show={show} onHide={handleClose} size="lg" centered>
       <Modal.Header closeButton>
         <Modal.Title style={{ fontSize: "1rem" }}>{isEdit ? "Edit team" : "New team"}</Modal.Title>
       </Modal.Header>
@@ -205,7 +216,7 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="outline-secondary" size="sm" onClick={onClose} disabled={saving}>
+        <Button variant="outline-secondary" size="sm" onClick={handleClose} disabled={saving}>
           Cancel
         </Button>
         <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>

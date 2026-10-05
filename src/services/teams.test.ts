@@ -61,6 +61,7 @@ describe("teams (localStorage)", () => {
     const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
     await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
     vi.mocked(postTeamDashboard).mockResolvedValue({
+      sprint: { id: 11, state: "active" },
       burnup: { trackingSince: null, points: [] },
       snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
     } as any);
@@ -79,6 +80,7 @@ describe("teams (localStorage)", () => {
     const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
     await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
     vi.mocked(postTeamDashboard).mockResolvedValue({
+      sprint: { id: 11, state: "active" },
       burnup: { trackingSince: null, points: [] },
       snapshot: { sprintId: 11, date: "2026-09-30", doneCount: 2, totalCount: 8 },
     } as any);

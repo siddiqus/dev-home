@@ -6,6 +6,7 @@ import {
   IconGitPullRequest,
   IconChevronRight,
   IconChevronDown,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
@@ -66,7 +67,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     }
   }, [initialTeamId]);
 
-  const { dashboard, loading, error } = useTeamDashboard(teamId, sprintId);
+  const { dashboard, loading, error, refresh } = useTeamDashboard(teamId, sprintId);
 
   const teamItems: DropdownItem[] = useMemo(
     () => teams.map((t) => ({ value: String(t.id), label: t.name })),
@@ -211,8 +212,8 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
       {/* ---- Sprint tab: the Jira cockpit ---- */}
       {teamId != null && (
         <div className={tab === "sprint" ? "" : "d-none"}>
-          {dashboard && dashboard.sprints.length > 0 && (
-            <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
+          <div className="d-flex gap-2 mb-3 align-items-center flex-wrap">
+            {dashboard && dashboard.sprints.length > 0 && (
               <SearchableDropdown
                 items={sprintItems}
                 value={selectedSprintId != null ? String(selectedSprintId) : ""}
@@ -223,8 +224,18 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                 triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
                 width={400}
               />
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              className="pr-table-collapse-btn pr-toolbar-btn"
+              onClick={refresh}
+              disabled={loading}
+              title="Refresh sprint data"
+              aria-label="Refresh sprint data"
+            >
+              <IconRefresh size={14} className={loading ? "spin" : ""} />
+            </button>
+          </div>
 
           {dashboard && (
             <>

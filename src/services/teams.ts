@@ -1,14 +1,13 @@
 import { createCollection, sqliteNow } from "../lib/localStore";
 import { buildBurnup } from "../../shared/burnup";
 import { getSnapshotRows, recordSnapshot } from "./snapshots";
-import { searchUsers, searchBoards, getBoardSprints } from "../api/jira";
+import { searchUsers, searchBoards } from "../api/jira";
 import { postTeamDashboard } from "../api/teams/dashboard";
 import type {
   Team,
   TeamMember,
   JiraUserResult,
   JiraBoardResult,
-  SprintResult,
   TeamDashboard,
 } from "../types/teams";
 
@@ -159,14 +158,10 @@ export async function searchJiraBoards(q: string): Promise<JiraBoardResult[]> {
   return boards || [];
 }
 
-export async function fetchBoardSprints(boardId: number): Promise<SprintResult[]> {
-  const { sprints } = await getBoardSprints({ id: boardId });
-  return sprints || [];
-}
-
 export async function fetchTeamDashboard(
   teamId: number,
   sprintId?: number | null,
+  opts: { force?: boolean } = {},
 ): Promise<TeamDashboard> {
   const team = teamsCollection.get(teamId);
   if (!team) throw new Error("team not found");
@@ -188,18 +183,19 @@ export async function fetchTeamDashboard(
     },
     members: roster,
     sprintId: sprintId ?? null,
+    ...(opts.force ? { force: true } : {}),
   });
 
-  // Record today's snapshot and build the full burn-up history locally
+  // Record today's point (active sprint only) and build the burn-up history
+  // for whichever sprint is shown from locally stored snapshots.
   if (data.snapshot) {
     try {
       recordSnapshot(data.snapshot);
-      data.burnup = buildBurnup(getSnapshotRows(data.snapshot.sprintId));
     } catch (err) {
       console.warn("Failed to record snapshot:", err);
-      data.burnup = buildBurnup(getSnapshotRows(data.snapshot.sprintId));
     }
   }
+  if (data.sprint) data.burnup = buildBurnup(getSnapshotRows(data.sprint.id));
 
   return data;
 }

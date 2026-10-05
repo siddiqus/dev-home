@@ -11,6 +11,7 @@ export function useTeamDashboard(teamId: number | null, sprintId: number | null)
   // team switch (drop the stale data) from a sprint switch (keep the panels).
   const loadedTeamId = useRef<number | null>(null);
 
+  const seenRefreshKey = useRef(refreshKey);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
@@ -26,9 +27,12 @@ export function useTeamDashboard(teamId: number | null, sprintId: number | null)
     if (teamId !== loadedTeamId.current) {
       setDashboard(null);
     }
+    // An explicit refresh also reloads the board's (cached) sprint list.
+    const force = refreshKey !== seenRefreshKey.current;
+    seenRefreshKey.current = refreshKey;
     setLoading(true);
     setError(null);
-    fetchTeamDashboard(teamId, sprintId)
+    fetchTeamDashboard(teamId, sprintId, { force })
       .then((d) => {
         if (!cancelled) {
           setDashboard(d);

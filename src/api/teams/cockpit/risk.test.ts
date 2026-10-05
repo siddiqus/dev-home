@@ -3,7 +3,7 @@
  * TDD approach: define behavior before implementing.
  */
 import { describe, it, expect } from "vitest";
-import { enrichIssue, groupPRsByTicket } from "./risk";
+import { businessDaysBetween, enrichIssue, groupPRsByTicket, parseDueDate } from "./risk";
 import type { RawIssue, RawPR } from "../aggregation";
 import type { SprintInfo } from "./types";
 import { DEFAULT_COCKPIT_CONFIG } from "./config";
@@ -609,5 +609,53 @@ describe("enrichIssue", () => {
     expect(enriched.flags.prWaitingReview).toBe(true);
     expect(enriched.linkedPRs[0].waitingReview).toBe(false);
     expect(enriched.linkedPRs[1].waitingReview).toBe(true);
+  });
+});
+
+describe("risk date handling", () => {
+  const base: RawIssue = {
+    key: "ABC-1",
+    summary: "t",
+    status: "In Progress",
+    statusCategory: "indeterminate",
+    assigneeAccountId: "u",
+    assigneeName: "U",
+    epicKey: "ABC-100",
+    epicName: "E",
+  };
+
+  it("skips weekends when counting staleness", () => {
+    // Fri noon -> Mon noon is 3 calendar days but 1 business day.
+    expect(businessDaysBetween(new Date(2026, 6, 3, 12), new Date(2026, 6, 6, 12))).toBe(1);
+    const enriched = enrichIssue(
+      { ...base, updatedAt: new Date(2026, 6, 3, 12).toISOString() },
+      [],
+      null,
+      new Date(2026, 6, 6, 12),
+      DEFAULT_COCKPIT_CONFIG,
+    );
+    expect(enriched.flags.stale).toBe(false);
+  });
+
+  it("reads date-only due dates as local calendar days", () => {
+    const d = parseDueDate("2026-07-05");
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2026, 6, 5, 0]);
+  });
+
+  it("does not flag done issues as risky", () => {
+    const enriched = enrichIssue(
+      {
+        ...base,
+        statusCategory: "done",
+        assigneeAccountId: null,
+        epicKey: null,
+        dueDate: "2026-01-01",
+      },
+      [],
+      null,
+      NOW,
+      DEFAULT_COCKPIT_CONFIG,
+    );
+    expect(enriched.risk.score).toBe(0);
   });
 });

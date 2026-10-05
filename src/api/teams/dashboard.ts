@@ -1,4 +1,6 @@
 import { githubGraphql, jiraClient, jiraAgileClient, ApiError } from "../http";
+import { requireSettings } from "../http/credentials";
+import { getBoardSprints } from "../jira/teams";
 import {
   partitionOffBoardPRs,
   groupByEpic,
@@ -17,26 +19,35 @@ import { computeReviewQueue } from "./cockpit/reviewQueue";
 import { DEFAULT_COCKPIT_CONFIG } from "./cockpit/config";
 import type { SprintInfo, Burnup } from "./cockpit/types";
 
-const MEMBER_PRS_QUERY = `
-  query($q: String!) {
-    search(query: $q, type: ISSUE, first: 30) {
-      nodes {
-        ... on PullRequest {
-          number title url state createdAt updatedAt mergedAt headRefName body isDraft
-          reviewDecision
-          author { login }
-          repository { nameWithOwner }
-          commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
-          reviews(first: 20) { nodes { author { login __typename } state submittedAt } }
-          reviewRequests(first: 20) {
-            totalCount
-            nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } } }
-          }
-        }
-      }
+const PR_NODE_FRAGMENT = `
+  fragment MemberPR on PullRequest {
+    number title url state createdAt updatedAt mergedAt headRefName body isDraft
+    reviewDecision
+    author { login }
+    repository { nameWithOwner }
+    commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
+    reviews(first: 20) { nodes { author { login __typename } state submittedAt } }
+    reviewRequests(first: 20) {
+      totalCount
+      nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } } }
     }
   }
 `;
+
+/** One aliased query running several searches in a single request. */
+function buildSearchesQuery(count: number): string {
+  const vars = Array.from({ length: count }, (_, i) => `$q${i}: String!`).join(", ");
+  const fields = Array.from(
+    { length: count },
+    (_, i) => `s${i}: search(query: $q${i}, type: ISSUE, first: 30) { nodes { ...MemberPR } }`,
+  ).join("\n");
+  return `query(${vars}) {\n${fields}\n}\n${PR_NODE_FRAGMENT}`;
+}
+
+interface MemberSearch {
+  q: string;
+  fallbackLogin: string;
+}
 
 function twoWeeksAgoISO(): string {
   const d = new Date();
@@ -44,35 +55,79 @@ function twoWeeksAgoISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function runSearch(q: string, fallbackLogin: string): Promise<RawPR[]> {
+/**
+ * Run searches in one aliased request. If it fails (e.g. one bad username
+ * errors the whole query) fall back to one request per search so a single
+ * failure doesn't blank the batch. Returns per-search results (null = failed).
+ */
+async function runSearches(searches: MemberSearch[]): Promise<(RawPR[] | null)[]> {
+  const toPRs = (nodes: any[] | undefined, s: MemberSearch) =>
+    (nodes || []).map((n: any) => mapPullRequestNode(n, s.fallbackLogin));
   try {
-    const data = await githubGraphql<{ search: { nodes: any[] } }>(MEMBER_PRS_QUERY, { q });
-    return (data.search.nodes || []).map((n: any) => mapPullRequestNode(n, fallbackLogin));
+    const variables = Object.fromEntries(searches.map((s, i) => [`q${i}`, s.q]));
+    const data = await githubGraphql<Record<string, { nodes: any[] }>>(
+      buildSearchesQuery(searches.length),
+      variables,
+    );
+    return searches.map((s, i) => toPRs(data[`s${i}`]?.nodes, s));
   } catch {
-    return [];
+    if (searches.length === 1) return [null];
+    return Promise.all(searches.map((s) => runSearches([s]).then(([r]) => r)));
   }
 }
 
 /**
- * Fetch each member's PRs in batches: PRs they authored (last 2 weeks) plus open
- * PRs where they are a requested reviewer (any author, any age). Deduped by
- * repo#number so a PR the team both authored and reviews appears once.
+ * Fetch PRs the roster authored (last 2 weeks) and open PRs awaiting their
+ * review (any author, any age), kept apart: authored PRs measure the team's own
+ * work, review requests feed the review queue. Searches are scoped to the
+ * configured org when there is one.
  */
-async function fetchMemberPRs(roster: RosterEntry[]): Promise<RawPR[]> {
+async function fetchMemberPRs(
+  roster: RosterEntry[],
+): Promise<{ authored: RawPR[]; reviewRequested: RawPR[]; failed: number }> {
   const since = twoWeeksAgoISO();
-  const batchSize = 5;
-  const all: RawPR[] = [];
-  for (let i = 0; i < roster.length; i += batchSize) {
-    const batch = roster.slice(i, i + batchSize);
-    const results = await Promise.all(
-      batch.flatMap((m) => [
-        runSearch(`author:${m.githubUsername} type:pr created:>=${since}`, m.githubUsername),
-        runSearch(`review-requested:${m.githubUsername} type:pr state:open`, ""),
-      ]),
-    );
-    for (const r of results) all.push(...r);
+  const org = requireSettings().githubOrg?.trim();
+  const scope = org ? ` org:${org}` : "";
+  const members = roster.filter((m) => m.githubUsername?.trim());
+  const MEMBERS_PER_REQUEST = 8;
+  const authored: RawPR[] = [];
+  const reviewRequested: RawPR[] = [];
+  let failed = 0;
+  for (let i = 0; i < members.length; i += MEMBERS_PER_REQUEST) {
+    const batch = members.slice(i, i + MEMBERS_PER_REQUEST);
+    const searches = batch.flatMap((m) => [
+      {
+        q: `author:${m.githubUsername} type:pr created:>=${since}${scope}`,
+        fallbackLogin: m.githubUsername,
+      },
+      { q: `review-requested:${m.githubUsername} type:pr state:open${scope}`, fallbackLogin: "" },
+    ]);
+    const results = await runSearches(searches);
+    results.forEach((r, j) => {
+      if (!r) failed++;
+      else (j % 2 === 0 ? authored : reviewRequested).push(...r);
+    });
   }
-  return dedupePRs(all);
+  return { authored: dedupePRs(authored), reviewRequested: dedupePRs(reviewRequested), failed };
+}
+
+/**
+ * Company-managed projects fill the Agile `epic` field; team-managed projects
+ * leave it empty and link the epic as `parent` instead.
+ */
+function agileEpic(fields: any): { epicKey: string | null; epicName: string | null } {
+  const epic = fields?.epic;
+  if (epic?.key) {
+    // Agile API `epic.name` is the deprecated "Epic Name" field and is often
+    // empty (Atlassian merged it into the summary); fall back to `epic.summary`
+    // so epics still render a title instead of just their key.
+    return { epicKey: epic.key, epicName: epic.name || epic.summary || null };
+  }
+  const parent = fields?.parent;
+  if (parent?.fields?.issuetype?.name?.toLowerCase() === "epic") {
+    return { epicKey: parent.key, epicName: parent.fields?.summary || parent.key };
+  }
+  return { epicKey: null, epicName: null };
 }
 
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
@@ -84,11 +139,7 @@ export function mapAgileIssues(rawIssues: any[]): RawIssue[] {
     statusCategory: issue.fields?.status?.statusCategory?.key || "new",
     assigneeAccountId: issue.fields?.assignee?.accountId || null,
     assigneeName: issue.fields?.assignee?.displayName || null,
-    epicKey: issue.fields?.epic?.key || null,
-    // Agile API `epic.name` is the deprecated "Epic Name" field and is often
-    // empty (Atlassian merged it into the summary); fall back to `epic.summary`
-    // so epics still render a title instead of just their key.
-    epicName: issue.fields?.epic?.name || issue.fields?.epic?.summary || null,
+    ...agileEpic(issue.fields),
     createdAt: issue.fields?.created || null,
     updatedAt: issue.fields?.updated || null,
     dueDate: issue.fields?.duedate || null,
@@ -116,6 +167,22 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
   });
 }
 
+/** All issues in a sprint, paging past the Agile API's per-request limit. */
+async function fetchSprintIssues(agile: any, boardId: number, sprintId: number): Promise<any[]> {
+  const fields = "summary,status,assignee,epic,parent,created,updated,duedate";
+  const maxResults = 100;
+  const all: any[] = [];
+  for (let startAt = 0; all.length < 1000; startAt += maxResults) {
+    const { data } = await agile.get(`/board/${boardId}/sprint/${sprintId}/issue`, {
+      params: { fields, startAt, maxResults },
+    });
+    const page = data.issues || [];
+    all.push(...page);
+    if (page.length < maxResults || all.length >= (data.total ?? 0)) break;
+  }
+  return all;
+}
+
 export interface PostTeamDashboardArgs {
   team: {
     id: number;
@@ -129,13 +196,15 @@ export interface PostTeamDashboardArgs {
     githubUsername: string;
   }>;
   sprintId?: number | null;
+  /** Bypass the cached sprint list. */
+  force?: boolean;
 }
 
 /**
  * Aggregate Jira issues + GitHub PRs for the team's roster.
  */
 export async function postTeamDashboard(args: PostTeamDashboardArgs) {
-  const { team, members, sprintId: requestedSprintId } = args;
+  const { team, members, sprintId: requestedSprintId, force } = args;
   if (
     !team ||
     typeof team.id !== "number" ||
@@ -162,52 +231,20 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
   if (accountIds.length > 0) {
     try {
       if (team.jira_board_id) {
-        const agile = jiraAgileClient();
-        // Paginate: a board can carry hundreds of sprints and the Agile API
-        // returns them oldest-first, so the active/recent ones we care about
-        // sit at the END. Fetching a single un-paginated page would miss them.
-        let startAt = 0;
-        const maxResults = 50;
-        while (sprints.length < 200) {
-          const { data: sprintData } = await agile.get(`/board/${team.jira_board_id}/sprint`, {
-            params: { state: "active", startAt, maxResults },
-          });
-          for (const s of sprintData.values || []) {
-            sprints.push({
-              id: s.id,
-              name: s.name,
-              state: s.state,
-              startDate: s.startDate,
-              endDate: s.endDate,
-              goal: s.goal || undefined,
-            });
-          }
-          if (sprintData.isLast || (sprintData.values || []).length < maxResults) break;
-          startAt += maxResults;
-        }
-        // Active first, then closed by most recent end date — so the default
-        // selection and the dropdown both lead with the current sprint.
-        sprints.sort((a, b) => {
-          if (a.state === "active" && b.state !== "active") return -1;
-          if (b.state === "active" && a.state !== "active") return 1;
-          return new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
-        });
+        ({ sprints } = await getBoardSprints({ id: team.jira_board_id, force }));
         currentSprint =
           sprints.find((s) => s.id === requestedSprintId) ||
           sprints.find((s) => s.state === "active") ||
           null;
 
         if (currentSprint) {
-          const fieldsParam = "summary,status,assignee,epic,created,updated,duedate";
-          const { data: issueData } = await agile.get(
-            `/board/${team.jira_board_id}/sprint/${currentSprint.id}/issue`,
-            { params: { fields: fieldsParam, maxResults: 100 } },
-          );
           // Include every ticket in the sprint — assigned, unassigned, and
           // assigned to people outside this team's roster — so the counts and
           // the progress bar reflect the sprint as a whole. Per-member workload
           // still narrows to the roster in computeLoadDistribution.
-          issues = mapAgileIssues(issueData.issues || []);
+          issues = mapAgileIssues(
+            await fetchSprintIssues(jiraAgileClient(), team.jira_board_id, currentSprint.id),
+          );
         }
       } else {
         const jira = jiraClient();
@@ -222,12 +259,19 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
           "updated",
           "duedate",
         ];
-        const { data } = await jira.post("/search/jql", {
-          jql,
-          fields: fieldsArray,
-          maxResults: 100,
-        });
-        issues = mapJqlIssues(data.issues || []);
+        const raw: any[] = [];
+        let nextPageToken: string | undefined;
+        do {
+          const { data } = await jira.post("/search/jql", {
+            jql,
+            fields: fieldsArray,
+            maxResults: 100,
+            ...(nextPageToken ? { nextPageToken } : {}),
+          });
+          raw.push(...(data.issues || []));
+          nextPageToken = data.nextPageToken || undefined;
+        } while (nextPageToken && raw.length < 500);
+        issues = mapJqlIssues(raw);
       }
     } catch (err: any) {
       errors.push(`Jira: ${err.message || "failed to load issues"}`);
@@ -236,13 +280,22 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
 
   // --- GitHub ---
   let prs: RawPR[] = [];
+  let reviewRequested: RawPR[] = [];
   if (roster.length > 0) {
     try {
-      prs = await fetchMemberPRs(roster);
+      const result = await fetchMemberPRs(roster);
+      prs = result.authored;
+      reviewRequested = result.reviewRequested;
+      if (result.failed > 0) {
+        errors.push(`GitHub: ${result.failed} PR search${result.failed === 1 ? "" : "es"} failed`);
+      }
     } catch (err: any) {
       errors.push(`GitHub: ${err.message || "failed to load PRs"}`);
     }
   }
+  // Sprint tickets link to any PR referencing them, including ones the team
+  // was only asked to review; team metrics use the PRs the roster authored.
+  const allPRs = dedupePRs([...prs, ...reviewRequested]);
 
   // --- Aggregate (sprint cockpit) ---
   const now = new Date();
@@ -257,7 +310,7 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
 
   const sprintKeys = new Set(issues.map((i) => i.key));
   // Enrich each issue with its linked PRs, flags, and risk score.
-  const prIndex = groupPRsByTicket(prs);
+  const prIndex = groupPRsByTicket(allPRs);
   const enrichedIssues = issues.map((i) =>
     enrichIssue(i, prIndex.get(i.key) || [], sprintInfo, now, config),
   );
@@ -276,15 +329,16 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
   const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
 
   // Burn-up history lives in the browser; hand back today's point to record.
-  const snapshot = currentSprint
-    ? {
-        sprintId: currentSprint.id,
-        date: now.toISOString().slice(0, 10),
-        doneCount: pace.doneCount,
-        totalCount: pace.totalCount,
-      }
-    : null;
-  const burnup: Burnup = { trackingSince: null, points: [] };
+  // Only the active sprint gets new points — a closed sprint's history is final.
+  const snapshot =
+    currentSprint?.state === "active"
+      ? {
+          sprintId: currentSprint.id,
+          date: now.toISOString().slice(0, 10),
+          doneCount: pace.doneCount,
+          totalCount: pace.totalCount,
+        }
+      : null;
 
   return {
     team: {
@@ -303,8 +357,9 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
     loadBalance,
     prFlow,
     hygiene,
-    reviewQueue: computeReviewQueue(prs),
-    burnup,
+    reviewQueue: computeReviewQueue(allPRs),
+    // Filled in by the caller from locally stored snapshots.
+    burnup: { trackingSince: null, points: [] } as Burnup,
     snapshot,
     syncedAt: now.toISOString(),
     errors,

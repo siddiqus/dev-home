@@ -1,6 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import axios from "axios";
 import { mapAgileIssues, postTeamDashboard } from "./dashboard";
 import { ApiError } from "../http";
+import { saveSettings } from "../../services/config";
+import { clearSprintCache } from "../jira/teams";
 
 // Shapes below mirror what Jira's Agile API actually returns for the `epic`
 // field object (verified against live boards): `name` is the deprecated
@@ -31,6 +34,21 @@ describe("mapAgileIssues — epic name resolution", () => {
     expect(mapped.epicName).toBe("RAG tech debt");
   });
 
+  it("falls back to an epic parent (team-managed projects)", () => {
+    const [mapped] = mapAgileIssues([
+      {
+        key: "TM-2",
+        fields: {
+          summary: "child",
+          status: { name: "To Do", statusCategory: { key: "new" } },
+          parent: { key: "TM-1", fields: { summary: "Big epic", issuetype: { name: "Epic" } } },
+        },
+      },
+    ]);
+    expect(mapped.epicKey).toBe("TM-1");
+    expect(mapped.epicName).toBe("Big epic");
+  });
+
   it("leaves epic fields null when the issue has no epic", () => {
     const [mapped] = mapAgileIssues([agileIssue(undefined)]);
     expect(mapped.epicKey).toBeNull();
@@ -45,5 +63,90 @@ describe("postTeamDashboard — input validation", () => {
       status: 400,
       message: "team and members are required",
     });
+  });
+});
+
+describe("postTeamDashboard — fetching", () => {
+  const TEAM = { id: 1, name: "T", jira_board_id: 9, jira_board_name: "B" };
+  const MEMBERS = [
+    { accountId: "a1", displayName: "Alice", githubUsername: "alice" },
+    { accountId: "b1", displayName: "Bob", githubUsername: "bob" },
+  ];
+  const ok = (config: any, data: any) => ({
+    data,
+    status: 200,
+    statusText: "OK",
+    headers: {},
+    config,
+  });
+  const prNode = (n: number, author: string) => ({
+    number: n,
+    title: `AA-${n} pr`,
+    url: `https://github.com/o/r/pull/${n}`,
+    state: "OPEN",
+    createdAt: "2026-09-01T00:00:00Z",
+    author: { login: author },
+    repository: { nameWithOwner: "o/r" },
+  });
+  let graphqlBodies: any[];
+
+  beforeEach(() => {
+    localStorage.clear();
+    clearSprintCache();
+    saveSettings({
+      jiraBaseUrl: "https://x.atlassian.net",
+      jiraEmail: "me@x.com",
+      jiraApiToken: "t",
+      githubToken: "g",
+      githubUsername: "me",
+      githubOrg: "acme",
+      hiddenTabs: [],
+    });
+    graphqlBodies = [];
+    axios.defaults.adapter = vi.fn(async (config: any) => {
+      if (config.url?.includes("graphql")) {
+        const body = JSON.parse(config.data);
+        graphqlBodies.push(body);
+        // s0 = alice authored, s1 = alice review requests (by an outsider), ...
+        return ok(config, {
+          data: {
+            s0: { nodes: [prNode(1, "alice")] },
+            s1: { nodes: [prNode(2, "outsider")] },
+            s2: { nodes: [] },
+            s3: { nodes: [] },
+          },
+        });
+      }
+      if (config.url?.endsWith("/sprint")) {
+        return ok(config, {
+          values: [
+            { id: 5, name: "Old", state: "closed", endDate: "2026-08-01" },
+            { id: 6, name: "Now", state: "active", endDate: "2026-10-10" },
+          ],
+          isLast: true,
+        });
+      }
+      return ok(config, { issues: [], total: 0 });
+    }) as any;
+  });
+
+  it("runs every member search in one org-scoped GraphQL request", async () => {
+    const result = await postTeamDashboard({ team: TEAM, members: MEMBERS });
+    expect(graphqlBodies).toHaveLength(1);
+    const queries = Object.values(graphqlBodies[0].variables) as string[];
+    expect(queries).toHaveLength(4);
+    expect(queries.every((q) => q.endsWith(" org:acme"))).toBe(true);
+    // Review requests reach the queue but don't count as the team's PRs.
+    expect(result.prFlow.open).toBe(1);
+    expect(result.reviewQueue.map((e: any) => e.number).sort()).toEqual([1, 2]);
+  });
+
+  it("records a snapshot only for the active sprint", async () => {
+    const active = await postTeamDashboard({ team: TEAM, members: MEMBERS });
+    expect(active.sprint.id).toBe(6);
+    expect(active.snapshot).not.toBeNull();
+    const closed = await postTeamDashboard({ team: TEAM, members: MEMBERS, sprintId: 5 });
+    expect(closed.sprint.id).toBe(5);
+    expect(closed.snapshot).toBeNull();
   });
 });

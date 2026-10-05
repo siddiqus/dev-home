@@ -23,6 +23,24 @@ export function groupPRsByTicket(prs: RawPR[]): Map<string, RawPR[]> {
   return byKey;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Weekdays elapsed from `from` to `to`, counting each full day that lands Mon–Fri. */
+export function businessDaysBetween(from: Date, to: Date): number {
+  let days = 0;
+  for (let t = from.getTime() + DAY_MS; t <= to.getTime(); t += DAY_MS) {
+    const day = new Date(t).getDay();
+    if (day !== 0 && day !== 6) days++;
+  }
+  return days;
+}
+
+/** Jira due dates are plain "YYYY-MM-DD" calendar days — read them in local time, not UTC. */
+export function parseDueDate(value: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
+}
+
 function mapLinkedPR(pr: RawPR, now: Date, config: CockpitConfig): LinkedPR {
   const createdAt = pr.created_at ? new Date(pr.created_at) : null;
   const hoursSinceCreation = createdAt
@@ -63,34 +81,35 @@ export function enrichIssue(
 ): EnrichedIssue {
   // Age/staleness
   const ageDays = issue.createdAt
-    ? Math.max(
-        0,
-        Math.floor((now.getTime() - new Date(issue.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
-      )
+    ? Math.max(0, Math.floor((now.getTime() - new Date(issue.createdAt).getTime()) / DAY_MS))
     : 0;
   const daysSinceUpdate = issue.updatedAt
-    ? Math.max(
-        0,
-        Math.floor((now.getTime() - new Date(issue.updatedAt).getTime()) / (1000 * 60 * 60 * 24)),
-      )
+    ? Math.max(0, Math.floor((now.getTime() - new Date(issue.updatedAt).getTime()) / DAY_MS))
     : 0;
 
   // Map linked PRs with waitingReview computation
   const linkedPRs = linkedRawPRs.map((pr) => mapLinkedPR(pr, now, config));
 
-  // Flags
-  const unassigned = !issue.assigneeAccountId;
-  const noEpic = !issue.epicKey;
-  const stale = issue.statusCategory === "indeterminate" && daysSinceUpdate > config.staleDays;
+  // Flags. Finished work carries no delivery risk, so done issues only keep
+  // the scope signal (addedAfterStart).
+  const open = issue.statusCategory !== "done";
+  const unassigned = open && !issue.assigneeAccountId;
+  const noEpic = open && !issue.epicKey;
+  // Weekends don't count toward staleness.
+  const stale =
+    issue.statusCategory === "indeterminate" &&
+    !!issue.updatedAt &&
+    businessDaysBetween(new Date(issue.updatedAt), now) > config.staleDays;
   const addedAfterStart =
     !!issue.createdAt &&
     !!sprint?.startDate &&
     new Date(issue.createdAt) > new Date(sprint.startDate);
-  const dueSoon = issue.dueDate
-    ? new Date(issue.dueDate).getTime() <= now.getTime() + config.dueSoonDays * 24 * 60 * 60 * 1000
-    : false;
-  const prFailingCI = linkedPRs.some((pr) => pr.checks_status === "FAILURE");
-  const prWaitingReview = linkedPRs.some((pr) => pr.waitingReview);
+  const dueSoon =
+    open && issue.dueDate
+      ? parseDueDate(issue.dueDate).getTime() <= now.getTime() + config.dueSoonDays * DAY_MS
+      : false;
+  const prFailingCI = open && linkedPRs.some((pr) => pr.checks_status === "FAILURE");
+  const prWaitingReview = open && linkedPRs.some((pr) => pr.waitingReview);
   const inProgressNoPR = issue.statusCategory === "indeterminate" && linkedPRs.length === 0;
 
   const flags = {

@@ -1,5 +1,6 @@
 import { jiraClient, jiraClientV2, jiraAgileClient } from "../http";
 import { ApiError } from "../http/errors";
+import { requireSettings } from "../http/credentials";
 
 /**
  * GET /api/teams-jira/users/search?q= → searchUsers({ q })
@@ -77,40 +78,68 @@ export async function searchBoards(args: { q: string }): Promise<{ boards: any[]
   return { boards };
 }
 
+const SPRINT_CACHE_TTL_MS = 30 * 60 * 1000;
+const MAX_CLOSED_SPRINTS = 25;
+const sprintCache = new Map<string, { at: number; value: Promise<{ sprints: any[] }> }>();
+
 /**
  * GET /api/teams-jira/boards/:id/sprints → getBoardSprints({ id })
- * Return active + recent closed sprints for a board, newest first.
+ * The board's active sprints plus its most recent closed ones: active first,
+ * then closed by most recent end date. The Agile API lists sprints oldest-first,
+ * so every page is read to reach the newest. Cached per board for 30 minutes
+ * (closed sprints rarely change); pass `force` to bypass.
  */
-export async function getBoardSprints(args: { id: number }): Promise<{ sprints: any[] }> {
+export function getBoardSprints(args: {
+  id: number;
+  force?: boolean;
+}): Promise<{ sprints: any[] }> {
   const boardId = args.id;
   if (isNaN(boardId)) {
-    throw new ApiError(400, "invalid board id");
+    return Promise.reject(new ApiError(400, "invalid board id"));
   }
+  const key = `${requireSettings().jiraBaseUrl}|${boardId}`;
+  const hit = sprintCache.get(key);
+  if (!args.force && hit && Date.now() - hit.at < SPRINT_CACHE_TTL_MS) return hit.value;
+  const value = loadBoardSprints(boardId);
+  sprintCache.set(key, { at: Date.now(), value });
+  value.catch(() => {
+    if (sprintCache.get(key)?.value === value) sprintCache.delete(key);
+  });
+  return value;
+}
+
+/** Test hook: drop cached sprint lists. */
+export function clearSprintCache(): void {
+  sprintCache.clear();
+}
+
+async function loadBoardSprints(boardId: number): Promise<{ sprints: any[] }> {
   const agile = jiraAgileClient();
-  const sprints: any[] = [];
-  let startAt = 0;
+  const all: any[] = [];
   const maxResults = 50;
-  while (sprints.length < 200) {
+  for (let startAt = 0, pages = 0; pages < 40; startAt += maxResults, pages++) {
     const { data } = await agile.get(`/board/${boardId}/sprint`, {
       params: { state: "active,closed", startAt, maxResults },
     });
-    for (const s of data.values || []) {
-      sprints.push({
+    const values = data.values || [];
+    for (const s of values) {
+      all.push({
         id: s.id,
         name: s.name,
         state: s.state,
         startDate: s.startDate,
         endDate: s.endDate,
+        goal: s.goal || undefined,
       });
     }
-    if (data.isLast || (data.values || []).length < maxResults) break;
-    startAt += maxResults;
+    if (data.isLast || values.length < maxResults) break;
   }
-  // Active first, then closed by most recent end date.
-  sprints.sort((a, b) => {
-    if (a.state === "active" && b.state !== "active") return -1;
-    if (b.state === "active" && a.state !== "active") return 1;
-    return new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
-  });
-  return { sprints };
+  const byEnd = (a: any, b: any) =>
+    new Date(b.endDate || 0).getTime() - new Date(a.endDate || 0).getTime();
+  const active = all.filter((s) => s.state === "active").sort(byEnd);
+  const closed = all
+    .filter((s) => s.state !== "active")
+    .sort(byEnd)
+    .slice(0, MAX_CLOSED_SPRINTS);
+  return { sprints: [...active, ...closed] };
 }

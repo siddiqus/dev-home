@@ -13,12 +13,14 @@ import {
 } from "./index";
 import { ApiError } from "../http/errors";
 import { resetMyselfCache } from "./issues";
+import { clearSprintCache } from "./teams";
 
 describe("Jira API", () => {
   let originalAdapter: any;
 
   beforeEach(() => {
     localStorage.clear();
+    clearSprintCache();
     saveSettings({
       jiraBaseUrl: "https://example.atlassian.net/",
       jiraEmail: "test@example.com",
@@ -681,6 +683,37 @@ describe("Jira API", () => {
       expect(result.sprints[0].state).toBe("active");
       expect(result.sprints[1].endDate).toBe("2026-08-30");
       expect(result.sprints[2].endDate).toBe("2026-08-15");
+    });
+
+    it("reads every page, keeps the newest closed sprints, and caches per board", async () => {
+      const sprint = (id: number) => ({
+        id,
+        name: `S${id}`,
+        state: "closed",
+        endDate: new Date(2020, 0, id).toISOString(),
+      });
+      const adapter = vi.fn(async (config: any) => {
+        const startAt = config.params.startAt;
+        const ids = Array.from({ length: startAt === 0 ? 50 : 10 }, (_, i) => startAt + i + 1);
+        return {
+          data: { values: ids.map(sprint), isLast: startAt > 0 },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        };
+      });
+      axios.defaults.adapter = adapter;
+
+      const { sprints } = await getBoardSprints({ id: 7 });
+      expect(adapter).toHaveBeenCalledTimes(2);
+      expect(sprints).toHaveLength(25);
+      expect(sprints[0].id).toBe(60);
+
+      await getBoardSprints({ id: 7 });
+      expect(adapter).toHaveBeenCalledTimes(2);
+      await getBoardSprints({ id: 7, force: true });
+      expect(adapter).toHaveBeenCalledTimes(4);
     });
   });
 });
