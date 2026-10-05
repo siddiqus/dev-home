@@ -58,7 +58,7 @@ import type { AppSettings } from "./services/config";
 import { loadSettings, SETTINGS_EVENT } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS } from "./config/navTabs";
-import { sourcesFor } from "./config/tabData";
+import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 
 // Compact "time since last refresh" label for the sidebar refresh button.
@@ -228,20 +228,26 @@ export default function App() {
     if (sources.includes("kanban")) refreshKanban();
   }, [effectiveTab, boardEnabled, refresh, refreshNotes, refreshKanban]);
 
-  // Top-bar refresh for My PRs / Reviews: refetches only that page's GitHub
-  // source (skipping Jira). refresh() also bumps refreshKey, so PRsView's
-  // recently-merged list reloads too.
-  const pageRefreshSource =
-    effectiveTab === "prs" ? "openPRs" : effectiveTab === "reviews" ? "reviewRequests" : null;
-  const pageRefreshing =
-    pageRefreshSource === "openPRs"
-      ? openPRsLoading
-      : pageRefreshSource === "reviewRequests"
-        ? reviewRequestsLoading
-        : false;
+  // Top-bar refresh for pages whose data can be fetched on its own: refetches
+  // only that page's primary source(s), skipping enrichment deps (e.g. Jira for
+  // My PRs). refresh() also bumps refreshKey, so PRsView's recently-merged list
+  // reloads too.
+  const sourceLoading: Partial<Record<DataSource, boolean>> = {
+    openPRs: openPRsLoading,
+    reviewRequests: reviewRequestsLoading,
+    githubMentions: githubMentionsLoading,
+    jiraIssues: jiraIssuesLoading,
+    jiraComments: jiraCommentsLoading,
+    notes: notesLoading,
+  };
+  const pageRefresh = PAGE_REFRESH[effectiveTab];
+  const pageRefreshing = pageRefresh?.sources.some((s) => sourceLoading[s]) ?? false;
   const handlePageRefresh = useCallback(() => {
-    if (pageRefreshSource) refresh([pageRefreshSource]);
-  }, [pageRefreshSource, refresh]);
+    if (!pageRefresh) return;
+    const remote = pageRefresh.sources.filter(isRemoteSource);
+    if (remote.length > 0) refresh(remote);
+    if (pageRefresh.sources.includes("notes")) refreshNotes();
+  }, [pageRefresh, refresh, refreshNotes]);
 
   // Track when the last refresh finished, and re-render every 30s so the
   // "(x mins ago)" label next to the Refresh button stays current.
@@ -395,18 +401,20 @@ export default function App() {
                 onClick={() => setActiveTab("pomodoro")}
               />
             )}
-            {pageRefreshSource ? (
+            {pageRefresh ? (
               <button
                 type="button"
                 className="top-bar-icon-btn"
                 onClick={handlePageRefresh}
                 disabled={pageRefreshing}
-                title={effectiveTab === "prs" ? "Refresh my PRs" : "Refresh reviews"}
-                aria-label={effectiveTab === "prs" ? "Refresh my PRs" : "Refresh reviews"}
+                title={pageRefresh.label}
+                aria-label={pageRefresh.label}
               >
                 <IconRefresh
                   size={16}
-                  className={loading ? "sidebar-refresh-icon spinning" : "sidebar-refresh-icon"}
+                  className={
+                    pageRefreshing ? "sidebar-refresh-icon spinning" : "sidebar-refresh-icon"
+                  }
                 />
               </button>
             ) : (

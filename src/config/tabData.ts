@@ -68,6 +68,23 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
 };
 
 /**
+ * Tabs with a top-bar refresh button, mapped to the source(s) the page owns.
+ * Unlike TAB_SOURCES, this omits enrichment-only deps (e.g. jiraIssues on My
+ * PRs) so a page refresh stays scoped. Aggregate tabs (summary/focus/board) use
+ * the sidebar Refresh; self-fetching tabs (org-prs, teams, jira-search) have
+ * their own in-page refresh controls.
+ */
+export const PAGE_REFRESH: Record<string, { sources: DataSource[]; label: string }> = {
+  prs: { sources: ["openPRs"], label: "Refresh my PRs" },
+  reviews: { sources: ["reviewRequests"], label: "Refresh reviews" },
+  // PR comments come from openPRs, merged with notification mentions.
+  "github-mentions": { sources: ["githubMentions", "openPRs"], label: "Refresh comments" },
+  jira: { sources: ["jiraIssues"], label: "Refresh my issues" },
+  "jira-mentions": { sources: ["jiraComments"], label: "Refresh mentions" },
+  notes: { sources: ["notes"], label: "Refresh notes" },
+};
+
+/**
  * Returns the data sources a tab needs. Unknown tab keys return an empty array.
  *
  * `summary` additionally requires `kanban` when `opts.boardEnabled` is true.
