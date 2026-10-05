@@ -142,6 +142,7 @@ export default function App() {
     openPRs,
     reviewRequests,
     reviewingPRs,
+    loadedSources,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,
@@ -190,6 +191,9 @@ export default function App() {
     openPRs,
     reviewRequests,
     notes: kanbanNotes,
+    prsLoaded: loadedSources.has("openPRs"),
+    reviewsLoaded: loadedSources.has("reviewRequests"),
+    notesLoaded,
     jiraBaseUrl,
     onResolveNote: resolveNote,
     onUnresolveNote: unresolveNote,
@@ -205,7 +209,7 @@ export default function App() {
     active: configured && activeSources.has("focusState"),
     openPRs,
     reviewRequests,
-    jiraIssues,
+    jiraIssues: assignedJiraIssues,
     jiraComments,
     githubMentions,
     notes: unresolvedNotes,
@@ -304,7 +308,7 @@ export default function App() {
     }
 
     const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
-    for (const issue of jiraIssues) {
+    for (const issue of assignedJiraIssues) {
       push({
         id: issue.key,
         group: "jira",
@@ -353,7 +357,7 @@ export default function App() {
   }, [
     openPRs,
     reviewRequests,
-    jiraIssues,
+    assignedJiraIssues,
     githubMentions,
     jiraComments,
     unresolvedNotes,
@@ -607,7 +611,7 @@ export default function App() {
                 <div className="tab-content-area" key={effectiveTab}>
                   {effectiveTab === "summary" && (
                     <SummaryView
-                      jiraIssues={jiraIssues}
+                      jiraIssues={assignedJiraIssues}
                       jiraComments={jiraComments}
                       githubMentions={githubMentions}
                       openPRs={openPRs}
@@ -652,7 +656,7 @@ export default function App() {
                   {effectiveTab === "jira" && (
                     <JiraTasks
                       issues={assignedJiraIssues}
-                      loading={loading}
+                      loading={jiraIssuesLoading}
                       baseUrl={jiraBaseUrl}
                     />
                   )}
@@ -660,17 +664,20 @@ export default function App() {
                   {effectiveTab === "jira-mentions" && (
                     <JiraMentionsView
                       jiraComments={jiraComments}
-                      loading={loading}
+                      loading={jiraCommentsLoading}
                       jiraBaseUrl={jiraBaseUrl}
                     />
                   )}
                   {effectiveTab === "github-mentions" && (
-                    <GitHubMentionsView githubMentions={githubMentions} loading={loading} />
+                    <GitHubMentionsView
+                      githubMentions={githubMentions}
+                      loading={githubMentionsLoading}
+                    />
                   )}
                   {effectiveTab === "prs" && (
                     <PRsView
                       openPRs={openPRs}
-                      loading={loading}
+                      loading={openPRsLoading}
                       jiraIssues={jiraIssues}
                       jiraBaseUrl={jiraBaseUrl}
                       configured={configured}
@@ -681,7 +688,7 @@ export default function App() {
                     <ReviewsView
                       reviewRequests={reviewRequests}
                       reviewingPRs={reviewingPRs}
-                      loading={loading}
+                      loading={reviewRequestsLoading}
                       jiraIssues={jiraIssues}
                       jiraBaseUrl={jiraBaseUrl}
                     />

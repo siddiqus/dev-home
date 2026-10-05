@@ -46,6 +46,19 @@ export function isConfigured(s: AppSettings): boolean {
   return !!(s.jiraBaseUrl && s.jiraEmail && s.jiraApiToken && s.githubToken && s.githubUsername);
 }
 
+/**
+ * Identity of the accounts the dashboard reads (no secrets), used to discard
+ * cached data written for a different user or Jira site.
+ */
+export function accountIdentity(s: AppSettings): string {
+  return [s.githubUsername, s.jiraBaseUrl, s.jiraEmail].join("|");
+}
+
+/** Every setting that changes what remote calls return (UI prefs excluded). */
+export function credentialsFingerprint(s: AppSettings): string {
+  return [accountIdentity(s), s.jiraApiToken, s.githubToken].join("|");
+}
+
 /** Checks the Jira passthrough proxy; the version is the app build's own. */
 export async function checkBackendHealth(): Promise<{ online: boolean; version: string }> {
   try {

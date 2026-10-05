@@ -1,5 +1,6 @@
 import { JiraIssue, JiraComment } from "../types";
 import { getIssues, postIssuesBulk, getJiraMentions } from "../api/jira";
+import { SETTINGS_EVENT } from "./config";
 
 export async function fetchAssignedIssues(signal?: AbortSignal): Promise<JiraIssue[]> {
   const { issues } = await getIssues(signal);
@@ -28,6 +29,10 @@ export async function fetchRecentMentions(signal?: AbortSignal): Promise<JiraCom
 // issue (even from another tab or after a remount) never refetches. Failures are
 // evicted so the next open retries.
 const descriptionCache = new Map<string, Promise<string>>();
+// Keys are only unique per Jira site, so a settings change starts over.
+if (typeof window !== "undefined") {
+  window.addEventListener(SETTINGS_EVENT, () => descriptionCache.clear());
+}
 
 /** Lazily fetch (and cache) an issue's description as markdown. */
 export function fetchIssueDescription(key: string): Promise<string> {

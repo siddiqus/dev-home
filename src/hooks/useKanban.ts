@@ -25,6 +25,14 @@ interface UseKanbanProps {
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
   notes: Note[];
+  /**
+   * Whether each source has completed a real load. Stale-item detection waits
+   * on these: cache-seeded or not-yet-fetched lists can't prove an item gone,
+   * and a genuinely empty list must still count as loaded.
+   */
+  prsLoaded: boolean;
+  reviewsLoaded: boolean;
+  notesLoaded: boolean;
   jiraBaseUrl: string;
   onResolveNote?: (id: number) => Promise<void>;
   onUnresolveNote?: (id: number) => Promise<void>;
@@ -39,6 +47,9 @@ export function useKanban({
   openPRs,
   reviewRequests,
   notes,
+  prsLoaded,
+  reviewsLoaded,
+  notesLoaded,
   jiraBaseUrl,
   onResolveNote,
   onUnresolveNote,
@@ -100,26 +111,34 @@ export function useKanban({
     if (!active) return;
     let cancelled = false;
     let attempt = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     const run = async () => {
       const ok = await loadItems();
       if (ok || cancelled || attempt >= 5) return;
       attempt += 1;
-      setTimeout(run, Math.min(1000 * attempt, 5000));
+      retry = setTimeout(run, Math.min(1000 * attempt, 5000));
     };
     run();
     return () => {
       cancelled = true;
+      clearTimeout(retry);
     };
   }, [active, loadItems]);
 
   // Auto-populate: ensure all source items exist on the board
   // Runs after initial kanban load completes AND source data is available.
-  // Track which source types have loaded (have data) to avoid marking items
-  // as stale before their source data has arrived (race condition fix).
-  const hasPRData = openPRs.length > 0;
-  const hasReviewData = reviewRequests.length > 0;
-  const hasNoteData = notes.length > 0;
-  const hasSourceData = hasPRData || hasReviewData || hasNoteData;
+  // Items are only marked stale once their source has really loaded (race
+  // condition fix).
+  const hasPRData = prsLoaded;
+  const hasReviewData = reviewsLoaded;
+  const hasNoteData = notesLoaded;
+  const hasSourceData =
+    hasPRData ||
+    hasReviewData ||
+    hasNoteData ||
+    openPRs.length > 0 ||
+    reviewRequests.length > 0 ||
+    notes.length > 0;
 
   useEffect(() => {
     if (!active || !initialLoadDone.current || !hasSourceData || populatingRef.current) {
@@ -203,10 +222,13 @@ export function useKanban({
       );
     }
 
-    Promise.all(promises).then(() => {
-      populatingRef.current = false;
-      loadItems();
-    });
+    Promise.all(promises)
+      .catch(() => {})
+      .finally(() => {
+        // Always release the guard, or one failed upsert stops auto-populate for good.
+        populatingRef.current = false;
+        loadItems();
+      });
   }, [
     active,
     hasSourceData,

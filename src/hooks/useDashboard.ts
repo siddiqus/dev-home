@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { JiraIssue, JiraComment, GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
 import { fetchAssignedIssues, fetchIssuesByKeys, fetchRecentMentions } from "../services/jira";
 import { fetchOpenPRs, fetchReviewRequests, fetchMentions } from "../services/github";
+import {
+  accountIdentity,
+  credentialsFingerprint,
+  loadSettings,
+  SETTINGS_EVENT,
+} from "../services/config";
 import { extractTicketKey, sourceFromPR } from "../utils/tickets";
 import { DataSource, isRemoteSource } from "../config/tabData";
 
@@ -9,52 +15,85 @@ const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-interface DashboardCacheData {
-  jiraIssues: JiraIssue[];
+interface DashboardData {
+  /** Issues assigned to the user (fetchAssignedIssues only). */
+  assignedJiraIssues: JiraIssue[];
+  /** Non-assigned issues referenced by PRs/reviews, fetched for enrichment. */
+  extraJiraIssues: JiraIssue[];
   jiraComments: JiraComment[];
   githubMentions: GitHubComment[];
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
-  /** Optional so caches written before this field existed still load. */
-  reviewingPRs?: GitHubPR[];
+  reviewingPRs: GitHubPR[];
+}
+
+interface DashboardCacheData extends Partial<DashboardData> {
+  /** Pre-split caches stored assigned ∪ extras here; read as assigned for compat. */
+  jiraIssues?: JiraIssue[];
+  /** accountIdentity() of the settings the cache was written under. */
+  owner?: string;
   timestamp: number;
 }
 
-function loadCache(): DashboardCacheData | null {
+const EMPTY_DATA: DashboardData = {
+  assignedJiraIssues: [],
+  extraJiraIssues: [],
+  jiraComments: [],
+  githubMentions: [],
+  openPRs: [],
+  reviewRequests: [],
+  reviewingPRs: [],
+};
+
+function loadCache(): DashboardData | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DashboardCacheData;
-    // Basic validation: ensure the expected fields exist
-    if (
-      !Array.isArray(parsed.jiraIssues) ||
-      !Array.isArray(parsed.jiraComments) ||
-      !Array.isArray(parsed.githubMentions) ||
-      !Array.isArray(parsed.openPRs) ||
-      !Array.isArray(parsed.reviewRequests)
-    ) {
+    // Discard stale caches and caches written for another account.
+    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) return null;
+    if (parsed.owner !== undefined && parsed.owner !== accountIdentity(loadSettings())) {
       return null;
     }
-    // Discard stale cache
-    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) {
-      return null;
-    }
-    return parsed;
+    const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
+    return {
+      assignedJiraIssues: list(parsed.assignedJiraIssues ?? parsed.jiraIssues),
+      extraJiraIssues: list(parsed.extraJiraIssues),
+      jiraComments: list(parsed.jiraComments),
+      githubMentions: list(parsed.githubMentions),
+      openPRs: list(parsed.openPRs),
+      reviewRequests: list(parsed.reviewRequests),
+      reviewingPRs: list(parsed.reviewingPRs),
+    };
   } catch {
     return null;
   }
 }
 
-function saveCache(data: Omit<DashboardCacheData, "timestamp">): void {
+function saveCache(data: DashboardData): void {
   try {
     const cacheEntry: DashboardCacheData = {
       ...data,
+      owner: accountIdentity(loadSettings()),
       timestamp: Date.now(),
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
   } catch {
     // Silently ignore storage errors (e.g. quota exceeded)
   }
+}
+
+/** Assigned issues followed by enrichment extras not already assigned. */
+function mergeIssues(assigned: JiraIssue[], extras: JiraIssue[]): JiraIssue[] {
+  const seen = new Set(assigned.map((i) => i.key.toUpperCase()));
+  const merged = [...assigned];
+  for (const issue of extras) {
+    const key = issue.key.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(issue);
+  }
+  return merged;
 }
 
 interface UseDashboardReturn {
@@ -65,6 +104,8 @@ interface UseDashboardReturn {
   openPRs: GitHubPR[];
   reviewRequests: GitHubReviewRequest[];
   reviewingPRs: GitHubPR[];
+  /** Remote sources that have completed a fetch (cache-seeded data doesn't count). */
+  loadedSources: ReadonlySet<DataSource>;
   loading: boolean;
   jiraIssuesLoading: boolean;
   jiraCommentsLoading: boolean;
@@ -79,26 +120,23 @@ interface UseDashboardReturn {
 
 export function useDashboard(active: boolean): UseDashboardReturn {
   const cachedRef = useRef(loadCache());
-  const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>(cachedRef.current?.jiraIssues ?? []);
-  // Issues strictly assigned to the current user (from fetchAssignedIssues only).
-  // Unlike jiraIssues, this is never merged with PR-referenced tickets, so it
-  // stays clean for the "My Tasks" view.
+  const initial = cachedRef.current ?? EMPTY_DATA;
+  // Issues strictly assigned to the current user. Unlike jiraIssues, this is
+  // never merged with PR-referenced tickets, so it stays clean for "My Tasks".
   const [assignedJiraIssues, setAssignedJiraIssues] = useState<JiraIssue[]>(
-    cachedRef.current?.jiraIssues ?? [],
+    initial.assignedJiraIssues,
   );
-  const [jiraComments, setJiraComments] = useState<JiraComment[]>(
-    cachedRef.current?.jiraComments ?? [],
+  const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>(() =>
+    mergeIssues(initial.assignedJiraIssues, initial.extraJiraIssues),
   );
-  const [githubMentions, setGithubMentions] = useState<GitHubComment[]>(
-    cachedRef.current?.githubMentions ?? [],
-  );
-  const [openPRs, setOpenPRs] = useState<GitHubPR[]>(cachedRef.current?.openPRs ?? []);
+  const [jiraComments, setJiraComments] = useState<JiraComment[]>(initial.jiraComments);
+  const [githubMentions, setGithubMentions] = useState<GitHubComment[]>(initial.githubMentions);
+  const [openPRs, setOpenPRs] = useState<GitHubPR[]>(initial.openPRs);
   const [reviewRequests, setReviewRequests] = useState<GitHubReviewRequest[]>(
-    cachedRef.current?.reviewRequests ?? [],
+    initial.reviewRequests,
   );
-  const [reviewingPRs, setReviewingPRs] = useState<GitHubPR[]>(
-    cachedRef.current?.reviewingPRs ?? [],
-  );
+  const [reviewingPRs, setReviewingPRs] = useState<GitHubPR[]>(initial.reviewingPRs);
+  const [loadedSources, setLoadedSources] = useState<ReadonlySet<DataSource>>(() => new Set());
   const [loading, setLoading] = useState<boolean>(false);
   const [jiraIssuesLoading, setJiraIssuesLoading] = useState<boolean>(false);
   const [jiraCommentsLoading, setJiraCommentsLoading] = useState<boolean>(false);
@@ -118,34 +156,31 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   // every render / tab change stay idempotent and never refire in-flight work.
   const loadedRef = useRef<Set<DataSource>>(new Set());
   const inFlightRef = useRef<Map<DataSource, AbortController>>(new Map());
-  // Whether any source has ever finished loading, used to drive the aggregate
-  // `loading` flag (true while at least one requested source is in-flight).
+  const lastFetchedRef = useRef<Map<DataSource, number>>(new Map());
+  // True while at least one requested source is in flight (drives `loading`).
   const anyInFlight = () => inFlightRef.current.size > 0;
+  // Bumped when the account changes; work started under an older generation
+  // (e.g. enrichment, which has no per-source controller) is discarded.
+  const generationRef = useRef(0);
 
   // Latest per-source data, kept in refs so cross-source enrichment/dedup and
   // cache writes always see current values regardless of React batching.
-  const dataRef = useRef<Omit<DashboardCacheData, "timestamp">>({
-    jiraIssues: cachedRef.current?.jiraIssues ?? [],
-    jiraComments: cachedRef.current?.jiraComments ?? [],
-    githubMentions: cachedRef.current?.githubMentions ?? [],
-    openPRs: cachedRef.current?.openPRs ?? [],
-    reviewRequests: cachedRef.current?.reviewRequests ?? [],
-    reviewingPRs: cachedRef.current?.reviewingPRs ?? [],
-  });
+  const dataRef = useRef<DashboardData>({ ...initial });
+  // Enrichment keys currently being fetched, so overlapping triggers don't
+  // request the same issues twice.
+  const enrichingRef = useRef<Set<string>>(new Set());
 
   // PR comments and notification mentions arrive independently; retained here so
-  // the mention dedup can merge them once all its inputs are present.
+  // the mention dedup can merge them once notification mentions are present.
   const prCommentsRef = useRef<GitHubComment[]>([]);
   const notificationMentionsRef = useRef<GitHubComment[] | null>(null);
-  // Whether we've received notification mentions since (re)loading githubMentions.
-  const haveNotificationMentionsRef = useRef<boolean>(false);
 
   // Per-source error strings, aggregated into the `error` output. A source's
   // entry is cleared on its next success so stale failures don't linger.
   const errorsRef = useRef<Map<DataSource, string>>(new Map());
 
   const persistCache = useCallback(() => {
-    saveCache({ ...dataRef.current });
+    saveCache(dataRef.current);
   }, []);
 
   const publishError = useCallback(() => {
@@ -165,47 +200,80 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     [publishError],
   );
 
-  // Cross-source enrichment: when BOTH openPRs and jiraIssues are loaded, find
-  // Jira ticket keys referenced by PRs/reviews that aren't already known and
-  // fetch them, merging into jiraIssues (but never into assignedJiraIssues).
-  const fetchMissingJiraIssues = useCallback(
-    (signal: AbortSignal) => {
-      if (!loadedRef.current.has("openPRs") || !loadedRef.current.has("jiraIssues")) return;
-      const knownKeys = new Set(dataRef.current.jiraIssues.map((i) => i.key.toUpperCase()));
-      const allPRs = [
-        ...dataRef.current.openPRs,
-        ...dataRef.current.reviewRequests,
-        ...(dataRef.current.reviewingPRs ?? []),
-      ];
-      const missingKeys = [
-        ...new Set(
-          allPRs
-            .map((pr) => extractTicketKey(sourceFromPR(pr)))
-            .filter((k): k is string => k !== null && !knownKeys.has(k.toUpperCase())),
-        ),
-      ];
-      if (missingKeys.length === 0) return;
-      fetchIssuesByKeys(missingKeys)
-        .then((extra) => {
-          if (signal.aborted) return;
-          const merged = [...dataRef.current.jiraIssues, ...extra];
-          dataRef.current.jiraIssues = merged;
-          setJiraIssues(merged);
+  const markLoaded = useCallback((source: DataSource) => {
+    lastFetchedRef.current.set(source, Date.now());
+    if (loadedRef.current.has(source)) return;
+    loadedRef.current.add(source);
+    setLoadedSources(new Set(loadedRef.current));
+  }, []);
+
+  const publishJiraIssues = useCallback(() => {
+    const { assignedJiraIssues: assigned, extraJiraIssues: extras } = dataRef.current;
+    setJiraIssues(mergeIssues(assigned, extras));
+  }, []);
+
+  // Cross-source enrichment: once jiraIssues and a PR source have loaded, fetch
+  // Jira tickets referenced by PRs/reviews that aren't assigned to the user.
+  // They're kept apart from the assigned list so re-fetching either side never
+  // duplicates or drops the other. `refetch` re-requests extras already held
+  // (used when the jiraIssues source itself refreshes); otherwise only keys not
+  // yet fetched are requested.
+  const enrichJiraIssues = useCallback(
+    (opts: { refetch?: boolean } = {}) => {
+      const loaded = loadedRef.current;
+      if (!loaded.has("jiraIssues")) return;
+      if (!loaded.has("openPRs") && !loaded.has("reviewRequests")) return;
+
+      const data = dataRef.current;
+      const assignedKeys = new Set(data.assignedJiraIssues.map((i) => i.key.toUpperCase()));
+      const referenced = new Set<string>();
+      for (const pr of [...data.openPRs, ...data.reviewRequests, ...data.reviewingPRs]) {
+        const key = extractTicketKey(sourceFromPR(pr));
+        if (key && !assignedKeys.has(key.toUpperCase())) referenced.add(key.toUpperCase());
+      }
+
+      // Drop extras no PR references any more (or that are now assigned).
+      const kept = data.extraJiraIssues.filter((i) => referenced.has(i.key.toUpperCase()));
+      if (kept.length !== data.extraJiraIssues.length) {
+        data.extraJiraIssues = kept;
+        publishJiraIssues();
+        persistCache();
+      }
+
+      const held = new Set(kept.map((i) => i.key.toUpperCase()));
+      const missing = [...referenced].filter(
+        (k) => !enrichingRef.current.has(k) && (opts.refetch || !held.has(k)),
+      );
+      if (missing.length === 0) return;
+
+      const generation = generationRef.current;
+      for (const k of missing) enrichingRef.current.add(k);
+      fetchIssuesByKeys(missing, { withDetail: false })
+        .then((fetched) => {
+          if (generationRef.current !== generation) return;
+          const fresh = new Map(fetched.map((i) => [i.key.toUpperCase(), i]));
+          dataRef.current.extraJiraIssues = [
+            ...dataRef.current.extraJiraIssues.filter((i) => !fresh.has(i.key.toUpperCase())),
+            ...fresh.values(),
+          ];
+          publishJiraIssues();
           persistCache();
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          if (generationRef.current !== generation) return;
+          for (const k of missing) enrichingRef.current.delete(k);
+        });
     },
-    [persistCache],
+    [persistCache, publishJiraIssues],
   );
 
-  // Merge PR comments + notification mentions, remove review_requested dupes
-  // that correspond to actual review requests, and deduplicate by comment ID.
-  // Guarded on all three inputs (reviewRequests, notification mentions, and PR
-  // comments via openPRs) being present.
+  // Merge notification mentions with PR comments, drop review_requested
+  // notifications for PRs already listed as review requests, and dedupe by
+  // comment ID. Runs once notification mentions are in; PR comments and review
+  // requests fill in (or re-run the merge) as they arrive.
   const deduplicateMentions = useCallback(() => {
-    if (!loadedRef.current.has("reviewRequests")) return;
-    if (!loadedRef.current.has("openPRs")) return;
-    if (!haveNotificationMentionsRef.current || notificationMentionsRef.current === null) return;
+    if (notificationMentionsRef.current === null) return;
 
     const reviews = dataRef.current.reviewRequests;
     const merged = [...notificationMentionsRef.current, ...prCommentsRef.current];
@@ -237,16 +305,15 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.jiraIssues = async (signal) => {
     setJiraIssuesLoading(true);
     try {
-      const data = await fetchAssignedIssues();
+      const data = await fetchAssignedIssues(signal);
       if (signal.aborted) return;
-      setJiraIssues(data);
       setAssignedJiraIssues(data);
-      dataRef.current.jiraIssues = data;
-      loadedRef.current.add("jiraIssues");
+      dataRef.current.assignedJiraIssues = data;
+      publishJiraIssues();
+      markLoaded("jiraIssues");
       setSourceError("jiraIssues", null);
       persistCache();
-      // Enrich once the second of {openPRs, jiraIssues} has arrived.
-      fetchMissingJiraIssues(signal);
+      enrichJiraIssues({ refetch: true });
     } catch (err) {
       if (signal.aborted) return;
       setSourceError("jiraIssues", `JIRA Issues: ${errMsg(err)}`);
@@ -258,11 +325,11 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.jiraComments = async (signal) => {
     setJiraCommentsLoading(true);
     try {
-      const data = await fetchRecentMentions();
+      const data = await fetchRecentMentions(signal);
       if (signal.aborted) return;
       setJiraComments(data);
       dataRef.current.jiraComments = data;
-      loadedRef.current.add("jiraComments");
+      markLoaded("jiraComments");
       setSourceError("jiraComments", null);
       persistCache();
     } catch (err) {
@@ -276,18 +343,16 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.openPRs = async (signal) => {
     setOpenPRsLoading(true);
     try {
-      const { prs, prComments } = await fetchOpenPRs();
+      const { prs, prComments } = await fetchOpenPRs(signal);
       if (signal.aborted) return;
       setOpenPRs(prs);
       dataRef.current.openPRs = prs;
       // Store PR comments; merged with notification mentions in deduplicateMentions.
       prCommentsRef.current = prComments;
-      loadedRef.current.add("openPRs");
+      markLoaded("openPRs");
       setSourceError("openPRs", null);
       persistCache();
-      // Enrich once the second of {openPRs, jiraIssues} has arrived.
-      fetchMissingJiraIssues(signal);
-      // PR comments are an input to the mention dedup.
+      enrichJiraIssues();
       deduplicateMentions();
     } catch (err) {
       if (signal.aborted) return;
@@ -300,16 +365,16 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.reviewRequests = async (signal) => {
     setReviewRequestsLoading(true);
     try {
-      const { reviews, reviewing } = await fetchReviewRequests();
+      const { reviews, reviewing } = await fetchReviewRequests(signal);
       if (signal.aborted) return;
       setReviewRequests(reviews);
       setReviewingPRs(reviewing);
       dataRef.current.reviewRequests = reviews;
       dataRef.current.reviewingPRs = reviewing;
-      loadedRef.current.add("reviewRequests");
+      markLoaded("reviewRequests");
       setSourceError("reviewRequests", null);
       persistCache();
-      // Review requests are an input to the mention dedup.
+      enrichJiraIssues();
       deduplicateMentions();
     } catch (err) {
       if (signal.aborted) return;
@@ -322,15 +387,12 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.githubMentions = async (signal) => {
     setGithubMentionsLoading(true);
     try {
-      const data = await fetchMentions();
+      const data = await fetchMentions(signal);
       if (signal.aborted) return;
       // Store notification mentions; merged with PR comments in deduplicateMentions.
       notificationMentionsRef.current = data;
-      haveNotificationMentionsRef.current = true;
-      loadedRef.current.add("githubMentions");
+      markLoaded("githubMentions");
       setSourceError("githubMentions", null);
-      // deduplicateMentions writes githubMentions state + cache; if its other
-      // inputs aren't ready yet it no-ops and the merge runs when they arrive.
       deduplicateMentions();
     } catch (err) {
       if (signal.aborted) return;
@@ -378,33 +440,40 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     [runSource],
   );
 
-  // Refetch every source that has been loaded at least once. Used by polling
-  // and manual refresh so we only re-hit services the user has actually viewed.
-  const refetchLoaded = useCallback(() => {
-    const loaded = [...loadedRef.current];
-    if (loaded.length === 0) return;
-    ensure(loaded, { force: true });
-  }, [ensure]);
+  // Refetch loaded sources last fetched at least `maxAgeMs` ago (0 = all of
+  // them). Used by polling and manual refresh so we only re-hit services the
+  // user has actually viewed.
+  const refetchLoaded = useCallback(
+    (maxAgeMs = 0) => {
+      const now = Date.now();
+      const due = [...loadedRef.current].filter(
+        (s) => now - (lastFetchedRef.current.get(s) ?? 0) >= maxAgeMs,
+      );
+      if (due.length === 0) return;
+      ensure(due, { force: true });
+    },
+    [ensure],
+  );
 
   // Visibility-aware polling. No eager fetch on mount — data loads only via
   // ensure() — but once sources are loaded we keep them fresh on an interval.
   useEffect(() => {
     if (!active) return;
 
-    intervalRef.current = setInterval(refetchLoaded, POLLING_INTERVAL_MS);
+    const poll = () => refetchLoaded();
+    intervalRef.current = setInterval(poll, POLLING_INTERVAL_MS);
 
-    // Pause polling when the window is hidden, resume (and refetch) when visible.
+    // Pause polling when the window is hidden. On return, refetch only what
+    // went stale while away, so quick tab switches don't cost a full refresh.
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-      } else {
-        if (!intervalRef.current) {
-          refetchLoaded();
-          intervalRef.current = setInterval(refetchLoaded, POLLING_INTERVAL_MS);
-        }
+      } else if (!intervalRef.current) {
+        refetchLoaded(POLLING_INTERVAL_MS);
+        intervalRef.current = setInterval(poll, POLLING_INTERVAL_MS);
       }
     };
 
@@ -423,6 +492,55 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [active, refetchLoaded]);
+
+  // When credentials change, everything held belongs to the old account:
+  // cancel in-flight work, drop data and cache, then reload what was in use.
+  // UI-only settings changes (e.g. hidden tabs) leave the data alone.
+  const fingerprintRef = useRef(credentialsFingerprint(loadSettings()));
+  useEffect(() => {
+    const onSettingsChange = () => {
+      const fingerprint = credentialsFingerprint(loadSettings());
+      if (fingerprint === fingerprintRef.current) return;
+      fingerprintRef.current = fingerprint;
+
+      const wanted = [...new Set([...loadedRef.current, ...inFlightRef.current.keys()])];
+      generationRef.current += 1;
+      for (const controller of inFlightRef.current.values()) controller.abort();
+      inFlightRef.current.clear();
+      loadedRef.current.clear();
+      lastFetchedRef.current.clear();
+      enrichingRef.current.clear();
+      errorsRef.current.clear();
+      prCommentsRef.current = [];
+      notificationMentionsRef.current = null;
+      dataRef.current = { ...EMPTY_DATA };
+      try {
+        localStorage.removeItem(CACHE_KEY);
+      } catch {
+        // Ignore storage errors.
+      }
+
+      setLoadedSources(new Set());
+      setAssignedJiraIssues([]);
+      setJiraIssues([]);
+      setJiraComments([]);
+      setGithubMentions([]);
+      setOpenPRs([]);
+      setReviewRequests([]);
+      setReviewingPRs([]);
+      setError(null);
+      setLoading(false);
+      setJiraIssuesLoading(false);
+      setJiraCommentsLoading(false);
+      setGithubMentionsLoading(false);
+      setOpenPRsLoading(false);
+      setReviewRequestsLoading(false);
+
+      ensure(wanted);
+    };
+    window.addEventListener(SETTINGS_EVENT, onSettingsChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onSettingsChange);
+  }, [ensure]);
 
   // Refresh scoped to the caller's sources when provided (force-refetch just
   // those remote sources), else fall back to refetching everything loaded.
@@ -447,6 +565,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     openPRs,
     reviewRequests,
     reviewingPRs,
+    loadedSources,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,
