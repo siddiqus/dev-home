@@ -54,10 +54,8 @@ import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
 import type { FocusableItem } from "./types";
-import type { AppSettings } from "./services/config";
-import { loadSettings, SETTINGS_EVENT } from "./services/config";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
-import { NAV_GROUPS } from "./config/navTabs";
+import { NAV_GROUPS, isTabVisible } from "./config/navTabs";
 import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 
@@ -107,24 +105,19 @@ export default function App() {
     jiraBaseUrl,
     githubUsername,
     githubOrg,
+    hiddenTabs,
     saveSettings,
   } = useConfig();
 
-  const [hiddenTabs, setHiddenTabs] = useState<string[]>(() => loadSettings().hiddenTabs);
-  useEffect(() => {
-    const onChange = () => setHiddenTabs(loadSettings().hiddenTabs);
-    window.addEventListener(SETTINGS_EVENT, onChange);
-    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
-  }, []);
-
-  // If config isn't loaded yet, show settings first. If the active tab has been
-  // hidden via settings, fall back to summary.
+  // If config isn't loaded yet, show settings first. If the active tab is
+  // unknown (e.g. a stale saved key), hidden, or missing its prerequisites,
+  // fall back to summary.
   const effectiveTab =
     !configured && !configLoading
       ? "settings"
-      : activeTab !== "settings" && hiddenTabs.includes(activeTab)
-        ? "summary"
-        : activeTab;
+      : isTabVisible(activeTab, { hiddenTabs, githubOrg })
+        ? activeTab
+        : "summary";
 
   // Data sources the current tab needs (src/config/tabData.ts). Drives lazy
   // loading, per-tab hook gating, sidebar badges, and the scoped Refresh button.
@@ -366,15 +359,14 @@ export default function App() {
 
   const pomodoro = usePomodoro({ focusableItems });
 
-  const handleSaveSettingsWrapped = async (settings: AppSettings) => {
-    setHiddenTabs(settings.hiddenTabs ?? []);
-    await saveSettings(settings);
-  };
-
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
+  // ⌘⇧N opens a blank editor, but never clobbers one that's already open.
+  const showNoteEditorRef = useRef(showNoteEditor);
+  showNoteEditorRef.current = showNoteEditor;
   const handleNewNote = useCallback(() => {
+    if (showNoteEditorRef.current) return;
     setOpenNote(null);
     setShowNoteEditor(true);
   }, []);
@@ -480,16 +472,10 @@ export default function App() {
                 pomodoro: { icon: IconClock },
               };
 
-              // Tabs whose visibility depends on runtime config.
-              const isTabVisible = (key: string): boolean => {
-                if (hiddenTabs.includes(key)) return false;
-                if (key === "org-prs") return !!githubOrg;
-                if (key === "teams" || key === "team-dashboard") return !!githubOrg;
-                return true;
-              };
-
               return NAV_GROUPS.map((group) => {
-                const visibleTabs = group.tabs.filter((t) => isTabVisible(t.key));
+                const visibleTabs = group.tabs.filter((t) =>
+                  isTabVisible(t.key, { hiddenTabs, githubOrg }),
+                );
                 if (visibleTabs.length === 0) return null;
 
                 return (
@@ -603,7 +589,7 @@ export default function App() {
                   jiraBaseUrl={jiraBaseUrl}
                   githubUsername={githubUsername}
                   onBack={() => setActiveTab(prevTabRef.current)}
-                  saveSettings={handleSaveSettingsWrapped}
+                  saveSettings={saveSettings}
                   theme={themePreference}
                   onSelectTheme={setThemePreference}
                 />

@@ -3,9 +3,9 @@
  *
  * NAV_GROUPS is the source of truth for sidebar structure (order + grouping).
  * TOGGLEABLE_GROUPS mirrors that structure for Settings → Appearance, minus the
- * tabs that can't be toggled off. The conditional tabs (org-prs) are listed
- * here for structure; their runtime visibility (githubOrg) is
- * still decided in App.tsx.
+ * tabs that can't be toggled off. The conditional tabs (org-prs, teams) are
+ * listed here for structure; their runtime visibility is decided by
+ * isTabVisible.
  *
  * Keys must match the `key` values used in App.tsx's sidebar tab metadata.
  */
@@ -77,3 +77,24 @@ export const TOGGLEABLE_GROUPS: NavGroup[] = NAV_GROUPS.map((g) => ({
   ...g,
   tabs: g.tabs.filter((t) => t.key !== "summary"),
 })).filter((g) => g.tabs.length > 0);
+
+/** Routable tabs that aren't sidebar entries. */
+const EXTRA_TABS = new Set(["team-dashboard", "settings"]);
+/** Tabs that only make sense with a GitHub org configured. */
+const ORG_TABS = new Set(["org-prs", "teams", "team-dashboard"]);
+
+/**
+ * Whether a tab key can be shown: it must exist, not be hidden in settings, and
+ * have its config prerequisites. Shared by the sidebar and the active-tab
+ * fallback, so a saved or shortcut-selected tab can't land on a missing page.
+ */
+export function isTabVisible(
+  key: string,
+  ctx: { hiddenTabs: readonly string[]; githubOrg: string },
+): boolean {
+  if (key === "settings") return true;
+  if (!EXTRA_TABS.has(key) && !NAV_TABS.some((t) => t.key === key)) return false;
+  if (ctx.hiddenTabs.includes(key)) return false;
+  if (ORG_TABS.has(key)) return !!ctx.githubOrg;
+  return true;
+}

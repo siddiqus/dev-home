@@ -16,6 +16,7 @@ interface UseConfigReturn {
   jiraBaseUrl: string;
   githubUsername: string;
   githubOrg: string;
+  hiddenTabs: string[];
   saveSettings: (settings: AppSettings) => Promise<void>;
   refreshConfig: () => void;
 }
@@ -55,6 +56,7 @@ export function useConfig(): UseConfigReturn {
     jiraBaseUrl: settings.jiraBaseUrl.replace(/\/+$/, ""),
     githubUsername: settings.githubUsername,
     githubOrg: settings.githubOrg,
+    hiddenTabs: settings.hiddenTabs,
     saveSettings,
     refreshConfig: init,
   };
