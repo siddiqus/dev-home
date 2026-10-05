@@ -11,6 +11,12 @@ export function sourceFromPR(pr: GitHubPR): TicketSource {
 // Re-export extractTicketKey so other modules can import it from here
 export { extractTicketKey };
 
+/** Link to a Jira issue, or undefined when no Jira site is configured. */
+export function jiraBrowseUrl(baseUrl: string | undefined, key: string): string | undefined {
+  const base = baseUrl?.replace(/\/+$/, "");
+  return base ? `${base}/browse/${key}` : undefined;
+}
+
 /**
  * Group PRs by their Jira ticket key, preserving updated_at DESC order.
  * Groups are ordered by the most recently updated PR in each group.

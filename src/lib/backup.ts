@@ -1,6 +1,6 @@
 import { DB_PREFIX } from "./localStore";
+import { SETTINGS_KEY } from "../services/config";
 
-const SETTINGS_KEY = "dev-home-settings";
 const EXPORTABLE_SETTINGS = [
   "jiraBaseUrl",
   "jiraEmail",

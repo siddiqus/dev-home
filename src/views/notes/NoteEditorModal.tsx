@@ -14,6 +14,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ReminderControl } from "../../components/ReminderControl";
 import "./notes.css";
 import "./tiptap.css";
+import { isMac } from "../../hooks/useKeyboardShortcuts";
 
 // tiptap-markdown doesn't ship type declarations for its storage
 function getMarkdown(editor: Editor): string {
@@ -246,7 +247,6 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     return hasContent ? deriveTitleFromContent(editorContent) : "Untitled";
   }, [hasContent, editorContent]);
 
-  const isMac = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform);
   const saveShortcutHint = isMac ? "⌘↵" : "Ctrl ↵";
 
   return (

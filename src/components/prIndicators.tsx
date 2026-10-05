@@ -8,6 +8,7 @@ import {
 import { GitHubPR, GitHubLabel } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
 import "./prIndicators.css";
+import { jiraBrowseUrl } from "../utils/tickets";
 
 /**
  * Shared presentational pieces for a PR's labels and status indicators, used by
@@ -113,7 +114,7 @@ function TicketAnchor({
   return (
     <a
       className="pr-card-ticket"
-      href={`${jiraBaseUrl.replace(/\/+$/, "")}/browse/${ticket}`}
+      href={jiraBrowseUrl(jiraBaseUrl, ticket)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}

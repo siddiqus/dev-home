@@ -6,6 +6,7 @@ import { truncateText } from "../utils/text";
 import { Avatar } from "./primitives/Avatar";
 import { CommentCard } from "./primitives/CommentCard";
 import { CommentList } from "./primitives/CommentList";
+import { jiraBrowseUrl } from "../utils/tickets";
 
 interface JiraCommentsProps {
   comments: JiraComment[];
@@ -25,9 +26,7 @@ export const JiraComments: React.FC<JiraCommentsProps> = ({ comments, loading, b
       }}
     >
       {comments.map((comment) => {
-        const issueUrl = baseUrl
-          ? `${baseUrl.replace(/\/$/, "")}/browse/${comment.issueKey}`
-          : `#${comment.issueKey}`;
+        const issueUrl = jiraBrowseUrl(baseUrl, comment.issueKey) ?? `#${comment.issueKey}`;
         const commentUrl = baseUrl
           ? `${issueUrl}?focusedCommentId=${comment.id}#comment-${comment.id}`
           : issueUrl;

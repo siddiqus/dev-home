@@ -1,5 +1,7 @@
 import type { GitHubPR, JiraIssue, JiraComment, GitHubComment, Note } from "../types";
 import { getReferenceUrl } from "../utils/text";
+import { jiraBrowseUrl } from "../utils/tickets";
+import { parseTimestamp } from "../utils/time";
 
 export type FocusKind = "pr-mine" | "pr-review" | "jira" | "mention" | "note";
 
@@ -31,21 +33,15 @@ export interface MergeInput {
   jiraBaseUrl?: string;
 }
 
-function jiraBrowseUrl(base: string | undefined, key: string): string | undefined {
-  if (!base) return undefined;
-  const trimmed = base.replace(/\/+$/, "");
-  return trimmed ? `${trimmed}/browse/${key}` : undefined;
-}
-
 const MS_PER_DAY = 86_400_000;
 
 function ageDays(iso: string, now: number): number {
-  return Math.max(0, (now - new Date(iso).getTime()) / MS_PER_DAY);
+  return Math.max(0, (now - parseTimestamp(iso).getTime()) / MS_PER_DAY);
 }
 
 function prItem(pr: GitHubPR, kind: "pr-mine" | "pr-review", now: number): FocusItem {
   const id = `pr:${pr.repo_full_name}#${pr.number}`;
-  const updatedAt = new Date(pr.updated_at).getTime();
+  const updatedAt = parseTimestamp(pr.updated_at).getTime();
   return {
     id,
     kind,
@@ -67,7 +63,7 @@ function jiraItem(j: JiraIssue, now: number, jiraBaseUrl?: string): FocusItem {
     kind: "jira",
     title: `${j.key} — ${j.summary}`,
     url: jiraBrowseUrl(jiraBaseUrl, j.key),
-    updatedAt: new Date(j.updated).getTime(),
+    updatedAt: parseTimestamp(j.updated).getTime(),
     signals: {
       ageDays: ageDays(j.updated, now),
       jiraPriority: j.priority?.name as FocusItem["signals"]["jiraPriority"],
@@ -82,7 +78,7 @@ function jiraMentionItem(c: JiraComment, now: number, jiraBaseUrl?: string): Foc
     kind: "mention",
     title: `${c.issueKey}: ${c.body.text.slice(0, 80)}`,
     url: jiraBrowseUrl(jiraBaseUrl, c.issueKey),
-    updatedAt: new Date(c.updated).getTime(),
+    updatedAt: parseTimestamp(c.updated).getTime(),
     signals: {
       ageDays: ageDays(c.updated, now),
       isMention: true,
@@ -97,7 +93,7 @@ function ghMentionItem(c: GitHubComment, now: number): FocusItem {
     kind: "mention",
     title: c.context_title || c.body.slice(0, 80),
     url: c.html_url,
-    updatedAt: new Date(c.updated_at).getTime(),
+    updatedAt: parseTimestamp(c.updated_at).getTime(),
     signals: {
       ageDays: ageDays(c.updated_at, now),
       isMention: true,
@@ -112,7 +108,7 @@ function noteItem(n: Note, now: number, jiraBaseUrl?: string): FocusItem {
     kind: "note",
     title: n.title || n.content.slice(0, 80),
     url: getReferenceUrl(n, jiraBaseUrl ?? "") ?? undefined,
-    updatedAt: new Date(n.updated_at).getTime(),
+    updatedAt: parseTimestamp(n.updated_at).getTime(),
     signals: {
       ageDays: ageDays(n.updated_at, now),
       isPinned: false,

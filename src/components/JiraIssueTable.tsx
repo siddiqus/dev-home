@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import Table from "react-bootstrap/Table";
 import { IconExternalLink } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
-import { formatRelativeTime } from "../hooks/useRelativeTime";
+import { formatRelativeTime } from "../utils/time";
 import { StatusBadge } from "./StatusBadge";
 import { JiraIssueDrawer } from "./JiraIssueDrawer";
 import { Badge } from "./primitives/Badge";
 import { Avatar } from "./primitives/Avatar";
+import { jiraBrowseUrl } from "../utils/tickets";
 
 interface JiraIssueTableProps {
   issues: JiraIssue[];
@@ -52,9 +53,7 @@ export const JiraIssueTable: React.FC<JiraIssueTableProps> = ({ issues, baseUrl 
         </thead>
         <tbody>
           {issues.map((issue) => {
-            const browseUrl = baseUrl
-              ? `${baseUrl.replace(/\/$/, "")}/browse/${issue.key}`
-              : `#${issue.key}`;
+            const browseUrl = jiraBrowseUrl(baseUrl, issue.key) ?? `#${issue.key}`;
 
             return (
               <tr

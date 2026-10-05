@@ -11,6 +11,7 @@ import {
 import type { BadgeVariant } from "../components/primitives/Badge";
 import { fetchKanbanItems, upsertKanbanItem, batchUpdateKanbanItems } from "../services/kanban";
 import { getReferenceUrl, getNoteDisplayTitle } from "../utils/text";
+import { prNoteKey } from "../utils/prNotes";
 
 export const KANBAN_COLUMNS: { id: KanbanColumnId; title: string; variant: BadgeVariant }[] = [
   { id: "todo", title: "Todo", variant: "neutral" },
@@ -38,9 +39,7 @@ interface UseKanbanProps {
   onUnresolveNote?: (id: number) => Promise<void>;
 }
 
-function makePrItemId(pr: GitHubPR): string {
-  return `${pr.repo_full_name}#${pr.number}`;
-}
+const makePrItemId = prNoteKey;
 
 export function useKanban({
   active,

@@ -27,6 +27,7 @@ import { PRCard, PRCardFields } from "./PRCard";
 import { useOptionalNotes } from "../context/NotesContext";
 import { normalizeNoteRef, prNoteKey } from "../utils/prNotes";
 import "./PRTable.css";
+import { jiraBrowseUrl } from "../utils/tickets";
 
 type PRTableVariant =
   | "my-prs"
@@ -141,7 +142,7 @@ function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: str
   return (
     <a
       className="ticket-chip"
-      href={`${jiraBaseUrl.replace(/\/+$/, "")}/browse/${ticket}`}
+      href={jiraBrowseUrl(jiraBaseUrl, ticket)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}

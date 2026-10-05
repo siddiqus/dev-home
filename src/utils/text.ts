@@ -1,5 +1,6 @@
 import { Note } from "../types";
 import { TICKET_KEY_REGEX } from "../../shared/tickets";
+import { jiraBrowseUrl } from "./tickets";
 
 export function truncateText(text: string, maxLength: number): string {
   if (!text) return "";
@@ -24,8 +25,7 @@ export function getReferenceUrl(note: Note, jiraBaseUrl: string): string | null 
     if (/^https?:\/\//.test(note.reference_id)) {
       return note.reference_id;
     }
-    const base = jiraBaseUrl.replace(/\/+$/, "");
-    return base ? `${base}/browse/${note.reference_id}` : null;
+    return jiraBrowseUrl(jiraBaseUrl, note.reference_id) ?? null;
   }
 
   if (note.type === "github_pr" || note.type === "link") {

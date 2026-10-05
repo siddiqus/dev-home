@@ -58,6 +58,8 @@ import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { NAV_GROUPS, isTabVisible } from "./config/navTabs";
 import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
+import { jiraBrowseUrl } from "./utils/tickets";
+import { prNoteKey } from "./utils/prNotes";
 
 // Compact "time since last refresh" label for the sidebar refresh button.
 function formatAgo(ts: number, now: number): string {
@@ -280,7 +282,7 @@ export default function App() {
 
     for (const pr of openPRs) {
       push({
-        id: `${pr.repo_full_name}#${pr.number}`,
+        id: prNoteKey(pr),
         group: "prs",
         title: `#${pr.number} ${pr.title}`,
         sourceBadge: "PR",
@@ -291,7 +293,7 @@ export default function App() {
 
     for (const r of reviewRequests) {
       push({
-        id: `${r.repo_full_name}#${r.number}`,
+        id: prNoteKey(r),
         group: "reviews",
         title: `#${r.number} ${r.title}`,
         sourceBadge: "Review",
@@ -300,7 +302,6 @@ export default function App() {
       });
     }
 
-    const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
     for (const issue of assignedJiraIssues) {
       push({
         id: issue.key,
@@ -308,7 +309,7 @@ export default function App() {
         title: `${issue.key} ${issue.summary || ""}`.trim(),
         sourceBadge: "JIRA",
         sourceBadgeVariant: "info",
-        url: jiraBase ? `${jiraBase}/browse/${issue.key}` : "",
+        url: jiraBrowseUrl(jiraBaseUrl, issue.key) ?? "",
       });
     }
 
@@ -329,7 +330,7 @@ export default function App() {
         title: `${c.issueKey} ${c.issueSummary}`,
         sourceBadge: "Mention",
         sourceBadgeVariant: "purple",
-        url: jiraBase ? `${jiraBase}/browse/${c.issueKey}` : "",
+        url: jiraBrowseUrl(jiraBaseUrl, c.issueKey) ?? "",
       });
     }
 

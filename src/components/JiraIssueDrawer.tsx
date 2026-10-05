@@ -10,6 +10,8 @@ import { useIssueDescription } from "../hooks/useIssueDescription";
 import { Avatar } from "./primitives/Avatar";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import "./JiraIssueDrawer.css";
+import { jiraBrowseUrl } from "../utils/tickets";
+import { prNoteKey } from "../utils/prNotes";
 
 interface JiraIssueDrawerProps {
   issue: JiraIssue | null;
@@ -29,7 +31,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
   linkedPRs,
   staleDays,
 }) => {
-  const url = issue && baseUrl ? `${baseUrl.replace(/\/$/, "")}/browse/${issue.key}` : undefined;
+  const url = issue ? jiraBrowseUrl(baseUrl, issue.key) : undefined;
 
   // Lists omit the description; lazy-load it (cached) when the drawer opens.
   const { description, loading: isDescLoading } = useIssueDescription(issue, show);
@@ -139,7 +141,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
             <div className="d-flex flex-column gap-2">
               {linkedPRs.map((pr) => (
                 <a
-                  key={`${pr.repo_full_name}#${pr.number}`}
+                  key={prNoteKey(pr)}
                   href={pr.html_url}
                   target="_blank"
                   rel="noopener noreferrer"

@@ -24,6 +24,7 @@ import { DescriptionModal } from "../../components/DescriptionModal";
 import { SummaryItem } from "./SummaryItem";
 import { EmptyState } from "../../components/EmptyState";
 import "./summary.css";
+import { jiraBrowseUrl } from "../../utils/tickets";
 
 interface SummaryViewProps {
   jiraIssues: JiraIssue[];
@@ -188,7 +189,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       id: `jc-${c.id}`,
       title: `${c.author.displayName} on ${c.issueKey}`,
       subtitle: c.issueSummary,
-      url: jiraBase ? `${jiraBase}/browse/${c.issueKey}` : `#${c.issueKey}`,
+      url: jiraBrowseUrl(jiraBase, c.issueKey) ?? `#${c.issueKey}`,
       time: c.created,
     })),
     ...githubMentions.map((m) => ({
@@ -382,7 +383,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
             topIssues.map((issue) => (
               <SummaryItem
                 key={issue.key}
-                url={jiraBase ? `${jiraBase}/browse/${issue.key}` : `#${issue.key}`}
+                url={jiraBrowseUrl(jiraBase, issue.key) ?? `#${issue.key}`}
                 title={`${issue.key}: ${issue.summary}`}
                 subtitle={issue.project.name}
                 time={issue.updated}
@@ -444,7 +445,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         subtitle={selectedIssue?.project.name}
         description={selectedIssueDescription}
         loading={selectedIssueDescLoading}
-        url={selectedIssue && jiraBase ? `${jiraBase}/browse/${selectedIssue.key}` : undefined}
+        url={selectedIssue ? jiraBrowseUrl(jiraBase, selectedIssue.key) : undefined}
       />
 
       <DescriptionModal

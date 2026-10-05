@@ -13,6 +13,8 @@ const CYCLES_BEFORE_LONG_BREAK = 4;
 const DEFAULT_WORK_MIN: PomodoroWorkMinutes = 30;
 const TICK_MS = 250;
 
+const wholeSeconds = (ms: number) => Math.ceil(ms / 1000);
+
 const STORAGE_STATE_KEY = "dev-home-pomodoro-state";
 const STORAGE_WORK_KEY = "dev-home-pomodoro-work-minutes";
 
@@ -128,7 +130,8 @@ export interface UsePomodoroReturn {
 
 export function usePomodoro({ focusableItems }: UsePomodoroProps): UsePomodoroReturn {
   const [state, setState] = useState<PomodoroPersistedState>(loadInitialState);
-  const intervalRef = useRef<number | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const bellRef = useRef<HTMLAudioElement | null>(null);
 
   // Lazily create audio element
@@ -143,15 +146,20 @@ export function usePomodoro({ focusableItems }: UsePomodoroProps): UsePomodoroRe
     };
   }, []);
 
-  // Persist state changes
+  // Persist state changes. While running, endsAt is the source of truth and
+  // remainingMs is recomputed on load, so countdown ticks aren't written.
+  const persisted = useMemo(
+    () => JSON.stringify(state.isRunning ? { ...state, remainingMs: 0 } : state),
+    [state],
+  );
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(state));
+      localStorage.setItem(STORAGE_STATE_KEY, persisted);
       localStorage.setItem(STORAGE_WORK_KEY, String(state.workMinutes));
     } catch {
       /* swallow storage errors (quota exceeded, blocked, etc.) */
     }
-  }, [state]);
+  }, [persisted, state.workMinutes]);
 
   // Refresh selected task snapshot if the underlying source data changes
   // (e.g. title edit). Don't auto-clear if the item disappears.
@@ -189,81 +197,74 @@ export function usePomodoro({ focusableItems }: UsePomodoroProps): UsePomodoroRe
     );
   }, [focusableItems, state.selectedTaskSnapshot]);
 
-  // End-of-phase handler
+  // End-of-phase handler. Side effects (bell, notification) run here, outside
+  // the state updater, so they fire once even when React replays updaters.
   const handlePhaseEnd = useCallback(() => {
+    const current = stateRef.current;
+    const next = advancePhase(current.phase, current.cycleCount);
+
     // Sound — swallow errors (autoplay policy etc.)
     try {
       bellRef.current?.play().catch(() => {});
     } catch {
       /* noop */
     }
+    // Notification — swallow errors / permission denied
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification(current.phase === "work" ? "Work session complete" : "Break complete", {
+          body: next.phase === "work" ? "Time to focus" : "Time for a break",
+        });
+      }
+    } catch {
+      /* noop */
+    }
 
     setState((s) => {
-      const next = advancePhase(s.phase, s.cycleCount);
-      const phaseLabel = s.phase === "work" ? "Work session complete" : "Break complete";
-      const bodyLabel = next.phase === "work" ? "Time to focus" : "Time for a break";
-
-      // Notification — swallow errors / permission denied
-      try {
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-          new Notification(phaseLabel, { body: bodyLabel });
-        }
-      } catch {
-        /* noop */
-      }
-
+      const advanced = advancePhase(s.phase, s.cycleCount);
       return {
         ...s,
-        phase: next.phase,
-        cycleCount: next.cycleCount,
+        phase: advanced.phase,
+        cycleCount: advanced.cycleCount,
         endsAt: null,
-        remainingMs: phaseDurationMs(next.phase, s.workMinutes),
+        remainingMs: phaseDurationMs(advanced.phase, s.workMinutes),
         isRunning: false,
       };
     });
   }, []);
 
-  // Tick interval
+  // While running: end the phase exactly at endsAt, and update the countdown
+  // only when its displayed second changes (not every tick).
   useEffect(() => {
-    if (!state.isRunning || state.endsAt === null) {
-      if (intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
+    const endsAt = state.endsAt;
+    if (!state.isRunning || endsAt === null) return;
 
     const tick = () => {
-      const endsAt = state.endsAt;
-      if (endsAt === null) return;
       const remaining = Math.max(0, endsAt - Date.now());
-      if (remaining === 0) {
-        handlePhaseEnd();
-      } else {
-        setState((s) =>
-          s.isRunning && s.endsAt === endsAt ? { ...s, remainingMs: remaining } : s,
-        );
-      }
+      setState((s) =>
+        s.isRunning &&
+        s.endsAt === endsAt &&
+        wholeSeconds(s.remainingMs) !== wholeSeconds(remaining)
+          ? { ...s, remainingMs: remaining }
+          : s,
+      );
     };
-
-    intervalRef.current = window.setInterval(tick, TICK_MS);
+    const interval = window.setInterval(tick, TICK_MS);
+    const timeout = window.setTimeout(handlePhaseEnd, Math.max(0, endsAt - Date.now()));
     tick();
 
     return () => {
-      if (intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
     };
   }, [state.isRunning, state.endsAt, handlePhaseEnd]);
 
   const start = useCallback(() => {
+    // Request notification permission on first user-initiated start
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
     setState((s) => {
-      // Request notification permission on first user-initiated start
-      if (typeof Notification !== "undefined" && Notification.permission === "default") {
-        Notification.requestPermission().catch(() => {});
-      }
-
       let phase = s.phase;
       let remainingMs = s.remainingMs;
       if (phase === "idle") {

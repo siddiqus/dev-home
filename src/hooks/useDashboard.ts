@@ -10,6 +10,7 @@ import {
 } from "../services/config";
 import { extractTicketKey, sourceFromPR } from "../utils/tickets";
 import { DataSource, isRemoteSource } from "../config/tabData";
+import { prNoteKey } from "../utils/prNotes";
 
 const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
@@ -277,7 +278,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
     const reviews = dataRef.current.reviewRequests;
     const merged = [...notificationMentionsRef.current, ...prCommentsRef.current];
-    const reviewPRKeys = new Set(reviews.map((r) => `${r.repo_full_name}#${r.number}`));
+    const reviewPRKeys = new Set(reviews.map(prNoteKey));
     const seen = new Set<number | string>();
     const filtered = merged.filter((m) => {
       if (
