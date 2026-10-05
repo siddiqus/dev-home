@@ -227,21 +227,27 @@ export const PRsView: React.FC<PRsViewProps> = ({
       });
   }, [openPRs, jiraIssues, matchesSearch, matchesRepo, matchesLabels, matchesActionable]);
 
-  const loadMergedPRs = useCallback(async () => {
-    if (!configured) return;
-    setMergedPRsLoading(true);
-    try {
-      setMergedPRs(await fetchRecentlyMergedPRs("user"));
-    } catch (err) {
-      console.error("Failed to fetch recently merged PRs:", err);
-    } finally {
-      setMergedPRsLoading(false);
-    }
-  }, [configured]);
-
+  // Merged PRs come from a short-lived shared cache; a refreshKey bump
+  // (the top-bar Refresh) bypasses it.
+  const seenRefreshKey = useRef(refreshKey);
   useEffect(() => {
-    loadMergedPRs();
-  }, [loadMergedPRs, refreshKey]);
+    if (!configured) return;
+    const force = seenRefreshKey.current !== refreshKey;
+    seenRefreshKey.current = refreshKey;
+    let cancelled = false;
+    setMergedPRsLoading(true);
+    fetchRecentlyMergedPRs("user", undefined, undefined, { force })
+      .then((data) => {
+        if (!cancelled) setMergedPRs(data);
+      })
+      .catch((err) => console.error("Failed to fetch recently merged PRs:", err))
+      .finally(() => {
+        if (!cancelled) setMergedPRsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [configured, refreshKey]);
 
   // Open PRs pass every facet at once: search, repo, labels (AND), actionable
   // reasons (OR), and Jira tickets (OR).

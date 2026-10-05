@@ -67,13 +67,17 @@ export function TeamPRsTab({
   }, [teamId]);
 
   // --- roster (locked author set) ---
+  // Fetched once per team; switching back to this tab reuses it.
+  const membersTeamRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!active || !configured || !teamId) return;
+    if (!active || !configured || !teamId || membersTeamRef.current === teamId) return;
     let cancelled = false;
     setMembersLoading(true);
     fetchTeamMembers(teamId)
       .then((data) => {
-        if (!cancelled) setMembers(data);
+        if (cancelled) return;
+        membersTeamRef.current = teamId;
+        setMembers(data);
       })
       .catch((err) => console.error("Failed to fetch team members:", err))
       .finally(() => {
@@ -97,49 +101,63 @@ export function TeamPRsTab({
     [members, selectedMembers],
   );
 
+  // Request ids drop responses for a previous team/filter set.
+  const openRequestRef = useRef(0);
+  const mergedRequestRef = useRef(0);
+
   const loadOpenPRs = useCallback(async () => {
-    if (!active || !configured) return;
+    const requestId = ++openRequestRef.current;
     if (authors.length === 0) {
       setPrs([]);
       return;
     }
     setLoading(true);
     try {
-      setPrs(await fetchOrgPRsMulti(authors, selectedRepos));
+      const data = await fetchOrgPRsMulti(authors, selectedRepos);
+      if (requestId === openRequestRef.current) setPrs(data);
     } catch (err) {
       console.error("Failed to fetch team PRs:", err);
     } finally {
-      setLoading(false);
+      if (requestId === openRequestRef.current) setLoading(false);
     }
-  }, [active, configured, authors, selectedRepos]);
+  }, [authors, selectedRepos]);
 
-  const loadMergedPRs = useCallback(async () => {
-    if (!active || !configured) return;
-    if (authors.length === 0) {
-      setMergedPRs([]);
-      return;
-    }
-    setMergedLoading(true);
-    try {
-      setMergedPRs(await fetchRecentlyMergedPRs("org", authors, selectedRepos));
-    } catch (err) {
-      console.error("Failed to fetch recently merged team PRs:", err);
-    } finally {
-      setMergedLoading(false);
-    }
-  }, [active, configured, authors, selectedRepos]);
+  const loadMergedPRs = useCallback(
+    async (force = false) => {
+      const requestId = ++mergedRequestRef.current;
+      if (authors.length === 0) {
+        setMergedPRs([]);
+        return;
+      }
+      setMergedLoading(true);
+      try {
+        const data = await fetchRecentlyMergedPRs("org", authors, selectedRepos, { force });
+        if (requestId === mergedRequestRef.current) setMergedPRs(data);
+      } catch (err) {
+        console.error("Failed to fetch recently merged team PRs:", err);
+      } finally {
+        if (requestId === mergedRequestRef.current) setMergedLoading(false);
+      }
+    },
+    [authors, selectedRepos],
+  );
 
+  // Load when the filters change while visible; re-activating the tab with the
+  // same filters keeps what's already shown (use Refresh for fresh data).
+  const loadedFiltersRef = useRef<string | null>(null);
   useEffect(() => {
+    // Wait for this team's roster, else we'd search the previous team's authors.
+    if (!active || !configured || membersTeamRef.current !== teamId) return;
+    const filtersKey = JSON.stringify([teamId, authors, selectedRepos]);
+    if (loadedFiltersRef.current === filtersKey) return;
+    loadedFiltersRef.current = filtersKey;
     loadOpenPRs();
-  }, [loadOpenPRs]);
-
-  useEffect(() => {
     loadMergedPRs();
-  }, [loadMergedPRs]);
+  }, [active, configured, teamId, authors, selectedRepos, loadOpenPRs, loadMergedPRs]);
 
   const refresh = useCallback(() => {
     loadOpenPRs();
-    loadMergedPRs();
+    loadMergedPRs(true);
   }, [loadOpenPRs, loadMergedPRs]);
 
   // --- dropdown items ---

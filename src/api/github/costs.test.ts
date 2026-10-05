@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import axios from "axios";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
-import { fetchOrgPRsMulti, fetchRecentlyMergedPRs } from "../../services/github";
+import { clearListCache, fetchOrgPRsMulti, fetchRecentlyMergedPRs } from "../../services/github";
 import {
   buildMergedPrsQuery,
   buildOrgPrsQuery,
@@ -94,6 +94,7 @@ beforeEach(() => {
   localStorage.clear();
   saveSettings(BASE_SETTINGS);
   resetMentionsCache();
+  clearListCache();
   inbox = [];
   notModified = false;
   alwaysNotModified = false;
@@ -415,6 +416,15 @@ describe("multi-author / multi-repo PR searches", () => {
       "repo:test-org/app repo:test-org/api author:alice author:bob author:carol",
     );
     expect(body.variables.first).toBe(50);
+  });
+
+  it("fetchRecentlyMergedPRs reuses a cached result unless forced", async () => {
+    await fetchRecentlyMergedPRs("org", AUTHORS, REPOS);
+    // Same filters in a different order hit the cache.
+    await fetchRecentlyMergedPRs("org", [...AUTHORS].reverse(), [...REPOS].reverse());
+    expect(adapter).toHaveBeenCalledTimes(1);
+    await fetchRecentlyMergedPRs("org", AUTHORS, REPOS, { force: true });
+    expect(adapter).toHaveBeenCalledTimes(2);
   });
 
   it("fetchOrgPRsMulti keeps the page of 10 for a single author and repo", async () => {

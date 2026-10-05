@@ -1,4 +1,5 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
+import { SETTINGS_EVENT } from "./config";
 import {
   getGithubMentions,
   getMergedPrs,
@@ -9,6 +10,36 @@ import {
   getPrs,
   getReviews,
 } from "../api/github";
+
+/**
+ * Short-lived promise cache for list lookups that several views repeat on mount
+ * (views remount on every tab switch). Failures are evicted so they're retried;
+ * `force` bypasses the cache for explicit refreshes. Cleared on settings change.
+ */
+const listCache = new Map<string, { at: number; value: Promise<any> }>();
+
+if (typeof window !== "undefined") {
+  window.addEventListener(SETTINGS_EVENT, () => listCache.clear());
+}
+
+function cached<T>(key: string, ttlMs: number, force: boolean, load: () => Promise<T>): Promise<T> {
+  const hit = listCache.get(key);
+  if (!force && hit && Date.now() - hit.at < ttlMs) return hit.value;
+  const value = load();
+  listCache.set(key, { at: Date.now(), value });
+  value.catch(() => {
+    if (listCache.get(key)?.value === value) listCache.delete(key);
+  });
+  return value;
+}
+
+/** Test helper: forget every cached list lookup. */
+export function clearListCache(): void {
+  listCache.clear();
+}
+
+const MERGED_TTL_MS = 5 * 60 * 1000;
+const ORG_LIST_TTL_MS = 30 * 60 * 1000;
 
 export async function fetchOpenPRs(
   signal?: AbortSignal,
@@ -63,14 +94,21 @@ export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Prom
   return data.prs;
 }
 
-/** Recently merged PRs (last 3 days); one search for any number of authors/repos. */
+/**
+ * Recently merged PRs (last 3 days); one search for any number of authors/repos.
+ * Cached briefly per filter so remounting a view doesn't re-search.
+ */
 export async function fetchRecentlyMergedPRs(
   scope: "user" | "org",
   authors?: string[],
   repos?: string[],
+  opts: { force?: boolean } = {},
 ): Promise<GitHubPR[]> {
-  const data = await getMergedPrs({ scope, authors, repos });
-  return data.prs;
+  const key = `merged:${JSON.stringify([scope, [...(authors ?? [])].sort(), [...(repos ?? [])].sort()])}`;
+  return cached(key, MERGED_TTL_MS, !!opts.force, async () => {
+    const data = await getMergedPrs({ scope, authors, repos });
+    return data.prs;
+  });
 }
 
 export interface OrgMember {
@@ -78,9 +116,12 @@ export interface OrgMember {
   avatar_url: string;
 }
 
-export async function fetchOrgMembers(): Promise<OrgMember[]> {
-  const data = await getOrgMembers();
-  return data.members;
+/** Org members, shared by Org PRs and team member search (paged REST, so cached). */
+export async function fetchOrgMembers(opts: { force?: boolean } = {}): Promise<OrgMember[]> {
+  return cached("org-members", ORG_LIST_TTL_MS, !!opts.force, async () => {
+    const data = await getOrgMembers();
+    return data.members;
+  });
 }
 
 export interface OrgRepo {
@@ -88,9 +129,11 @@ export interface OrgRepo {
   name: string;
 }
 
-export async function fetchOrgRepos(): Promise<OrgRepo[]> {
-  const data = await getOrgRepos();
-  return data.repos;
+export async function fetchOrgRepos(opts: { force?: boolean } = {}): Promise<OrgRepo[]> {
+  return cached("org-repos", ORG_LIST_TTL_MS, !!opts.force, async () => {
+    const data = await getOrgRepos();
+    return data.repos;
+  });
 }
 
 /** Fetch a single PR (body + checks) by repo and number. */

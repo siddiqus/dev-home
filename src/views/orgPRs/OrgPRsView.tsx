@@ -118,24 +118,30 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   // Recently merged PRs
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
-  const loadMergedPRs = useCallback(async () => {
-    if (!configured) return;
-    if (authors.length === 0 && selectedRepos.length === 0) {
-      setMergedPRs([]);
-      return;
-    }
-    setMergedPRsLoading(true);
-    try {
-      setMergedPRs(await fetchRecentlyMergedPRs("org", authors, selectedRepos));
-    } catch (err) {
-      console.error("Failed to fetch recently merged PRs:", err);
-    } finally {
-      setMergedPRsLoading(false);
-    }
-  }, [configured, authors, selectedRepos]);
+  const mergedRequestRef = useRef(0);
+  const loadMergedPRs = useCallback(
+    async (force = false) => {
+      if (!configured) return;
+      const requestId = ++mergedRequestRef.current;
+      if (authors.length === 0 && selectedRepos.length === 0) {
+        setMergedPRs([]);
+        return;
+      }
+      setMergedPRsLoading(true);
+      try {
+        const data = await fetchRecentlyMergedPRs("org", authors, selectedRepos, { force });
+        if (requestId === mergedRequestRef.current) setMergedPRs(data);
+      } catch (err) {
+        console.error("Failed to fetch recently merged PRs:", err);
+      } finally {
+        if (requestId === mergedRequestRef.current) setMergedPRsLoading(false);
+      }
+    },
+    [configured, authors, selectedRepos],
+  );
   useEffect(() => {
     loadMergedPRs();
-  }, [loadMergedPRs, refreshKey]);
+  }, [loadMergedPRs]);
 
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
@@ -170,7 +176,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       if (!configured) return;
       if (!skipCache && members.length > 0) return;
       try {
-        const data = await fetchOrgMembers();
+        const data = await fetchOrgMembers({ force: skipCache });
         setMembers(data);
         saveCache(MEMBERS_CACHE_KEY, data);
       } catch (err) {
@@ -186,7 +192,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       if (!configured) return;
       if (!skipCache && orgRepos.length > 0) return;
       try {
-        const data = await fetchOrgRepos();
+        const data = await fetchOrgRepos({ force: skipCache });
         setOrgRepos(data);
         saveCache(REPOS_CACHE_KEY, data);
       } catch (err) {
@@ -206,13 +212,20 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   const reposKey = JSON.stringify(selectedRepos);
 
   // Whether we're in multi-filter mode (multiple authors or repos selected).
-  // In multi mode we fan out individual API calls and merge, so cursor pagination is unavailable.
+  // Multi mode is one unpaginated search, so cursor pagination is unavailable.
   const isMultiMode = authors.length > 1 || selectedRepos.length > 1;
+
+  // Latest PR list for load-more, and a request id so a slow response for old
+  // filters can't overwrite results for newer ones.
+  const prsRef = useRef(prs);
+  prsRef.current = prs;
+  const prsRequestRef = useRef(0);
 
   // Fetch first page when filters change
   const fetchFirstPage = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
+      const requestId = ++prsRequestRef.current;
       if (authors.length === 0 && selectedRepos.length === 0) {
         setPrs([]);
         setHasNextPage(false);
@@ -231,10 +244,12 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       }
 
       setLoading(true);
+      setLoadingMore(false);
       try {
         if (isMultiMode) {
           // One search ORs every selected author and repo
           const merged = await fetchOrgPRsMulti(authors, selectedRepos);
+          if (requestId !== prsRequestRef.current) return;
           setPrs(merged);
           setHasNextPage(false);
           setEndCursor(null);
@@ -250,6 +265,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
           const author = authors[0] || undefined;
           const repo = selectedRepos[0] || undefined;
           const result = await fetchOrgPRs(undefined, author, repo);
+          if (requestId !== prsRequestRef.current) return;
           setPrs(result.prs);
           setHasNextPage(result.pageInfo.hasNextPage);
           setEndCursor(result.pageInfo.endCursor);
@@ -264,7 +280,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       } catch (err) {
         console.error("Failed to fetch org PRs:", err);
       } finally {
-        setLoading(false);
+        if (requestId === prsRequestRef.current) setLoading(false);
       }
     },
 
@@ -278,12 +294,15 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   // Fetch next page (only available in single-filter mode)
   const fetchNextPage = useCallback(async () => {
     if (!hasNextPage || !endCursor || loadingMore || isMultiMode) return;
+    const requestId = prsRequestRef.current;
     setLoadingMore(true);
     try {
       const author = authors[0] || undefined;
       const repo = selectedRepos[0] || undefined;
       const result = await fetchOrgPRs(endCursor, author, repo);
-      const merged = [...prs, ...result.prs];
+      // Filters changed (or a refresh started) while this page was loading.
+      if (requestId !== prsRequestRef.current) return;
+      const merged = [...prsRef.current, ...result.prs];
       setPrs(merged);
       setHasNextPage(result.pageInfo.hasNextPage);
       setEndCursor(result.pageInfo.endCursor);
@@ -297,9 +316,9 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     } catch (err) {
       console.error("Failed to fetch more org PRs:", err);
     } finally {
-      setLoadingMore(false);
+      if (requestId === prsRequestRef.current) setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, authors, selectedRepos, loadingMore, prs, isMultiMode]);
+  }, [hasNextPage, endCursor, authors, selectedRepos, loadingMore, isMultiMode]);
 
   // Refresh handlers
   const refreshPRs = useCallback(() => {
@@ -326,7 +345,17 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     loadMembers(true);
     loadRepos(true);
     fetchFirstPage(true);
-  }, [loadMembers, loadRepos, fetchFirstPage]);
+    loadMergedPRs(true);
+  }, [loadMembers, loadRepos, fetchFirstPage, loadMergedPRs]);
+
+  // The app-level Refresh bumps refreshKey: reload open and merged PRs (not on mount).
+  const seenRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (seenRefreshKey.current === refreshKey) return;
+    seenRefreshKey.current = refreshKey;
+    refreshPRs();
+    loadMergedPRs(true);
+  }, [refreshKey, refreshPRs, loadMergedPRs]);
 
   // Saved filter handlers
   const handleSaveFilter = useCallback(
