@@ -12,6 +12,7 @@ import {
   getBoardSprints,
 } from "./index";
 import { ApiError } from "../http/errors";
+import { resetMyselfCache } from "./issues";
 
 describe("Jira API", () => {
   let originalAdapter: any;
@@ -28,6 +29,7 @@ describe("Jira API", () => {
       hiddenTabs: [],
     });
     originalAdapter = axios.defaults.adapter;
+    resetMyselfCache();
   });
 
   afterEach(() => {
@@ -317,8 +319,13 @@ describe("Jira API", () => {
         axios.defaults.adapter = adapter;
 
         const result = await getJiraMentions();
-        expect(adapter).toHaveBeenCalledTimes(1);
-        const config = adapter.mock.calls[0][0];
+        const searchCalls = adapter.mock.calls.filter(([c]: any[]) => c.url === "/search/jql");
+        const commentCalls = adapter.mock.calls.filter(([c]: any[]) =>
+          String(c.url).includes("/comment"),
+        );
+        expect(searchCalls).toHaveLength(1);
+        expect(commentCalls).toHaveLength(0);
+        const config = searchCalls[0][0];
         const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
         expect(data.fields).toEqual(["summary", "comment"]);
         expect(result.comments).toEqual([
@@ -376,6 +383,80 @@ describe("Jira API", () => {
     });
   });
 
+  describe("getJiraMentions account mentions", () => {
+    it("keeps comments with a mention node for the current user's account id", async () => {
+      const comment = (id: string, content: any[]) => ({
+        id,
+        author: { displayName: "Alice", avatarUrls: {} },
+        body: { type: "doc", content: [{ type: "paragraph", content }] },
+        created: "2026-09-01T12:00:00Z",
+        updated: "2026-09-02T12:00:00Z",
+      });
+      axios.defaults.adapter = vi.fn(async (config: any) => {
+        const ok = (data: any) => ({ data, status: 200, statusText: "OK", headers: {}, config });
+        if (config.url === "/user/search") {
+          return ok([
+            { accountId: "acc-me", displayName: "Zed Q", emailAddress: "test@example.com" },
+          ]);
+        }
+        return ok({
+          issues: [
+            {
+              key: "TEST-1",
+              fields: {
+                summary: "Issue 1",
+                comment: {
+                  total: 2,
+                  comments: [
+                    comment("1", [
+                      { type: "mention", attrs: { id: "acc-me", text: "@Zed Q" } },
+                      { type: "text", text: " please look" },
+                    ]),
+                    comment("2", [{ type: "mention", attrs: { id: "acc-other", text: "@Bob" } }]),
+                  ],
+                },
+              },
+            },
+          ],
+        });
+      });
+
+      const result = await getJiraMentions();
+      expect(result.comments.map((c) => c.id)).toEqual(["1"]);
+      expect(result.comments[0].body.text).toBe("@Zed Q please look");
+    });
+  });
+
+  describe("postIssuesBulk bad keys", () => {
+    it("drops keys Jira rejects and retries once", async () => {
+      const adapter = vi.fn(async (config: any) => {
+        const data = JSON.parse(config.data);
+        if (data.jql.includes("SHA-256")) {
+          throw {
+            response: {
+              status: 400,
+              data: {
+                errorMessages: ["An issue with key 'SHA-256' does not exist for field 'key'."],
+              },
+            },
+          };
+        }
+        return {
+          data: { issues: [{ key: "A-1", fields: { summary: "A" } }] },
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+        };
+      });
+      axios.defaults.adapter = adapter;
+
+      const result = await postIssuesBulk({ keys: ["A-1", "SHA-256"] });
+      expect(result.issues.map((i) => i.key)).toEqual(["A-1"]);
+      expect(adapter).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("postJqlSearch", () => {
     it("rejects ApiError 400 when jql is empty or whitespace", async () => {
       await expect(postJqlSearch({ jql: "  " })).rejects.toThrow(ApiError);
@@ -403,7 +484,6 @@ describe("Jira API", () => {
 
       const result = await postJqlSearch({ jql: "project = TEST", nextPageToken: "prev" });
       expect(result.issues).toHaveLength(1);
-      expect(result.total).toBe(100);
       expect(result.nextPageToken).toBe("token123");
 
       const calls = (axios.defaults.adapter as any).mock.calls;

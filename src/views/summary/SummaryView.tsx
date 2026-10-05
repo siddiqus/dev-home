@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Card from "react-bootstrap/Card";
 import Spinner from "react-bootstrap/Spinner";
 import Button from "react-bootstrap/Button";
@@ -19,7 +19,7 @@ import { JiraIssue, JiraComment, GitHubPR, GitHubComment, Note } from "../../typ
 import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
 import { REASON_SUMMARY } from "../../utils/github";
 import { formatRelativeTime, parseTimestamp } from "../../utils/time";
-import { fetchIssuesByKeys } from "../../services/jira";
+import { useIssueDescription } from "../../hooks/useIssueDescription";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { SummaryItem } from "./SummaryItem";
 import { EmptyState } from "../../components/EmptyState";
@@ -144,43 +144,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
 
-  // The assigned-issues list omits the (heavy) description, so lazy-load it via
-  // the bulk endpoint when an issue's modal opens. Cache per key so reopening
-  // the same issue doesn't refetch.
-  const [descCache, setDescCache] = useState<Record<string, string>>({});
-  const [descLoading, setDescLoading] = useState(false);
-  const requestedKeys = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!selectedIssue) return;
-    if (selectedIssue.description) return;
-    const key = selectedIssue.key;
-    if (key in descCache || requestedKeys.current.has(key)) return;
-
-    requestedKeys.current.add(key);
-    setDescLoading(true);
-    let cancelled = false;
-    fetchIssuesByKeys([key])
-      .then((issues) => {
-        if (cancelled) return;
-        setDescCache((prev) => ({ ...prev, [key]: issues[0]?.description || "" }));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setDescCache((prev) => ({ ...prev, [key]: "" }));
-      })
-      .finally(() => {
-        if (!cancelled) setDescLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedIssue, descCache]);
-
-  const selectedIssueDescription = selectedIssue
-    ? selectedIssue.description || descCache[selectedIssue.key] || ""
-    : "";
-  const selectedIssueDescLoading = descLoading && !selectedIssueDescription;
+  // Lists omit the description; lazy-load it (cached) when the modal opens.
+  const { description: selectedIssueDescription, loading: selectedIssueDescLoading } =
+    useIssueDescription(selectedIssue);
 
   if (loading && jiraIssues.length === 0 && openPRs.length === 0) {
     return (

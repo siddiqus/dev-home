@@ -88,7 +88,8 @@ export function adfToMarkdown(node: any): string {
       return "\n";
 
     case "mention":
-      return `@${node.attrs?.text || node.attrs?.id || ""}`;
+      // attrs.text already carries the "@" (e.g. "@Jane Doe").
+      return `@${String(node.attrs?.text || node.attrs?.id || "").replace(/^@/, "")}`;
 
     case "inlineCard":
       return node.attrs?.url || "";

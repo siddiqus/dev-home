@@ -63,7 +63,7 @@ export async function fetchRemoteJiraFilters(): Promise<RemoteJiraFilter[]> {
 export async function searchJql(
   jql: string,
   nextPageToken?: string | null,
-): Promise<{ issues: JiraIssue[]; total: number; nextPageToken: string | null }> {
+): Promise<{ issues: JiraIssue[]; nextPageToken: string | null }> {
   const result = await postJqlSearch({ jql, nextPageToken: nextPageToken ?? null });
-  return { issues: result.issues, total: result.total, nextPageToken: result.nextPageToken };
+  return { issues: result.issues, nextPageToken: result.nextPageToken };
 }
