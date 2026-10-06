@@ -6,6 +6,8 @@ import {
   isoToDatetimeLocal,
   datetimeLocalToIso,
   parseTimestamp,
+  formatDuration,
+  checkRunDuration,
 } from "./time";
 
 describe("parseTimestamp", () => {
@@ -129,5 +131,42 @@ describe("tomorrow9amIso", () => {
     expect(result.getFullYear()).toBe(expected.getFullYear());
     expect(result.getMonth()).toBe(expected.getMonth());
     expect(result.getDate()).toBe(expected.getDate());
+  });
+});
+
+describe("formatDuration", () => {
+  it("formats seconds, minutes and hours compactly", () => {
+    expect(formatDuration(45_000)).toBe("45s");
+    expect(formatDuration(192_000)).toBe("3m 12s");
+    expect(formatDuration(180_000)).toBe("3m");
+    expect(formatDuration(3_900_000)).toBe("1h 5m");
+    expect(formatDuration(3_600_000)).toBe("1h");
+  });
+
+  it("returns empty for invalid input", () => {
+    expect(formatDuration(-1)).toBe("");
+    expect(formatDuration(NaN)).toBe("");
+  });
+});
+
+describe("checkRunDuration", () => {
+  it("uses started→completed for finished runs", () => {
+    expect(checkRunDuration("2026-10-06T10:00:00Z", "2026-10-06T10:04:30Z")).toEqual({
+      label: "4m 30s",
+      running: false,
+    });
+  });
+
+  it("reports elapsed time for in-progress runs", () => {
+    const now = new Date("2026-10-06T10:01:00Z").getTime();
+    expect(checkRunDuration("2026-10-06T10:00:00Z", null, now)).toEqual({
+      label: "1m",
+      running: true,
+    });
+  });
+
+  it("returns null when the run hasn't started", () => {
+    expect(checkRunDuration(null, null)).toBeNull();
+    expect(checkRunDuration("garbage", null)).toBeNull();
   });
 });

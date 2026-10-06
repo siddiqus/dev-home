@@ -71,6 +71,38 @@ export function formatRelativeTime(dateString: string): string {
 }
 
 /**
+ * Formats an elapsed duration compactly: "45s", "3m 12s", "1h 5m".
+ * Returns "" for negative/invalid input.
+ */
+export function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const totalSeconds = Math.round(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  return `${seconds}s`;
+}
+
+/**
+ * Run time of a CI check. Finished runs report started→completed; runs still in
+ * progress report time elapsed so far (running: true). Null when not started.
+ */
+export function checkRunDuration(
+  startedAt?: string | null,
+  completedAt?: string | null,
+  now: number = Date.now(),
+): { label: string; running: boolean } | null {
+  if (!startedAt) return null;
+  const start = new Date(startedAt).getTime();
+  if (Number.isNaN(start)) return null;
+  const end = completedAt ? new Date(completedAt).getTime() : now;
+  const label = formatDuration(end - start);
+  return label ? { label, running: !completedAt } : null;
+}
+
+/**
  * Formats a date string as an absolute short date, e.g. "Jul 2, 2026".
  * Returns "" for empty/invalid input so callers can skip rendering.
  */

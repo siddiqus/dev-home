@@ -11,7 +11,7 @@ import { CheckRunInfo } from "../types";
 import type { GitHubPR } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { PrNotesPanel } from "./PrNotesPanel";
-import { formatRelativeTime } from "../utils/time";
+import { checkRunDuration, formatRelativeTime } from "../utils/time";
 import { extractTicketKey, sourceFromPR } from "../utils/tickets";
 import { categorizeOpenPR } from "../utils/prCategories";
 import {
@@ -55,6 +55,7 @@ function CheckRunRow({ check }: { check: CheckRunInfo }) {
   const Icon = config?.icon;
   const color = config?.color || "#8b949e";
   const label = config?.title || check.status;
+  const duration = checkRunDuration(check.started_at, check.completed_at);
 
   return (
     <div className="check-run-row">
@@ -65,6 +66,14 @@ function CheckRunRow({ check }: { check: CheckRunInfo }) {
       >
         {check.name}
       </span>
+      {duration && (
+        <span
+          className="text-secondary-custom check-run-duration"
+          title={duration.running ? "Running for" : "Run time"}
+        >
+          {duration.running ? `${duration.label}…` : duration.label}
+        </span>
+      )}
       <span className="text-secondary-custom" style={{ fontSize: "0.75rem", flexShrink: 0 }}>
         {label}
       </span>

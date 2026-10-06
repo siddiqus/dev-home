@@ -19,12 +19,14 @@ export function hoursAgo(hours: number): string {
  * Map a statusCheckRollup context node to a normalized check run shape.
  */
 export function mapCheckContext(ctx: any) {
-  // CheckRun nodes have `name`, `conclusion`, `status`, `detailsUrl`
+  // CheckRun nodes have `name`, `conclusion`, `status`, `detailsUrl`, timestamps
   if (ctx.name !== undefined) {
     return {
       name: ctx.name,
       status: (ctx.conclusion || ctx.status || "PENDING").toUpperCase(),
       url: ctx.detailsUrl || null,
+      started_at: ctx.startedAt || null,
+      completed_at: ctx.completedAt || null,
     };
   }
   // StatusContext nodes have `context`, `state`, `targetUrl`

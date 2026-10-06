@@ -71,6 +71,9 @@ export interface CheckRunInfo {
   name: string;
   status: string;
   url: string | null;
+  /** ISO timestamps from GitHub CheckRuns; absent for legacy StatusContexts. */
+  started_at?: string | null;
+  completed_at?: string | null;
 }
 
 export interface GitHubLabel {
