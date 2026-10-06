@@ -9,6 +9,7 @@ import { GitHubPR, GitHubLabel } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
 import "./prIndicators.css";
 import { jiraBrowseUrl } from "../utils/tickets";
+import { ticketClickHandler, useOptionalJiraDrawer } from "../context/JiraDrawerContext";
 
 /**
  * Shared presentational pieces for a PR's labels and status indicators, used by
@@ -100,7 +101,8 @@ export function PRStateIcon({ pr, size = 20 }: { pr: GitHubPR; size?: number }) 
   );
 }
 
-/** Anchor to a Jira ticket, or a plain span when there's no Jira base URL. */
+/** Anchor to a Jira ticket (opens the shared drawer on click), or a plain span
+    when there's no Jira base URL. */
 function TicketAnchor({
   ticket,
   jiraBaseUrl,
@@ -110,6 +112,7 @@ function TicketAnchor({
   jiraBaseUrl?: string;
   children: React.ReactNode;
 }) {
+  const openIssue = useOptionalJiraDrawer();
   if (!jiraBaseUrl) return <span className="pr-card-ticket">{children}</span>;
   return (
     <a
@@ -117,7 +120,7 @@ function TicketAnchor({
       href={jiraBrowseUrl(jiraBaseUrl, ticket)}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={ticketClickHandler(openIssue, ticket)}
     >
       {children}
     </a>

@@ -81,3 +81,8 @@
   margin-bottom: 8px;
   color: var(--color-text-secondary);
 }
+
+/* Ticket links inside the PR modal open this drawer, so it must sit above it. */
+.jira-issue-drawer.offcanvas {
+  z-index: 1060;
+}

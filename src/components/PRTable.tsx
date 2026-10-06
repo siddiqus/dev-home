@@ -28,6 +28,7 @@ import { useOptionalNotes } from "../context/NotesContext";
 import { normalizeNoteRef, prNoteKey } from "../utils/prNotes";
 import "./PRTable.css";
 import { jiraBrowseUrl } from "../utils/tickets";
+import { ticketClickHandler, useOptionalJiraDrawer } from "../context/JiraDrawerContext";
 import { Toast, useToast } from "./Toast";
 
 type PRTableVariant =
@@ -136,9 +137,10 @@ const EMPTY_STATE: Record<
   },
 };
 
-/** Ticket key rendered as a Jira link (or a plain chip when no Jira base URL).
-    Used on cluster headers, where the key labels the whole group. */
+/** Ticket key that opens the shared Jira drawer (or a plain chip when no Jira
+    base URL). Used on cluster headers, where the key labels the whole group. */
 function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: string }) {
+  const openIssue = useOptionalJiraDrawer();
   if (!jiraBaseUrl) return <span className="ticket-chip">{ticket}</span>;
   return (
     <a
@@ -146,7 +148,7 @@ function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: str
       href={jiraBrowseUrl(jiraBaseUrl, ticket)}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={ticketClickHandler(openIssue, ticket)}
     >
       {ticket}
     </a>

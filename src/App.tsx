@@ -31,7 +31,7 @@ import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useReminderScheduler } from "./hooks/useReminderScheduler";
 import { useFocus } from "./hooks/useFocus";
-import { NotesProvider } from "./context/NotesContext";
+import { AppProviders } from "./context/AppProviders";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
@@ -374,7 +374,7 @@ export default function App() {
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   return (
-    <NotesProvider value={notesApi}>
+    <AppProviders notesApi={notesApi} jiraBaseUrl={jiraBaseUrl}>
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container
@@ -739,6 +739,6 @@ export default function App() {
 
       {/* Service worker is registered in production builds only. */}
       {import.meta.env.PROD && <UpdateToast />}
-    </NotesProvider>
+    </AppProviders>
   );
 }
