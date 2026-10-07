@@ -4,8 +4,6 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import ReactMarkdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
 import { IconExternalLink } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
 import type { GitHubPR } from "../types";
@@ -23,6 +21,7 @@ import {
   StatusPill,
   renderTitleContent,
 } from "./prIndicators";
+import { Markdown } from "./Markdown";
 import "./DescriptionModal.css";
 
 const CHECK_SORT_ORDER: Record<string, number> = {
@@ -44,10 +43,10 @@ const CHECK_SORT_ORDER: Record<string, number> = {
 
 function columnWidths(hasChecks: boolean, hasNotes: boolean) {
   if (!hasNotes) {
-    return { desc: hasChecks ? 6 : 12, checks: 6, notes: 0 };
+    return { desc: hasChecks ? 8 : 12, checks: 4, notes: 0 };
   }
   if (!hasChecks) return { desc: 8, checks: 0, notes: 4 };
-  return { desc: 5, checks: 4, notes: 3 };
+  return { desc: 6, checks: 3, notes: 3 };
 }
 
 function CheckRunRow({ check }: { check: CheckRunInfo }) {
@@ -272,9 +271,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                 <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
               </div>
             ) : description ? (
-              <div className="markdown-body">
-                <ReactMarkdown remarkPlugins={[remarkBreaks]}>{description}</ReactMarkdown>
-              </div>
+              <Markdown>{description}</Markdown>
             ) : (
               <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>
                 No description provided.

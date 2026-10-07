@@ -1,14 +1,13 @@
 import React, { useEffect } from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
 import Spinner from "react-bootstrap/Spinner";
-import ReactMarkdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
 import { IconExternalLink, IconGitPullRequest } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
 import { useIssueDescription } from "../hooks/useIssueDescription";
 import { Avatar } from "./primitives/Avatar";
 import { staleTone } from "../views/teams/cockpit/staleTone";
+import { Markdown } from "./Markdown";
 import "./JiraIssueDrawer.css";
 import { jiraBrowseUrl } from "../utils/tickets";
 import { prNoteKey } from "../utils/prNotes";
@@ -98,9 +97,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
               <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
             </div>
           ) : description ? (
-            <div className="markdown-body">
-              <ReactMarkdown remarkPlugins={[remarkBreaks]}>{description}</ReactMarkdown>
-            </div>
+            <Markdown>{description}</Markdown>
           ) : (
             <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>
               No description provided.

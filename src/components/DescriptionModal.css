@@ -311,9 +311,17 @@
 }
 
 .markdown-body table {
+  /* GitHub-style: shrink to content, scroll horizontally when too wide. */
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
   border-collapse: collapse;
-  width: 100%;
   margin-bottom: 0.75em;
+}
+
+.markdown-body tbody tr:nth-child(2n) {
+  background-color: var(--color-bg-app);
 }
 
 .markdown-body th,
@@ -331,4 +339,40 @@
 .markdown-body img {
   max-width: 100%;
   border-radius: var(--radius-md);
+}
+
+.markdown-body del {
+  color: var(--color-text-secondary);
+}
+
+/* GFM task lists */
+.markdown-body .contains-task-list {
+  list-style: none;
+  padding-left: 0.25em;
+}
+
+.markdown-body .contains-task-list .contains-task-list {
+  padding-left: 1.5em;
+}
+
+.markdown-body .task-list-item input[type="checkbox"] {
+  margin: 0 0.4em 0.2em 0;
+  vertical-align: middle;
+}
+
+.markdown-body details {
+  margin-bottom: 0.75em;
+}
+
+.markdown-body summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
 }
