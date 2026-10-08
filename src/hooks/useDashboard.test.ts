@@ -42,7 +42,7 @@ beforeEach(() => {
     .mockImplementation(async (keys: string[]) => keys.map(issue));
   vi.mocked(fetchOpenPRs)
     .mockReset()
-    .mockResolvedValue({ prs: [pr(1, "AA-1 mine"), pr(2, "BB-2 other")], prComments: [] });
+    .mockResolvedValue([pr(1, "AA-1 mine"), pr(2, "BB-2 other")]);
   vi.mocked(fetchReviewRequests)
     .mockReset()
     .mockResolvedValue({ reviews: [pr(3, "CC-3 review")], reviewing: [] });
@@ -95,7 +95,7 @@ describe("useDashboard lifecycle", () => {
     act(() => saveSettings({ ...loadSettings(), hiddenTabs: ["notes"] }));
     expect(fetchOpenPRs).toHaveBeenCalledTimes(1);
 
-    vi.mocked(fetchOpenPRs).mockResolvedValue({ prs: [pr(9, "other user")], prComments: [] });
+    vi.mocked(fetchOpenPRs).mockResolvedValue([pr(9, "other user")]);
     act(() => saveSettings({ ...loadSettings(), githubUsername: "someone-else" }));
     expect(result.current.openPRs).toEqual([]);
     await waitFor(() => expect(result.current.openPRs.map((p) => p.number)).toEqual([9]));

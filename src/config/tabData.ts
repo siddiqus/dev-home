@@ -51,10 +51,8 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
   board: ["openPRs", "reviewRequests", "notes", "kanban"],
   prs: ["openPRs", "jiraIssues"],
   reviews: ["reviewRequests", "jiraIssues"],
-  // githubMentions is derived by merging notification mentions with PR comments
-  // (from openPRs) and filtering out review-request dupes (needs reviewRequests),
-  // so this tab must load all three for the Comments list to populate.
-  "github-mentions": ["githubMentions", "openPRs", "reviewRequests"],
+  // githubMentions drops review-request dupes, so it needs reviewRequests too.
+  "github-mentions": ["githubMentions", "reviewRequests"],
   jira: ["jiraIssues"],
   "jira-mentions": ["jiraComments"],
   notes: ["notes"],
@@ -77,8 +75,7 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
 export const PAGE_REFRESH: Record<string, { sources: DataSource[]; label: string }> = {
   prs: { sources: ["openPRs"], label: "Refresh my PRs" },
   reviews: { sources: ["reviewRequests"], label: "Refresh reviews" },
-  // PR comments come from openPRs, merged with notification mentions.
-  "github-mentions": { sources: ["githubMentions", "openPRs"], label: "Refresh comments" },
+  "github-mentions": { sources: ["githubMentions"], label: "Refresh comments" },
   jira: { sources: ["jiraIssues"], label: "Refresh my issues" },
   "jira-mentions": { sources: ["jiraComments"], label: "Refresh mentions" },
   notes: { sources: ["notes"], label: "Refresh notes" },

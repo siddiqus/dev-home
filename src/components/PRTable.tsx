@@ -30,6 +30,7 @@ import "./PRTable.css";
 import { jiraBrowseUrl } from "../utils/tickets";
 import { ticketClickHandler, useOptionalJiraDrawer } from "../context/JiraDrawerContext";
 import { Toast, useToast } from "./Toast";
+import { usePRBody } from "../hooks/usePRBody";
 
 type PRTableVariant =
   | "my-prs"
@@ -155,6 +156,9 @@ function TicketChip({ ticket, jiraBaseUrl }: { ticket: string; jiraBaseUrl?: str
   );
 }
 
+/** Stable default so the ticketTitles memo isn't invalidated every render. */
+const NO_ISSUES: JiraIssue[] = [];
+
 export interface PRTableHandle {
   hasGroups: boolean;
   allCollapsed: boolean;
@@ -165,7 +169,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   {
     prs,
     loading,
-    jiraIssues = [],
+    jiraIssues = NO_ISSUES,
     jiraBaseUrl = "",
     variant,
     onCollapseStateChange,
@@ -179,6 +183,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   ref,
 ) {
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+  const selectedBody = usePRBody(selectedPR);
   // Transient "copied to clipboard" confirmation.
   const copyToast = useToast();
   const showCopyToast = copyToast.show;
@@ -233,7 +238,10 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
   const fields = VARIANT_FIELDS[variant];
 
-  const ticketTitles = new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary]));
+  const ticketTitles = useMemo(
+    () => new Map(jiraIssues.map((issue) => [issue.key.toUpperCase(), issue.summary])),
+    [jiraIssues],
+  );
 
   const notesCtx = useOptionalNotes();
   const notes = notesCtx?.notes ?? [];
@@ -265,10 +273,11 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     });
   };
 
-  const groups = groupByTicket(prs);
-  const groupTickets = groups
-    .filter((g) => g.ticket !== null && g.prs.length > 1)
-    .map((g) => g.ticket!);
+  const groups = useMemo(() => groupByTicket(prs), [prs]);
+  const groupTickets = useMemo(
+    () => groups.filter((g) => g.ticket !== null && g.prs.length > 1).map((g) => g.ticket!),
+    [groups],
+  );
   const hasGroups = groupTickets.length > 0;
   const allCollapsed = hasGroups && groupTickets.every((t) => collapsed.has(t));
 
@@ -387,7 +396,8 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
         onHide={() => setSelectedPR(null)}
         title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
         subtitle={`${selectedPR?.user.login} · ${selectedPR?.repo_full_name} · ${selectedPR?.head.ref} · ${formatRelativeTime(selectedPR?.created_at || "")}`}
-        description={selectedPR?.body || ""}
+        description={selectedBody.body}
+        loading={selectedBody.loading}
         url={selectedPR?.html_url}
         jiraBaseUrl={jiraBaseUrl}
         checks={selectedPR?.checks}

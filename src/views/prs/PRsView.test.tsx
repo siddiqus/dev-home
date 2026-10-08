@@ -1,7 +1,13 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { PRsView } from "./PRsView";
+import { fetchRecentlyMergedPRs } from "../../services/github";
 import type { GitHubPR, JiraIssue } from "../../types";
+
+vi.mock("../../services/github", async (orig) => ({
+  ...(await orig<typeof import("../../services/github")>()),
+  fetchRecentlyMergedPRs: vi.fn(async () => []),
+}));
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -218,5 +224,27 @@ describe("PRsView sidebar filters", () => {
     fireEvent.click(screen.getByText("All repos"));
     expect(optionCount("embeddable-dam")).toBe("0");
     expect(optionRow("embeddable-dam").classList.contains("multi-select-item--empty")).toBe(true);
+  });
+});
+
+describe("PRsView recently merged", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(fetchRecentlyMergedPRs).mockClear();
+  });
+
+  it("doesn't fetch merged PRs until the Recently Merged sub-tab is opened", async () => {
+    vi.mocked(fetchRecentlyMergedPRs).mockResolvedValue([
+      makePR({ merged_at: "2026-07-02T00:00:00Z" }),
+    ]);
+    render(<PRsView openPRs={[]} loading={false} configured={true} />);
+    expect(fetchRecentlyMergedPRs).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Recently Merged" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Recently Merged" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Recently Merged (1)" })).toBeInTheDocument(),
+    );
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledTimes(1);
   });
 });

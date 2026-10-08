@@ -18,7 +18,11 @@ export const PR_CHECKS_ROLLUP = `statusCheckRollup {
   }
 }`;
 
-/** Fields every PR query selects; mapGraphQLPr reads these for the base shape. */
+/**
+ * Fields every PR query selects; mapGraphQLPr reads these for the base shape.
+ * Omits the markdown `body`: lists don't render it, so it's fetched on demand
+ * (PR_BODY_QUERY) when a description modal opens.
+ */
 const PR_BASE_FIELDS = `databaseId
   number
   title
@@ -28,7 +32,6 @@ const PR_BASE_FIELDS = `databaseId
   createdAt
   updatedAt
   author { login avatarUrl }
-  body
   headRefName
   baseRefName
   additions
@@ -89,8 +92,10 @@ export const REVIEWS_QUERY = `
 `;
 
 /**
- * Extended query for user's own PRs. Adds review state and recent comments
- * so we can show approval status and surface comments without extra REST calls.
+ * Query for the user's own open PRs. Comment/thread selections are limited to
+ * what mapGraphQLPr reads (timestamps + authors for "your turn", isResolved for
+ * the unresolved count); comment bodies are fetched separately by
+ * OWN_PR_COMMENTS_QUERY for the Mentions view, keeping this list query light.
  */
 export const SEARCH_MY_PRS_QUERY = `
   query SearchMyPRs($query: String!, $first: Int!) {
@@ -106,6 +111,42 @@ export const SEARCH_MY_PRS_QUERY = `
               author { login }
             }
           }
+          comments(last: 20) {
+            nodes {
+              createdAt
+              author { login }
+            }
+          }
+          reviewThreads(last: 50) {
+            nodes {
+              isResolved
+              comments(last: 3) {
+                nodes {
+                  createdAt
+                  author { login }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Recent comments (issue + review-thread) on the user's own open PRs, with
+ * bodies, for merging into GitHub mentions (see extractOwnPRComments).
+ */
+export const OWN_PR_COMMENTS_QUERY = `
+  query OwnPRComments($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
+      nodes {
+        ... on PullRequest {
+          number
+          title
+          state
+          repository { nameWithOwner }
           comments(last: 50) {
             nodes {
               databaseId
@@ -118,7 +159,6 @@ export const SEARCH_MY_PRS_QUERY = `
           }
           reviewThreads(last: 50) {
             nodes {
-              isResolved
               comments(last: 10) {
                 nodes {
                   databaseId
@@ -185,10 +225,22 @@ export const SINGLE_PR_QUERY = `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         ${PR_BASE_FIELDS}
+        body
         ${PR_STATUS_FIELDS}
         reviews(last: 20) {
           nodes { state author { login } }
         }
+      }
+    }
+  }
+`;
+
+/** Just a PR's markdown description, lazy-loaded when its modal opens. */
+export const PR_BODY_QUERY = `
+  query PRBody($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        body
       }
     }
   }

@@ -8,7 +8,7 @@ import {
   loadSettings,
   SETTINGS_EVENT,
 } from "../services/config";
-import { extractTicketKey, sourceFromPR } from "../utils/tickets";
+import { ticketKeyOf } from "../utils/tickets";
 import { DataSource, isRemoteSource } from "../config/tabData";
 import { prNoteKey } from "../utils/prNotes";
 
@@ -171,9 +171,8 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   // request the same issues twice.
   const enrichingRef = useRef<Set<string>>(new Set());
 
-  // PR comments and notification mentions arrive independently; retained here so
-  // the mention dedup can merge them once notification mentions are present.
-  const prCommentsRef = useRef<GitHubComment[]>([]);
+  // Mentions (notifications + comments on the user's PRs), retained so the dedup
+  // can re-run as review requests arrive.
   const notificationMentionsRef = useRef<GitHubComment[] | null>(null);
 
   // Per-source error strings, aggregated into the `error` output. A source's
@@ -229,7 +228,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       const assignedKeys = new Set(data.assignedJiraIssues.map((i) => i.key.toUpperCase()));
       const referenced = new Set<string>();
       for (const pr of [...data.openPRs, ...data.reviewRequests, ...data.reviewingPRs]) {
-        const key = extractTicketKey(sourceFromPR(pr));
+        const key = ticketKeyOf(pr);
         if (key && !assignedKeys.has(key.toUpperCase())) referenced.add(key.toUpperCase());
       }
 
@@ -269,15 +268,14 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     [persistCache, publishJiraIssues],
   );
 
-  // Merge notification mentions with PR comments, drop review_requested
-  // notifications for PRs already listed as review requests, and dedupe by
-  // comment ID. Runs once notification mentions are in; PR comments and review
-  // requests fill in (or re-run the merge) as they arrive.
+  // Drop review_requested notifications for PRs already listed as review
+  // requests, and dedupe by comment ID. Runs once mentions are in; review
+  // requests re-run it as they arrive.
   const deduplicateMentions = useCallback(() => {
     if (notificationMentionsRef.current === null) return;
 
     const reviews = dataRef.current.reviewRequests;
-    const merged = [...notificationMentionsRef.current, ...prCommentsRef.current];
+    const merged = notificationMentionsRef.current;
     const reviewPRKeys = new Set(reviews.map(prNoteKey));
     const seen = new Set<number | string>();
     const filtered = merged.filter((m) => {
@@ -344,17 +342,14 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   fetchers.current.openPRs = async (signal) => {
     setOpenPRsLoading(true);
     try {
-      const { prs, prComments } = await fetchOpenPRs(signal);
+      const prs = await fetchOpenPRs(signal);
       if (signal.aborted) return;
       setOpenPRs(prs);
       dataRef.current.openPRs = prs;
-      // Store PR comments; merged with notification mentions in deduplicateMentions.
-      prCommentsRef.current = prComments;
       markLoaded("openPRs");
       setSourceError("openPRs", null);
       persistCache();
       enrichJiraIssues();
-      deduplicateMentions();
     } catch (err) {
       if (signal.aborted) return;
       setSourceError("openPRs", `GitHub PRs: ${errMsg(err)}`);
@@ -390,7 +385,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     try {
       const data = await fetchMentions(signal);
       if (signal.aborted) return;
-      // Store notification mentions; merged with PR comments in deduplicateMentions.
+      // Store raw mentions; review-request dupes are dropped in deduplicateMentions.
       notificationMentionsRef.current = data;
       markLoaded("githubMentions");
       setSourceError("githubMentions", null);
@@ -512,7 +507,6 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       lastFetchedRef.current.clear();
       enrichingRef.current.clear();
       errorsRef.current.clear();
-      prCommentsRef.current = [];
       notificationMentionsRef.current = null;
       dataRef.current = { ...EMPTY_DATA };
       try {

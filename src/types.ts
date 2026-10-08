@@ -101,7 +101,9 @@ export interface GitHubPR {
   base: {
     ref: string;
   };
-  body: string;
+  /** Markdown description. Undefined when the source query didn't fetch it
+      (list queries don't) — usePRBody lazy-loads it for modals. */
+  body?: string;
   /** Lines added across the PR diff (GraphQL `additions`). Null when unavailable. */
   additions?: number | null;
   /** Lines removed across the PR diff (GraphQL `deletions`). Null when unavailable. */

@@ -17,6 +17,7 @@ import { IconFilter } from "@tabler/icons-react";
 import { KanbanTile, KanbanColumnId } from "../../types";
 import { KANBAN_COLUMNS } from "../../hooks/useKanban";
 import { DescriptionModal } from "../../components/DescriptionModal";
+import { usePRBody } from "../../hooks/usePRBody";
 import { SearchableDropdown, DropdownItem } from "../../components/SearchableDropdown";
 import { getReferenceUrl } from "../../utils/text";
 import { KanbanCard } from "./KanbanCard";
@@ -234,6 +235,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   // Build modal data from selected tile
   const jiraBase = jiraBaseUrl?.replace(/\/+$/, "") || "";
 
+  // PR/review tiles lazy-load their description (list queries omit the body).
+  const modalPR =
+    selectedTile?.kanbanItem.item_type === "pr"
+      ? selectedTile.pr
+      : selectedTile?.kanbanItem.item_type === "review"
+        ? selectedTile.review
+        : null;
+  const modalPRBody = usePRBody(modalPR);
+
   const modalData = useMemo(() => {
     if (!selectedTile) return null;
     const { kanbanItem, pr, review, note } = selectedTile;
@@ -242,7 +252,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       return {
         title: `#${pr.number} ${pr.title}`,
         subtitle: pr.repo_full_name,
-        description: pr.body || "",
+        description: "",
         url: pr.html_url,
         checks: pr.checks,
       };
@@ -252,7 +262,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       return {
         title: `#${review.number} ${review.title}`,
         subtitle: `${review.repo_full_name} · ${review.user.login}`,
-        description: review.body || "",
+        description: "",
         url: review.html_url,
         checks: review.checks,
       };
@@ -332,10 +342,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onHide={() => setSelectedTile(null)}
         title={modalData?.title || ""}
         subtitle={modalData?.subtitle}
-        description={modalData?.description || ""}
+        description={modalPR ? modalPRBody.body : modalData?.description || ""}
+        loading={modalPRBody.loading}
         url={modalData?.url}
         checks={modalData?.checks}
-        pr={(selectedTile?.pr || selectedTile?.review) ?? undefined}
+        pr={modalPR ?? undefined}
       />
     </>
   );

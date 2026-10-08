@@ -221,4 +221,55 @@ describe("required contexts cache", () => {
     await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(protectionCalls()).toBe(2);
   });
+
+  const PERSIST_KEY = "dev-home-required-contexts";
+  const KEY = "test-org/app@main";
+
+  function persisted(owner: string, names: string[] | null, at: number) {
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ owner, entries: { [KEY]: { names, at } } }));
+  }
+
+  it("persists the fetched answer to localStorage", async () => {
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    const stored = JSON.parse(localStorage.getItem(PERSIST_KEY)!);
+    expect(stored.owner).toBe("testuser");
+    expect(stored.entries[KEY].names).toEqual(["ci"]);
+  });
+
+  it("serves a fresh persisted answer without a network call", async () => {
+    persisted("testuser", ["ci"], Date.now());
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(0);
+  });
+
+  it("ignores entries persisted for another GitHub user", async () => {
+    persisted("someone-else", ["ci"], Date.now());
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(1);
+  });
+
+  it("answers from a stale persisted entry and refreshes it in the background", async () => {
+    const at = Date.now() - 60 * 60 * 1000;
+    persisted("testuser", ["old"], at);
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(1);
+    await vi.waitFor(() =>
+      expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!).entries[KEY].at).toBeGreaterThan(at),
+    );
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!).entries[KEY].names).toEqual(["ci"]);
+  });
+
+  it("does not persist transient failures", async () => {
+    adapter.mockImplementation(async (config: any) => {
+      if (!String(config.url).endsWith("/graphql")) {
+        const err: any = new Error("boom");
+        err.response = { status: 500, data: {} };
+        err.config = config;
+        throw err;
+      }
+      return ok(config, { data: { repository: { pullRequest: prNode(7) } } });
+    });
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(localStorage.getItem(PERSIST_KEY)).toBeNull();
+  });
 });

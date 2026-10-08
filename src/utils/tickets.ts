@@ -11,6 +11,23 @@ export function sourceFromPR(pr: GitHubPR): TicketSource {
 // Re-export extractTicketKey so other modules can import it from here
 export { extractTicketKey };
 
+/**
+ * Per-object cache for ticketKeyOf. PR objects are never mutated after mapping
+ * (refetches produce new objects), so keying by identity is safe and the parse
+ * — which may regex the whole body — runs once per PR instead of per render.
+ */
+const ticketKeyCache = new WeakMap<GitHubPR, string | null>();
+
+/** The Jira ticket key a PR references (title, then branch, then body), or null. */
+export function ticketKeyOf(pr: GitHubPR): string | null {
+  let key = ticketKeyCache.get(pr);
+  if (key === undefined) {
+    key = extractTicketKey(sourceFromPR(pr));
+    ticketKeyCache.set(pr, key);
+  }
+  return key;
+}
+
 /** Link to a Jira issue, or undefined when no Jira site is configured. */
 export function jiraBrowseUrl(baseUrl: string | undefined, key: string): string | undefined {
   const base = baseUrl?.replace(/\/+$/, "");
@@ -32,7 +49,7 @@ export function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: Gi
   const nullTicketPRs: GitHubPR[] = [];
 
   for (const pr of sorted) {
-    const ticket = extractTicketKey(sourceFromPR(pr));
+    const ticket = ticketKeyOf(pr);
     if (ticket === null) {
       nullTicketPRs.push(pr);
     } else {
@@ -56,7 +73,7 @@ export function groupByTicket(prs: GitHubPR[]): { ticket: string | null; prs: Gi
   let nullIdx = 0;
 
   for (const pr of sorted) {
-    const ticket = extractTicketKey(sourceFromPR(pr));
+    const ticket = ticketKeyOf(pr);
     if (ticket === null) {
       // Emit this individual null-ticket PR
       if (nullIdx < nullTicketPRs.length && nullTicketPRs[nullIdx] === pr) {

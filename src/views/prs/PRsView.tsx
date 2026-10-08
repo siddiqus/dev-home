@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { IconFold, IconFoldDown, IconList, IconLayoutRows, IconX } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import { fetchRecentlyMergedPRs } from "../../services/github";
-import { extractTicketKey, sourceFromPR } from "../../utils/tickets";
+import { ticketKeyOf } from "../../utils/tickets";
 import { ACTIONABLE_REASONS } from "../../utils/prCategories";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
 import { PRSections, PRSectionsHandle } from "../../components/PRSections";
@@ -82,6 +82,21 @@ export const PRsView: React.FC<PRsViewProps> = ({
 
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
+  // Whether the merged list has been fetched at least once this mount; until
+  // then the sub-tab shows no count rather than a misleading "(0)".
+  const [mergedPRsLoaded, setMergedPRsLoaded] = useState(false);
+
+  // Jira summaries by upper-cased key, built once per jiraIssues change rather
+  // than scanning the issue list per PR inside each filter/facet pass.
+  const ticketSummaries = useMemo(
+    () => new Map((jiraIssues ?? []).map((i) => [i.key.toUpperCase(), i.summary])),
+    [jiraIssues],
+  );
+
+  const handleCollapseStateChange = useCallback(
+    (hasGroups: boolean, allCollapsed: boolean) => setGroupState({ hasGroups, allCollapsed }),
+    [],
+  );
 
   // Per-facet predicates. Each answers "does this PR pass THIS filter?" in
   // isolation, so we can compose them freely: the filtered list ANDs all five,
@@ -97,15 +112,13 @@ export const PRsView: React.FC<PRsViewProps> = ({
       const ref = `${shortRepo}#${pr.number}`.toLowerCase();
       const fullRef = `${pr.repo_full_name}#${pr.number}`.toLowerCase();
       if (ref.includes(q) || fullRef.includes(q)) return true;
-      const ticket = extractTicketKey(sourceFromPR(pr));
+      const ticket = ticketKeyOf(pr);
       if (ticket && ticket.toLowerCase().includes(q)) return true;
-      const ticketTitle = ticket
-        ? jiraIssues?.find((i) => i.key.toUpperCase() === ticket.toUpperCase())?.summary
-        : undefined;
+      const ticketTitle = ticket ? ticketSummaries.get(ticket.toUpperCase()) : undefined;
       if (ticketTitle && ticketTitle.toLowerCase().includes(q)) return true;
       return false;
     },
-    [searchQuery, jiraIssues],
+    [searchQuery, ticketSummaries],
   );
 
   const matchesRepo = useCallback(
@@ -138,7 +151,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
   const matchesTickets = useCallback(
     (pr: GitHubPR) => {
       if (selectedTickets.length === 0) return true;
-      const key = extractTicketKey(sourceFromPR(pr));
+      const key = ticketKeyOf(pr);
       return key ? selectedTickets.includes(key) : false;
     },
     [selectedTickets],
@@ -207,38 +220,43 @@ export const PRsView: React.FC<PRsViewProps> = ({
     );
     const counts = new Map<string, number>();
     for (const pr of base) {
-      const key = extractTicketKey(sourceFromPR(pr));
+      const key = ticketKeyOf(pr);
       if (key) counts.set(key, (counts.get(key) || 0) + 1);
     }
     const keys = new Set<string>();
     for (const pr of openPRs) {
-      const key = extractTicketKey(sourceFromPR(pr));
+      const key = ticketKeyOf(pr);
       if (key) keys.add(key);
     }
     return Array.from(keys)
       .sort((a, b) => a.localeCompare(b))
       .map((key) => {
-        const summary = jiraIssues?.find((i) => i.key.toUpperCase() === key.toUpperCase())?.summary;
+        const summary = ticketSummaries.get(key.toUpperCase());
         return {
           value: key,
           label: summary ? `${key}: ${summary}` : key,
           count: counts.get(key) ?? 0,
         };
       });
-  }, [openPRs, jiraIssues, matchesSearch, matchesRepo, matchesLabels, matchesActionable]);
+  }, [openPRs, ticketSummaries, matchesSearch, matchesRepo, matchesLabels, matchesActionable]);
 
-  // Merged PRs come from a short-lived shared cache; a refreshKey bump
-  // (the top-bar Refresh) bypasses it.
+  // Merged PRs are fetched only once the Recently Merged sub-tab is opened, so
+  // they don't compete with the open-PR load. They come from a short-lived
+  // shared cache; a refreshKey bump (the top-bar Refresh) bypasses it — a bump
+  // while on Open is honored the next time Merged is opened.
+  const showingMerged = subTab === "merged";
   const seenRefreshKey = useRef(refreshKey);
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || !showingMerged) return;
     const force = seenRefreshKey.current !== refreshKey;
     seenRefreshKey.current = refreshKey;
     let cancelled = false;
     setMergedPRsLoading(true);
     fetchRecentlyMergedPRs("user", undefined, undefined, { force })
       .then((data) => {
-        if (!cancelled) setMergedPRs(data);
+        if (cancelled) return;
+        setMergedPRs(data);
+        setMergedPRsLoaded(true);
       })
       .catch((err) => console.error("Failed to fetch recently merged PRs:", err))
       .finally(() => {
@@ -247,7 +265,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [configured, refreshKey]);
+  }, [configured, refreshKey, showingMerged]);
 
   // Open PRs pass every facet at once: search, repo, labels (AND), actionable
   // reasons (OR), and Jira tickets (OR).
@@ -278,7 +296,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
             className={`prs-subtab${subTab === "merged" ? " active" : ""}`}
             onClick={() => handleSubTab("merged")}
           >
-            Recently Merged{(mergedPRs.length > 0 || !mergedPRsLoading) && ` (${mergedPRs.length})`}
+            Recently Merged{mergedPRsLoaded && ` (${mergedPRs.length})`}
           </button>
         </div>
         <div className="prs-subtab-bar-right">
@@ -426,9 +444,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
               loading={loading}
               jiraIssues={jiraIssues}
               jiraBaseUrl={jiraBaseUrl}
-              onCollapseStateChange={(hasGroups, allCollapsed) =>
-                setGroupState({ hasGroups, allCollapsed })
-              }
+              onCollapseStateChange={handleCollapseStateChange}
             />
           )}
           {subTab === "open" && viewMode === "flat" && (
@@ -441,9 +457,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
               jiraBaseUrl={jiraBaseUrl}
               showGroupToolbar={false}
               reasonChips
-              onCollapseStateChange={(hasGroups, allCollapsed) =>
-                setGroupState({ hasGroups, allCollapsed })
-              }
+              onCollapseStateChange={handleCollapseStateChange}
             />
           )}
           {subTab === "merged" && (
@@ -453,9 +467,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
               loading={mergedPRsLoading}
               variant="recently-merged"
               jiraBaseUrl={jiraBaseUrl}
-              onCollapseStateChange={(hasGroups, allCollapsed) =>
-                setGroupState({ hasGroups, allCollapsed })
-              }
+              onCollapseStateChange={handleCollapseStateChange}
             />
           )}
         </div>

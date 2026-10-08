@@ -10,6 +10,8 @@ import {
   pruneMentionsCache,
 } from "./notifications";
 import {
+  OWN_PR_COMMENTS_QUERY,
+  PR_BODY_QUERY,
   REVIEWS_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
@@ -21,20 +23,22 @@ import { getRequiredContexts, mapOpenPrsWithChecks } from "./requiredContexts";
 export { clearRequiredContextsCache } from "./requiredContexts";
 export { resetMentionsCache } from "./notifications";
 
+/** Search query for the configured user's open PRs (shared by getPrs and mentions). */
+function myOpenPrsQuery(username: string): string {
+  return `author:${username} type:pr state:open updated:>=${monthsAgo()}`;
+}
+
 /**
  * Formerly GET /api/github/prs.
- * Fetch open pull requests authored by the configured user.
- * Uses the extended query to include review/approval status and comments.
- * Also returns pr_comments: comments on the user's PRs by other people (non-bot),
- * so the frontend can merge them into mentions without a second GraphQL call.
+ * Fetch open pull requests authored by the configured user, with review/approval
+ * status. Comments on these PRs are fetched by getGithubMentions instead.
  */
-export async function getPrs(signal?: AbortSignal): Promise<{ prs: any[]; pr_comments: any[] }> {
+export async function getPrs(signal?: AbortSignal): Promise<{ prs: any[] }> {
   const config = requireSettings();
-  const q = `author:${config.githubUsername} type:pr state:open updated:>=${monthsAgo()}`;
 
   const result = await githubGraphql<{ search: { nodes: any[] } }>(
     SEARCH_MY_PRS_QUERY,
-    { query: q, first: 50 },
+    { query: myOpenPrsQuery(config.githubUsername), first: 50 },
     { signal },
   );
 
@@ -42,9 +46,7 @@ export async function getPrs(signal?: AbortSignal): Promise<{ prs: any[]; pr_com
   const prs = (await mapOpenPrsWithChecks(nodes, config.githubUsername)).filter(
     (pr: any) => pr.state === "open",
   );
-  const prComments = extractOwnPRComments(nodes, config.githubUsername);
-
-  return { prs, pr_comments: prComments };
+  return { prs };
 }
 
 /** Key a PR search node by repo + number, for cross-search set membership. */
@@ -240,12 +242,21 @@ export async function getOrgRepos(): Promise<{ repos: { full_name: string; name:
  * Only the newest MAX_MENTION_THREADS threads are processed (closed ones are then
  * dropped); the notification list, subject states and per-thread comments are
  * cached between calls (see ./notifications).
- * Note: comments on the user's own PRs are returned by getPrs() as pr_comments
- * and merged on the frontend, avoiding a duplicate GraphQL call.
+ * Comments by others on the user's own open PRs are merged in from a parallel
+ * GraphQL search (OWN_PR_COMMENTS_QUERY).
  */
 export async function getGithubMentions(signal?: AbortSignal): Promise<{ mentions: any[] }> {
+  const config = requireSettings();
   const github = githubRest();
   const since = `${monthsAgo(2)}T00:00:00Z`;
+
+  const ownPrComments = githubGraphql<{ search: { nodes: any[] } }>(
+    OWN_PR_COMMENTS_QUERY,
+    { query: myOpenPrsQuery(config.githubUsername), first: 50 },
+    { signal },
+  ).then((r) => extractOwnPRComments(r.search.nodes || [], config.githubUsername));
+  // Awaited below; this only stops an unhandled rejection if notifications fail first.
+  ownPrComments.catch(() => {});
 
   const allNotifications = await fetchAllNotifications(github, since, signal);
   // Cap before the open-state check so at most MAX_MENTION_THREADS subjects are looked up.
@@ -254,7 +265,10 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
     .slice(0, MAX_MENTION_THREADS);
   pruneMentionsCache(newest.map((n) => String(n.id)));
   const notifications = await filterOpenNotifications(newest, github);
-  const mentions = await fetchCommentsInBatches(notifications, github);
+  const mentions = [
+    ...(await fetchCommentsInBatches(notifications, github)),
+    ...(await ownPrComments),
+  ];
 
   // Filter out bot mentions and deduplicate by id
   const seen = new Set<number | string>();
@@ -375,4 +389,17 @@ export async function getPrDetail(args: {
     // so what's left is a GraphQL error with no HTTP status — a 500 on the old server.
     throw new ApiError(500, toApiError(err).message || "Failed to fetch pull request");
   }
+}
+
+/** A PR's markdown description ("" when it has none or the PR isn't found). */
+export async function getPrBody(args: {
+  owner: string;
+  repo: string;
+  number: number;
+}): Promise<string> {
+  const result = await githubGraphql<{ repository: { pullRequest: { body: string } | null } }>(
+    PR_BODY_QUERY,
+    args,
+  );
+  return result.repository?.pullRequest?.body || "";
 }

@@ -155,7 +155,9 @@ export function mapGraphQLPr(
     base: {
       ref: node.baseRefName || "",
     },
-    body: node.body || "",
+    // Only single-PR queries select the body; list queries leave it undefined
+    // ("not loaded") so modals know to fetch it (see usePRBody).
+    body: typeof node.body === "string" ? node.body : undefined,
     additions: node.additions ?? null,
     deletions: node.deletions ?? null,
     changed_files: node.changedFiles ?? null,

@@ -10,7 +10,7 @@ import type { GitHubPR } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { checkRunDuration, formatRelativeTime } from "../utils/time";
-import { extractTicketKey, sourceFromPR } from "../utils/tickets";
+import { ticketKeyOf } from "../utils/tickets";
 import { categorizeOpenPR } from "../utils/prCategories";
 import {
   BranchPill,
@@ -113,7 +113,7 @@ function PrModalHeader({
   jiraBaseUrl?: string;
   url?: string;
 }) {
-  const ticket = extractTicketKey(sourceFromPR(pr));
+  const ticket = ticketKeyOf(pr);
   const isMerged = !!pr.merged_at;
   const isNeedsAction = !isMerged && categorizeOpenPR(pr) === "needs-action";
   const hasDiff = typeof pr.additions === "number" || typeof pr.deletions === "number";

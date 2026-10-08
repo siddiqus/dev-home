@@ -20,6 +20,7 @@ import { getReferenceUrl, getNoteDisplayTitle } from "../../utils/text";
 import { REASON_SUMMARY } from "../../utils/github";
 import { formatRelativeTime, parseTimestamp } from "../../utils/time";
 import { useIssueDescription } from "../../hooks/useIssueDescription";
+import { usePRBody } from "../../hooks/usePRBody";
 import { DescriptionModal } from "../../components/DescriptionModal";
 import { SummaryItem } from "./SummaryItem";
 import { EmptyState } from "../../components/EmptyState";
@@ -135,6 +136,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+  const selectedPRBody = usePRBody(selectedPR);
 
   // Lists omit the description; lazy-load it (cached) when the modal opens.
   const { description: selectedIssueDescription, loading: selectedIssueDescLoading } =
@@ -444,7 +446,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         onHide={() => setSelectedPR(null)}
         title={selectedPR ? `#${selectedPR.number} ${selectedPR.title}` : ""}
         subtitle={selectedPR?.repo_full_name}
-        description={selectedPR?.body || ""}
+        description={selectedPRBody.body}
+        loading={selectedPRBody.loading}
         url={selectedPR?.html_url}
         checks={selectedPR?.checks}
         pr={selectedPR ?? undefined}

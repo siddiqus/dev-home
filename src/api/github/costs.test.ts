@@ -59,6 +59,8 @@ function comment(id: number) {
 let adapter: ReturnType<typeof vi.fn>;
 let originalAdapter: any;
 let inbox: any[];
+/** PR nodes returned by the own-PR comments GraphQL search. */
+let ownPrs: any[];
 /** When set, /notifications answers 304 to a matching If-Modified-Since. */
 let notModified: boolean;
 /** When set, /notifications answers 304 regardless of request headers. */
@@ -96,11 +98,14 @@ beforeEach(() => {
   resetMentionsCache();
   clearListCache();
   inbox = [];
+  ownPrs = [];
   notModified = false;
   alwaysNotModified = false;
   originalAdapter = axios.defaults.adapter;
   adapter = vi.fn(async (config: any) => {
     const url = urlOf(config);
+    // Own-PR comments search.
+    if (url.endsWith("/graphql")) return response(config, { data: { search: { nodes: ownPrs } } });
     if (url.endsWith("/notifications")) {
       if (
         alwaysNotModified ||
@@ -128,6 +133,35 @@ beforeEach(() => {
 afterEach(() => {
   axios.defaults.adapter = originalAdapter;
   vi.useRealTimers();
+});
+
+describe("getGithubMentions own-PR comments", () => {
+  function prComment(id: number, login: string) {
+    return {
+      databaseId: id,
+      url: `https://github.com/test-org/app/pull/5#issuecomment-${id}`,
+      body: `c${id}`,
+      createdAt: "2026-09-01T00:00:00Z",
+      updatedAt: "2026-09-01T00:00:00Z",
+      author: { login, avatarUrl: "" },
+    };
+  }
+
+  it("merges others' comments on the user's open PRs, deduped against notifications", async () => {
+    inbox = [notification(1)];
+    ownPrs = [
+      {
+        number: 5,
+        title: "Mine",
+        state: "OPEN",
+        repository: { nameWithOwner: "test-org/app" },
+        comments: { nodes: [prComment(1, "alice"), prComment(10, "testuser")] },
+        reviewThreads: { nodes: [{ comments: { nodes: [prComment(11, "bob")] } }] },
+      },
+    ];
+    const { mentions } = await getGithubMentions();
+    expect(mentions.map((m) => m.id).sort((a, b) => a - b)).toEqual([1, 11]);
+  });
 });
 
 describe("getGithubMentions caching", () => {

@@ -6,6 +6,7 @@ import {
   getOrgMembers,
   getOrgPrs,
   getOrgRepos,
+  getPrBody,
   getPrDetail,
   getPrs,
   getReviews,
@@ -41,11 +42,9 @@ export function clearListCache(): void {
 const MERGED_TTL_MS = 5 * 60 * 1000;
 const ORG_LIST_TTL_MS = 30 * 60 * 1000;
 
-export async function fetchOpenPRs(
-  signal?: AbortSignal,
-): Promise<{ prs: GitHubPR[]; prComments: GitHubComment[] }> {
+export async function fetchOpenPRs(signal?: AbortSignal): Promise<GitHubPR[]> {
   const data = await getPrs(signal);
-  return { prs: data.prs, prComments: data.pr_comments || [] };
+  return data.prs;
 }
 
 export interface ReviewPRs {
@@ -140,4 +139,25 @@ export async function fetchOrgRepos(opts: { force?: boolean } = {}): Promise<Org
 export async function fetchPR(owner: string, repo: string, number: number): Promise<GitHubPR> {
   const data = await getPrDetail({ owner, repo, number });
   return data.pr;
+}
+
+// PR descriptions shared across every modal for the session. Keyed by updated_at
+// too, so an edited PR (which refetches with a newer timestamp) loads afresh.
+// Failures are evicted so the next open retries.
+const prBodyCache = new Map<string, Promise<string>>();
+if (typeof window !== "undefined") {
+  window.addEventListener(SETTINGS_EVENT, () => prBodyCache.clear());
+}
+
+/** Lazily fetch (and cache) a PR's markdown description. */
+export function fetchPRBody(pr: GitHubPR): Promise<string> {
+  const key = `${pr.repo_full_name}#${pr.number}@${pr.updated_at}`;
+  let pending = prBodyCache.get(key);
+  if (!pending) {
+    const [owner, repo] = pr.repo_full_name.split("/");
+    pending = getPrBody({ owner, repo, number: pr.number });
+    pending.catch(() => prBodyCache.delete(key));
+    prBodyCache.set(key, pending);
+  }
+  return pending;
 }
