@@ -212,6 +212,11 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     [copyToClipboard],
   );
 
+  const handleCopyRef = useCallback(
+    (ref: string) => copyToClipboard(ref, "Copied PR reference to clipboard"),
+    [copyToClipboard],
+  );
+
   const storageKey = `dev-home-pr-collapsed-${variant}${storageKeyScope ? `-${storageKeyScope}` : ""}`;
   // Controlled when the parent supplies `collapsedGroups`; otherwise the table
   // owns its own localStorage-backed collapse state.
@@ -384,6 +389,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     onOpen={setSelectedPR}
                     onCopyBranch={handleCopyBranch}
                     onCopyLink={handleCopyLink}
+                    onCopyRef={handleCopyRef}
                   />
                 ))}
             </React.Fragment>

@@ -43,6 +43,8 @@ interface PRCardProps {
   onCopyBranch?: (branch: string) => void;
   /** Copies the PR's GitHub URL to the clipboard (surfaces a toast). */
   onCopyLink?: (url: string) => void;
+  /** Copies the PR's `owner/repo#number` reference to the clipboard (surfaces a toast). */
+  onCopyRef?: (ref: string) => void;
 }
 
 export function PRCard({
@@ -56,6 +58,7 @@ export function PRCard({
   onOpen,
   onCopyBranch,
   onCopyLink,
+  onCopyRef,
 }: PRCardProps) {
   // On needs-action rows the reason chips replace the standalone status pill (the
   // review state becomes a chip). The CI status icon stays on every row.
@@ -97,16 +100,6 @@ export function PRCard({
           <span className="pr-card-title-text">
             {renderTitleContent(pr.title, singleTicket, jiraBaseUrl)}
           </span>
-          <a
-            className="pr-card-ext"
-            href={pr.html_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open PR on GitHub"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <IconExternalLink size={14} stroke={1.8} />
-          </a>
           {onCopyLink && (
             <button
               type="button"
@@ -121,12 +114,36 @@ export function PRCard({
               <IconCopy size={14} stroke={1.8} />
             </button>
           )}
+          <a
+            className="pr-card-ext"
+            href={pr.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open PR on GitHub"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <IconExternalLink size={14} stroke={1.8} />
+          </a>
         </div>
 
         <div className="pr-card-meta">
           <span className="pr-card-repo">
             {pr.repo_full_name}#{pr.number}
           </span>
+          {onCopyRef && (
+            <button
+              type="button"
+              className="pr-card-copy-link"
+              title="Copy PR reference"
+              aria-label="Copy PR reference"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyRef(`${pr.repo_full_name}#${pr.number}`);
+              }}
+            >
+              <IconCopy size={12} stroke={1.8} />
+            </button>
+          )}
           {fields.showAuthor && (
             <>
               <span className="pr-card-sep">{"·"}</span>

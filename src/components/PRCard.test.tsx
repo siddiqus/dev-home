@@ -86,6 +86,16 @@ describe("PRCard", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("copies the owner/repo#number reference without opening the PR", () => {
+    const onOpen = vi.fn();
+    const onCopyRef = vi.fn();
+    const pr = makePR();
+    render(<PRCard pr={pr} fields={FIELDS.full} onOpen={onOpen} onCopyRef={onCopyRef} />);
+    fireEvent.click(screen.getByTitle("Copy PR reference"));
+    expect(onCopyRef).toHaveBeenCalledWith(`${pr.repo_full_name}#${pr.number}`);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("does not open the PR when activating the copy button via keyboard", () => {
     const onOpen = vi.fn();
     const onCopyLink = vi.fn();
