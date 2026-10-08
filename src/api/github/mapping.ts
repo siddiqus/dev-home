@@ -178,8 +178,7 @@ export function mapGraphQLPr(
     your_turn: deriveYourTurn(node, viewer),
     unresolved_thread_count: countUnresolvedThreads(node),
     has_conflict: node.mergeable === "CONFLICTING",
-    // GitHub's own merge-box signals, surfaced for corroboration/display.
-    merge_state_status: node.mergeStateStatus || null,
+    // GitHub's own merge-box signal, surfaced for corroboration/display.
     review_decision: node.reviewDecision || null,
     labels: (node.labels?.nodes || []).map((l: any) => ({
       name: l.name || "",

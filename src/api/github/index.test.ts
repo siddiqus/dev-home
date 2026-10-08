@@ -151,24 +151,26 @@ describe("getPrDetail", () => {
 
 describe("getReviews", () => {
   it("marks requested PRs the viewer already engaged with", async () => {
+    const nodesFor: Record<string, any[]> = {
+      "review-requested": [prNode(1), prNode(2)],
+      "reviewed-by": [prNode(1)],
+      commenter: [prNode(3)],
+    };
     adapter.mockImplementation(async (config: any) => {
       if (!String(config.url).endsWith("/graphql")) throw notFound(config);
-      return ok(config, {
-        data: {
-          requested: { nodes: [prNode(1), prNode(2)] },
-          reviewedBy: { nodes: [prNode(1)] },
-          commented: { nodes: [prNode(3)] },
-        },
-      });
+      const { variables } = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+      const kind = String(variables.query).split(":")[0];
+      return ok(config, { data: { search: { nodes: nodesFor[kind] } } });
     });
 
     const { reviews, reviewing } = await getReviews();
-    const bodies = graphqlBodies();
-    expect(bodies).toHaveLength(1);
-    expect(bodies[0].variables).toMatchObject({ first: 50 });
-    expect(bodies[0].variables.requestedQuery).toMatch(/^review-requested:testuser /);
-    expect(bodies[0].variables.reviewedQuery).toMatch(/^reviewed-by:testuser -author:testuser /);
-    expect(bodies[0].variables.commentedQuery).toMatch(/^commenter:testuser -author:testuser /);
+    // One request per search, so they run in parallel instead of sequentially.
+    const queries = graphqlBodies().map((b) => b.variables.query);
+    expect(graphqlBodies().every((b) => b.variables.first === 50)).toBe(true);
+    expect(queries).toHaveLength(3);
+    expect(queries[0]).toMatch(/^review-requested:testuser /);
+    expect(queries[1]).toMatch(/^reviewed-by:testuser -author:testuser /);
+    expect(queries[2]).toMatch(/^commenter:testuser -author:testuser /);
     expect(reviews.map((pr) => [pr.number, pr.viewer_engaged])).toEqual([
       [1, true],
       [2, false],

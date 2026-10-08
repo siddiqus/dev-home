@@ -12,7 +12,7 @@ import {
 import {
   OWN_PR_COMMENTS_QUERY,
   PR_BODY_QUERY,
-  REVIEWS_QUERY,
+  REVIEW_SEARCH_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
   SEARCH_ORG_PRS_QUERY,
@@ -72,23 +72,21 @@ export async function getReviews(
   const user = config.githubUsername;
   const base = `type:pr state:open updated:>=${monthsAgo()}`;
 
-  const result = await githubGraphql<
-    Record<"requested" | "reviewedBy" | "commented", { nodes: any[] }>
-  >(
-    REVIEWS_QUERY,
-    {
-      requestedQuery: `review-requested:${user} ${base}`,
-      reviewedQuery: `reviewed-by:${user} -author:${user} ${base}`,
-      commentedQuery: `commenter:${user} -author:${user} ${base}`,
-      first: 50,
-    },
-    { signal },
-  );
-  const prNodes = (key: "requested" | "reviewedBy" | "commented") =>
-    (result[key]?.nodes || []).filter((n: any) => n && n.number);
-  const requested = prNodes("requested");
-  const reviewedBy = prNodes("reviewedBy");
-  const commented = prNodes("commented");
+  // Three requests in parallel, not one aliased query: GitHub resolves aliased
+  // searches sequentially, so the single request cost the sum of all three.
+  const search = async (query: string) => {
+    const result = await githubGraphql<{ search: { nodes: any[] } }>(
+      REVIEW_SEARCH_QUERY,
+      { query, first: 50 },
+      { signal },
+    );
+    return (result.search?.nodes || []).filter((n: any) => n && n.number);
+  };
+  const [requested, reviewedBy, commented] = await Promise.all([
+    search(`review-requested:${user} ${base}`),
+    search(`reviewed-by:${user} -author:${user} ${base}`),
+    search(`commenter:${user} -author:${user} ${base}`),
+  ]);
 
   const engagedNodes = new Map<string, any>();
   for (const n of [...reviewedBy, ...commented]) {

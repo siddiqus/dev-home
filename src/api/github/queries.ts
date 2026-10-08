@@ -40,10 +40,13 @@ const PR_BASE_FIELDS = `databaseId
   repository { nameWithOwner }
   labels(first: 10) { nodes { name color } }`;
 
-/** Merge-readiness fields for open-PR queries (conflicts, queue, review, CI). */
+/**
+ * Merge-readiness fields for open-PR queries (conflicts, queue, review, CI).
+ * Deliberately omits `mergeStateStatus`: GitHub evaluates it per PR on read,
+ * adding ~2s to a search, and nothing renders it.
+ */
 const PR_STATUS_FIELDS = `mergeable
   mergeQueueEntry { id }
-  mergeStateStatus
   reviewDecision
   commits(last: 1) {
     nodes {
@@ -54,38 +57,19 @@ const PR_STATUS_FIELDS = `mergeable
   }`;
 
 /**
- * PR node selection for each aliased search in REVIEWS_QUERY, defined once so
- * the three searches always return the same fields.
+ * One review-plate search (review requested, reviewed by, or commented on).
+ * getReviews runs the three as parallel requests rather than aliases of one
+ * query: GitHub resolves aliased searches one after another, so a single
+ * request costs the sum of the three instead of the slowest.
  */
-const PR_SEARCH_NODE = `... on PullRequest {
-  ${PR_BASE_FIELDS}
-  ${PR_STATUS_FIELDS}
-}`;
-
-/**
- * The three review-plate searches (review requested, reviewed by, commented on)
- * as aliases of one query, so getReviews costs a single request.
- */
-export const REVIEWS_QUERY = `
-  query ReviewPRs(
-    $requestedQuery: String!
-    $reviewedQuery: String!
-    $commentedQuery: String!
-    $first: Int!
-  ) {
-    requested: search(query: $requestedQuery, type: ISSUE, first: $first) {
+export const REVIEW_SEARCH_QUERY = `
+  query ReviewPRs($query: String!, $first: Int!) {
+    search(query: $query, type: ISSUE, first: $first) {
       nodes {
-        ${PR_SEARCH_NODE}
-      }
-    }
-    reviewedBy: search(query: $reviewedQuery, type: ISSUE, first: $first) {
-      nodes {
-        ${PR_SEARCH_NODE}
-      }
-    }
-    commented: search(query: $commentedQuery, type: ISSUE, first: $first) {
-      nodes {
-        ${PR_SEARCH_NODE}
+        ... on PullRequest {
+          ${PR_BASE_FIELDS}
+          ${PR_STATUS_FIELDS}
+        }
       }
     }
   }
