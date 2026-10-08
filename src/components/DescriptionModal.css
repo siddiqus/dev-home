@@ -88,13 +88,20 @@
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
   color: var(--color-text-secondary);
+}
+
+/* One size across the row: the shared branch / diff indicators carry their own
+   slightly different card sizes, so pin them to the row's. */
+.description-modal .pr-modal-meta .pr-card-branch,
+.description-modal .pr-modal-meta .pr-card-diffstat {
+  font-size: inherit;
 }
 
 .description-modal .pr-modal-repo {
   font-family: var(--font-mono);
-  font-size: 0.74rem;
   flex-shrink: 0;
 }
 
@@ -112,8 +119,7 @@
 }
 
 .description-modal .pr-modal-time {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .description-modal .pr-modal-url {

@@ -133,7 +133,9 @@ function PrModalHeader({
 
       <div className="pr-modal-meta">
         <span className="pr-modal-repo">
-          {pr.repo_full_name}#{pr.number}
+          <a href={url} target="_blank" rel="noopener noreferrer" title={url}>
+            {pr.repo_full_name}#{pr.number}
+          </a>
         </span>
         <span className="pr-modal-sep">{"·"}</span>
         <span>{pr.user.login}</span>
@@ -151,6 +153,8 @@ function PrModalHeader({
             <span>merged by {pr.merged_by}</span>
           </>
         )}
+        <span className="pr-modal-sep">{"·"}</span>
+        <span className="pr-modal-time">{timeText}</span>
       </div>
 
       {(!isMerged || hasLabels) && (
@@ -158,20 +162,6 @@ function PrModalHeader({
           {!isMerged && (isNeedsAction ? <ReasonChips pr={pr} /> : <StatusPill pr={pr} />)}
           {hasLabels && <PRLabels labels={pr.labels!} />}
         </div>
-      )}
-
-      <div className="pr-modal-time">{timeText}</div>
-
-      {url && (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pr-modal-url text-truncate-custom"
-          title={url}
-        >
-          {url}
-        </a>
       )}
     </div>
   );
@@ -222,10 +212,6 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
       fullscreen
       className="description-modal description-modal--fullscreen"
     >
-      <Modal.Header>
-        <br />
-      </Modal.Header>
-
       <Modal.Body className="modal-tab-content">
         <div
           className="modal-title-section"
