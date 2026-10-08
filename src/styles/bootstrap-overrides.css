@@ -159,33 +159,6 @@ a:hover {
   border-color: var(--color-accent-hover);
 }
 
-/* --- ListGroup --- */
-.list-group {
-  border-radius: var(--radius-lg);
-}
-
-.list-group-item {
-  background-color: var(--color-bg-panel);
-  border-color: var(--color-border-subtle);
-  color: var(--color-text-primary);
-  padding: var(--space-3) var(--space-4);
-  transition: background-color 150ms ease;
-}
-
-.list-group-item:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.list-group-item:first-child {
-  border-top-left-radius: var(--radius-lg);
-  border-top-right-radius: var(--radius-lg);
-}
-
-.list-group-item:last-child {
-  border-bottom-left-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-lg);
-}
-
 /* --- Spinner --- */
 .spinner-border {
   width: 1rem;
@@ -247,30 +220,6 @@ a:hover {
 .form-select option {
   background-color: var(--color-bg-panel);
   color: var(--color-text-primary);
-}
-
-/* --- Light-mode safety overrides for Bootstrap dark-variant classes ---
-   These defensively cover `.table-dark` usage in light mode. The values are
-   token-driven so theme switching works automatically. */
-[data-theme="light"] .table-dark,
-[data-theme="light"] .table-dark > thead,
-[data-theme="light"] .table-dark > tbody,
-[data-theme="light"] .table-dark > thead > tr > th,
-[data-theme="light"] .table-dark > tbody > tr > td {
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--color-text-primary);
-  background-color: transparent !important;
-  color: var(--color-text-primary) !important;
-  border-color: var(--color-border-subtle) !important;
-}
-
-[data-theme="light"] .table-dark > thead > tr > th {
-  color: var(--color-text-secondary) !important;
-  border-bottom-color: var(--color-border) !important;
-}
-
-[data-theme="light"] .table-dark > tbody > tr:hover > td {
-  background-color: var(--color-bg-hover) !important;
 }
 
 /* Keep .badge.bg-secondary light tinting (other .bg-* badge overrides are now

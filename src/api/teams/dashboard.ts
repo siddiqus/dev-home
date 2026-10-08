@@ -17,7 +17,7 @@ import { computeHygiene } from "./cockpit/hygiene";
 import { mapPullRequestNode, dedupePRs } from "./cockpit/prFetch";
 import { computeReviewQueue } from "./cockpit/reviewQueue";
 import { DEFAULT_COCKPIT_CONFIG } from "./cockpit/config";
-import type { SprintInfo, Burnup } from "./cockpit/types";
+import type { SprintInfo } from "./cockpit/types";
 
 const PR_NODE_FRAGMENT = `
   fragment MemberPR on PullRequest {
@@ -328,18 +328,6 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
   const prFlow = computePrFlow(prs, enrichedIssues, now);
   const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
 
-  // Burn-up history lives in the browser; hand back today's point to record.
-  // Only the active sprint gets new points — a closed sprint's history is final.
-  const snapshot =
-    currentSprint?.state === "active"
-      ? {
-          sprintId: currentSprint.id,
-          date: now.toISOString().slice(0, 10),
-          doneCount: pace.doneCount,
-          totalCount: pace.totalCount,
-        }
-      : null;
-
   return {
     team: {
       id: team.id,
@@ -358,9 +346,6 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
     prFlow,
     hygiene,
     reviewQueue: computeReviewQueue(allPRs),
-    // Filled in by the caller from locally stored snapshots.
-    burnup: { trackingSince: null, points: [] } as Burnup,
-    snapshot,
     syncedAt: now.toISOString(),
     errors,
   };

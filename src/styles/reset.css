@@ -97,9 +97,7 @@ body {
 
 /* Smooth transitions for interactive elements */
 button,
-a,
-.nav-link,
-.list-group-item {
+a {
   transition: all 150ms ease;
 }
 

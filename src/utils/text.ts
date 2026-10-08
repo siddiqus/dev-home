@@ -9,7 +9,7 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 /** Format a GitHub URL like https://github.com/org/repo/pull/123 as repo#123 */
-export function formatGitHubTitle(url: string): string {
+function formatGitHubTitle(url: string): string {
   const match = url.match(/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/);
   if (match) return `${match[1]}#${match[2]}`;
   const repoMatch = url.match(/github\.com\/[^/]+\/([^/\s]+)/);

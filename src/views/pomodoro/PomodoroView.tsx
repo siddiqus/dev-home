@@ -17,6 +17,7 @@ import type {
 } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { TaskPicker } from "./TaskPicker";
+import { formatMmSs, phaseLabel } from "./format";
 import "./pomodoro.css";
 
 interface PomodoroViewProps {
@@ -36,26 +37,6 @@ interface PomodoroViewProps {
   skip: () => void;
   setWorkMinutes: (m: PomodoroWorkMinutes) => void;
   selectTask: (item: FocusableItem | null) => void;
-}
-
-function formatMmSs(ms: number): string {
-  const totalSec = Math.max(0, Math.ceil(ms / 1000));
-  const mm = Math.floor(totalSec / 60);
-  const ss = totalSec % 60;
-  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
-}
-
-function phaseLabel(phase: PomodoroPhase): string {
-  switch (phase) {
-    case "work":
-      return "Work";
-    case "shortBreak":
-      return "Short break";
-    case "longBreak":
-      return "Long break";
-    case "idle":
-      return "Ready";
-  }
 }
 
 export const PomodoroView: React.FC<PomodoroViewProps> = ({
@@ -150,7 +131,7 @@ export const PomodoroView: React.FC<PomodoroViewProps> = ({
 
       {/* Timer display */}
       <div className="pomodoro-timer-display">{formatMmSs(displayMs)}</div>
-      <div className="pomodoro-phase-label">{phaseLabel(phase)}</div>
+      <div className="pomodoro-phase-label">{phaseLabel(phase, "Ready")}</div>
       <div className="pomodoro-cycle-indicator">
         Cycle {Math.min(cycleCount + (phase === "work" ? 1 : 0), cyclesBeforeLongBreak)} of{" "}
         {cyclesBeforeLongBreak}

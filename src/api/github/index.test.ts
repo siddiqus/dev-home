@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import axios from "axios";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
 import { ApiError } from "../http/errors";
 import {
@@ -10,6 +10,8 @@ import {
   getPrs,
   getReviews,
 } from "./index";
+
+useFetchAdapter();
 
 const BASE_SETTINGS: AppSettings = {
   jiraBaseUrl: "https://example.atlassian.net",
@@ -51,7 +53,6 @@ function prNode(number: number, repo = "test-org/app") {
 }
 
 let adapter: ReturnType<typeof vi.fn>;
-let originalAdapter: any;
 
 function graphqlBodies(): any[] {
   return adapter.mock.calls
@@ -64,17 +65,12 @@ beforeEach(() => {
   localStorage.clear();
   saveSettings(BASE_SETTINGS);
   clearRequiredContextsCache();
-  originalAdapter = axios.defaults.adapter;
   adapter = vi.fn(async (config: any) => {
     // Branch protection / rulesets: unprotected (fail-open).
     if (!String(config.url).endsWith("/graphql")) throw notFound(config);
     return ok(config, { data: { search: { nodes: [] } } });
   });
-  axios.defaults.adapter = adapter as any;
-});
-
-afterEach(() => {
-  axios.defaults.adapter = originalAdapter;
+  httpMock.adapter = adapter as any;
 });
 
 describe("getMergedPrs", () => {

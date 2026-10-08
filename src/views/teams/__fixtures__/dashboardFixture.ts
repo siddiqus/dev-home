@@ -275,14 +275,6 @@ export const dashboardFixture: TeamDashboard = {
       updatedAt: "2026-06-29T00:00:00.000Z",
     },
   ],
-  burnup: {
-    trackingSince: "2026-06-28",
-    points: [
-      { date: "2026-06-28", doneCount: 1, totalCount: 12, ideal: 2 },
-      { date: "2026-06-30", doneCount: 2, totalCount: 12, ideal: 4 },
-      { date: "2026-07-02", doneCount: 4, totalCount: 12, ideal: 6 },
-    ],
-  },
   errors: [],
 };
 

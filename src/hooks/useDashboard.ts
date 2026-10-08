@@ -11,6 +11,7 @@ import {
 import { ticketKeyOf } from "../utils/tickets";
 import { DataSource, isRemoteSource } from "../config/tabData";
 import { prNoteKey } from "../utils/prNotes";
+import { readCached, writeCached } from "../lib/ttlCache";
 
 const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const CACHE_KEY = "dev-home-dashboard-cache";
@@ -47,41 +48,26 @@ const EMPTY_DATA: DashboardData = {
 };
 
 function loadCache(): DashboardData | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DashboardCacheData;
-    // Discard stale caches and caches written for another account.
-    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) return null;
-    if (parsed.owner !== undefined && parsed.owner !== accountIdentity(loadSettings())) {
-      return null;
-    }
-    const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
-    return {
-      assignedJiraIssues: list(parsed.assignedJiraIssues ?? parsed.jiraIssues),
-      extraJiraIssues: list(parsed.extraJiraIssues),
-      jiraComments: list(parsed.jiraComments),
-      githubMentions: list(parsed.githubMentions),
-      openPRs: list(parsed.openPRs),
-      reviewRequests: list(parsed.reviewRequests),
-      reviewingPRs: list(parsed.reviewingPRs),
-    };
-  } catch {
+  // Discard stale caches and caches written for another account.
+  const parsed = readCached<DashboardCacheData>(CACHE_KEY, CACHE_TTL_MS);
+  if (!parsed) return null;
+  if (parsed.owner !== undefined && parsed.owner !== accountIdentity(loadSettings())) {
     return null;
   }
+  const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
+  return {
+    assignedJiraIssues: list(parsed.assignedJiraIssues ?? parsed.jiraIssues),
+    extraJiraIssues: list(parsed.extraJiraIssues),
+    jiraComments: list(parsed.jiraComments),
+    githubMentions: list(parsed.githubMentions),
+    openPRs: list(parsed.openPRs),
+    reviewRequests: list(parsed.reviewRequests),
+    reviewingPRs: list(parsed.reviewingPRs),
+  };
 }
 
 function saveCache(data: DashboardData): void {
-  try {
-    const cacheEntry: DashboardCacheData = {
-      ...data,
-      owner: accountIdentity(loadSettings()),
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
-  } catch {
-    // Silently ignore storage errors (e.g. quota exceeded)
-  }
+  writeCached(CACHE_KEY, { ...data, owner: accountIdentity(loadSettings()) });
 }
 
 /** Assigned issues followed by enrichment extras not already assigned. */

@@ -1,25 +1,19 @@
-import axios, { type AxiosInstance } from "axios";
+import { createClient, type HttpClient } from "./client";
 import { base64Utf8, requireSettings } from "./credentials";
-import { toApiError } from "./errors";
 
 /** Where the Jira passthrough proxy lives. Same origin by default. */
 export const JIRA_PROXY_BASE: string =
   (import.meta.env?.VITE_JIRA_PROXY_URL as string | undefined)?.replace(/\/+$/, "") ||
   "/jira-proxy";
 
-function createJiraClient(apiPath: string): AxiosInstance {
+function createJiraClient(apiPath: string): HttpClient {
   const s = requireSettings();
-  const client = axios.create({
-    baseURL: `${JIRA_PROXY_BASE}${apiPath}`,
-    headers: {
-      "x-jira-base-url": s.jiraBaseUrl.replace(/\/+$/, ""),
-      Authorization: `Basic ${base64Utf8(`${s.jiraEmail}:${s.jiraApiToken}`)}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+  // Content-Type: application/json is added by the client only when there's a body.
+  return createClient(`${JIRA_PROXY_BASE}${apiPath}`, {
+    "x-jira-base-url": s.jiraBaseUrl.replace(/\/+$/, ""),
+    Authorization: `Basic ${base64Utf8(`${s.jiraEmail}:${s.jiraApiToken}`)}`,
+    Accept: "application/json",
   });
-  client.interceptors.response.use(undefined, (err) => Promise.reject(toApiError(err)));
-  return client;
 }
 
 /** Jira platform REST API v3, via the proxy. */

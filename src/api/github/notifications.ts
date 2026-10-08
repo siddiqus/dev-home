@@ -1,4 +1,4 @@
-import type { AxiosInstance } from "axios";
+import type { HttpClient } from "../http/client";
 import { SETTINGS_EVENT } from "../../services/config";
 
 /**
@@ -100,7 +100,7 @@ export function pruneMentionsCache(threadIds: Iterable<string>): void {
  * leaves the cache empty, so the next call does a full fetch.
  */
 export async function fetchAllNotifications(
-  github: AxiosInstance,
+  github: HttpClient,
   since: string,
   signal?: AbortSignal,
 ): Promise<any[]> {
@@ -146,7 +146,7 @@ export async function fetchAllNotifications(
  */
 export async function filterOpenNotifications(
   notifications: any[],
-  github: AxiosInstance,
+  github: HttpClient,
   batchSize: number = 10,
 ): Promise<any[]> {
   const results: any[] = [];
@@ -190,7 +190,7 @@ export async function filterOpenNotifications(
 }
 
 /** Map one notification to its mention (latest comment, or notification-level info). */
-async function fetchNotificationComment(notification: any, github: AxiosInstance): Promise<any> {
+async function fetchNotificationComment(notification: any, github: HttpClient): Promise<any> {
   const commentUrl = notification.subject?.latest_comment_url;
   if (commentUrl) {
     // When the latest event is the PR/issue itself, its URL is the subject URL,
@@ -238,7 +238,7 @@ async function fetchNotificationComment(notification: any, github: AxiosInstance
  */
 export async function fetchCommentsInBatches(
   notifications: any[],
-  github: AxiosInstance,
+  github: HttpClient,
   batchSize: number = 10,
 ): Promise<any[]> {
   const results: any[] = [];

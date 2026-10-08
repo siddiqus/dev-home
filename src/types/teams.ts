@@ -212,19 +212,6 @@ export interface Hygiene {
   doneNoMerged: Ref[];
 }
 
-export interface BurnupPoint {
-  date: string;
-  doneCount: number;
-  totalCount: number;
-  ideal: number;
-}
-
-export interface Burnup {
-  /** ISO date of the first snapshot for this sprint, or null when none yet. */
-  trackingSince: string | null;
-  points: BurnupPoint[];
-}
-
 /** One row of the Review Queue — mirrors the backend ReviewQueueEntry. */
 export interface ReviewQueueEntry {
   number: number;
@@ -255,8 +242,6 @@ export interface TeamDashboard {
   prFlow: PrFlow;
   hygiene: Hygiene;
   reviewQueue: ReviewQueueEntry[];
-  burnup: Burnup;
-  snapshot?: { sprintId: number; date: string; doneCount: number; totalCount: number } | null;
   /** ISO timestamp of when the backend assembled this payload. */
   syncedAt?: string;
   errors: string[];

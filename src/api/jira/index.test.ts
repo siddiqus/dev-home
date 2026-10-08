@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import axios from "axios";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { saveSettings } from "../../services/config";
 import {
   getIssues,
@@ -15,9 +15,9 @@ import { ApiError } from "../http/errors";
 import { resetMyselfCache } from "./issues";
 import { clearSprintCache } from "./teams";
 
-describe("Jira API", () => {
-  let originalAdapter: any;
+useFetchAdapter();
 
+describe("Jira API", () => {
   beforeEach(() => {
     localStorage.clear();
     clearSprintCache();
@@ -30,17 +30,12 @@ describe("Jira API", () => {
       githubOrg: "org",
       hiddenTabs: [],
     });
-    originalAdapter = axios.defaults.adapter;
     resetMyselfCache();
-  });
-
-  afterEach(() => {
-    axios.defaults.adapter = originalAdapter;
   });
 
   describe("getIssues", () => {
     it("posts the expected JQL and maps issue shape", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: {
           issues: [
             {
@@ -91,7 +86,7 @@ describe("Jira API", () => {
         },
       });
 
-      const calls = (axios.defaults.adapter as any).mock.calls;
+      const calls = (httpMock.adapter as any).mock.calls;
       const config = calls[calls.length - 1][0];
       expect(config.url).toBe("/search/jql");
       expect(config.method).toBe("post");
@@ -104,14 +99,14 @@ describe("Jira API", () => {
   describe("postIssuesBulk", () => {
     it("returns empty issues with no HTTP call when keys is empty", async () => {
       const spy = vi.fn();
-      axios.defaults.adapter = spy;
+      httpMock.adapter = spy;
       const result = await postIssuesBulk({ keys: [] });
       expect(result).toEqual({ issues: [] });
       expect(spy).not.toHaveBeenCalled();
     });
 
     it("builds key IN JQL for multiple keys", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: {
           issues: [
             {
@@ -144,7 +139,7 @@ describe("Jira API", () => {
       expect(result.issues[0].key).toBe("A-1");
       expect(result.issues[0].description).toContain("Test");
 
-      const calls = (axios.defaults.adapter as any).mock.calls;
+      const calls = (httpMock.adapter as any).mock.calls;
       const config = calls[calls.length - 1][0];
       const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
       expect(data.jql).toContain('key IN ("A-1", "B-2")');
@@ -154,7 +149,7 @@ describe("Jira API", () => {
   describe("getJiraMentions", () => {
     it("filters comments mentioning email or username, sorted by updated DESC", async () => {
       let callCount = 0;
-      axios.defaults.adapter = vi.fn(async (config) => {
+      httpMock.adapter = vi.fn(async (config) => {
         callCount++;
         if (callCount === 1) {
           // Initial search
@@ -260,7 +255,7 @@ describe("Jira API", () => {
 
     it("skips issues with failed comment requests (not fatal)", async () => {
       let callCount = 0;
-      axios.defaults.adapter = vi.fn(async (config) => {
+      httpMock.adapter = vi.fn(async (config) => {
         callCount++;
         if (callCount === 1) {
           return {
@@ -318,7 +313,7 @@ describe("Jira API", () => {
             ],
           }),
         );
-        axios.defaults.adapter = adapter;
+        httpMock.adapter = adapter;
 
         const result = await getJiraMentions();
         const searchCalls = adapter.mock.calls.filter(([c]: any[]) => c.url === "/search/jql");
@@ -372,7 +367,7 @@ describe("Jira API", () => {
             ],
           });
         });
-        axios.defaults.adapter = adapter;
+        httpMock.adapter = adapter;
 
         const result = await getJiraMentions();
         const commentCalls = adapter.mock.calls.filter(([c]: any[]) =>
@@ -394,7 +389,7 @@ describe("Jira API", () => {
         created: "2026-09-01T12:00:00Z",
         updated: "2026-09-02T12:00:00Z",
       });
-      axios.defaults.adapter = vi.fn(async (config: any) => {
+      httpMock.adapter = vi.fn(async (config: any) => {
         const ok = (data: any) => ({ data, status: 200, statusText: "OK", headers: {}, config });
         if (config.url === "/user/search") {
           return ok([
@@ -451,7 +446,7 @@ describe("Jira API", () => {
           config,
         };
       });
-      axios.defaults.adapter = adapter;
+      httpMock.adapter = adapter;
 
       const result = await postIssuesBulk({ keys: ["A-1", "SHA-256"] });
       expect(result.issues.map((i) => i.key)).toEqual(["A-1"]);
@@ -472,7 +467,7 @@ describe("Jira API", () => {
     });
 
     it("returns issues with pagination token", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: {
           issues: [{ key: "TEST-1", fields: { summary: "Issue" } }],
           total: 100,
@@ -488,7 +483,7 @@ describe("Jira API", () => {
       expect(result.issues).toHaveLength(1);
       expect(result.nextPageToken).toBe("token123");
 
-      const calls = (axios.defaults.adapter as any).mock.calls;
+      const calls = (httpMock.adapter as any).mock.calls;
       const config = calls[calls.length - 1][0];
       const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
       expect(data.nextPageToken).toBe("prev");
@@ -497,7 +492,7 @@ describe("Jira API", () => {
 
   describe("getRemoteFilters", () => {
     it("returns mapped filters from /filter/my", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: [
           { id: "1", name: "My Filter", jql: "assignee = currentUser()", favourite: true },
           { id: "2", name: "Another", jql: "project = TEST", favourite: false },
@@ -516,14 +511,14 @@ describe("Jira API", () => {
         jql: "assignee = currentUser()",
         favourite: true,
       });
-      const config = vi.mocked(axios.defaults.adapter as any).mock.calls[0][0];
-      expect(config.params).toEqual({ includeFavourites: true });
+      const config = vi.mocked(httpMock.adapter as any).mock.calls[0][0];
+      expect(config.params).toEqual({ includeFavourites: "true" });
     });
   });
 
   describe("searchUsers", () => {
     it("calls v3 and v2 for email queries and dedupes by accountId", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => {
+      httpMock.adapter = vi.fn(async (config) => {
         if (config.baseURL.includes("/rest/api/3")) {
           return {
             data: [
@@ -570,7 +565,7 @@ describe("Jira API", () => {
     });
 
     it("returns v3 results when v2 fails", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => {
+      httpMock.adapter = vi.fn(async (config) => {
         if (config.baseURL.includes("/rest/api/3")) {
           return {
             data: [
@@ -599,7 +594,7 @@ describe("Jira API", () => {
 
   describe("searchBoards", () => {
     it("returns mapped boards from agile API", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: {
           values: [
             {
@@ -645,7 +640,7 @@ describe("Jira API", () => {
     });
 
     it("returns sprints sorted active first, then by end date", async () => {
-      axios.defaults.adapter = vi.fn(async (config) => ({
+      httpMock.adapter = vi.fn(async (config) => ({
         data: {
           values: [
             {
@@ -693,7 +688,7 @@ describe("Jira API", () => {
         endDate: new Date(2020, 0, id).toISOString(),
       });
       const adapter = vi.fn(async (config: any) => {
-        const startAt = config.params.startAt;
+        const startAt = Number(config.params.startAt);
         const ids = Array.from({ length: startAt === 0 ? 50 : 10 }, (_, i) => startAt + i + 1);
         return {
           data: { values: ids.map(sprint), isLast: startAt > 0 },
@@ -703,7 +698,7 @@ describe("Jira API", () => {
           config,
         };
       });
-      axios.defaults.adapter = adapter;
+      httpMock.adapter = adapter;
 
       const { sprints } = await getBoardSprints({ id: 7 });
       expect(adapter).toHaveBeenCalledTimes(2);

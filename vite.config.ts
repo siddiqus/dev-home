@@ -71,9 +71,6 @@ function pwa() {
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/jira-proxy\//],
       cleanupOutdatedCaches: true,
-      // The main chunk is ~1.2 MB; Workbox silently skips files over its 2 MiB default,
-      // which would break offline launch if the bundle grows.
-      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       // No runtimeCaching: API calls (GitHub, /jira-proxy) always go to the network.
       // No skipWaiting/clientsClaim: a new worker waits until the user clicks Reload.
     },
@@ -85,4 +82,35 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: { port: 3578 },
+  css: {
+    preprocessorOptions: {
+      // Bootstrap 5.3's Sass still uses @import and global color functions.
+      scss: {
+        quietDeps: true,
+        silenceDeprecations: ["import", "global-builtin", "color-functions", "if-function"],
+      },
+    },
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Vendor groups change far less often than app code, so they stay cached across
+        // deploys. Groups only reached through lazy views load with those views.
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            {
+              name: "bootstrap",
+              test: /node_modules[\\/](react-bootstrap|@restart|@popperjs|@react-aria|dom-helpers|react-transition-group|@babel[\\/]runtime)[\\/]/,
+            },
+            {
+              name: "editor",
+              test: /node_modules[\\/](@tiptap|prosemirror-[^\\/]+|tiptap-markdown|markdown-it|linkifyjs|orderedmap|rope-sequence|w3c-keyname|mdurl|uc\.micro|punycode\.js)[\\/]/,
+            },
+            { name: "dnd", test: /node_modules[\\/]@dnd-kit[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 });

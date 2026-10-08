@@ -1,6 +1,4 @@
 import { createCollection, sqliteNow } from "../lib/localStore";
-import { buildBurnup } from "../../shared/burnup";
-import { getSnapshotRows, recordSnapshot } from "./snapshots";
 import { searchUsers, searchBoards } from "../api/jira";
 import { postTeamDashboard } from "../api/teams/dashboard";
 import type {
@@ -174,7 +172,7 @@ export async function fetchTeamDashboard(
     githubUsername: m.github_username,
   }));
 
-  const data: any = await postTeamDashboard({
+  return postTeamDashboard({
     team: {
       id: team.id,
       name: team.name,
@@ -184,18 +182,5 @@ export async function fetchTeamDashboard(
     members: roster,
     sprintId: sprintId ?? null,
     ...(opts.force ? { force: true } : {}),
-  });
-
-  // Record today's point (active sprint only) and build the burn-up history
-  // for whichever sprint is shown from locally stored snapshots.
-  if (data.snapshot) {
-    try {
-      recordSnapshot(data.snapshot);
-    } catch (err) {
-      console.warn("Failed to record snapshot:", err);
-    }
-  }
-  if (data.sprint) data.burnup = buildBurnup(getSnapshotRows(data.sprint.id));
-
-  return data;
+  }) as Promise<TeamDashboard>;
 }

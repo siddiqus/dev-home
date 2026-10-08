@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import axios from "axios";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { saveSettings } from "../../services/config";
 import { requireSettings, base64Utf8 } from "./credentials";
 import { githubRest, githubGraphql } from "./github";
 import { jiraClient, jiraClientV2, jiraAgileClient } from "./jira";
 import { ApiError } from "./errors";
+
+useFetchAdapter();
+
+/** URL actually passed to fetch on the most recent call. */
+const lastFetchUrl = () => String(vi.mocked(fetch).mock.calls.at(-1)![0]);
 
 describe("requireSettings", () => {
   beforeEach(() => {
@@ -46,8 +51,6 @@ describe("base64Utf8", () => {
 });
 
 describe("GitHub clients", () => {
-  let originalAdapter: any;
-
   beforeEach(() => {
     localStorage.clear();
     saveSettings({
@@ -59,8 +62,7 @@ describe("GitHub clients", () => {
       githubOrg: "test-org",
       hiddenTabs: [],
     });
-    originalAdapter = axios.defaults.adapter;
-    axios.defaults.adapter = vi.fn(async (config) => ({
+    httpMock.adapter = vi.fn(async (config) => ({
       data: { login: "testuser" },
       status: 200,
       statusText: "OK",
@@ -69,22 +71,18 @@ describe("GitHub clients", () => {
     }));
   });
 
-  afterEach(() => {
-    axios.defaults.adapter = originalAdapter;
-  });
-
   it("githubRest().get('/user') has correct config", async () => {
     const client = githubRest();
     await client.get("/user");
-    const calls = (axios.defaults.adapter as any).mock.calls;
+    const calls = (httpMock.adapter as any).mock.calls;
     const config = calls[calls.length - 1][0];
-    expect(config.baseURL).toBe("https://api.github.com");
+    expect(lastFetchUrl()).toBe("https://api.github.com/user");
     expect(config.headers.Authorization).toBe("Bearer gh-test-token");
     expect(config.headers.Accept).toBe("application/vnd.github+json");
   });
 
   it("githubGraphql posts query and variables, returns data.data", async () => {
-    axios.defaults.adapter = vi.fn(async (config) => ({
+    httpMock.adapter = vi.fn(async (config) => ({
       data: { data: { viewer: { login: "testuser" } } },
       status: 200,
       statusText: "OK",
@@ -93,16 +91,16 @@ describe("GitHub clients", () => {
     }));
     const result = await githubGraphql("query{viewer{login}}", { a: 1 });
     expect(result).toEqual({ viewer: { login: "testuser" } });
-    const calls = (axios.defaults.adapter as any).mock.calls;
+    const calls = (httpMock.adapter as any).mock.calls;
     const config = calls[calls.length - 1][0];
-    expect(config.url).toBe("https://api.github.com/graphql");
+    expect(lastFetchUrl()).toBe("https://api.github.com/graphql");
     expect(config.method).toBe("post");
     const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
     expect(data).toEqual({ query: "query{viewer{login}}", variables: { a: 1 } });
   });
 
   it("githubGraphql throws on GraphQL errors", async () => {
-    axios.defaults.adapter = vi.fn(async (config) => ({
+    httpMock.adapter = vi.fn(async (config) => ({
       data: { data: null, errors: [{ message: "x" }, { message: "y" }] },
       status: 200,
       statusText: "OK",
@@ -118,7 +116,7 @@ describe("GitHub clients", () => {
   });
 
   it("401 response from GitHub with Bad credentials rejects with ApiError", async () => {
-    axios.defaults.adapter = vi.fn(async (_config) => {
+    httpMock.adapter = vi.fn(async (_config) => {
       throw {
         response: { status: 401, data: { message: "Bad credentials" } },
         message: "Request failed with status code 401",
@@ -136,8 +134,6 @@ describe("GitHub clients", () => {
 });
 
 describe("Jira clients", () => {
-  let originalAdapter: any;
-
   beforeEach(() => {
     localStorage.clear();
     saveSettings({
@@ -149,8 +145,7 @@ describe("Jira clients", () => {
       githubOrg: "test-org",
       hiddenTabs: [],
     });
-    originalAdapter = axios.defaults.adapter;
-    axios.defaults.adapter = vi.fn(async (config) => ({
+    httpMock.adapter = vi.fn(async (config) => ({
       data: { results: [] },
       status: 200,
       statusText: "OK",
@@ -159,17 +154,12 @@ describe("Jira clients", () => {
     }));
   });
 
-  afterEach(() => {
-    axios.defaults.adapter = originalAdapter;
-  });
-
   it("jiraClient().post('/search/jql') has correct config", async () => {
     const client = jiraClient();
     await client.post("/search/jql", { jql: "project = TEST" });
-    const calls = (axios.defaults.adapter as any).mock.calls;
+    const calls = (httpMock.adapter as any).mock.calls;
     const config = calls[calls.length - 1][0];
-    expect(config.baseURL).toBe("/jira-proxy/rest/api/3");
-    expect(config.url).toBe("/search/jql");
+    expect(lastFetchUrl()).toBe("/jira-proxy/rest/api/3/search/jql");
     expect(config.headers["x-jira-base-url"]).toBe("https://example.atlassian.net");
     expect(config.headers.Authorization).toBe(`Basic ${base64Utf8("user@example.com:jira-token")}`);
   });
@@ -177,21 +167,34 @@ describe("Jira clients", () => {
   it("jiraClientV2() baseURL ends /jira-proxy/rest/api/2", async () => {
     const client = jiraClientV2();
     await client.get("/user/search");
-    const calls = (axios.defaults.adapter as any).mock.calls;
-    const config = calls[calls.length - 1][0];
-    expect(config.baseURL).toBe("/jira-proxy/rest/api/2");
+    expect(lastFetchUrl()).toBe("/jira-proxy/rest/api/2/user/search");
   });
 
   it("jiraAgileClient() baseURL ends /jira-proxy/rest/agile/1.0", async () => {
     const client = jiraAgileClient();
     await client.get("/board");
-    const calls = (axios.defaults.adapter as any).mock.calls;
-    const config = calls[calls.length - 1][0];
-    expect(config.baseURL).toBe("/jira-proxy/rest/agile/1.0");
+    expect(lastFetchUrl()).toBe("/jira-proxy/rest/agile/1.0/board");
+  });
+
+  it("drops null/undefined params and lets absolute URLs bypass baseURL", async () => {
+    await jiraAgileClient().get("/board", { params: { type: "scrum", name: undefined, page: 2 } });
+    expect(lastFetchUrl()).toBe("/jira-proxy/rest/agile/1.0/board?type=scrum&page=2");
+    await githubRest().get("https://api.github.com/repos/o/r/pulls/1");
+    expect(lastFetchUrl()).toBe("https://api.github.com/repos/o/r/pulls/1");
+  });
+
+  it("network failure rejects with ApiError status 0", async () => {
+    httpMock.adapter = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await expect(jiraClient().get("/myself")).rejects.toMatchObject({
+      status: 0,
+      message: "Failed to fetch",
+    });
   });
 
   it("400 from proxy with custom error message rejects with ApiError", async () => {
-    axios.defaults.adapter = vi.fn(async (_config) => {
+    httpMock.adapter = vi.fn(async (_config) => {
       throw {
         response: { status: 400, data: { error: "Jira base URL not allowed: example.com" } },
         message: "Request failed with status code 400",

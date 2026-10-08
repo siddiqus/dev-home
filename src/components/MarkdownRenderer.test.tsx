@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { Markdown } from "./Markdown";
+import Markdown from "./MarkdownRenderer";
 
 describe("Markdown", () => {
   it("renders GFM tables, task lists and strikethrough", () => {

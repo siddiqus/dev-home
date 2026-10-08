@@ -1,6 +1,7 @@
 import React from "react";
 import { StatusDot, type StatusDotVariant } from "../../components/primitives/StatusDot";
 import type { PomodoroPhase } from "../../types";
+import { formatMmSs, phaseLabel } from "./format";
 import "./pomodoro.css";
 
 interface PomodoroBadgeProps {
@@ -8,13 +9,6 @@ interface PomodoroBadgeProps {
   remainingMs: number;
   taskTitle: string | null;
   onClick: () => void;
-}
-
-function formatMmSs(ms: number): string {
-  const totalSec = Math.max(0, Math.ceil(ms / 1000));
-  const mm = Math.floor(totalSec / 60);
-  const ss = totalSec % 60;
-  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
 function phaseVariant(phase: PomodoroPhase): StatusDotVariant {
@@ -29,19 +23,6 @@ function phaseVariant(phase: PomodoroPhase): StatusDotVariant {
   }
 }
 
-function phaseLabel(phase: PomodoroPhase): string {
-  switch (phase) {
-    case "work":
-      return "Work";
-    case "shortBreak":
-      return "Short break";
-    case "longBreak":
-      return "Long break";
-    case "idle":
-      return "Idle";
-  }
-}
-
 export const PomodoroBadge: React.FC<PomodoroBadgeProps> = ({
   phase,
   remainingMs,
@@ -49,8 +30,8 @@ export const PomodoroBadge: React.FC<PomodoroBadgeProps> = ({
   onClick,
 }) => {
   const tooltip = taskTitle
-    ? `${phaseLabel(phase)} · ${taskTitle}`
-    : `${phaseLabel(phase)} · ${formatMmSs(remainingMs)} remaining`;
+    ? `${phaseLabel(phase, "Idle")} · ${taskTitle}`
+    : `${phaseLabel(phase, "Idle")} · ${formatMmSs(remainingMs)} remaining`;
   return (
     <button
       type="button"

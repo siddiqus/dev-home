@@ -1,0 +1,40 @@
+// Only the Bootstrap partials the app uses (react-bootstrap components plus
+// utilities). Add a partial back here before using a component not listed.
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+
+// No responsive (d-md-*, mb-lg-*) or print utility variants are used; generating
+// them is most of Bootstrap's utility CSS. Grid columns (col-md-*) are unaffected.
+@each $key, $utility in $utilities {
+  @if type-of($utility) == "map" {
+    $utilities: map-merge($utilities, ($key: map-merge($utility, (responsive: false, print: false))));
+  }
+}
+
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/type";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/tables";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/dropdown";
+@import "bootstrap/scss/button-group";
+@import "bootstrap/scss/navbar";
+@import "bootstrap/scss/card";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/alert";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/modal";
+@import "bootstrap/scss/popover";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/offcanvas";
+
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/utilities/api";

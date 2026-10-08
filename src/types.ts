@@ -1,10 +1,3 @@
-// Backend Configuration
-export interface BackendConfig {
-  configured: boolean;
-  jiraBaseUrl: string;
-  githubUsername: string;
-}
-
 // JIRA Types
 export interface JiraIssue {
   key: string;
@@ -170,9 +163,6 @@ export interface DashboardData {
   loading: boolean;
   error: string | null;
 }
-
-// View Type
-export type ViewType = "dashboard" | "settings";
 
 // Note Types
 export type NoteType = "free_text" | "jira_ticket" | "github_pr" | "link";

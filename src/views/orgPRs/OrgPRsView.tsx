@@ -24,6 +24,7 @@ import {
   updateSavedFilter,
   deleteSavedFilter,
 } from "../../services/filters";
+import { readCached, writeCached } from "../../lib/ttlCache";
 
 // --- localStorage caching ---
 
@@ -32,30 +33,12 @@ const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
 const PRS_CACHE_KEY = "dev-home-org-prs-cache-v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
 function loadCache<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const entry: CacheEntry<T> = JSON.parse(raw);
-    if (Date.now() - entry.timestamp > CACHE_TTL_MS) return null;
-    return entry.data;
-  } catch {
-    return null;
-  }
+  return readCached<{ data: T }>(key, CACHE_TTL_MS)?.data ?? null;
 }
 
 function saveCache<T>(key: string, data: T): void {
-  try {
-    const entry: CacheEntry<T> = { data, timestamp: Date.now() };
-    localStorage.setItem(key, JSON.stringify(entry));
-  } catch {
-    // ignore quota errors
-  }
+  writeCached(key, { data });
 }
 
 interface PRsCacheData {

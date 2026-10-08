@@ -18,6 +18,8 @@
     "allowJs": false,
     "incremental": true,
     "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
     "types": [
       "vite/client",

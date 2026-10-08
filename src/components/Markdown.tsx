@@ -1,31 +1,13 @@
-import React from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
+import { lazy, Suspense } from "react";
 
-// GitHub-flavoured rendering: GFM (tables, task lists, strikethrough,
-// autolinks), hard line breaks like PR bodies/comments, and the inline HTML
-// GitHub permits (<details>, <img>, <br>…). rehype-sanitize runs after
-// rehype-raw and uses GitHub's own allowlist, so scripts/handlers are stripped.
-const REMARK_PLUGINS = [remarkGfm, remarkBreaks];
-const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
-
-const COMPONENTS: Components = {
-  a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-};
+// The unified/remark/rehype stack (rehype-raw pulls in parse5) is ~330 KB, so it
+// loads on first render of a description instead of with the app shell.
+const MarkdownRenderer = lazy(() => import("./MarkdownRenderer"));
 
 export function Markdown({ children }: { children: string }) {
   return (
-    <div className="markdown-body">
-      <ReactMarkdown
-        remarkPlugins={REMARK_PLUGINS}
-        rehypePlugins={REHYPE_PLUGINS}
-        components={COMPONENTS}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
+    <Suspense fallback={<div className="markdown-body" />}>
+      <MarkdownRenderer>{children}</MarkdownRenderer>
+    </Suspense>
   );
 }

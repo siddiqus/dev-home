@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  batchUpdateKanbanItems,
-  deleteKanbanItem,
-  fetchKanbanItems,
-  upsertKanbanItem,
-} from "./kanban";
+import { batchUpdateKanbanItems, fetchKanbanItems, upsertKanbanItem } from "./kanban";
 
 describe("kanban service (localStorage)", () => {
   beforeEach(() => localStorage.clear());
@@ -52,12 +47,5 @@ describe("kanban service (localStorage)", () => {
       "done:1",
       "todo:2",
     ]);
-  });
-
-  it("deletes; unknown throws", async () => {
-    await upsertKanbanItem({ item_type: "review", item_id: "a", column_name: "todo", position: 0 });
-    await deleteKanbanItem("review", "a");
-    expect(await fetchKanbanItems()).toEqual([]);
-    await expect(deleteKanbanItem("review", "a")).rejects.toThrow("Kanban item not found");
   });
 });

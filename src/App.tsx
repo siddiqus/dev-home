@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import Alert from "react-bootstrap/Alert";
@@ -35,23 +35,14 @@ import { AppProviders } from "./context/AppProviders";
 import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
-import { JiraIssueSearch } from "./components/JiraIssueSearch";
 import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
 import { GitHubMentionsView } from "./views/mentions/GitHubMentionsView";
 import { PRsView } from "./views/prs/PRsView";
 import { ReviewsView } from "./views/reviews/ReviewsView";
-import { PersonalNotes } from "./views/notes/PersonalNotes";
-import { NoteEditorModal } from "./views/notes/NoteEditorModal";
-import { SettingsView } from "./views/settings/SettingsView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
 import { useKanban } from "./hooks/useKanban";
-import { KanbanBoard } from "./views/kanban/KanbanBoard";
-import { OrgPRsView } from "./views/orgPRs/OrgPRsView";
-import { TeamsView } from "./views/teams/TeamsView";
-import { TeamDashboardView } from "./views/teams/TeamDashboardView";
 import { usePomodoro } from "./hooks/usePomodoro";
-import { PomodoroView } from "./views/pomodoro/PomodoroView";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
 import type { FocusableItem } from "./types";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
@@ -60,6 +51,42 @@ import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./con
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 import { jiraBrowseUrl } from "./utils/tickets";
 import { prNoteKey } from "./utils/prNotes";
+
+// Views off the default (summary) path load on first visit. Heavy deps ride along:
+// tiptap in the note editor, @dnd-kit in the board, the cockpit in team dashboard.
+const JiraIssueSearch = lazy(() =>
+  import("./components/JiraIssueSearch").then((m) => ({ default: m.JiraIssueSearch })),
+);
+const PersonalNotes = lazy(() =>
+  import("./views/notes/PersonalNotes").then((m) => ({ default: m.PersonalNotes })),
+);
+const NoteEditorModal = lazy(() =>
+  import("./views/notes/NoteEditorModal").then((m) => ({ default: m.NoteEditorModal })),
+);
+const SettingsView = lazy(() =>
+  import("./views/settings/SettingsView").then((m) => ({ default: m.SettingsView })),
+);
+const KanbanBoard = lazy(() =>
+  import("./views/kanban/KanbanBoard").then((m) => ({ default: m.KanbanBoard })),
+);
+const OrgPRsView = lazy(() =>
+  import("./views/orgPRs/OrgPRsView").then((m) => ({ default: m.OrgPRsView })),
+);
+const TeamsView = lazy(() =>
+  import("./views/teams/TeamsView").then((m) => ({ default: m.TeamsView })),
+);
+const TeamDashboardView = lazy(() =>
+  import("./views/teams/TeamDashboardView").then((m) => ({ default: m.TeamDashboardView })),
+);
+const PomodoroView = lazy(() =>
+  import("./views/pomodoro/PomodoroView").then((m) => ({ default: m.PomodoroView })),
+);
+
+const viewFallback = (
+  <div className="d-flex justify-content-center py-5">
+    <Spinner animation="border" size="sm" variant="secondary" />
+  </div>
+);
 
 // Compact "time since last refresh" label for the sidebar refresh button.
 function formatAgo(ts: number, now: number): string {
@@ -361,6 +388,9 @@ export default function App() {
   const pomodoro = usePomodoro({ focusableItems });
 
   const [showNoteEditor, setShowNoteEditor] = useState(false);
+  // Mount the (lazy) editor on first open and keep it mounted so closing still animates.
+  const [noteEditorMounted, setNoteEditorMounted] = useState(false);
+  if (showNoteEditor && !noteEditorMounted) setNoteEditorMounted(true);
   const [openNote, setOpenNote] = useState<import("./types").Note | null>(null);
 
   // ⌘⇧N opens a blank editor, but never clobbers one that's already open.
@@ -582,160 +612,166 @@ export default function App() {
             {/* Show settings or dashboard. Per-view boundary isolates a view crash
                 to the content area (sidebar stays usable) and resets on tab switch. */}
             <ErrorBoundary resetKey={effectiveTab}>
-              {effectiveTab === "settings" ? (
-                <SettingsView
-                  backendOnline={backendOnline}
-                  backendVersion={backendVersion}
-                  configured={configured}
-                  jiraBaseUrl={jiraBaseUrl}
-                  githubUsername={githubUsername}
-                  onBack={() => setActiveTab(prevTabRef.current)}
-                  saveSettings={saveSettings}
-                  theme={themePreference}
-                  onSelectTheme={setThemePreference}
-                />
-              ) : (
-                <div className="tab-content-area" key={effectiveTab}>
-                  {effectiveTab === "summary" && (
-                    <SummaryView
-                      jiraIssues={assignedJiraIssues}
-                      jiraComments={jiraComments}
-                      githubMentions={githubMentions}
-                      openPRs={openPRs}
-                      reviewRequests={reviewRequests}
-                      loading={loading}
-                      jiraIssuesLoading={jiraIssuesLoading}
-                      jiraCommentsLoading={jiraCommentsLoading}
-                      githubMentionsLoading={githubMentionsLoading}
-                      openPRsLoading={openPRsLoading}
-                      reviewRequestsLoading={reviewRequestsLoading}
-                      notesLoading={notesLoading}
-                      jiraBaseUrl={jiraBaseUrl}
-                      onNavigate={setActiveTab}
-                      notes={unresolvedNotes}
-                      onResolveNote={resolveNote}
-                      onAddNote={() => setShowNoteEditor(true)}
-                      onOpenNote={(note) => {
-                        setOpenNote(note);
-                        setShowNoteEditor(true);
-                      }}
-                      doneItemIds={doneItemIds}
-                    />
-                  )}
-                  {effectiveTab === "focus" && (
-                    <FocusView
-                      groups={focusGroups}
-                      loading={focusLoading}
-                      offline={focusOffline}
-                      onPin={pinFocusItem}
-                      onSnooze={snoozeFocusItem}
-                      onDismiss={dismissFocusItem}
-                    />
-                  )}
-                  {effectiveTab === "board" && (
-                    <KanbanBoard
-                      columnTiles={columnTiles}
-                      loading={kanbanLoading}
-                      jiraBaseUrl={jiraBaseUrl}
-                      onMoveItem={kanbanMoveItem}
-                    />
-                  )}
-                  {effectiveTab === "jira" && (
-                    <JiraTasks
-                      issues={assignedJiraIssues}
-                      loading={jiraIssuesLoading}
-                      baseUrl={jiraBaseUrl}
-                    />
-                  )}
-                  {effectiveTab === "jira-search" && <JiraIssueSearch baseUrl={jiraBaseUrl} />}
-                  {effectiveTab === "jira-mentions" && (
-                    <JiraMentionsView
-                      jiraComments={jiraComments}
-                      loading={jiraCommentsLoading}
-                      jiraBaseUrl={jiraBaseUrl}
-                    />
-                  )}
-                  {effectiveTab === "github-mentions" && (
-                    <GitHubMentionsView
-                      githubMentions={githubMentions}
-                      loading={githubMentionsLoading}
-                    />
-                  )}
-                  {effectiveTab === "prs" && (
-                    <PRsView
-                      openPRs={openPRs}
-                      loading={openPRsLoading}
-                      jiraIssues={jiraIssues}
-                      jiraBaseUrl={jiraBaseUrl}
-                      configured={configured}
-                      refreshKey={refreshKey}
-                    />
-                  )}
-                  {effectiveTab === "reviews" && (
-                    <ReviewsView
-                      reviewRequests={reviewRequests}
-                      reviewingPRs={reviewingPRs}
-                      loading={reviewRequestsLoading}
-                      jiraIssues={jiraIssues}
-                      jiraBaseUrl={jiraBaseUrl}
-                    />
-                  )}
-                  {effectiveTab === "org-prs" && (
-                    <OrgPRsView
-                      configured={configured}
-                      jiraBaseUrl={jiraBaseUrl}
-                      jiraIssues={jiraIssues}
-                      refreshKey={refreshKey}
-                    />
-                  )}
-                  {effectiveTab === "teams" && (
-                    <TeamsView configured={configured} onOpenDashboard={openTeamDashboard} />
-                  )}
-                  {effectiveTab === "team-dashboard" && (
-                    <TeamDashboardView
-                      configured={configured}
-                      jiraBaseUrl={jiraBaseUrl}
-                      initialTeamId={dashboardTeamId}
-                      jiraIssues={jiraIssues}
-                    />
-                  )}
-                  {effectiveTab === "notes" && (
-                    <PersonalNotes
-                      notes={notes}
-                      loading={notesLoading}
-                      onResolve={resolveNote}
-                      onDelete={removeNote}
-                      onPin={pinNote}
-                      onUnpin={unpinNote}
-                      onOpenNote={(note) => {
-                        setOpenNote(note);
-                        setShowNoteEditor(true);
-                      }}
-                      onAdd={() => setShowNoteEditor(true)}
-                      jiraBaseUrl={jiraBaseUrl}
-                    />
-                  )}
-                  {effectiveTab === "pomodoro" && (
-                    <PomodoroView focusableItems={focusableItems} {...pomodoro} />
-                  )}
-                </div>
-              )}
+              <Suspense fallback={viewFallback}>
+                {effectiveTab === "settings" ? (
+                  <SettingsView
+                    backendOnline={backendOnline}
+                    backendVersion={backendVersion}
+                    configured={configured}
+                    jiraBaseUrl={jiraBaseUrl}
+                    githubUsername={githubUsername}
+                    onBack={() => setActiveTab(prevTabRef.current)}
+                    saveSettings={saveSettings}
+                    theme={themePreference}
+                    onSelectTheme={setThemePreference}
+                  />
+                ) : (
+                  <div className="tab-content-area" key={effectiveTab}>
+                    {effectiveTab === "summary" && (
+                      <SummaryView
+                        jiraIssues={assignedJiraIssues}
+                        jiraComments={jiraComments}
+                        githubMentions={githubMentions}
+                        openPRs={openPRs}
+                        reviewRequests={reviewRequests}
+                        loading={loading}
+                        jiraIssuesLoading={jiraIssuesLoading}
+                        jiraCommentsLoading={jiraCommentsLoading}
+                        githubMentionsLoading={githubMentionsLoading}
+                        openPRsLoading={openPRsLoading}
+                        reviewRequestsLoading={reviewRequestsLoading}
+                        notesLoading={notesLoading}
+                        jiraBaseUrl={jiraBaseUrl}
+                        onNavigate={setActiveTab}
+                        notes={unresolvedNotes}
+                        onResolveNote={resolveNote}
+                        onAddNote={() => setShowNoteEditor(true)}
+                        onOpenNote={(note) => {
+                          setOpenNote(note);
+                          setShowNoteEditor(true);
+                        }}
+                        doneItemIds={doneItemIds}
+                      />
+                    )}
+                    {effectiveTab === "focus" && (
+                      <FocusView
+                        groups={focusGroups}
+                        loading={focusLoading}
+                        offline={focusOffline}
+                        onPin={pinFocusItem}
+                        onSnooze={snoozeFocusItem}
+                        onDismiss={dismissFocusItem}
+                      />
+                    )}
+                    {effectiveTab === "board" && (
+                      <KanbanBoard
+                        columnTiles={columnTiles}
+                        loading={kanbanLoading}
+                        jiraBaseUrl={jiraBaseUrl}
+                        onMoveItem={kanbanMoveItem}
+                      />
+                    )}
+                    {effectiveTab === "jira" && (
+                      <JiraTasks
+                        issues={assignedJiraIssues}
+                        loading={jiraIssuesLoading}
+                        baseUrl={jiraBaseUrl}
+                      />
+                    )}
+                    {effectiveTab === "jira-search" && <JiraIssueSearch baseUrl={jiraBaseUrl} />}
+                    {effectiveTab === "jira-mentions" && (
+                      <JiraMentionsView
+                        jiraComments={jiraComments}
+                        loading={jiraCommentsLoading}
+                        jiraBaseUrl={jiraBaseUrl}
+                      />
+                    )}
+                    {effectiveTab === "github-mentions" && (
+                      <GitHubMentionsView
+                        githubMentions={githubMentions}
+                        loading={githubMentionsLoading}
+                      />
+                    )}
+                    {effectiveTab === "prs" && (
+                      <PRsView
+                        openPRs={openPRs}
+                        loading={openPRsLoading}
+                        jiraIssues={jiraIssues}
+                        jiraBaseUrl={jiraBaseUrl}
+                        configured={configured}
+                        refreshKey={refreshKey}
+                      />
+                    )}
+                    {effectiveTab === "reviews" && (
+                      <ReviewsView
+                        reviewRequests={reviewRequests}
+                        reviewingPRs={reviewingPRs}
+                        loading={reviewRequestsLoading}
+                        jiraIssues={jiraIssues}
+                        jiraBaseUrl={jiraBaseUrl}
+                      />
+                    )}
+                    {effectiveTab === "org-prs" && (
+                      <OrgPRsView
+                        configured={configured}
+                        jiraBaseUrl={jiraBaseUrl}
+                        jiraIssues={jiraIssues}
+                        refreshKey={refreshKey}
+                      />
+                    )}
+                    {effectiveTab === "teams" && (
+                      <TeamsView configured={configured} onOpenDashboard={openTeamDashboard} />
+                    )}
+                    {effectiveTab === "team-dashboard" && (
+                      <TeamDashboardView
+                        configured={configured}
+                        jiraBaseUrl={jiraBaseUrl}
+                        initialTeamId={dashboardTeamId}
+                        jiraIssues={jiraIssues}
+                      />
+                    )}
+                    {effectiveTab === "notes" && (
+                      <PersonalNotes
+                        notes={notes}
+                        loading={notesLoading}
+                        onResolve={resolveNote}
+                        onDelete={removeNote}
+                        onPin={pinNote}
+                        onUnpin={unpinNote}
+                        onOpenNote={(note) => {
+                          setOpenNote(note);
+                          setShowNoteEditor(true);
+                        }}
+                        onAdd={() => setShowNoteEditor(true)}
+                        jiraBaseUrl={jiraBaseUrl}
+                      />
+                    )}
+                    {effectiveTab === "pomodoro" && (
+                      <PomodoroView focusableItems={focusableItems} {...pomodoro} />
+                    )}
+                  </div>
+                )}
+              </Suspense>
             </ErrorBoundary>
           </main>
         </div>
       </ErrorBoundary>
 
-      <NoteEditorModal
-        show={showNoteEditor}
-        onHide={() => {
-          setShowNoteEditor(false);
-          setOpenNote(null);
-        }}
-        onSave={addNote}
-        note={openNote}
-        onEdit={editNote}
-        jiraBaseUrl={jiraBaseUrl}
-      />
+      {noteEditorMounted && (
+        <Suspense fallback={null}>
+          <NoteEditorModal
+            show={showNoteEditor}
+            onHide={() => {
+              setShowNoteEditor(false);
+              setOpenNote(null);
+            }}
+            onSave={addNote}
+            note={openNote}
+            onEdit={editNote}
+            jiraBaseUrl={jiraBaseUrl}
+          />
+        </Suspense>
+      )}
 
       {/* Service worker is registered in production builds only. */}
       {import.meta.env.PROD && <UpdateToast />}

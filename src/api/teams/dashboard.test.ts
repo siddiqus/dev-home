@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import axios from "axios";
+import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { mapAgileIssues, postTeamDashboard } from "./dashboard";
 import { ApiError } from "../http";
 import { saveSettings } from "../../services/config";
 import { clearSprintCache } from "../jira/teams";
+
+useFetchAdapter();
 
 // Shapes below mirror what Jira's Agile API actually returns for the `epic`
 // field object (verified against live boards): `name` is the deprecated
@@ -103,7 +105,7 @@ describe("postTeamDashboard — fetching", () => {
       hiddenTabs: [],
     });
     graphqlBodies = [];
-    axios.defaults.adapter = vi.fn(async (config: any) => {
+    httpMock.adapter = vi.fn(async (config: any) => {
       if (config.url?.includes("graphql")) {
         const body = JSON.parse(config.data);
         graphqlBodies.push(body);
@@ -141,12 +143,10 @@ describe("postTeamDashboard — fetching", () => {
     expect(result.reviewQueue.map((e: any) => e.number).sort()).toEqual([1, 2]);
   });
 
-  it("records a snapshot only for the active sprint", async () => {
+  it("defaults to the active sprint and honours an explicit sprintId", async () => {
     const active = await postTeamDashboard({ team: TEAM, members: MEMBERS });
     expect(active.sprint.id).toBe(6);
-    expect(active.snapshot).not.toBeNull();
     const closed = await postTeamDashboard({ team: TEAM, members: MEMBERS, sprintId: 5 });
     expect(closed.sprint.id).toBe(5);
-    expect(closed.snapshot).toBeNull();
   });
 });

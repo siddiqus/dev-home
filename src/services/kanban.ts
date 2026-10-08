@@ -66,10 +66,3 @@ export async function batchUpdateKanbanItems(items: KanbanInput[]): Promise<Kanb
   }
   return sorted(kanbanCollection.all());
 }
-
-export async function deleteKanbanItem(itemType: string, itemId: string): Promise<void> {
-  const removed = kanbanCollection.removeWhere(
-    (i) => i.item_type === itemType && i.item_id === itemId,
-  );
-  if (removed === 0) throw new Error("Kanban item not found");
-}

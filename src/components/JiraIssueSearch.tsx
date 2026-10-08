@@ -24,6 +24,7 @@ import {
   fetchRemoteJiraFilters,
   searchJql,
 } from "../services/jiraFilters";
+import { readCached, writeCached } from "../lib/ttlCache";
 import "./JiraIssueSearch.css";
 
 interface JiraIssueSearchProps {
@@ -74,17 +75,10 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     if (force) {
       localStorage.removeItem(CACHE_KEY);
     } else {
-      try {
-        const raw = localStorage.getItem(CACHE_KEY);
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (Date.now() - cached.ts < DAY_MS) {
-            setRemoteFilters(cached.filters);
-            return;
-          }
-        }
-      } catch {
-        // ignore corrupt cache
+      const cached = readCached<{ filters: RemoteJiraFilter[] }>(CACHE_KEY, DAY_MS, "ts");
+      if (cached) {
+        setRemoteFilters(cached.filters);
+        return;
       }
     }
 
@@ -92,7 +86,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     try {
       const filters = await fetchRemoteJiraFilters();
       setRemoteFilters(filters);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ filters, ts: Date.now() }));
+      writeCached(CACHE_KEY, { filters }, "ts");
     } catch (err: any) {
       setSearchError(`Couldn't load Jira filters: ${errorMessage(err, "request failed")}`);
     } finally {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import axios from "axios";
+import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
 import { clearListCache, fetchOrgPRsMulti, fetchRecentlyMergedPRs } from "../../services/github";
 import {
@@ -9,6 +9,8 @@ import {
   getMergedPrs,
   resetMentionsCache,
 } from "./index";
+
+useFetchAdapter();
 
 const BASE_SETTINGS: AppSettings = {
   jiraBaseUrl: "https://example.atlassian.net",
@@ -57,7 +59,6 @@ function comment(id: number) {
 }
 
 let adapter: ReturnType<typeof vi.fn>;
-let originalAdapter: any;
 let inbox: any[];
 /** PR nodes returned by the own-PR comments GraphQL search. */
 let ownPrs: any[];
@@ -101,7 +102,6 @@ beforeEach(() => {
   ownPrs = [];
   notModified = false;
   alwaysNotModified = false;
-  originalAdapter = axios.defaults.adapter;
   adapter = vi.fn(async (config: any) => {
     const url = urlOf(config);
     // Own-PR comments search.
@@ -127,11 +127,10 @@ beforeEach(() => {
     // Subject lookups: everything is still open.
     return response(config, { state: "open" });
   });
-  axios.defaults.adapter = adapter as any;
+  httpMock.adapter = adapter as any;
 });
 
 afterEach(() => {
-  axios.defaults.adapter = originalAdapter;
   vi.useRealTimers();
 });
 

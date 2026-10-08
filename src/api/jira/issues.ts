@@ -230,7 +230,7 @@ export function resetMyselfCache(): void {
  * configured email — the proxy deliberately doesn't expose /myself. Resolves
  * null on failure.
  */
-export function getMyself(): Promise<{ accountId: string; displayName: string } | null> {
+function getMyself(): Promise<{ accountId: string; displayName: string } | null> {
   const s = requireSettings();
   const key = `${s.jiraBaseUrl}|${s.jiraEmail}`;
   if (myselfCache?.key !== key) {

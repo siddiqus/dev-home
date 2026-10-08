@@ -15,7 +15,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Normalize axios / proxy / GitHub / Jira errors. Status 0 = network or CORS failure. */
+/** Normalize fetch / proxy / GitHub / Jira errors. Status 0 = network or CORS failure. */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   const e = err as { message?: string; response?: { status?: number; data?: any } };

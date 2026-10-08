@@ -141,27 +141,6 @@ export interface Hygiene {
   doneNoMerged: Ref[];
 }
 
-export interface BurnupPoint {
-  date: string;
-  doneCount: number;
-  totalCount: number;
-  ideal: number;
-}
-
-export interface Burnup {
-  trackingSince: string | null;
-  points: BurnupPoint[];
-}
-
-export type InsightSeverity = "info" | "warn" | "critical";
-
-export interface Insight {
-  key: string;
-  severity: InsightSeverity;
-  title: string;
-  detail: string;
-}
-
 /** One row of the Review Queue: an open PR and whose court the ball is in. */
 export interface ReviewQueueEntry {
   number: number;

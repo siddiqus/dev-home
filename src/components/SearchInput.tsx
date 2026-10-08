@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useCallback, useImperativeHandle } from "react";
+import { forwardRef, useRef, useCallback, useImperativeHandle } from "react";
 import { IconSearch, IconX } from "@tabler/icons-react";
 import "./SearchInput.css";
 

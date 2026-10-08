@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { GitHubPR, Note } from "../types";
 import { useNotesContext } from "../context/NotesContext";
 import { prNoteKey, notesForPr } from "../utils/prNotes";
