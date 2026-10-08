@@ -1,0 +1,35 @@
+/* Connectivity bar: fixed over the top of the viewport so it never reflows the page. */
+.connection-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 16px;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1090;
+  animation: connection-banner-in 0.2s ease-out;
+}
+
+.connection-banner.is-offline {
+  background: var(--color-status-danger);
+}
+
+.connection-banner.is-reconnected {
+  background: var(--color-status-success);
+}
+
+@keyframes connection-banner-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

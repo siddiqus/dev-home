@@ -41,6 +41,7 @@ import { PRsView } from "./views/prs/PRsView";
 import { ReviewsView } from "./views/reviews/ReviewsView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useKanban } from "./hooks/useKanban";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
@@ -772,6 +773,8 @@ export default function App() {
           />
         </Suspense>
       )}
+
+      <ConnectionBanner />
 
       {/* Service worker is registered in production builds only. */}
       {import.meta.env.PROD && <UpdateToast />}
