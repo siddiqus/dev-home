@@ -122,6 +122,8 @@ export interface GitHubPR {
   user: {
     login: string;
     avatar_url: string;
+    /** Display name, when the author is a user who has set one. */
+    name?: string;
   };
   head: {
     ref: string;

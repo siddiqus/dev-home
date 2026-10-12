@@ -189,6 +189,7 @@ export function mapGraphQLPr(
     user: {
       login: node.author?.login || "",
       avatar_url: node.author?.avatarUrl || "",
+      ...(node.author?.name ? { name: node.author.name } : {}),
     },
     head: {
       ref: node.headRefName || "",

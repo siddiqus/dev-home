@@ -654,3 +654,10 @@
   white-space: nowrap;
   color: var(--color-text-secondary);
 }
+
+/* The mode tabs and item filter are both 30px; centre them so their tops and
+   bottoms line up (baseline alignment would offset them). */
+.workday-mode-toggle,
+.workday-item-filter {
+  align-self: center;
+}

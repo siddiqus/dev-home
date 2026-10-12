@@ -1,8 +1,11 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { IconChevronDown, IconChevronRight, type Icon } from "@tabler/icons-react";
 import Card from "react-bootstrap/Card";
 import { Badge } from "../../components/primitives/Badge";
 import { SectionHeader } from "../../components/primitives/SectionHeader";
+
+/** True while the header's item filter is narrowing the page. */
+export const ItemFilteringContext = createContext(false);
 
 interface WorkdaySectionProps {
   title: string;
@@ -44,6 +47,7 @@ export function WorkdaySection({
   onToggle,
   children,
 }: WorkdaySectionProps) {
+  const filtering = useContext(ItemFilteringContext);
   const Chevron = collapsed ? IconChevronRight : IconChevronDown;
 
   return (
@@ -80,7 +84,9 @@ export function WorkdaySection({
               </div>
             ) : count === 0 ? (
               // With an error, "nothing to show" would be misleading.
-              !error && <div className="workday-empty">{empty}</div>
+              !error && (
+                <div className="workday-empty">{filtering ? "No matching items" : empty}</div>
+              )
             ) : (
               <div className="workday-rows">{children}</div>
             )}

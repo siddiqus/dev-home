@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { IconAt, IconClock, IconTarget } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
 import type { StateBadge } from "./prState";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
-import { WorkdaySection } from "./WorkdaySection";
+import { ItemFilteringContext, WorkdaySection } from "./WorkdaySection";
 import { NeedsYouStrip } from "./NeedsYouStrip";
 import {
   CountDots,
@@ -62,7 +62,10 @@ export function FocusMode({
   onOpen,
 }: FocusModeProps) {
   const openIssue = useOptionalJiraDrawer();
-  const [showApproved, setShowApproved] = useState(false);
+  const [approvedOpen, setShowApproved] = useState(false);
+  // While filtering, never hide a match behind "+ n you approved".
+  const filtering = useContext(ItemFilteringContext);
+  const showApproved = approvedOpen || filtering;
   const [showPRs, setShowPRs] = useState(() => localStorage.getItem(SHOW_PRS_KEY) !== "0");
   const toggleShowPRs = () => {
     localStorage.setItem(SHOW_PRS_KEY, showPRs ? "0" : "1");
@@ -283,7 +286,7 @@ export function FocusMode({
             (w, child) => prRow(w.pr, w.ticketKey, authorBadge(w, now), child, w.pr.user.login),
             (w) => authorBadge(w, now).tone,
           )}
-        {waiting.approved.length > 0 && (
+        {waiting.approved.length > 0 && !filtering && (
           <button type="button" className="workday-more" onClick={() => setShowApproved((v) => !v)}>
             {showApproved
               ? "Hide approved"

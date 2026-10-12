@@ -173,7 +173,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   const collapsed = collapsedGroups ?? internalCollapsed;
   const toggleGroup = onToggleGroup ?? toggleInternal;
 
-  const isMergedVariant = variant === "recently-merged" || variant === "recently-merged-org";
   const fields = VARIANT_FIELDS[variant];
 
   const ticketIssues = useMemo(
@@ -209,7 +208,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   }, [hasGroups, allCollapsed]);
 
   if (loading && prs.length === 0) {
-    if (isMergedVariant) return null;
     return (
       <div className="d-flex justify-content-center align-items-center py-5">
         <Spinner animation="border" variant="secondary" />
@@ -218,7 +216,6 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   }
 
   if (prs.length === 0) {
-    if (isMergedVariant) return null;
     const empty = EMPTY_STATE[variant];
     return <EmptyState icon={empty.icon} title={empty.title} description={empty.description} />;
   }

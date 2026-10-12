@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import {
@@ -23,7 +23,7 @@ import { standupRef, compactAge, type Lookback } from "./dates";
 import { myPRState, NO_PR_YET, REVIEWING_LABEL, titleWithoutKey } from "./prState";
 import type { StateBadge } from "./prState";
 import type { BlockerItem, DoneItem, NotStartedItem, TicketRef, WorkdaySections } from "./types";
-import { WorkdaySection } from "./WorkdaySection";
+import { ItemFilteringContext, WorkdaySection } from "./WorkdaySection";
 import {
   CountDots,
   countLabel,
@@ -108,7 +108,10 @@ export function StandupMode({
   editNote,
 }: StandupModeProps) {
   const openIssue = useOptionalJiraDrawer();
-  const [showAllOff, setShowAllOff] = useState(false);
+  const [allOffOpen, setShowAllOff] = useState(false);
+  // While filtering, never hide a match behind "Show n more".
+  const filtering = useContext(ItemFilteringContext);
+  const showAllOff = allOffOpen || filtering;
   const [showPreview, setShowPreview] = useState(false);
   const { done, workingOn, blockers, notStarted } = sections;
   const reviewing = useMemo(() => reviewingLines(sections), [sections]);
@@ -416,7 +419,7 @@ export function StandupMode({
             <>
               <WorkdaySubhead>Off-sprint</WorkdaySubhead>
               {visibleOff.map(notStartedLine)}
-              {offItems.length > OFF_SPRINT_PREVIEW && (
+              {offItems.length > OFF_SPRINT_PREVIEW && !filtering && (
                 <button
                   type="button"
                   className="workday-more"

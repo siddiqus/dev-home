@@ -13,6 +13,8 @@ interface MultiSelectDropdownProps {
   placeholder: string;
   allLabel: string;
   width?: number | string;
+  /** Trigger height; 30 matches an inline-control SegmentedTabs beside it. */
+  height?: number;
   loading?: boolean;
   /** Icon shown at the left of the trigger. Defaults to a search icon. */
   triggerIcon?: React.ReactNode;
@@ -25,6 +27,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   placeholder,
   allLabel,
   width = 240,
+  height = 28,
   loading = false,
   triggerIcon = <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />,
 }) => {
@@ -152,7 +155,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           border: "1px solid var(--color-border)",
           borderRadius: 6,
           padding: "0 8px",
-          height: 28,
+          height,
           fontSize: "0.8125rem",
           cursor: "pointer",
           background: "var(--color-bg-input)",

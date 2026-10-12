@@ -31,7 +31,7 @@ const PR_BASE_FIELDS = `databaseId
   isDraft
   createdAt
   updatedAt
-  author { login avatarUrl }
+  author { login avatarUrl ... on User { name } }
   headRefName
   baseRefName
   additions

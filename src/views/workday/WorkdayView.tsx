@@ -3,6 +3,7 @@ import Button from "react-bootstrap/Button";
 import { IconCopy, IconFold, IconFoldDown, IconRefresh, IconSun } from "@tabler/icons-react";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
+import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
@@ -12,6 +13,13 @@ import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import { buildWorkday, filterWorkday } from "./buildWorkday";
 import { buildFocus } from "./buildFocus";
 import { workdayToMarkdown } from "./workdayMarkdown";
+import {
+  filterFocusByItems,
+  filterSectionsByItems,
+  itemFilterOptions,
+  parseItemFilter,
+} from "./itemFilter";
+import { ItemFilteringContext } from "./WorkdaySection";
 import { formatSinceLabel, sinceFor, type Lookback } from "./dates";
 import type { SprintFilter } from "./types";
 import { FocusMode } from "./FocusMode";
@@ -192,6 +200,20 @@ export function WorkdayView(props: WorkdayViewProps) {
     [allIssues, assignedIssues],
   );
 
+  // The header's item filter narrows every section in both modes; options come
+  // from the unfiltered page so picks don't vanish when switching modes.
+  const [pickedItems, setPickedItems] = useState<string[]>([]);
+  const itemOptions = useMemo(
+    () => itemFilterOptions(sections, focus, ticketTitles),
+    [sections, focus, ticketTitles],
+  );
+  const itemFilter = useMemo(() => parseItemFilter(pickedItems), [pickedItems]);
+  const shownSections = useMemo(
+    () => filterSectionsByItems(filtered, itemFilter),
+    [filtered, itemFilter],
+  );
+  const shownFocus = useMemo(() => filterFocusByItems(focus, itemFilter), [focus, itemFilter]);
+
   // StandupNotes seeds this on mount and keeps it in sync.
   const [noteText, setNoteText] = useState("");
   const markdown = useMemo(
@@ -245,6 +267,17 @@ export function WorkdayView(props: WorkdayViewProps) {
               activeKey={mode}
               onChange={(k) => setMode(k as Mode)}
             />
+            <div className="workday-item-filter">
+              <MultiSelectDropdown
+                items={itemOptions}
+                values={pickedItems}
+                onChange={setPickedItems}
+                placeholder="Search tickets and PRs..."
+                allLabel="All items"
+                width={280}
+                height={30}
+              />
+            </div>
             <div className="workday-header-spacer" />
             {mode === "standup" && (
               <>
@@ -276,36 +309,38 @@ export function WorkdayView(props: WorkdayViewProps) {
           </div>
           <div className="workday-subtitle">{subtitle}</div>
 
-          {mode === "focus" ? (
-            <FocusMode
-              focus={focus}
-              loading={loading}
-              mentionsLoading={mentionsLoading}
-              jiraBaseUrl={jiraBaseUrl}
-              ticketTitles={ticketTitles}
-              now={now}
-              sectionToggle={sectionToggle}
-              onOpen={setSelectedPR}
-            />
-          ) : (
-            <StandupMode
-              sections={filtered}
-              sinceLabel={sinceLabel}
-              lookback={lookback}
-              onLookback={setLookback}
-              loading={loading}
-              jiraBaseUrl={jiraBaseUrl}
-              now={now}
-              sectionToggle={sectionToggle}
-              onOpen={setSelectedPR}
-              markdown={markdown}
-              onNoteChange={setNoteText}
-              notes={notes}
-              notesLoaded={notesLoaded}
-              addNote={addNote}
-              editNote={editNote}
-            />
-          )}
+          <ItemFilteringContext.Provider value={itemFilter !== null}>
+            {mode === "focus" ? (
+              <FocusMode
+                focus={shownFocus}
+                loading={loading}
+                mentionsLoading={mentionsLoading}
+                jiraBaseUrl={jiraBaseUrl}
+                ticketTitles={ticketTitles}
+                now={now}
+                sectionToggle={sectionToggle}
+                onOpen={setSelectedPR}
+              />
+            ) : (
+              <StandupMode
+                sections={shownSections}
+                sinceLabel={sinceLabel}
+                lookback={lookback}
+                onLookback={setLookback}
+                loading={loading}
+                jiraBaseUrl={jiraBaseUrl}
+                now={now}
+                sectionToggle={sectionToggle}
+                onOpen={setSelectedPR}
+                markdown={markdown}
+                onNoteChange={setNoteText}
+                notes={notes}
+                notesLoaded={notesLoaded}
+                addNote={addNote}
+                editNote={editNote}
+              />
+            )}
+          </ItemFilteringContext.Provider>
 
           <PRDetailModal
             pr={selectedPR}
