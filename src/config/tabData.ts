@@ -16,8 +16,7 @@ export type DataSource =
   | "jiraComments"
   | "githubMentions"
   | "notes"
-  | "kanban"
-  | "focusState";
+  | "kanban";
 
 /** Sources fetched remotely from GitHub/Jira. The rest are local. */
 export const remoteSources: DataSource[] = [
@@ -41,15 +40,6 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
   summary: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions", "notes"],
   // Plus its own lazy extras (useWorkdayExtras), refetched on refreshKey. Mentions feed Focus mode.
   workday: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions", "notes"],
-  focus: [
-    "openPRs",
-    "reviewRequests",
-    "jiraIssues",
-    "jiraComments",
-    "githubMentions",
-    "notes",
-    "focusState",
-  ],
   board: ["openPRs", "reviewRequests", "notes", "kanban"],
   prs: ["openPRs", "jiraIssues"],
   reviews: ["reviewRequests", "jiraIssues"],
@@ -70,7 +60,7 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
 /**
  * Tabs with a top-bar refresh button, mapped to the source(s) the page owns.
  * Unlike TAB_SOURCES, this omits enrichment-only deps (e.g. jiraIssues on My
- * PRs) so a page refresh stays scoped. Aggregate tabs (summary/focus/board) use
+ * PRs) so a page refresh stays scoped. Aggregate tabs (summary/board) use
  * the sidebar Refresh; self-fetching tabs (org-prs, teams, jira-search) have
  * their own in-page refresh controls.
  */

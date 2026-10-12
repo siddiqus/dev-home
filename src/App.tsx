@@ -18,7 +18,6 @@ import {
   IconEye,
   IconBuilding,
   IconClock,
-  IconTarget,
   IconUsersGroup,
   IconChartBar,
   IconSun,
@@ -31,9 +30,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useReminderScheduler } from "./hooks/useReminderScheduler";
-import { useFocus } from "./hooks/useFocus";
 import { AppProviders } from "./context/AppProviders";
-import { FocusView } from "./components/FocusView";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
@@ -225,27 +222,9 @@ export default function App() {
     onResolveNote: resolveNote,
     onUnresolveNote: unresolveNote,
   });
-  const {
-    groups: focusGroups,
-    loading: focusLoading,
-    offline: focusOffline,
-    pin: pinFocusItem,
-    snooze: snoozeFocusItem,
-    dismiss: dismissFocusItem,
-  } = useFocus({
-    active: configured && activeSources.has("focusState"),
-    openPRs,
-    reviewRequests,
-    jiraIssues: assignedJiraIssues,
-    jiraComments,
-    githubMentions,
-    notes: unresolvedNotes,
-    jiraBaseUrl,
-  });
-
   // Lazily load the remote sources the active tab needs. Idempotent: sources
-  // already loaded (or in flight) are skipped. Local sources (notes/kanban/
-  // focusState) are gated via the hooks above.
+  // already loaded (or in flight) are skipped. Local sources (notes/kanban)
+  // are gated via the hooks above.
   useEffect(() => {
     if (!configured) return;
     ensure(sourcesFor(effectiveTab, { boardEnabled }));
@@ -504,7 +483,6 @@ export default function App() {
               const tabMeta: Record<string, { icon: Icon }> = {
                 summary: { icon: IconLayoutDashboard },
                 workday: { icon: IconSun },
-                focus: { icon: IconTarget },
                 board: { icon: IconColumns3 },
                 notes: { icon: IconNotes },
                 jira: { icon: IconSubtask },
@@ -686,16 +664,6 @@ export default function App() {
                         notesLoaded={notesLoaded}
                         addNote={addNote}
                         editNote={editNote}
-                      />
-                    )}
-                    {effectiveTab === "focus" && (
-                      <FocusView
-                        groups={focusGroups}
-                        loading={focusLoading}
-                        offline={focusOffline}
-                        onPin={pinFocusItem}
-                        onSnooze={snoozeFocusItem}
-                        onDismiss={dismissFocusItem}
                       />
                     )}
                     {effectiveTab === "board" && (

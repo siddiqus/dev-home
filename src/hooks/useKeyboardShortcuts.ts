@@ -2,7 +2,6 @@ import { useEffect } from "react";
 
 const tabShortcuts: Record<string, string> = {
   0: "summary",
-  1: "focus",
   2: "board",
   3: "notes",
   4: "jira",
