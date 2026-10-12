@@ -107,10 +107,115 @@
   color: var(--color-text-primary);
 }
 
-.theme-picker-hint {
-  margin: 10px 0 0;
+/* --- Page: one column of sections, capped so lines stay readable --- */
+.settings-page {
+  max-width: 960px;
+}
+
+/* --- Status row: proxy, notifications, setup on one quiet line --- */
+.settings-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.settings-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.settings-link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* --- Sections: title + blurb on the left, controls on the right --- */
+.settings-section {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-section-intro h6 {
+  margin: 0 0 var(--space-1);
+}
+
+.settings-section-intro p {
+  margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.settings-section-body {
+  max-width: 560px;
+}
+
+@media (max-width: 768px) {
+  .settings-section {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+.settings-field + .settings-field {
+  margin-top: var(--space-3);
+}
+
+.settings-label {
+  margin-bottom: var(--space-1);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.settings-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* --- Weekend day chips --- */
+.weekend-days {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.weekend-day {
+  min-width: 44px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.weekend-day:hover {
+  border-color: var(--color-accent);
+}
+
+.weekend-day--off {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-text-primary);
 }
 
 /* --- Sticky header ---
@@ -126,7 +231,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* --- Token permissions help (Integrations tab) --- */
+/* --- Token permissions help (under the token fields) --- */
 .token-info {
   margin-top: var(--space-2);
   font-size: 0.75rem;

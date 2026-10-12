@@ -7,6 +7,7 @@ import {
   IconCode,
   IconRefresh,
   IconSettings,
+  IconBrandGithub,
   IconLayoutDashboard,
   IconColumns3,
   IconNotes,
@@ -135,9 +136,7 @@ export default function App() {
     configured,
     loading: configLoading,
     backendOnline,
-    backendVersion,
     jiraBaseUrl,
-    githubUsername,
     githubOrg,
     hiddenTabs,
     weekendDays,
@@ -482,6 +481,16 @@ export default function App() {
             >
               <IconSettings size={16} />
             </button>
+            <a
+              className="top-bar-icon-btn"
+              href="https://github.com/siddiqus/dev-home"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Dev Home on GitHub"
+              aria-label="Dev Home on GitHub"
+            >
+              <IconBrandGithub size={16} />
+            </a>
           </div>
         </Container>
       </Navbar>
@@ -623,10 +632,7 @@ export default function App() {
                 {effectiveTab === "settings" ? (
                   <SettingsView
                     backendOnline={backendOnline}
-                    backendVersion={backendVersion}
                     configured={configured}
-                    jiraBaseUrl={jiraBaseUrl}
-                    githubUsername={githubUsername}
                     onBack={() => setActiveTab(prevTabRef.current)}
                     saveSettings={saveSettings}
                     theme={themePreference}

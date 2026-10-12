@@ -1,5 +1,4 @@
 import React from "react";
-import Card from "react-bootstrap/Card";
 import Form from "react-bootstrap/Form";
 import { AppSettings } from "../../services/config";
 import { TOGGLEABLE_GROUPS } from "../../config/navTabs";
@@ -22,31 +21,26 @@ export const MenuItemsToggle: React.FC<MenuItemsToggleProps> = ({ formState, set
   };
 
   return (
-    <Card className="mb-3">
-      <Card.Body>
-        <h6 style={{ marginBottom: 4 }}>Sidebar Menu Items</h6>
-        <p className="text-secondary-custom" style={{ fontSize: "0.75rem", marginBottom: 12 }}>
-          Choose which items appear in the sidebar. Summary is always shown.
-        </p>
-        <div className="menu-toggle-list">
-          {TOGGLEABLE_GROUPS.map((group) => (
-            <div key={group.key} className="menu-toggle-group">
-              {group.label && <div className="menu-toggle-group-label">{group.label}</div>}
-              {group.tabs.map((tab) => (
-                <label key={tab.key} className="menu-toggle-row" htmlFor={`menu-toggle-${tab.key}`}>
-                  <span>{tab.label}</span>
-                  <Form.Check
-                    type="switch"
-                    id={`menu-toggle-${tab.key}`}
-                    checked={!hiddenTabs.includes(tab.key)}
-                    onChange={(e) => toggleTab(tab.key, e.target.checked)}
-                  />
-                </label>
-              ))}
-            </div>
+    <div className="menu-toggle-list">
+      {TOGGLEABLE_GROUPS.map((group) => (
+        <div key={group.key} className="menu-toggle-group">
+          {/* Unlabeled group keeps an empty label so rows line up across columns */}
+          <div className="menu-toggle-group-label" aria-hidden={!group.label}>
+            {group.label ?? "\u00a0"}
+          </div>
+          {group.tabs.map((tab) => (
+            <label key={tab.key} className="menu-toggle-row" htmlFor={`menu-toggle-${tab.key}`}>
+              <span>{tab.label}</span>
+              <Form.Check
+                type="switch"
+                id={`menu-toggle-${tab.key}`}
+                checked={!hiddenTabs.includes(tab.key)}
+                onChange={(e) => toggleTab(tab.key, e.target.checked)}
+              />
+            </label>
           ))}
         </div>
-      </Card.Body>
-    </Card>
+      ))}
+    </div>
   );
 };

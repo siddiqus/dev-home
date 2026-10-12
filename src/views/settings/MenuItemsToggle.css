@@ -1,11 +1,16 @@
+/* Groups side by side, wrapping into rows as space runs out. */
 .menu-toggle-list {
-  max-width: 320px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
 }
 
 .menu-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   font-size: 0.875rem;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -17,17 +22,12 @@
   background-color: var(--color-bg-hover);
 }
 
-/* Mirror the sidebar's sections: divider between groups + uppercase label. */
-.menu-toggle-group + .menu-toggle-group {
-  border-top: 1px solid var(--color-border-strong);
-  margin-top: var(--space-2);
-}
-
+/* Mirror the sidebar's sections with an uppercase label. */
 .menu-toggle-group-label {
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-tertiary, var(--color-text-secondary));
-  padding: var(--space-2) 8px 4px;
+  padding: 0 8px 4px;
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Mock } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { NotificationsCard } from "./NotificationsCard";
+import { NotificationsStatus } from "./NotificationsStatus";
 
-describe("NotificationsCard", () => {
+describe("NotificationsStatus", () => {
   let requestPermissionSpy: Mock<() => Promise<NotificationPermission>>;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
     expect(screen.getByRole("button", { name: /enable notifications/i })).toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
 
     const button = screen.getByRole("button", { name: /enable notifications/i });
     fireEvent.click(button);
@@ -56,7 +56,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
 
     const button = screen.getByRole("button", { name: /enable notifications/i });
     fireEvent.click(button);
@@ -66,8 +66,9 @@ describe("NotificationsCard", () => {
       expect(screen.getByRole("status")).toHaveTextContent(/notifications enabled/i);
     });
 
-    // Should also show "Notifications enabled" in the alert (role="alert")
-    expect(screen.getByRole("alert")).toHaveTextContent(/notifications enabled/i);
+    // The status item flips to enabled, and the Enable button goes away
+    expect(screen.getByText(/^notifications enabled$/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /enable notifications/i })).not.toBeInTheDocument();
   });
 
   it("shows 'Notifications enabled' when permission is already 'granted'", () => {
@@ -78,7 +79,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
     expect(screen.getByText(/notifications enabled/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /enable notifications/i })).not.toBeInTheDocument();
   });
@@ -91,7 +92,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
     expect(screen.getByText(/notifications are blocked/i)).toBeInTheDocument();
     expect(screen.getByText(/browser.*site settings/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /enable notifications/i })).not.toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("NotificationsCard", () => {
     // @ts-expect-error intentionally undefined
     global.Notification = undefined;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
     expect(screen.getByText(/notifications are not supported/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /enable notifications/i })).not.toBeInTheDocument();
   });
@@ -114,9 +115,9 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
     expect(
-      screen.getByText(/reminders and pomodoro alerts only fire while dev home is open/i),
+      screen.getByTitle(/reminders and pomodoro alerts only fire while dev home is open/i),
     ).toBeInTheDocument();
   });
 
@@ -129,12 +130,12 @@ describe("NotificationsCard", () => {
     // @ts-expect-error assigning test double
     global.Notification = MockNotification;
 
-    render(<NotificationsCard />);
+    render(<NotificationsStatus />);
 
     const button = screen.getByRole("button", { name: /enable notifications/i });
     fireEvent.click(button);
 
-    // After permission is denied, should show denied alert (not success toast)
+    // After permission is denied, should show the blocked state (not success toast)
     await waitFor(() => {
       expect(screen.getByText(/notifications are blocked/i)).toBeInTheDocument();
     });
