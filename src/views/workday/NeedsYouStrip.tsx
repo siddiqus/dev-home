@@ -98,13 +98,13 @@ export function NeedsYouStrip({
   const tierCounts = tierCountsByTicket(items);
   return (
     <WorkdaySection
-      title="Needs you"
+      title="Lock in"
       icon={IconBolt}
       count={items.length}
       loading={loading}
       error={error}
       empty={<span className="workday-all-clear">✓ Nothing needs you right now</span>}
-      hint={empty ? undefined : "Ready to merge first"}
+      // hint={''}
       className={`workday-needs${empty ? " workday-needs--empty" : ""}`}
       collapsed={collapsed}
       onToggle={onToggle}

@@ -111,7 +111,7 @@ describe("WorkdayView modes", () => {
 
   it("defaults to Focus, without the sprint filter, Collapse all or Copy", () => {
     renderView();
-    for (const title of ["Needs you", "Mentions", "Working on", "Waiting on others"]) {
+    for (const title of ["Lock in", "Mentions", "Working on", "Waiting on others"]) {
       expect(screen.getByText(title)).toBeTruthy();
     }
     expect(screen.queryByText("In Progress")).toBeNull();
@@ -132,7 +132,7 @@ describe("WorkdayView modes", () => {
     renderView();
     expect(screen.getByText("In Progress")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Focus/ }));
-    expect(screen.getByText("Needs you")).toBeTruthy();
+    expect(screen.getByText("Lock in")).toBeTruthy();
     expect(localStorage.getItem("workday.mode")).toBe("focus");
   });
 
@@ -146,7 +146,7 @@ describe("WorkdayView modes", () => {
     fireEvent.keyDown(window, { key: "f", metaKey: true });
     expect(screen.getByText("In Progress")).toBeTruthy();
     fireEvent.keyDown(window, { key: "F" });
-    expect(screen.getByText("Needs you")).toBeTruthy();
+    expect(screen.getByText("Lock in")).toBeTruthy();
   });
 
   it("shows the all-clear line when nothing needs you", () => {
@@ -158,7 +158,7 @@ describe("WorkdayView modes", () => {
   it("lists what needs you, and opens the PR modal from a row", () => {
     renderView({ openPRs: [{ ...prs[0], requested_reviewers: [] }] });
     expect(screen.getByText("1 thing needs you")).toBeTruthy();
-    const strip = sectionOf("Needs you");
+    const strip = sectionOf("Lock in");
     expect(within(strip).getByText("Unblock yourself")).toBeTruthy();
     const verb = within(strip).getByText("Request review");
     expect(verb.className).toContain("workday-tone--warning");
@@ -183,7 +183,7 @@ describe("WorkdayView modes", () => {
         { key: "WMU-402", summary: "Delete assets", status: { name: "In Progress" } } as JiraIssue,
       ],
     });
-    const section = sectionOf("Needs you");
+    const section = sectionOf("Lock in");
     expect(within(section).getAllByText("WMU-402")).toHaveLength(1);
     const header = within(section).getByText("2 PRs").closest(".workday-line") as HTMLElement;
     expect(within(header).getByText("Delete assets")).toBeTruthy();
@@ -208,7 +208,7 @@ describe("WorkdayView modes", () => {
         { key: "WMU-402", summary: "Delete assets", status: { name: "In Progress" } } as JiraIssue,
       ],
     });
-    const section = sectionOf("Needs you");
+    const section = sectionOf("Lock in");
     expect(within(section).getAllByText("WMU-402")).toHaveLength(2);
     expect(within(section).getByText("+1 in Unblock others")).toBeTruthy();
     expect(within(section).getByText("+1 in Unblock yourself")).toBeTruthy();
