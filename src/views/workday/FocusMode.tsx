@@ -150,11 +150,11 @@ export function FocusMode({
             className="workday-mention"
             role="button"
             tabIndex={0}
-            onClick={() =>
-              m.source === "Jira"
-                ? openIssue?.(m.where)
-                : window.open(m.url, "_blank", "noopener,noreferrer")
-            }
+            onClick={(e) => {
+              e.currentTarget.blur();
+              if (m.source === "Jira") openIssue?.(m.where);
+              else window.open(m.url, "_blank", "noopener,noreferrer");
+            }}
           >
             <span className="workday-mention-src">{m.source}</span>
             <RowIcon kind="mention" />

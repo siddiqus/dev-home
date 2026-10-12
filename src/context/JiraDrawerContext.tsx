@@ -96,6 +96,9 @@ export function ticketClickHandler(openIssue: OpenJiraIssue | null, ticket: stri
     e.stopPropagation();
     if (!openIssue || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
+    // Pointer clicks (detail > 0) blur so the drawer doesn't hand focus back on
+    // close and leave a ring; keyboard activation keeps focus for a11y.
+    if (e.detail > 0) e.currentTarget.blur();
     openIssue(ticket);
   };
 }

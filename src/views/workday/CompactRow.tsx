@@ -152,7 +152,12 @@ function clickable(onClick?: () => void) {
   return {
     role: "button",
     tabIndex: 0,
-    onClick,
+    onClick: (e: React.MouseEvent<HTMLElement>) => {
+      // Blur on pointer clicks so the modal/drawer doesn't restore focus here on
+      // close (which shows a focus ring after Escape). Keyboard goes via onKeyDown.
+      e.currentTarget.blur();
+      onClick();
+    },
     onKeyDown: (e: React.KeyboardEvent) => {
       if (e.target !== e.currentTarget) return;
       if (e.key === "Enter" || e.key === " ") {
