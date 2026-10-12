@@ -77,6 +77,19 @@ describe("DescriptionModal PR header", () => {
     expect(document.querySelector(".pr-card-status")).toBeNull();
   });
 
+  it("keeps the status pill and adds softer reason chips outside needs-action", () => {
+    render(
+      <DescriptionModal
+        {...baseProps}
+        pr={makePR({ requested_reviewers: [], unresolved_thread_count: 1 })}
+      />,
+    );
+
+    expect(screen.getByText("Awaiting review")).toHaveClass("pr-card-status");
+    expect(screen.getByText("Unresolved (1)")).toHaveClass("pr-reason-chip");
+    expect(screen.getByText("No reviewer")).toHaveClass("pr-reason-chip");
+  });
+
   it("links the Jira ticket in the title when a base URL is given", () => {
     render(
       <DescriptionModal

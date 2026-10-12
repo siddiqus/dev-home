@@ -1,5 +1,8 @@
 import { IconBolt } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
+import { SegmentedTabs } from "../../components/SegmentedTabs";
+import { TicketChip } from "../../components/TicketGroupHeader";
+import { usePersistedState } from "../../hooks/usePersistedState";
 import { WorkdaySection } from "./WorkdaySection";
 import {
   CountDots,
@@ -10,7 +13,7 @@ import {
   TicketGroupLine,
   WorkdayLine,
 } from "./CompactRow";
-import { groupByTicketKey } from "./buildWorkday";
+import { groupByTicketKey, type KeyedGroup } from "./buildWorkday";
 import { titleWithoutKey, type StateBadge } from "./prState";
 import { NEEDS_TIER_ORDER, type NeedsItem, type NeedsTier } from "./types";
 
@@ -64,6 +67,30 @@ function AlsoInPills({ counts, tier }: { counts?: Map<NeedsTier, number>; tier: 
   );
 }
 
+/** "+2 more issues" beside a PR's title; the tooltip lists them. */
+function MoreIssuesPill({ item }: { item: NeedsItem }) {
+  const rest = item.issues.slice(1);
+  if (rest.length === 0) return null;
+  return (
+    <span
+      className="workday-pill workday-pill--more"
+      title={rest.map((i) => `${i.verb}: ${i.reason}`).join("\n")}
+    >
+      +{rest.length} more {rest.length === 1 ? "issue" : "issues"}
+    </span>
+  );
+}
+
+type Grouping = "ticket" | "pr";
+
+/** Lock in rows: under ticket headers, or one ranked row per PR (persisted). */
+const GROUPING_KEY = "dev-home-focus-needs-grouping";
+
+const GROUPINGS = [
+  { key: "ticket", label: "By ticket" },
+  { key: "pr", label: "By PR" },
+];
+
 interface NeedsYouStripProps {
   items: NeedsItem[];
   loading: boolean;
@@ -94,8 +121,14 @@ export function NeedsYouStrip({
   onToggle,
   onOpen,
 }: NeedsYouStripProps) {
+  const [grouping, setGrouping] = usePersistedState<Grouping>(GROUPING_KEY, "ticket");
+  const byPR = grouping === "pr";
   const empty = items.length === 0;
   const tierCounts = tierCountsByTicket(items);
+  const groupsOf = (tierItems: NeedsItem[]): KeyedGroup<NeedsItem>[] =>
+    byPR
+      ? tierItems.map((i) => ({ key: null, items: [i] }))
+      : groupByTicketKey(tierItems, (i) => i.ticketKey);
   return (
     <WorkdaySection
       title="Lock in"
@@ -105,6 +138,16 @@ export function NeedsYouStrip({
       error={error}
       empty={<span className="workday-all-clear">✓ Nothing needs you right now</span>}
       // hint={''}
+      actions={
+        !empty && (
+          <SegmentedTabs
+            className="compact"
+            tabs={GROUPINGS}
+            activeKey={grouping}
+            onChange={(k) => setGrouping(k as Grouping)}
+          />
+        )
+      }
       className={`workday-needs${empty ? " workday-needs--empty" : ""}`}
       collapsed={collapsed}
       onToggle={onToggle}
@@ -123,7 +166,7 @@ export function NeedsYouStrip({
               <span className="workday-tier-hint">{TIER_HINT[tier]}</span>
             </div>
             <GroupedRows
-              groups={groupByTicketKey(tierItems, (i) => i.ticketKey)}
+              groups={groupsOf(tierItems)}
               header={(key, group) => (
                 <TicketGroupLine
                   key={`group:${key}`}
@@ -149,10 +192,25 @@ export function NeedsYouStrip({
                   dot
                   icon="pr"
                   ticketKey={item.ticketKey}
-                  hideKey={child}
+                  // The verb keeps the key column; by PR, the key leads the title.
+                  hideKey
                   jiraBaseUrl={jiraBaseUrl}
-                  title={titleWithoutKey(item.pr.title, item.ticketKey)}
-                  extra={<LineSub pr={item.pr} />}
+                  title={
+                    byPR && item.ticketKey ? (
+                      <>
+                        <TicketChip ticket={item.ticketKey} jiraBaseUrl={jiraBaseUrl} />{" "}
+                        {titleWithoutKey(item.pr.title, item.ticketKey)}
+                      </>
+                    ) : (
+                      titleWithoutKey(item.pr.title, item.ticketKey)
+                    )
+                  }
+                  extra={
+                    <>
+                      <MoreIssuesPill item={item} />
+                      <LineSub pr={item.pr} />
+                    </>
+                  }
                   meta={
                     <>
                       {item.reason} · <HeatAge iso={item.at} now={now} />

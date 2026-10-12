@@ -1,6 +1,6 @@
 import type { GitHubPR } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
-import { RED_CHECK_STATUSES } from "../../utils/prCategories";
+import { noReviewer, RED_CHECK_STATUSES } from "../../utils/prCategories";
 
 /** A single label + tone, the one place a row shows state. */
 export interface StateBadge {
@@ -10,10 +10,6 @@ export interface StateBadge {
 
 export const ciFailing = (pr: GitHubPR) =>
   !!pr.checks_status && RED_CHECK_STATUSES.has(pr.checks_status);
-
-/** No reviewer requested and no reviews yet (today's "No reviewer requested" blocker). */
-export const noReviewer = (pr: GitHubPR) =>
-  Array.isArray(pr.requested_reviewers) && pr.requested_reviewers.length === 0 && !pr.review_status;
 
 /** Approved, CI green, no conflict, not already queued: ready to merge. */
 export const readyToMerge = (pr: GitHubPR) =>

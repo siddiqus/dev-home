@@ -142,6 +142,7 @@ describe("ACTIONABLE_REASONS", () => {
       "reviewed",
       "your_turn",
       "unresolved",
+      "no_reviewer",
     ]);
   });
 
@@ -178,6 +179,16 @@ describe("ACTIONABLE_REASONS", () => {
     expect(reason("unresolved").matches(makePR({ unresolved_thread_count: 3 }))).toBe(true);
     expect(reason("unresolved").matches(makePR({ unresolved_thread_count: 0 }))).toBe(false);
     expect(reason("unresolved").matches(makePR())).toBe(false);
+  });
+
+  it("no_reviewer matches only a fetched, empty reviewer list with no reviews", () => {
+    expect(reason("no_reviewer").matches(makePR({ requested_reviewers: [] }))).toBe(true);
+    expect(reason("no_reviewer").matches(makePR({ requested_reviewers: ["guru"] }))).toBe(false);
+    expect(
+      reason("no_reviewer").matches(makePR({ requested_reviewers: [], review_status: "REVIEWED" })),
+    ).toBe(false);
+    // Reviewer list not fetched: unknown, not "nobody asked".
+    expect(reason("no_reviewer").matches(makePR())).toBe(false);
   });
 });
 

@@ -84,15 +84,21 @@ export type NeedsTier = "self" | "others" | "ship";
 /** Needs-you tiers in display order: approved PRs first, since merging is the quickest win. */
 export const NEEDS_TIER_ORDER: NeedsTier[] = ["ship", "self", "others"];
 
-/** One "needs you" line: a coloured verb (a label, not a button) for one PR. */
-export interface NeedsItem {
-  tier: NeedsTier;
+/** One thing a PR needs: a coloured verb plus one short fact. */
+export interface NeedsIssue {
   verb: string;
   tone: BadgeVariant;
-  pr: GitHubPR;
-  ticketKey: string | null;
   /** One short fact, e.g. "lint + unit failing" or "abu re-requested". */
   reason: string;
+}
+
+/** One "needs you" line: a coloured verb (a label, not a button) for one PR. */
+export interface NeedsItem extends NeedsIssue {
+  tier: NeedsTier;
+  pr: GitHubPR;
+  ticketKey: string | null;
+  /** Every issue, worst first; the verb, tone and reason are the first one's. */
+  issues: NeedsIssue[];
   at: string;
 }
 

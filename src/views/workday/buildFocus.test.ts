@@ -101,6 +101,7 @@ describe("buildFocus needs", () => {
         openPRs: [
           pr(1, {
             title: "CCP-1 red",
+            updated_at: "2026-10-08T10:00:00Z",
             checks_status: "FAILURE",
             checks: [
               { name: "lint", status: "FAILURE", url: null },
@@ -138,9 +139,9 @@ describe("buildFocus needs", () => {
     const f = buildFocus(
       inputs({
         openPRs: [
-          pr(1, { has_conflict: true, updated_at: "2026-10-10T03:00:00Z" }),
+          pr(1, { has_conflict: true, updated_at: "2026-10-10T01:00:00Z" }),
           pr(2, { review_status: "CHANGES_REQUESTED", updated_at: "2026-10-10T02:00:00Z" }),
-          pr(3, { requested_reviewers: [], updated_at: "2026-10-10T01:00:00Z" }),
+          pr(3, { requested_reviewers: [], updated_at: "2026-10-09T01:00:00Z" }),
         ],
       }),
       NOW,
@@ -249,29 +250,100 @@ describe("buildFocus needs", () => {
     ).toEqual([]);
   });
 
-  it("shows one verb per PR, the first matching rule", () => {
-    expect(
-      needs({
+  it("lists every issue on a PR, worst first, and leads with the worst", () => {
+    const f = buildFocus(
+      inputs({
         openPRs: [
           pr(1, {
             checks_status: "FAILURE",
             has_conflict: true,
             review_status: "CHANGES_REQUESTED",
+            unresolved_thread_count: 3,
           }),
-          pr(2, {
-            has_conflict: true,
-            review_status: "CHANGES_REQUESTED",
+        ],
+      }),
+      NOW,
+    );
+    const [item] = f.needs;
+    expect([item.verb, item.tone, item.reason]).toEqual(["Fix CI", "danger", "CI failing"]);
+    expect(item.issues.map((i) => [i.verb, i.tone, i.reason])).toEqual([
+      ["Fix CI", "danger", "CI failing"],
+      ["Resolve conflict", "danger", "conflicts with main"],
+      ["Address feedback", "danger", "changes requested · 3 threads"],
+    ]);
+  });
+
+  it("unresolved threads: own issue alone, folded into a comment review", () => {
+    const f = buildFocus(
+      inputs({
+        openPRs: [
+          pr(1, { unresolved_thread_count: 1, updated_at: "2026-10-09T10:00:00Z" }),
+          pr(2, { review_status: "REVIEWED", unresolved_thread_count: 2 }),
+        ],
+      }),
+      NOW,
+    );
+    expect(f.needs.map((i) => i.issues.map((x) => [x.verb, x.tone, x.reason]))).toEqual([
+      [["Resolve threads", "warning", "1 unresolved thread"]],
+      [["Address feedback", "warning", "reviewed · 2 threads"]],
+    ]);
+  });
+
+  it("a comment review with no open threads is not an issue", () => {
+    expect(needs({ openPRs: [pr(1, { review_status: "REVIEWED" })] })).toEqual([]);
+    const w = buildFocus(
+      inputs({ openPRs: [pr(1, { review_status: "REVIEWED", unresolved_thread_count: 0 })] }),
+      NOW,
+    ).waiting.onReviewers;
+    expect(w.map((x) => x.pr.number)).toEqual([1]);
+  });
+
+  it("keeps PRs with threads out of waiting on reviewers", () => {
+    const f = buildFocus(inputs({ openPRs: [pr(1, { unresolved_thread_count: 2 })] }), NOW);
+    expect(f.waiting.onReviewers).toEqual([]);
+  });
+
+  it("ranks own PRs by danger count, then warning count, then oldest first", () => {
+    expect(
+      needs({
+        openPRs: [
+          // 1 warning
+          pr(1, { requested_reviewers: [], updated_at: "2026-10-01T00:00:00Z" }),
+          // 1 danger, newer
+          pr(2, { has_conflict: true, updated_at: "2026-10-11T00:00:00Z" }),
+          // 1 danger + 1 warning
+          pr(3, {
+            checks_status: "FAILURE",
             requested_reviewers: [],
+            updated_at: "2026-10-12T00:00:00Z",
+          }),
+          // 2 dangers
+          pr(4, {
+            checks_status: "FAILURE",
+            has_conflict: true,
+            updated_at: "2026-10-12T09:00:00Z",
+          }),
+          // 1 danger, older
+          pr(5, { checks_status: "FAILURE", updated_at: "2026-10-05T00:00:00Z" }),
+          // 2 warnings beat 1 warning but not a danger
+          pr(6, {
+            unresolved_thread_count: 1,
+            requested_reviewers: [],
+            updated_at: "2026-10-12T00:00:00Z",
           }),
         ],
       }),
     ).toEqual([
-      ["self", "Fix CI", 1],
+      ["self", "Fix CI", 4],
+      ["self", "Fix CI", 3],
+      ["self", "Fix CI", 5],
       ["self", "Resolve conflict", 2],
+      ["self", "Resolve threads", 6],
+      ["self", "Request review", 1],
     ]);
   });
 
-  it("orders tiers ship → self → others, newest first within a tier", () => {
+  it("orders tiers ship → self → others; ship and others newest first", () => {
     expect(
       needs({
         openPRs: [
@@ -296,8 +368,8 @@ describe("buildFocus needs", () => {
     ).toEqual([
       ["ship", "Merge", 1],
       ["ship", "Merge", 4],
-      ["self", "Resolve conflict", 3],
       ["self", "Fix CI", 2],
+      ["self", "Resolve conflict", 3],
       ["others", "Re-review", 11],
       ["others", "Review", 10],
     ]);

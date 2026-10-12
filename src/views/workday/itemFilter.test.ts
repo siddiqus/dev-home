@@ -53,6 +53,7 @@ const focus: FocusData = {
       pr: pr(2),
       ticketKey: "A-1",
       reason: "",
+      issues: [{ verb: "Merge", tone: "success", reason: "" }],
       at: "",
     },
   ],

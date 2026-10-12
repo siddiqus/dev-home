@@ -206,6 +206,58 @@ describe("WorkdayView modes", () => {
     expect(header.querySelectorAll(".workday-pr-dots i")).toHaveLength(2);
   });
 
+  it("lists Needs you rows per PR with their own keys when grouped By PR, and remembers it", () => {
+    const issues = [
+      { key: "WMU-402", summary: "Delete assets", status: { name: "In Progress" } } as JiraIssue,
+    ];
+    const openPRs = [
+      { ...prs[0], requested_reviewers: [] },
+      {
+        ...prs[0],
+        id: 2,
+        number: 3311,
+        title: "WMU-402 cleanup",
+        html_url: "https://github.com/o/r/pull/3311",
+        has_conflict: true,
+      },
+    ];
+    renderView({ openPRs, allIssues: issues });
+    let section = sectionOf("Lock in");
+    fireEvent.click(within(section).getByRole("button", { name: "By PR" }));
+    expect(within(section).queryByText("2 PRs")).toBeNull();
+    expect(within(section).getAllByText("WMU-402")).toHaveLength(2);
+    // Ranked: the conflict (danger) above the missing reviewer (warning).
+    const verbs = [...section.querySelectorAll(".workday-line--needs .workday-line-lead")];
+    expect(verbs.map((v) => v.textContent)).toEqual(["Resolve conflict", "Request review"]);
+
+    cleanup();
+    renderView({ openPRs, allIssues: issues });
+    section = sectionOf("Lock in");
+    expect(within(section).getByRole("button", { name: "By PR" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("shows '+N more issues' beside a PR with several, listing them in the tooltip", () => {
+    renderView({
+      openPRs: [
+        {
+          ...prs[0],
+          checks_status: "FAILURE",
+          has_conflict: true,
+          requested_reviewers: [],
+        },
+      ],
+    });
+    const section = sectionOf("Lock in");
+    expect(within(section).getByText("Fix CI")).toBeTruthy();
+    const pill = within(section).getByText("+2 more issues");
+    expect(pill.getAttribute("title")).toBe(
+      "Resolve conflict: conflicts with main\nRequest review: no reviewer assigned",
+    );
+  });
+
   it("points a ticket header at its PRs in other Needs you tiers", () => {
     renderView({
       openPRs: [{ ...prs[0], requested_reviewers: [] }],

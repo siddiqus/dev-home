@@ -248,6 +248,13 @@
   color: var(--color-text-muted);
 }
 
+/* "+2 more issues" on a Lock in row; the tooltip lists them. */
+.workday-pill--more {
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: help;
+}
+
 .workday-more {
   border: 0;
   background: transparent;

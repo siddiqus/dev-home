@@ -100,9 +100,10 @@ function CheckRunRow({ check }: { check: CheckRunInfo }) {
  * in lockstep: draft icon + Jira-linked title, a meta line (repo#number, author,
  * branch, diff stat), and the review/needs-action indicators plus GitHub labels.
  *
- * Review-state indicators (status pill / reason chips) are shown for open PRs
- * only — on a merged PR those flags are stale, matching the row's merged variant
- * which hides them too.
+ * Review-state indicators are shown for open PRs only: needs-action PRs get
+ * their reason chips; the rest get the status pill plus any softer reasons
+ * (unresolved threads, no reviewer). On a merged PR those flags are stale,
+ * matching the row's merged variant which hides them too.
  */
 function PrModalHeader({
   pr,
@@ -159,7 +160,8 @@ function PrModalHeader({
 
       {(!isMerged || hasLabels) && (
         <div className="pr-modal-indicators">
-          {!isMerged && (isNeedsAction ? <ReasonChips pr={pr} /> : <StatusPill pr={pr} />)}
+          {!isMerged && !isNeedsAction && <StatusPill pr={pr} />}
+          {!isMerged && <ReasonChips pr={pr} />}
           {hasLabels && <PRLabels labels={pr.labels!} />}
         </div>
       )}

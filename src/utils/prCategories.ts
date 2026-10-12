@@ -20,6 +20,13 @@ export const NON_APPROVING_REVIEW_STATUSES: ReadonlySet<string> = new Set([
   "REVIEWED",
 ]);
 
+/**
+ * No reviewer requested and no reviews yet. False when the reviewer list wasn't
+ * fetched, so missing data never reads as "nobody asked".
+ */
+export const noReviewer = (pr: GitHubPR) =>
+  Array.isArray(pr.requested_reviewers) && pr.requested_reviewers.length === 0 && !pr.review_status;
+
 /** Visual weight of an actionable reason, shared by reason chips and filters. */
 export type ActionableVariant = "danger" | "warning" | "info";
 
@@ -75,6 +82,12 @@ export const ACTIONABLE_REASONS: readonly ActionableReason[] = [
     label: "Unresolved threads",
     variant: "warning",
     matches: (pr) => !!pr.unresolved_thread_count && pr.unresolved_thread_count > 0,
+  },
+  {
+    key: "no_reviewer",
+    label: "No reviewer",
+    variant: "warning",
+    matches: noReviewer,
   },
 ];
 
