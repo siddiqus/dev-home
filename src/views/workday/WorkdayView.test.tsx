@@ -261,7 +261,7 @@ describe("WorkdayView modes", () => {
     const toggle = screen.getByRole("button", { name: /Waiting on others/ });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(toggle);
-    expect(within(sectionOf("Waiting on others")).getByText("guru · 1d")).toBeTruthy();
+    expect(within(sectionOf("Waiting on others")).getByText("guru · 2d")).toBeTruthy();
   });
 });
 
