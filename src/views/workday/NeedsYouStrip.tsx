@@ -198,7 +198,7 @@ export function NeedsYouStrip({
                   title={
                     byPR && item.ticketKey ? (
                       <>
-                        <TicketChip ticket={item.ticketKey} jiraBaseUrl={jiraBaseUrl} />{" "}
+                        <TicketChip ticket={item.ticketKey} jiraBaseUrl={jiraBaseUrl} />
                         {titleWithoutKey(item.pr.title, item.ticketKey)}
                       </>
                     ) : (

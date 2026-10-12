@@ -655,6 +655,11 @@
   padding-bottom: 5px;
 }
 
+/* By PR, the key chip leads the title. */
+.workday-line--needs .workday-line-title .ticket-chip {
+  margin-right: 10px;
+}
+
 .workday-all-clear {
   color: var(--color-status-success);
 }
