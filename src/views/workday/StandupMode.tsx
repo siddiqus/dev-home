@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Card from "react-bootstrap/Card";
 import Button from "react-bootstrap/Button";
 import {
@@ -20,10 +20,10 @@ import {
   type ReviewingLine,
 } from "./buildWorkday";
 import { standupRef, compactAge, type Lookback } from "./dates";
-import { myPRState, NO_PR_YET, REVIEWING_LABEL, titleWithoutKey } from "./prState";
+import { myPRState, REVIEWING_LABEL, titleWithoutKey } from "./prState";
 import type { StateBadge } from "./prState";
 import type { BlockerItem, DoneItem, NotStartedItem, TicketRef, WorkdaySections } from "./types";
-import { ItemFilteringContext, WorkdaySection } from "./WorkdaySection";
+import { WorkdaySection } from "./WorkdaySection";
 import {
   CountDots,
   countLabel,
@@ -35,6 +35,7 @@ import {
   WorkdayItemRow,
   WorkdayLine,
   WorkdaySubhead,
+  WorkTicketRow,
 } from "./CompactRow";
 import { StandupNotes } from "./StandupNotes";
 
@@ -51,8 +52,6 @@ const DONE_TITLES: Record<Lookback, string> = {
   "3d": "Done in the last 3 days",
   "7d": "Done in the last 7 days",
 };
-/** Off-sprint not-started rows shown before "Show n more". */
-const OFF_SPRINT_PREVIEW = 3;
 
 const REVIEW_PILL: Record<ReviewState, StateBadge> = {
   APPROVED: { label: "Approved", tone: "success" },
@@ -108,10 +107,6 @@ export function StandupMode({
   editNote,
 }: StandupModeProps) {
   const openIssue = useOptionalJiraDrawer();
-  const [allOffOpen, setShowAllOff] = useState(false);
-  // While filtering, never hide a match behind "Show n more".
-  const filtering = useContext(ItemFilteringContext);
-  const showAllOff = allOffOpen || filtering;
   const [showPreview, setShowPreview] = useState(false);
   const { done, workingOn, blockers, notStarted } = sections;
   const reviewing = useMemo(() => reviewingLines(sections), [sections]);
@@ -145,7 +140,6 @@ export function StandupMode({
     />
   );
   const offItems = notStarted.offSprintItems;
-  const visibleOff = showAllOff ? offItems : offItems.slice(0, OFF_SPRINT_PREVIEW);
   const openTicket = (key: string) => openIssue?.(key);
 
   const prRow = (pr: GitHubPR, ticket: TicketRef | null, opts: { child?: boolean } = {}) => (
@@ -177,7 +171,7 @@ export function StandupMode({
         className={child ? "workday-line--child" : undefined}
         lead={lead.label}
         tone={lead.tone}
-        icon={item.kind === "status" ? "ticket" : "pr"}
+        icon={item.kind === "status" ? undefined : "pr"}
         ticketKey={item.ticket?.key ?? null}
         hideKey={child}
         jiraBaseUrl={jiraBaseUrl}
@@ -230,7 +224,7 @@ export function StandupMode({
         lead={lead.label}
         tone={lead.tone}
         dot
-        icon={b.kind === "pr" ? "pr" : "ticket"}
+        icon={b.kind === "pr" ? "pr" : undefined}
         ticketKey={b.ticket?.key ?? null}
         hideKey={child}
         jiraBaseUrl={jiraBaseUrl}
@@ -267,7 +261,6 @@ export function StandupMode({
       <WorkdayLine
         key={item.ticket.key}
         lead={null}
-        icon="ticket"
         ticketKey={item.ticket.key}
         jiraBaseUrl={jiraBaseUrl}
         title={item.ticket.summary}
@@ -284,6 +277,7 @@ export function StandupMode({
           {...sectionToggle("done")}
           title={DONE_TITLES[lookback]}
           icon={IconCircleCheck}
+          tone="success"
           count={done.items.length}
           loading={done.loading}
           error={done.error}
@@ -315,6 +309,7 @@ export function StandupMode({
           {...sectionToggle("inProgress")}
           title="In Progress"
           icon={IconProgress}
+          tone="info"
           count={inProgressCount(workingOn.items)}
           loading={loading}
           error={workingOn.error}
@@ -323,37 +318,17 @@ export function StandupMode({
           {workingOn.items.map((g) => {
             if (!g.ticket) return g.prs.map((pr) => prRow(pr, null));
             const { ticket } = g;
-            if (g.prs.length === 0)
-              return (
-                <WorkdayItemRow
-                  key={ticket.key}
-                  kind="ticket"
-                  ticketKey={ticket.key}
-                  jiraBaseUrl={jiraBaseUrl}
-                  title={ticket.summary || ticket.key}
-                  extra={
-                    <>
-                      {offPill(ticket)}
-                      {ticket.statusName && (
-                        <span className="workday-item-inline">{ticket.statusName}</span>
-                      )}
-                    </>
-                  }
-                  badge={NO_PR_YET}
-                  time={ticket.updated && compactAge(ticket.updated, now)}
-                  onClick={() => openTicket(ticket.key)}
-                />
-              );
             return (
-              <React.Fragment key={ticket.key}>
-                {ticketHeader(
-                  ticket,
-                  ticket.key,
-                  `${ticket.statusName ? `${ticket.statusName} · ` : ""}${countLabel(g.prs.length, "PR")}`,
-                  g.prs.map((pr) => myPRState(pr).tone),
-                )}
-                {g.prs.map((pr) => prRow(pr, ticket, { child: true }))}
-              </React.Fragment>
+              <WorkTicketRow
+                key={ticket.key}
+                ticket={ticket}
+                prs={g.prs}
+                showPRs
+                jiraBaseUrl={jiraBaseUrl}
+                now={now}
+                onOpenTicket={openTicket}
+                prRow={(pr) => prRow(pr, ticket, { child: true })}
+              />
             );
           })}
         </WorkdaySection>
@@ -362,7 +337,7 @@ export function StandupMode({
           {...sectionToggle("blockers")}
           title="Blockers"
           icon={IconAlertTriangle}
-          className="workday-section--alert"
+          tone="danger"
           count={blockers.items.length}
           loading={loading || blockers.loading}
           error={blockers.error}
@@ -386,6 +361,7 @@ export function StandupMode({
           {...sectionToggle("reviewing")}
           title="Reviewing"
           icon={IconEye}
+          tone="purple"
           count={reviewing.length}
           loading={loading}
           error={sections.reviewing.error}
@@ -418,16 +394,7 @@ export function StandupMode({
           {offItems.length > 0 && (
             <>
               <WorkdaySubhead>Off-sprint</WorkdaySubhead>
-              {visibleOff.map(notStartedLine)}
-              {offItems.length > OFF_SPRINT_PREVIEW && !filtering && (
-                <button
-                  type="button"
-                  className="workday-more"
-                  onClick={() => setShowAllOff((v) => !v)}
-                >
-                  {showAllOff ? "Show fewer" : `Show ${offItems.length - OFF_SPRINT_PREVIEW} more`}
-                </button>
-              )}
+              {offItems.map(notStartedLine)}
             </>
           )}
         </WorkdaySection>

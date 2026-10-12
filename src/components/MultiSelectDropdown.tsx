@@ -290,6 +290,11 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                       style={{ width: 18, height: 18 }}
                     />
                   )}
+                  {item.tag && (
+                    <span className={`multi-select-tag multi-select-tag--${item.tag.tone}`}>
+                      {item.tag.label}
+                    </span>
+                  )}
                   {item.label}
                   {item.count !== undefined && (
                     <span className="multi-select-count-badge">{item.count}</span>

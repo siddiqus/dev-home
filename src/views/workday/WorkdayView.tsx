@@ -62,7 +62,10 @@ const COLLAPSED_KEY = "dev-home-workday-collapsed";
 /** Sections collapsed by default; ids here are expanded. */
 const EXPANDED_KEY = "dev-home-workday-expanded";
 const DEFAULT_COLLAPSED = new Set(["waiting", "notStarted"]);
-const STANDUP_SECTIONS = ["done", "inProgress", "blockers", "reviewing", "notStarted"];
+const MODE_SECTIONS: Record<Mode, string[]> = {
+  focus: ["needs", "mentions", "working", "waiting"],
+  standup: ["done", "inProgress", "blockers", "reviewing", "notStarted"],
+};
 const FILTER_KEY = "dev-home-workday-filter";
 const LOOKBACK_KEY = "dev-home-workday-lookback";
 const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilter[];
@@ -130,10 +133,10 @@ export function WorkdayView(props: WorkdayViewProps) {
     collapsed: isCollapsed(id),
     onToggle: () => (DEFAULT_COLLAPSED.has(id) ? toggleExpanded(id) : toggleCollapsed(id)),
   });
-  const allCollapsed = STANDUP_SECTIONS.every(isCollapsed);
+  const allCollapsed = MODE_SECTIONS[mode].every(isCollapsed);
   const toggleCollapseAll = () => {
-    const ids = STANDUP_SECTIONS.filter((id) => !DEFAULT_COLLAPSED.has(id));
-    const defaults = STANDUP_SECTIONS.filter((id) => DEFAULT_COLLAPSED.has(id));
+    const ids = MODE_SECTIONS[mode].filter((id) => !DEFAULT_COLLAPSED.has(id));
+    const defaults = MODE_SECTIONS[mode].filter((id) => DEFAULT_COLLAPSED.has(id));
     const next = new Set(collapsed);
     const nextExpanded = new Set(expanded);
     for (const id of ids) {
@@ -274,30 +277,28 @@ export function WorkdayView(props: WorkdayViewProps) {
                 onChange={setPickedItems}
                 placeholder="Search tickets and PRs..."
                 allLabel="All items"
-                width={280}
+                width="100%"
                 height={30}
               />
             </div>
             <div className="workday-header-spacer" />
             {mode === "standup" && (
-              <>
-                <SegmentedTabs
-                  className="inline-control"
-                  tabs={FILTERS.map((f) => ({ key: f, label: filterLabels[f] }))}
-                  activeKey={filter}
-                  onChange={(k) => setFilter(k as SprintFilter)}
-                />
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={toggleCollapseAll}
-                  title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
-                >
-                  {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
-                  {allCollapsed ? "Expand all" : "Collapse all"}
-                </Button>
-              </>
+              <SegmentedTabs
+                className="inline-control"
+                tabs={FILTERS.map((f) => ({ key: f, label: filterLabels[f] }))}
+                activeKey={filter}
+                onChange={(k) => setFilter(k as SprintFilter)}
+              />
             )}
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={toggleCollapseAll}
+              title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
+            >
+              {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
+              {allCollapsed ? "Expand all" : "Collapse all"}
+            </Button>
             <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
               <IconRefresh size={14} /> Refresh
             </Button>

@@ -3,6 +3,7 @@ import { IconChevronDown, IconChevronRight, type Icon } from "@tabler/icons-reac
 import Card from "react-bootstrap/Card";
 import { Badge } from "../../components/primitives/Badge";
 import { SectionHeader } from "../../components/primitives/SectionHeader";
+import type { StateBadge } from "./prState";
 
 /** True while the header's item filter is narrowing the page. */
 export const ItemFilteringContext = createContext(false);
@@ -22,6 +23,8 @@ interface WorkdaySectionProps {
   /** Small inline control right after the title (hidden while collapsed). */
   titleExtra?: React.ReactNode;
   className?: string;
+  /** Tints the header, icon and count badge while there's something to show. */
+  tone?: Exclude<StateBadge["tone"], "neutral">;
   collapsed: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -43,15 +46,17 @@ export function WorkdaySection({
   actions,
   titleExtra,
   className = "",
+  tone,
   collapsed,
   onToggle,
   children,
 }: WorkdaySectionProps) {
   const filtering = useContext(ItemFilteringContext);
   const Chevron = collapsed ? IconChevronRight : IconChevronDown;
+  const toned = tone && count > 0 ? `workday-section--toned workday-section--${tone}` : "";
 
   return (
-    <Card className={`workday-section ${className}`.trim()}>
+    <Card className={`workday-section ${toned} ${className}`.replace(/\s+/g, " ").trim()}>
       <Card.Body className="p-0">
         <SectionHeader
           className={`workday-section-header${collapsed ? " workday-section-header--collapsed" : ""}`}

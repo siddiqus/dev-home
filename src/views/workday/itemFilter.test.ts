@@ -115,25 +115,30 @@ describe("item filter", () => {
     expect(f.needs).toEqual([]);
   });
 
-  it("lists each ticket and PR once, tickets first", () => {
+  it("lists each ticket and PR once: tickets, then PRs, then authors", () => {
     const opts = itemFilterOptions(sections, focus, new Map());
     expect(opts.map((o) => o.value)).toEqual([
       "t:A-1",
       "t:B-2",
       "t:C-3",
-      "a:me",
-      "a:shunjid",
       "pr:https://github.com/o/r/pull/1",
       "pr:https://github.com/o/r/pull/2",
       "pr:https://github.com/o/r/pull/3",
       "pr:https://github.com/o/r/pull/4",
       "pr:https://github.com/o/r/pull/5",
       "pr:https://github.com/o/r/pull/9",
+      "a:me",
+      "a:shunjid",
+    ]);
+    expect(opts.map((o) => o.tag?.label)).toEqual([
+      ...Array(3).fill("Jira"),
+      ...Array(6).fill("PR"),
+      ...Array(2).fill("User"),
     ]);
     expect(opts[0].label).toBe("A-1 · Summary A-1");
-    expect(opts[3].label).toBe("@me");
-    expect(opts[4].label).toBe("@shunjid · Shunjid R");
-    expect(opts[5].label).toBe("r#1 · PR 1 · @me");
-    expect(opts.at(-1)?.label).toBe("r#9");
+    expect(opts[3].label).toBe("r#1 · PR 1 · @me");
+    expect(opts[8].label).toBe("r#9");
+    expect(opts[9].label).toBe("@me");
+    expect(opts[10].label).toBe("@shunjid · Shunjid R");
   });
 });

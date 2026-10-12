@@ -102,7 +102,7 @@
   color: var(--color-text-muted);
 }
 
-/* Section icon: muted; attention sections (Needs you, Blockers) tint it. */
+/* Section icon: muted; Needs you and toned sections tint it. */
 .workday-section-icon {
   flex-shrink: 0;
   color: var(--color-text-muted);
@@ -112,8 +112,41 @@
   color: var(--color-status-warning);
 }
 
-.workday-section--alert .workday-section-icon {
-  color: var(--color-status-danger);
+/* Toned sections: tinted header band, icon and count badge. */
+.workday-section--danger {
+  --section-tone: var(--color-status-danger);
+  --section-tone-bg: var(--color-status-danger-bg);
+}
+.workday-section--warning {
+  --section-tone: var(--color-status-warning);
+  --section-tone-bg: var(--color-status-warning-bg);
+}
+.workday-section--info {
+  --section-tone: var(--color-status-info);
+  --section-tone-bg: var(--color-status-info-bg);
+}
+.workday-section--success {
+  --section-tone: var(--color-status-success);
+  --section-tone-bg: var(--color-status-success-bg);
+}
+.workday-section--purple {
+  --section-tone: var(--color-status-purple);
+  --section-tone-bg: var(--color-status-purple-bg);
+}
+
+.workday-section--toned .workday-section-header {
+  background: color-mix(in srgb, var(--section-tone) 6%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--section-tone) 20%, var(--color-border-subtle));
+}
+
+.workday-section--toned .workday-section-icon {
+  color: var(--section-tone);
+}
+
+.workday-section--toned .workday-section-count {
+  background: var(--section-tone-bg) !important;
+  color: var(--section-tone) !important;
+  font-weight: 600;
 }
 
 .workday-section-hint {
@@ -496,6 +529,12 @@
   grid-column: 2 / 4;
 }
 
+/* A ticket row has no icon: its title starts in the icon column, so its PRs
+   (icon + title) read as indented under it. */
+.workday-item--ticket .workday-item-main {
+  grid-column: 2 / 4;
+}
+
 .workday-line--group .workday-line-text {
   color: var(--color-text-secondary);
 }
@@ -660,4 +699,10 @@
 .workday-mode-toggle,
 .workday-item-filter {
   align-self: center;
+}
+
+/* Ticket and PR titles are long: take up to 440px, shrink before wrapping. */
+.workday-item-filter {
+  flex: 0 1 440px;
+  min-width: 240px;
 }

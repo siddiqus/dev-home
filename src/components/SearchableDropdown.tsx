@@ -11,6 +11,8 @@ export interface DropdownItem {
   icon?: string;
   /** Optional match count shown as a right-aligned badge (0 dims the row). */
   count?: number;
+  /** Optional kind pill shown before the label (e.g. "Jira", "PR"). */
+  tag?: { label: string; tone: "info" | "purple" | "neutral" };
 }
 
 interface SearchableDropdownProps {

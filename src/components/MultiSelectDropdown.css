@@ -25,6 +25,35 @@
   flex-shrink: 0;
 }
 
+/* Kind pill before an option's label; fixed width keeps labels aligned. */
+.multi-select-tag {
+  flex-shrink: 0;
+  min-width: 38px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.multi-select-tag--info {
+  background-color: var(--color-status-info-bg);
+  color: var(--color-status-info);
+}
+
+.multi-select-tag--purple {
+  background-color: var(--color-status-purple-bg);
+  color: var(--color-status-purple);
+}
+
+.multi-select-tag--neutral {
+  background-color: var(--color-status-neutral-bg);
+  color: var(--color-text-secondary);
+}
+
 .multi-select-item--empty {
   opacity: 0.45;
 }

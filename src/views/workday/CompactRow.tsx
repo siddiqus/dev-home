@@ -4,14 +4,14 @@ import {
   IconExternalLink,
   IconGitPullRequest,
   IconMessageCircle,
-  IconTicket,
 } from "@tabler/icons-react";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
 import type { GitHubPR } from "../../types";
-import { repoRef, type StateBadge } from "./prState";
-import type { KeyedGroup } from "./buildWorkday";
+import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
+import { groupUpdatedAt, type KeyedGroup } from "./buildWorkday";
+import type { TicketRef } from "./types";
 import { ageHeat, compactAge } from "./dates";
 
 /** Dashed marker for tickets assigned to me but not in an active sprint. */
@@ -163,9 +163,10 @@ function clickable(onClick?: () => void) {
   };
 }
 
-export type RowKind = "pr" | "ticket" | "mention";
+/** Tickets get no icon (the key chip says it); only PRs and mentions do. */
+export type RowKind = "pr" | "mention";
 
-const ROW_ICONS = { pr: IconGitPullRequest, ticket: IconTicket, mention: IconMessageCircle };
+const ROW_ICONS = { pr: IconGitPullRequest, mention: IconMessageCircle };
 
 /** The shared grid's icon column; an empty cell when the row has no icon. */
 export function RowIcon({ kind }: { kind?: RowKind }) {
@@ -183,7 +184,7 @@ interface WorkdayLineProps {
   tone?: StateBadge["tone"];
   /** Draws a dot before the lead (Needs you verbs). */
   dot?: boolean;
-  /** Icon in the icon column: what the row is (a PR or a ticket). */
+  /** Icon in the icon column: what the row is (none for a ticket). */
   icon?: RowKind;
   ticketKey: string | null;
   /** Show the lead instead of the key (lines under a ticket header). */
@@ -238,7 +239,8 @@ export function WorkdayLine({
 }
 
 interface WorkdayItemRowProps {
-  kind: "pr" | "ticket";
+  /** Icon column; omit for a ticket, whose title then starts there (its PRs indent under it). */
+  kind?: "pr";
   ticketKey?: string | null;
   /** Hide the key column (e.g. PRs nested under a ticket header). */
   hideKey?: boolean;
@@ -271,13 +273,16 @@ export function WorkdayItemRow({
   onClick,
 }: WorkdayItemRowProps) {
   return (
-    <div className={`workday-item${child ? " workday-item--child" : ""}`} {...clickable(onClick)}>
+    <div
+      className={`workday-item${child ? " workday-item--child" : ""}${kind ? "" : " workday-item--ticket"}`}
+      {...clickable(onClick)}
+    >
       {!hideKey && ticketKey ? (
         <TicketKey ticketKey={ticketKey} jiraBaseUrl={jiraBaseUrl} />
       ) : (
         <span />
       )}
-      <RowIcon kind={kind} />
+      {kind && <RowIcon kind={kind} />}
       <div className="workday-item-main">
         <div className="workday-item-line1">
           <span className="workday-item-title">{title}</span>
@@ -293,6 +298,63 @@ export function WorkdayItemRow({
         <span className="workday-item-time">{time}</span>
       </div>
     </div>
+  );
+}
+
+interface WorkTicketRowProps {
+  ticket: TicketRef;
+  prs: GitHubPR[];
+  /** List the PRs under the ticket (else only the row's dots and badge). */
+  showPRs: boolean;
+  jiraBaseUrl: string;
+  now: Date;
+  onOpenTicket: (key: string) => void;
+  /** One nested PR row (child of the ticket). */
+  prRow: (pr: GitHubPR, state: StateBadge) => React.ReactNode;
+}
+
+/**
+ * A ticket I'm working on (Focus's Working on, Standup's In Progress): key ·
+ * summary · status · "n PRs ●●" · worst-state badge · time, optionally with
+ * its PRs nested under it. Nested PRs carry their own states, so the badge
+ * steps aside then.
+ */
+export function WorkTicketRow({
+  ticket,
+  prs,
+  showPRs,
+  jiraBaseUrl,
+  now,
+  onOpenTicket,
+  prRow,
+}: WorkTicketRowProps) {
+  const states = prs.map(myPRState);
+  const nested = showPRs && prs.length > 0;
+  const status = ticket.statusName ?? "—";
+  const at = groupUpdatedAt({ ticket, prs });
+  return (
+    <>
+      <WorkdayItemRow
+        ticketKey={ticket.key}
+        jiraBaseUrl={jiraBaseUrl}
+        title={ticket.summary || ticket.key}
+        extra={
+          <>
+            {ticket.offSprint && <OffSprintPill />}
+            <span className="workday-item-inline">
+              <CountDots
+                label={prs.length > 0 ? `${status} · ${countLabel(prs.length, "PR")}` : status}
+                tones={states.map((st) => st.tone)}
+              />
+            </span>
+          </>
+        }
+        badge={nested ? null : worstState(prs)}
+        time={at && compactAge(at, now)}
+        onClick={() => onOpenTicket(ticket.key)}
+      />
+      {nested && prs.map((pr, i) => prRow(pr, states[i]))}
+    </>
   );
 }
 

@@ -109,7 +109,7 @@ const sectionOf = (title: string) =>
 describe("WorkdayView modes", () => {
   beforeEach(() => localStorage.clear());
 
-  it("defaults to Focus, without the sprint filter, Collapse all or Copy", () => {
+  it("defaults to Focus, without the sprint filter or Copy", () => {
     renderView();
     for (const title of ["Lock in", "Mentions", "Working on", "Waiting on others"]) {
       expect(screen.getByText(title)).toBeTruthy();
@@ -117,7 +117,22 @@ describe("WorkdayView modes", () => {
     expect(screen.queryByText("In Progress")).toBeNull();
     expect(screen.queryByRole("button", { name: "Copy standup" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Off-sprint · / })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Collapse all/ })).toBeNull();
+  });
+
+  it("collapses and expands every Focus section", () => {
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: /Collapse all/ }));
+    for (const title of ["Mentions", "Working on", "Waiting on others"]) {
+      expect(
+        screen.getByRole("button", { name: new RegExp(title) }).getAttribute("aria-expanded"),
+      ).toBe("false");
+    }
+    fireEvent.click(screen.getByRole("button", { name: /Expand all/ }));
+    for (const title of ["Mentions", "Working on", "Waiting on others"]) {
+      expect(
+        screen.getByRole("button", { name: new RegExp(title) }).getAttribute("aria-expanded"),
+      ).toBe("true");
+    }
   });
 
   it("switches mode from the toggle and remembers it", () => {

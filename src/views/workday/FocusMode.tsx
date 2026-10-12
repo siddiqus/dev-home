@@ -10,16 +10,16 @@ import {
   countLabel,
   GroupedRows,
   LineSub,
-  OffSprintPill,
   RowIcon,
   TicketGroupLine,
   TicketKey,
   WorkdayItemRow,
   WorkdaySubhead,
+  WorkTicketRow,
 } from "./CompactRow";
 import { groupByTicketKey } from "./buildWorkday";
 import { compactAge } from "./dates";
-import { myPRState, titleWithoutKey } from "./prState";
+import { titleWithoutKey } from "./prState";
 import type { FocusData, WaitingOnAuthor } from "./types";
 
 type SectionToggle = (id: string) => { collapsed: boolean; onToggle: () => void };
@@ -137,6 +137,7 @@ export function FocusMode({
         {...sectionToggle("mentions")}
         title="Mentions"
         icon={IconAt}
+        tone="purple"
         count={mentions.length}
         loading={mentionsLoading}
         error={null}
@@ -176,6 +177,7 @@ export function FocusMode({
         {...sectionToggle("working")}
         title="Working on"
         icon={IconTarget}
+        tone="info"
         count={working.length}
         loading={loading}
         error={null}
@@ -199,53 +201,17 @@ export function FocusMode({
             const pr = w.prs[0];
             return prRow(pr, null, w.state);
           }
-          const { ticket } = w;
-          const prCount =
-            w.prs.length > 0 ? ` · ${w.prs.length} PR${w.prs.length > 1 ? "s" : ""}` : "";
-          const prStates = w.prs.map(myPRState);
-          // Expanded: the same ticket header + nested PRs as Standup's In Progress.
-          if (showPRs && w.prs.length > 0)
-            return (
-              <React.Fragment key={ticket.key}>
-                <TicketGroupLine
-                  ticketKey={ticket.key}
-                  jiraBaseUrl={jiraBaseUrl}
-                  title={ticket.summary}
-                  extra={ticket.offSprint && <OffSprintPill />}
-                  meta={
-                    <CountDots
-                      label={`${ticket.statusName ? `${ticket.statusName} · ` : ""}${countLabel(w.prs.length, "PR")}`}
-                      tones={prStates.map((st) => st.tone)}
-                    />
-                  }
-                  onClick={() => openIssue?.(ticket.key)}
-                />
-                {w.prs.map((pr, i) => prRow(pr, ticket.key, prStates[i], true))}
-              </React.Fragment>
-            );
           return (
-            <React.Fragment key={ticket.key}>
-              <WorkdayItemRow
-                kind="ticket"
-                ticketKey={ticket.key}
-                jiraBaseUrl={jiraBaseUrl}
-                title={ticket.summary || ticket.key}
-                extra={
-                  <>
-                    {ticket.offSprint && <OffSprintPill />}
-                    <span className="workday-item-inline">
-                      <CountDots
-                        label={`${ticket.statusName ?? "—"}${prCount}`}
-                        tones={prStates.map((st) => st.tone)}
-                      />
-                    </span>
-                  </>
-                }
-                badge={w.state}
-                time={w.at && compactAge(w.at, now)}
-                onClick={() => openIssue?.(ticket.key)}
-              />
-            </React.Fragment>
+            <WorkTicketRow
+              key={w.ticket.key}
+              ticket={w.ticket}
+              prs={w.prs}
+              showPRs={showPRs}
+              jiraBaseUrl={jiraBaseUrl}
+              now={now}
+              onOpenTicket={(key) => openIssue?.(key)}
+              prRow={(pr, state) => prRow(pr, w.ticket?.key ?? null, state, true)}
+            />
           );
         })}
       </WorkdaySection>
@@ -254,6 +220,7 @@ export function FocusMode({
         {...sectionToggle("waiting")}
         title="Waiting on others"
         icon={IconClock}
+        tone="success"
         count={waitingCount}
         loading={loading}
         error={null}

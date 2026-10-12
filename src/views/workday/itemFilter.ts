@@ -86,11 +86,15 @@ export function filterFocusByItems(focus: FocusData, f: ItemFilter | null): Focu
   };
 }
 
+const JIRA_TAG: DropdownItem["tag"] = { label: "Jira", tone: "info" };
+const PR_TAG: DropdownItem["tag"] = { label: "PR", tone: "purple" };
+const AUTHOR_TAG: DropdownItem["tag"] = { label: "User", tone: "neutral" };
+
 const repoOf = (url: string) => url.split("/")[4] ?? "";
 
 /**
- * Every ticket, PR author and PR shown anywhere on the page (both modes), in
- * that order, for the header's searchable dropdown.
+ * Every ticket, PR and PR author shown anywhere on the page (both modes), in
+ * that order and tagged by kind, for the header's searchable dropdown.
  */
 export function itemFilterOptions(
   s: WorkdaySections,
@@ -154,13 +158,15 @@ export function itemFilterOptions(
     ...[...tickets].map(([key, title]) => ({
       value: `${TICKET}${key}`,
       label: title ? `${key} · ${title}` : key,
+      tag: JIRA_TAG,
     })),
+    ...[...prs].map(([url, label]) => ({ value: `${PR}${url}`, label, tag: PR_TAG })),
     ...[...authors]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([login, name]) => ({
         value: `${AUTHOR}${login}`,
         label: name ? `@${login} · ${name}` : `@${login}`,
+        tag: AUTHOR_TAG,
       })),
-    ...[...prs].map(([url, label]) => ({ value: `${PR}${url}`, label })),
   ];
 }
