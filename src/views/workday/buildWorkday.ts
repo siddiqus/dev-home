@@ -2,7 +2,12 @@ import type { GitHubPR, JiraIssue, StatusCategoryKey } from "../../types";
 import { groupByTicket, ticketKeyOf } from "../../utils/tickets";
 import { ACTIONABLE_REASONS, categorizeOpenPR } from "../../utils/prCategories";
 import type { Part } from "../../services/workday";
-import { reviewingState, type ReviewingState, type StateBadge } from "./prState";
+import {
+  groupCompletionRank,
+  reviewingState,
+  type ReviewingState,
+  type StateBadge,
+} from "./prState";
 import type {
   BlockerItem,
   DoneItem,
@@ -118,7 +123,10 @@ export function buildWorkday(inp: WorkdayInputs, now: Date): WorkdaySections {
   }
   const noTicket = prGroups.filter((g) => g.ticket === null).flatMap((g) => g.prs);
   if (noTicket.length > 0) workingOnGroups.push({ ticket: null, prs: noTicket });
-  const workingOn = newestFirst(workingOnGroups, groupTime);
+  // Closest to done first, then newest.
+  const workingOn = newestFirst(workingOnGroups, groupTime).sort(
+    (a, b) => groupCompletionRank(a.prs) - groupCompletionRank(b.prs),
+  );
 
   // Reviewing: requested ∪ reviewing, deduped by URL; never off-sprint.
   const seen = new Set<string>();

@@ -3,6 +3,8 @@ import { extractTicketKey, ticketKeyOf } from "../../utils/tickets";
 import { ACTIONABLE_REASONS, RED_CHECK_STATUSES } from "../../utils/prCategories";
 import { groupUpdatedAt } from "./buildWorkday";
 import {
+  completionRank,
+  groupCompletionRank,
   myPRState,
   readyToMerge,
   REVIEWING_LABEL,
@@ -84,15 +86,16 @@ function selfNeeds(pr: GitHubPR): NeedsIssue[] {
 const countTone = (item: NeedsItem, tone: NeedsIssue["tone"]) =>
   item.issues.filter((i) => i.tone === tone).length;
 
-/** Most danger issues, then most warnings, then stuck longest. */
+/** Closest to merging first, then most danger issues, then most warnings, then stuck longest. */
 const byBlockage = (a: NeedsItem, b: NeedsItem) =>
+  completionRank(a.pr) - completionRank(b.pr) ||
   countTone(b, "danger") - countTone(a, "danger") ||
   countTone(b, "warning") - countTone(a, "warning") ||
   time(a.at) - time(b.at);
 
 /**
- * The "Needs you" strip, tiered. Own stuck PRs rank by how blocked they are;
- * the other tiers are newest first.
+ * The "Needs you" strip, tiered. Own stuck PRs rank closest to merging first,
+ * then by how blocked they are; the other tiers are newest first.
  */
 function buildNeeds(inp: FocusInputs): NeedsItem[] {
   const items: NeedsItem[] = [];
@@ -175,7 +178,10 @@ function buildMentions(inp: FocusInputs, now: Date): MentionItem[] {
   );
 }
 
-/** One line per active ticket (plus ticketless PRs), with the worst PR state as its badge. */
+/**
+ * One line per active ticket (plus ticketless PRs), with the worst PR state as
+ * its badge; closest to done first, then newest.
+ */
 function buildWorking(inp: FocusInputs): WorkingItem[] {
   const items: WorkingItem[] = inp.workingOn.flatMap((g): WorkingItem[] =>
     g.ticket
@@ -187,7 +193,9 @@ function buildWorking(inp: FocusInputs): WorkingItem[] {
           at: pr.updated_at,
         })),
   );
-  return newestFirst(items, (i) => i.at);
+  return newestFirst(items, (i) => i.at).sort(
+    (a, b) => groupCompletionRank(a.prs) - groupCompletionRank(b.prs),
+  );
 }
 
 function buildWaiting(inp: FocusInputs): FocusData["waiting"] {

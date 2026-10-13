@@ -304,7 +304,7 @@ describe("buildFocus needs", () => {
     expect(f.waiting.onReviewers).toEqual([]);
   });
 
-  it("ranks own PRs by danger count, then warning count, then oldest first", () => {
+  it("ranks own PRs by completion, then danger count, then warning count, then oldest first", () => {
     expect(
       needs({
         openPRs: [
@@ -335,12 +335,34 @@ describe("buildFocus needs", () => {
         ],
       }),
     ).toEqual([
+      // In review
       ["self", "Fix CI", 4],
-      ["self", "Fix CI", 3],
       ["self", "Fix CI", 5],
       ["self", "Resolve conflict", 2],
+      // No reviewer
+      ["self", "Fix CI", 3],
       ["self", "Resolve threads", 6],
       ["self", "Request review", 1],
+    ]);
+  });
+
+  it("ranks approved own PRs first, even with unresolved threads", () => {
+    expect(
+      needs({
+        openPRs: [
+          pr(1, { checks_status: "FAILURE", updated_at: "2026-10-12T00:00:00Z" }),
+          pr(2, {
+            review_status: "APPROVED",
+            unresolved_thread_count: 3,
+            updated_at: "2026-10-01T00:00:00Z",
+          }),
+          pr(3, { review_status: "CHANGES_REQUESTED", updated_at: "2026-10-11T00:00:00Z" }),
+        ],
+      }),
+    ).toEqual([
+      ["self", "Resolve threads", 2],
+      ["self", "Fix CI", 1],
+      ["self", "Address feedback", 3],
     ]);
   });
 
@@ -456,9 +478,34 @@ describe("buildFocus working", () => {
     ).toEqual([
       [null, [3], "CI failing", "2026-10-12T00:00:00Z"],
       ["CCP-1", [1, 2], "Conflict", "2026-10-11T00:00:00Z"],
-      ["CCP-2", [], "No PR yet", "2026-10-09T00:00:00Z"],
       [null, [4], "Draft", "2026-10-08T00:00:00Z"],
+      ["CCP-2", [], "No PR yet", "2026-10-09T00:00:00Z"],
     ]);
+  });
+
+  it("puts items closest to done first: queued, approved, in review, then the rest", () => {
+    const f = buildFocus(
+      inputs({
+        workingOn: [
+          { ticket: ticket("CCP-1", { updated: "2026-10-12T00:00:00Z" }), prs: [] },
+          {
+            ticket: null,
+            prs: [
+              pr(1, { review_status: "CHANGES_REQUESTED", updated_at: "2026-10-11T00:00:00Z" }),
+              pr(2, { updated_at: "2026-10-10T00:00:00Z" }),
+              pr(3, {
+                review_status: "APPROVED",
+                unresolved_thread_count: 2,
+                updated_at: "2026-10-01T00:00:00Z",
+              }),
+              pr(4, { in_merge_queue: true, updated_at: "2026-10-02T00:00:00Z" }),
+            ],
+          },
+        ],
+      }),
+      NOW,
+    );
+    expect(f.working.map((w) => w.ticket?.key ?? w.prs[0].number)).toEqual([4, 3, 2, 1, "CCP-1"]);
   });
 });
 

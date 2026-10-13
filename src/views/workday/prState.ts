@@ -57,6 +57,24 @@ const rank = (s: StateBadge) => {
   return i < 0 ? SEVERITY.length : i;
 };
 
+/**
+ * How close one of my PRs is to merging (lower = closer), from review progress
+ * alone: In merge queue < Approved < In review < Changes requested < No reviewer
+ * < Draft. Approval wins over CI, conflicts and open threads.
+ */
+export function completionRank(pr: GitHubPR): number {
+  if (pr.draft) return 5;
+  if (pr.in_merge_queue) return 0;
+  if (pr.review_status === "APPROVED") return 1;
+  if (pr.review_status === "CHANGES_REQUESTED") return 3;
+  if (noReviewer(pr)) return 4;
+  return 2;
+}
+
+/** A ticket's distance from done: its least complete PR, past every PR rank when it has none. */
+export const groupCompletionRank = (prs: GitHubPR[]) =>
+  prs.length === 0 ? 6 : Math.max(...prs.map(completionRank));
+
 export const NO_PR_YET: StateBadge = { label: "No PR yet", tone: "neutral" };
 
 /** The most severe state across a ticket's PRs; "No PR yet" when there are none. */

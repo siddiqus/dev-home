@@ -203,6 +203,25 @@ describe("buildWorkday", () => {
     ]);
   });
 
+  it("puts In progress tickets closest to done first", () => {
+    const s = buildWorkday(
+      inputs({
+        openPRs: [
+          pr(1, { title: "CCP-1 a", draft: true, updated_at: "2026-10-12T00:00:00Z" }),
+          pr(2, {
+            title: "CCP-2 a",
+            review_status: "APPROVED",
+            unresolved_thread_count: 2,
+            updated_at: "2026-10-01T00:00:00Z",
+          }),
+          pr(3, { title: "CCP-3 a", updated_at: "2026-10-11T00:00:00Z" }),
+        ],
+      }),
+      NOW,
+    );
+    expect(s.workingOn.items.map((g) => g.ticket?.key)).toEqual(["CCP-2", "CCP-3", "CCP-1"]);
+  });
+
   it("dedupes reviewing by URL, puts already-reviewed groups first, and never flags it", () => {
     const shared = pr(20, { title: "OTHER-1 x", user: { login: "bob", avatar_url: "" } });
     const s = buildWorkday(
