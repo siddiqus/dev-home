@@ -64,7 +64,7 @@ describe("workdayToMarkdown", () => {
           },
           {
             kind: "reviewed",
-            pr: pr(1),
+            pr: pr(1, { state: "merged" }),
             ticket: t("CPC-49"),
             state: "APPROVED",
             at: "2026-10-10T08:00:00Z",
@@ -122,7 +122,7 @@ describe("workdayToMarkdown", () => {
         "*Yesterday*",
         "• Merged CCP-1187 Fix autosave race (#2231)",
         "• Moved WMU-402 to Code Review",
-        "• Reviewed CPC-49 (approved), app#2 (changes requested)",
+        "• Reviewed CPC-49 (approved, merged), app#2 (changes requested)",
         "",
         "*Today*",
         "• WMU-402 Delete data — #3310 in review, #3318 draft",

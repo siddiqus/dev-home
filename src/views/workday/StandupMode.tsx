@@ -61,7 +61,16 @@ const REVIEW_PILL: Record<ReviewState, StateBadge> = {
 
 function doneLead(item: DoneItem): StateBadge {
   if (item.kind === "merged") return { label: "Merged", tone: "success" };
-  if (item.kind === "reviewed") return REVIEW_PILL[item.state];
+  if (item.kind === "reviewed") {
+    // My verdict, plus where the PR ended up when it's no longer open.
+    const pill = REVIEW_PILL[item.state];
+    const outcome =
+      item.pr.state === "merged" ? "Merged" : item.pr.state === "closed" ? "Closed" : null;
+    if (!outcome) return pill;
+    // Shortened so the combined label fits the key column.
+    const verdict = item.state === "CHANGES_REQUESTED" ? "Changes req." : pill.label;
+    return { ...pill, label: `${verdict} · ${outcome}` };
+  }
   return { label: `To ${item.toStatus}`, tone: "info" };
 }
 

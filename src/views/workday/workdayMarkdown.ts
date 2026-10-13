@@ -60,7 +60,11 @@ export function workdayToMarkdown(s: WorkdaySections, noteContent: string, now: 
         reviewedAt = yesterday.length;
         yesterday.push("");
       }
-      reviewed.push(`${item.ticket?.key ?? repoRef(item.pr)} (${REVIEW_WORD[item.state]})`);
+      const outcome =
+        item.pr.state === "merged" ? ", merged" : item.pr.state === "closed" ? ", closed" : "";
+      reviewed.push(
+        `${item.ticket?.key ?? repoRef(item.pr)} (${REVIEW_WORD[item.state]}${outcome})`,
+      );
     }
   }
   if (reviewedAt >= 0) yesterday[reviewedAt] = `Reviewed ${reviewed.join(", ")}`;
