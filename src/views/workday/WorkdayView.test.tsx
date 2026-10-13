@@ -170,6 +170,42 @@ describe("WorkdayView modes", () => {
     expect(screen.getByText("All clear")).toBeTruthy();
   });
 
+  it("pins a PR to a Pinned section on top, remembers it, and unpins", () => {
+    renderView({ openPRs: [{ ...prs[0], requested_reviewers: [] }] });
+    expect(screen.queryByText("Pinned")).toBeNull();
+    fireEvent.click(within(sectionOf("Lock in")).getByRole("button", { name: "Pin r#3310" }));
+
+    const pinned = sectionOf("Pinned");
+    expect(document.querySelector(".workday-section")).toBe(pinned);
+    expect(within(pinned).getByText("delete")).toBeTruthy();
+    // Moved, not copied: Lock in no longer lists it.
+    expect(screen.getByText("✓ Nothing needs you right now")).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem("dev-home-workday-pins")!)).toEqual([
+      "pr:https://github.com/o/r/pull/3310",
+    ]);
+
+    fireEvent.click(within(pinned).getByRole("button", { name: "Unpin r#3310" }));
+    expect(screen.queryByText("Pinned")).toBeNull();
+    expect(within(sectionOf("Lock in")).getByText("delete")).toBeTruthy();
+  });
+
+  it("pinning a ticket brings all its PRs into Pinned", () => {
+    const second = {
+      ...prs[0],
+      id: 2,
+      number: 3311,
+      title: "WMU-402 follow-up",
+      html_url: "https://github.com/o/r/pull/3311",
+    };
+    renderView({ openPRs: [prs[0], second] });
+    fireEvent.click(screen.getAllByRole("button", { name: "Pin WMU-402" })[0]);
+    const pinned = sectionOf("Pinned");
+    expect(within(pinned).getByText("2 PRs")).toBeTruthy();
+    expect(within(pinned).getByText("delete")).toBeTruthy();
+    expect(within(pinned).getByText("follow-up")).toBeTruthy();
+    expect(within(pinned).getByRole("button", { name: "Unpin WMU-402" })).toBeTruthy();
+  });
+
   it("lists what needs you, and opens the PR modal from a row", () => {
     renderView({ openPRs: [{ ...prs[0], requested_reviewers: [] }] });
     expect(screen.getByText("1 thing needs you")).toBeTruthy();

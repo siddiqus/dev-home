@@ -1,6 +1,6 @@
 import type { GitHubPR } from "../../types";
 import type { DropdownItem } from "../../components/SearchableDropdown";
-import type { FocusData, TicketGroup, TicketRef, WorkdaySections } from "./types";
+import type { FocusData, PinnedItem, TicketGroup, TicketRef, WorkdaySections } from "./types";
 
 /**
  * The header's item filter: picked tickets, PRs and PR authors. A row is kept
@@ -73,6 +73,13 @@ export function filterFocusByItems(focus: FocusData, f: ItemFilter | null): Focu
   if (!f) return focus;
   const keep = (i: { ticketKey: string | null; pr: GitHubPR }) => hit(f, i.ticketKey, i.pr);
   return {
+    // A picked ticket keeps its whole pinned group; otherwise only the picked PRs stay.
+    pinned: focus.pinned.flatMap((p): PinnedItem[] => {
+      if (p.kind === "pr") return keep(p) ? [p] : [];
+      if (f.tickets.has(p.key)) return [p];
+      const prs = p.prs.filter((x) => prHit(f, x.pr));
+      return prs.length > 0 ? [{ ...p, prs }] : [];
+    }),
     needs: focus.needs.filter(keep),
     mentions: focus.mentions.filter(
       (m) => hit(f, m.ticketKey) || (!!m.url && f.prs.has(mentionPrUrl(m.url))),
@@ -138,6 +145,15 @@ export function itemFilterOptions(
     addTicket(w.ticket?.key, w.ticket?.summary);
     w.prs.forEach(addPR);
   });
+  for (const p of focus.pinned) {
+    if (p.kind === "ticket") {
+      addTicket(p.key, p.ticket?.summary);
+      p.prs.forEach((x) => addPR(x.pr));
+    } else {
+      addTicket(p.ticketKey);
+      addPR(p.pr);
+    }
+  }
   const keyed = [
     ...focus.needs,
     ...focus.waiting.onReviewers,

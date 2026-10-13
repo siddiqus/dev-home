@@ -45,6 +45,7 @@ const sections: WorkdaySections = {
 };
 
 const focus: FocusData = {
+  pinned: [],
   needs: [
     {
       tier: "ship",

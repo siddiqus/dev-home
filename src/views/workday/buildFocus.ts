@@ -2,7 +2,15 @@ import type { GitHubPR } from "../../types";
 import { extractTicketKey, ticketKeyOf } from "../../utils/tickets";
 import { ACTIONABLE_REASONS, RED_CHECK_STATUSES } from "../../utils/prCategories";
 import { groupUpdatedAt } from "./buildWorkday";
-import { readyToMerge, worstState } from "./prState";
+import {
+  myPRState,
+  readyToMerge,
+  REVIEWING_LABEL,
+  reviewingState,
+  worstState,
+  type StateBadge,
+} from "./prState";
+import { prPin, ticketPin } from "./pins";
 import type {
   FocusData,
   FocusInputs,
@@ -10,6 +18,8 @@ import type {
   NeedsIssue,
   NeedsItem,
   NeedsTier,
+  PinnedItem,
+  TicketRef,
   WaitingOnAuthor,
   WorkingItem,
 } from "./types";
@@ -214,12 +224,79 @@ function buildWaiting(inp: FocusInputs): FocusData["waiting"] {
   return { onReviewers, onAuthor: newestFirst(onAuthor, at), approved: newestFirst(approved, at) };
 }
 
-/** Compose Focus mode from the same data Standup uses. */
-export function buildFocus(inp: FocusInputs, now: Date): FocusData {
+/**
+ * Pinned rows, most recently pinned first. A pinned ticket lists every open PR
+ * on it (mine and ones I review) and shows even with none; a pinned PR stands
+ * alone unless its ticket is pinned too. PRs that have closed drop out.
+ */
+function buildPinned(inp: FocusInputs, pins: Set<string>): PinnedItem[] {
+  const own = new Set(inp.openPRs.map((p) => p.html_url));
+  const requested = new Set(inp.reviewRequests.map((p) => p.html_url));
+  const byUrl = new Map<string, GitHubPR>();
+  for (const pr of [...inp.openPRs, ...inp.reviewRequests, ...inp.reviewingPRs])
+    if (!byUrl.has(pr.html_url)) byUrl.set(pr.html_url, pr);
+  const tickets = new Map<string, TicketRef>();
+  for (const g of inp.workingOn) if (g.ticket) tickets.set(g.ticket.key, g.ticket);
+  const row = (pr: GitHubPR) => {
+    const mine = own.has(pr.html_url);
+    const badge: StateBadge = mine
+      ? myPRState(pr)
+      : REVIEWING_LABEL[reviewingState(pr, requested.has(pr.html_url))];
+    return { pr, badge, mine };
+  };
+
+  const items: PinnedItem[] = [];
+  for (const id of [...pins].reverse()) {
+    if (id.startsWith("ticket:")) {
+      const key = id.slice("ticket:".length);
+      const prs = [...byUrl.values()].filter((pr) => ticketKeyOf(pr) === key);
+      items.push({
+        kind: "ticket",
+        key,
+        ticket: tickets.get(key) ?? null,
+        prs: prs.map(row),
+      });
+    } else if (id.startsWith("pr:")) {
+      const pr = byUrl.get(id.slice("pr:".length));
+      if (!pr) continue;
+      const ticketKey = ticketKeyOf(pr);
+      if (ticketKey && pins.has(ticketPin(ticketKey))) continue;
+      items.push({ kind: "pr", ticketKey, ...row(pr) });
+    }
+  }
+  return items;
+}
+
+/** The inputs minus anything pinned (pinned PRs, and every PR / group of a pinned ticket). */
+function withoutPinned(inp: FocusInputs, pins: Set<string>): FocusInputs {
+  if (pins.size === 0) return inp;
+  const pinned = (pr: GitHubPR) => {
+    const key = ticketKeyOf(pr);
+    return pins.has(prPin(pr)) || (!!key && pins.has(ticketPin(key)));
+  };
+  const unpinned = (prs: GitHubPR[]) => prs.filter((pr) => !pinned(pr));
   return {
-    needs: buildNeeds(inp),
+    ...inp,
+    openPRs: unpinned(inp.openPRs),
+    reviewRequests: unpinned(inp.reviewRequests),
+    reviewingPRs: unpinned(inp.reviewingPRs),
+    // A ticket whose PRs are all pinned moves out with them.
+    workingOn: inp.workingOn.flatMap((g) => {
+      if (g.ticket && pins.has(ticketPin(g.ticket.key))) return [];
+      const prs = unpinned(g.prs);
+      return prs.length === 0 && g.prs.length > 0 ? [] : [{ ...g, prs }];
+    }),
+  };
+}
+
+/** Compose Focus mode from the same data Standup uses; pinned items move to the top. */
+export function buildFocus(inp: FocusInputs, now: Date, pins: Set<string> = new Set()): FocusData {
+  const rest = withoutPinned(inp, pins);
+  return {
+    pinned: buildPinned(inp, pins),
+    needs: buildNeeds(rest),
     mentions: buildMentions(inp, now),
-    working: buildWorking(inp),
-    waiting: buildWaiting(inp),
+    working: buildWorking(rest),
+    waiting: buildWaiting(rest),
   };
 }

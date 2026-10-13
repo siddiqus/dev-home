@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { IconAt, IconClock, IconTarget } from "@tabler/icons-react";
+import { IconAt, IconClock, IconPin, IconTarget } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
 import type { StateBadge } from "./prState";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
@@ -71,7 +71,7 @@ export function FocusMode({
     localStorage.setItem(SHOW_PRS_KEY, showPRs ? "0" : "1");
     setShowPRs(!showPRs);
   };
-  const { needs, mentions, working, waiting } = focus;
+  const { pinned, needs, mentions, working, waiting } = focus;
   const waitingCount =
     waiting.onReviewers.length + waiting.onAuthor.length + waiting.approved.length;
 
@@ -121,6 +121,46 @@ export function FocusMode({
 
   return (
     <div className="workday-focus">
+      {pinned.length > 0 && (
+        <WorkdaySection
+          {...sectionToggle("pinned")}
+          title="Pinned"
+          icon={IconPin}
+          count={pinned.length}
+          loading={false}
+          error={null}
+          empty={null}
+        >
+          {pinned.map((p) =>
+            p.kind === "pr" ? (
+              prRow(p.pr, p.ticketKey, p.badge, false, p.mine ? undefined : p.pr.user.login)
+            ) : (
+              <React.Fragment key={`ticket:${p.key}`}>
+                <TicketGroupLine
+                  ticketKey={p.key}
+                  jiraBaseUrl={jiraBaseUrl}
+                  title={p.ticket?.summary || ticketTitles.get(p.key) || ""}
+                  meta={
+                    p.prs.length > 0 ? (
+                      <CountDots
+                        label={countLabel(p.prs.length, "PR")}
+                        tones={p.prs.map((x) => x.badge.tone)}
+                      />
+                    ) : (
+                      "No open PRs"
+                    )
+                  }
+                  onClick={() => openIssue?.(p.key)}
+                />
+                {p.prs.map((x) =>
+                  prRow(x.pr, p.key, x.badge, true, x.mine ? undefined : x.pr.user.login),
+                )}
+              </React.Fragment>
+            ),
+          )}
+        </WorkdaySection>
+      )}
+
       <NeedsYouStrip
         {...sectionToggle("needs")}
         items={needs}

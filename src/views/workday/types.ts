@@ -137,6 +137,19 @@ export interface WaitingOnAuthor {
   at: string | null;
 }
 
+/** A PR row with its Focus badge (my PR's state, or where my review stands). */
+export interface PinnedPR {
+  pr: GitHubPR;
+  badge: StateBadge;
+  /** My own PR (vs one I review). */
+  mine: boolean;
+}
+
+/** A pinned ticket (with every open PR under it) or a lone pinned PR. */
+export type PinnedItem =
+  | { kind: "ticket"; key: string; ticket: TicketRef | null; prs: PinnedPR[] }
+  | ({ kind: "pr"; ticketKey: string | null } & PinnedPR);
+
 export interface FocusInputs {
   openPRs: GitHubPR[];
   reviewRequests: GitHubPR[];
@@ -148,6 +161,8 @@ export interface FocusInputs {
 }
 
 export interface FocusData {
+  /** Pinned items, most recently pinned first; they're left out of the other sections. */
+  pinned: PinnedItem[];
   needs: NeedsItem[];
   mentions: MentionItem[];
   working: WorkingItem[];

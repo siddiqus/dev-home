@@ -88,6 +88,7 @@ describe("buildFocus needs", () => {
     const f = buildFocus(inputs({ openPRs: [pr(1)] }), NOW);
     expect(f.needs).toEqual([]);
     expect(buildFocus(inputs(), NOW)).toEqual({
+      pinned: [],
       needs: [],
       mentions: [],
       working: [],
@@ -519,5 +520,71 @@ describe("buildFocus waiting", () => {
     ]);
     expect(f.waiting.onAuthor[1].ticketKey).toBe("CCP-6");
     expect(f.waiting.approved.map((w) => [w.pr.number, w.state])).toEqual([[3, "APPROVED"]]);
+  });
+});
+
+describe("buildFocus pinned", () => {
+  const url = (n: number) => `pr:https://github.com/o/r/pull/${n}`;
+  const nums = (f: ReturnType<typeof buildFocus>) => ({
+    needs: f.needs.map((i) => i.pr.number),
+    working: f.working.map((w) => w.ticket?.key ?? w.prs[0].number),
+    onAuthor: f.waiting.onAuthor.map((w) => w.pr.number),
+  });
+
+  it("moves a pinned PR to the top, alone, and out of its section", () => {
+    const failing = pr(1, { checks_status: "FAILURE" });
+    const reviewed = theirs(2, { viewer_review_state: "COMMENTED" });
+    const f = buildFocus(
+      inputs({ openPRs: [failing], reviewingPRs: [reviewed] }),
+      NOW,
+      new Set([url(1), url(2)]),
+    );
+    // Most recently pinned first; reviewed PRs get the reviewer state.
+    expect(f.pinned.map((p) => p.kind === "pr" && [p.pr.number, p.badge.label, p.mine])).toEqual([
+      [2, "Waiting on author", false],
+      [1, "CI failing", true],
+    ]);
+    expect(nums(f)).toEqual({ needs: [], working: [], onAuthor: [] });
+  });
+
+  it("a pinned ticket gathers every open PR on it and leaves the other sections", () => {
+    const mine = pr(1, { title: "CCP-9 Part one", checks_status: "FAILURE" });
+    const review = theirs(2, { title: "CCP-9 Part two" });
+    const other = pr(3, { title: "CCP-4 Else", checks_status: "FAILURE" });
+    const f = buildFocus(
+      inputs({
+        openPRs: [mine, other],
+        reviewRequests: [review],
+        workingOn: [
+          { ticket: ticket("CCP-9"), prs: [mine] },
+          { ticket: ticket("CCP-4"), prs: [other] },
+        ],
+      }),
+      NOW,
+      // The ticket's own PR pin folds into the ticket.
+      new Set([url(1), "ticket:CCP-9"]),
+    );
+    expect(f.pinned).toHaveLength(1);
+    const [p] = f.pinned;
+    expect(
+      p.kind === "ticket" && [p.key, p.ticket?.summary, p.prs.map((x) => x.pr.number)],
+    ).toEqual(["CCP-9", "Summary CCP-9", [1, 2]]);
+    expect(nums(f)).toEqual({ needs: [3], working: ["CCP-4"], onAuthor: [] });
+  });
+
+  it("keeps a pinned ticket with no open PRs, and drops pins for closed PRs", () => {
+    const f = buildFocus(inputs(), NOW, new Set(["ticket:CCP-1", url(99)]));
+    expect(f.pinned).toEqual([{ kind: "ticket", key: "CCP-1", ticket: null, prs: [] }]);
+  });
+
+  it("drops a Working-on ticket once all its PRs are pinned", () => {
+    const a = pr(1, { title: "CCP-2 A" });
+    const f = buildFocus(
+      inputs({ openPRs: [a], workingOn: [{ ticket: ticket("CCP-2"), prs: [a] }] }),
+      NOW,
+      new Set([url(1)]),
+    );
+    expect(f.working).toEqual([]);
+    expect(f.pinned.map((p) => p.kind)).toEqual(["pr"]);
   });
 });

@@ -4,6 +4,8 @@ import {
   IconExternalLink,
   IconGitPullRequest,
   IconMessageCircle,
+  IconPin,
+  IconPinFilled,
 } from "@tabler/icons-react";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
@@ -13,6 +15,7 @@ import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
 import { groupUpdatedAt, type KeyedGroup } from "./buildWorkday";
 import type { TicketRef } from "./types";
 import { ageHeat, compactAge } from "./dates";
+import { prPin, ticketPin } from "./pins";
 
 /** Dashed marker for tickets assigned to me but not in an active sprint. */
 export function OffSprintPill() {
@@ -25,9 +28,39 @@ export const CopyTicketContext = React.createContext<((key: string) => void) | n
 /** Copies a PR link with a toast; provided by WorkdayView. */
 export const CopyPRLinkContext = React.createContext<((url: string) => void) | null>(null);
 
+/** Focus pins and their toggle; provided by WorkdayView in Focus mode only. */
+export const PinContext = React.createContext<{
+  pins: Set<string>;
+  toggle: (id: string) => void;
+} | null>(null);
+
+/** Pin / unpin toggle beside a ticket key or PR ref; renders nothing outside Focus. */
+function PinButton({ id, name }: { id: string; name: string }) {
+  const ctx = React.useContext(PinContext);
+  if (!ctx) return null;
+  const pinned = ctx.pins.has(id);
+  const Icon = pinned ? IconPinFilled : IconPin;
+  return (
+    <button
+      type="button"
+      className={`pr-cluster-icon-btn workday-pin${pinned ? " workday-pin--on" : ""}`}
+      title={pinned ? "Unpin" : "Pin to top"}
+      aria-label={`${pinned ? "Unpin" : "Pin"} ${name}`}
+      aria-pressed={pinned}
+      onClick={(e) => {
+        e.stopPropagation();
+        ctx.toggle(id);
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <Icon size={13} stroke={1.8} />
+    </button>
+  );
+}
+
 /**
  * Ticket key chip (click opens the Jira drawer), then copy-key and open-in-Jira
- * icons. "—" when none. The icons stop propagation so the row doesn't open.
+ * icons, then the Focus pin. "—" when none. The icons stop propagation so the row doesn't open.
  */
 export function TicketKey({
   ticketKey,
@@ -70,6 +103,7 @@ export function TicketKey({
           <IconExternalLink size={13} stroke={1.8} />
         </a>
       )}
+      <PinButton id={ticketPin(ticketKey)} name={ticketKey} />
     </span>
   );
 }
@@ -111,6 +145,7 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
       >
         <IconExternalLink size={13} stroke={1.8} />
       </a>
+      <PinButton id={prPin(pr)} name={ref} />
       {after && ` · ${after}`}
     </span>
   );

@@ -24,7 +24,8 @@ import { formatSinceLabel, sinceFor, type Lookback } from "./dates";
 import type { SprintFilter } from "./types";
 import { FocusMode } from "./FocusMode";
 import { LOOKBACKS, StandupMode } from "./StandupMode";
-import { CopyPRLinkContext, CopyTicketContext } from "./CompactRow";
+import { CopyPRLinkContext, CopyTicketContext, PinContext } from "./CompactRow";
+import { PINS_KEY } from "./pins";
 import "./workday.css";
 
 export interface WorkdayViewProps {
@@ -133,23 +134,8 @@ export function WorkdayView(props: WorkdayViewProps) {
     collapsed: isCollapsed(id),
     onToggle: () => (DEFAULT_COLLAPSED.has(id) ? toggleExpanded(id) : toggleCollapsed(id)),
   });
-  const allCollapsed = MODE_SECTIONS[mode].every(isCollapsed);
-  const toggleCollapseAll = () => {
-    const ids = MODE_SECTIONS[mode].filter((id) => !DEFAULT_COLLAPSED.has(id));
-    const defaults = MODE_SECTIONS[mode].filter((id) => DEFAULT_COLLAPSED.has(id));
-    const next = new Set(collapsed);
-    const nextExpanded = new Set(expanded);
-    for (const id of ids) {
-      if (allCollapsed) next.delete(id);
-      else next.add(id);
-    }
-    for (const id of defaults) {
-      if (allCollapsed) nextExpanded.add(id);
-      else nextExpanded.delete(id);
-    }
-    setCollapsed(next);
-    setExpanded(nextExpanded);
-  };
+  const [pins, , togglePin] = usePersistedSet(PINS_KEY);
+  const pinContext = useMemo(() => ({ pins, toggle: togglePin }), [pins, togglePin]);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { copy: copyText, onCopyLink, onCopyTicket, toast } = usePRCopyActions();
 
@@ -194,9 +180,33 @@ export function WorkdayView(props: WorkdayViewProps) {
           jiraMentions,
         },
         now,
+        pins,
       ),
-    [openPRs, reviewRequests, reviewingPRs, sections, githubMentions, jiraMentions, now],
+    [openPRs, reviewRequests, reviewingPRs, sections, githubMentions, jiraMentions, now, pins],
   );
+
+  // Pinned only counts toward "collapse all" while it's on screen.
+  const modeSections =
+    mode === "focus" && focus.pinned.length > 0
+      ? ["pinned", ...MODE_SECTIONS.focus]
+      : MODE_SECTIONS[mode];
+  const allCollapsed = modeSections.every(isCollapsed);
+  const toggleCollapseAll = () => {
+    const ids = modeSections.filter((id) => !DEFAULT_COLLAPSED.has(id));
+    const defaults = modeSections.filter((id) => DEFAULT_COLLAPSED.has(id));
+    const next = new Set(collapsed);
+    const nextExpanded = new Set(expanded);
+    for (const id of ids) {
+      if (allCollapsed) next.delete(id);
+      else next.add(id);
+    }
+    for (const id of defaults) {
+      if (allCollapsed) nextExpanded.add(id);
+      else nextExpanded.delete(id);
+    }
+    setCollapsed(next);
+    setExpanded(nextExpanded);
+  };
 
   const ticketTitles = useMemo(
     () => new Map([...allIssues, ...assignedIssues].map((i) => [i.key, i.summary])),
@@ -312,16 +322,18 @@ export function WorkdayView(props: WorkdayViewProps) {
 
           <ItemFilteringContext.Provider value={itemFilter !== null}>
             {mode === "focus" ? (
-              <FocusMode
-                focus={shownFocus}
-                loading={loading}
-                mentionsLoading={mentionsLoading}
-                jiraBaseUrl={jiraBaseUrl}
-                ticketTitles={ticketTitles}
-                now={now}
-                sectionToggle={sectionToggle}
-                onOpen={setSelectedPR}
-              />
+              <PinContext.Provider value={pinContext}>
+                <FocusMode
+                  focus={shownFocus}
+                  loading={loading}
+                  mentionsLoading={mentionsLoading}
+                  jiraBaseUrl={jiraBaseUrl}
+                  ticketTitles={ticketTitles}
+                  now={now}
+                  sectionToggle={sectionToggle}
+                  onOpen={setSelectedPR}
+                />
+              </PinContext.Provider>
             ) : (
               <StandupMode
                 sections={shownSections}

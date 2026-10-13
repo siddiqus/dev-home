@@ -331,6 +331,23 @@
   font-size: 0.75rem;
 }
 
+/* Row icons (copy, open, pin) appear on row hover / keyboard focus only, to keep
+   the list calm. Hidden with opacity, not display, so the row never reflows. */
+:is(.workday-line, .workday-item, .workday-mention) :is(.pr-cluster-icon-btn, .pr-cluster-ext) {
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease;
+}
+:is(.workday-line, .workday-item, .workday-mention):is(:hover, :focus-within)
+  :is(.pr-cluster-icon-btn, .pr-cluster-ext) {
+  opacity: 1;
+}
+
+.workday-pin--on {
+  color: var(--color-accent);
+}
+
 .workday-key--none {
   color: var(--color-text-muted);
 }
