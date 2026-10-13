@@ -18,6 +18,7 @@ import {
 import { GitHubPR, JiraIssue } from "../types";
 import { groupByTicket } from "../utils/tickets";
 import { categorizeOpenPR } from "../utils/prCategories";
+import type { StateBadge } from "../views/workday/prState";
 import { EmptyState } from "./EmptyState";
 import { PRCard, PRCardFields } from "./PRCard";
 import { PRDetailModal } from "./PRDetailModal";
@@ -61,6 +62,8 @@ interface PRTableProps {
       categorize as "needs-action", so mixed lists (flat view) decorate the right
       rows and section tables naturally scope chips to the needs-action section. */
   reasonChips?: boolean;
+  /** Derive a per-row action pill (e.g. the Reviews tab's reviewer state). */
+  actionPill?: (pr: GitHubPR) => StateBadge | null;
 }
 
 /** Which card fields each variant shows. */
@@ -157,6 +160,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     collapsedGroups,
     onToggleGroup,
     reasonChips,
+    actionPill,
   },
   ref,
 ) {
@@ -270,6 +274,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     jiraBaseUrl={jiraBaseUrl}
                     clustered={isCluster}
                     showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
+                    actionPill={actionPill?.(pr)}
                     noteCount={noteCount(pr)}
                     onOpen={setSelectedPR}
                     onCopyBranch={onCopyBranch}

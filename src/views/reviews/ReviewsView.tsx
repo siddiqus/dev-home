@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import { IconChevronRight, IconChevronDown, IconMessageCircle, IconEye } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import { PRTable } from "../../components/PRTable";
+import { REVIEWING_LABEL, reviewingState } from "../workday/prState";
 import "../../components/PRSections.css";
 
 interface ReviewsViewProps {
@@ -64,6 +65,20 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
       requested: reviewRequests.filter((pr) => !pr.viewer_engaged),
     }),
     [reviewRequests, reviewingPRs],
+  );
+
+  // Same reviewer state as Workday: re-requested / new commits / requested / waiting on author.
+  const requestedUrls = useMemo(
+    () => new Set(reviewRequests.map((pr) => pr.html_url)),
+    [reviewRequests],
+  );
+  // "Requested" is skipped: it's exactly what the "Review requested" section already says.
+  const actionPill = useCallback(
+    (pr: GitHubPR) => {
+      const state = reviewingState(pr, requestedUrls.has(pr.html_url));
+      return state === "requested" ? null : REVIEWING_LABEL[state];
+    },
+    [requestedUrls],
   );
 
   const toggleSection = (id: ReviewSection) => {
@@ -129,6 +144,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 embedded
                 showGroupToolbar={false}
                 storageKeyScope={section.id}
+                actionPill={actionPill}
               />
             )}
           </section>

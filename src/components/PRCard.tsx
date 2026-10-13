@@ -2,7 +2,9 @@ import { IconExternalLink, IconCopy, IconNote } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import type { StateBadge } from "../views/workday/prState";
 import {
+  ActionPill,
   BranchPill,
   DiffStat,
   PRLabels,
@@ -35,6 +37,8 @@ interface PRCardProps {
   /** Render the unified reason-chip row (needs-action rows only), replacing the
       standalone status pill and CI icon with labeled chips. */
   showReasonChips?: boolean;
+  /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon. */
+  actionPill?: StateBadge | null;
   /** Number of unresolved notes on this PR — shows a note-count badge when > 0. */
   noteCount?: number;
   /** Opens the PR description modal. */
@@ -54,6 +58,7 @@ export function PRCard({
   singleTicket,
   clustered,
   showReasonChips,
+  actionPill,
   noteCount,
   onOpen,
   onCopyBranch,
@@ -187,6 +192,7 @@ export function PRCard({
       <div className="pr-card-side">
         <div className="pr-card-side-top">
           {showReasonChips && <ReasonChips pr={pr} />}
+          {actionPill && <ActionPill label={actionPill.label} tone={actionPill.tone} />}
           {showStatusPill && <StatusPill pr={pr} />}
           {fields.showChecks && (
             <ChecksStatusIcon

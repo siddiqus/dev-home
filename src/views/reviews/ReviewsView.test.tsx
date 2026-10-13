@@ -55,6 +55,43 @@ describe("ReviewsView", () => {
     expect(within(requested).queryByText("Re-requested")).toBeNull();
   });
 
+  it("labels each row with what the reviewer should do", () => {
+    const reRequested = makePR({
+      number: 3,
+      title: "Back to you",
+      html_url: "https://github.com/o/r/pull/3",
+      viewer_engaged: true,
+    });
+    render(
+      <ReviewsView
+        loading={false}
+        reviewingPRs={[
+          makePR({
+            number: 1,
+            title: "Pushed again",
+            html_url: "https://github.com/o/r/pull/1",
+            new_commits_since_review: true,
+            viewer_review_state: "COMMENTED",
+          }),
+          makePR({ number: 4, title: "Idle", html_url: "https://github.com/o/r/pull/4" }),
+          reRequested,
+        ]}
+        reviewRequests={[
+          makePR({ number: 2, title: "Fresh", html_url: "https://github.com/o/r/pull/2" }),
+          reRequested,
+        ]}
+      />,
+    );
+
+    const pillIn = (title: string) =>
+      screen.getByText(title).closest(".pr-card")!.querySelector(".pr-reason-chip")?.textContent;
+    expect(pillIn("Pushed again")).toBe("New commits");
+    expect(pillIn("Idle")).toBe("Waiting on author");
+    expect(pillIn("Back to you")).toBe("Re-requested");
+    // Redundant with its "Review requested" section, so no pill.
+    expect(pillIn("Fresh")).toBeUndefined();
+  });
+
   it("hides an empty section", () => {
     render(
       <ReviewsView

@@ -220,3 +220,7 @@ a.pr-card-ticket:hover {
   color: var(--color-status-info);
   background: var(--color-status-info-bg);
 }
+.pr-reason-chip--neutral {
+  color: var(--color-text-secondary);
+  background: var(--color-status-neutral-bg);
+}

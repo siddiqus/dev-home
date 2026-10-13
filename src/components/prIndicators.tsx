@@ -7,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import { GitHubPR, GitHubLabel } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
+import type { BadgeVariant } from "./primitives/Badge";
 import "./prIndicators.css";
 import { jiraBrowseUrl } from "../utils/tickets";
 import { ticketClickHandler, useOptionalJiraDrawer } from "../context/JiraDrawerContext";
@@ -86,6 +87,12 @@ export function ReasonChips({ pr }: { pr: GitHubPR }) {
       ))}
     </div>
   );
+}
+
+/** A single caller-supplied action pill (e.g. the Reviews tab's "New commits"),
+    styled like a reason chip. */
+export function ActionPill({ label, tone }: { label: string; tone: BadgeVariant }) {
+  return <span className={`pr-reason-chip pr-reason-chip--${tone}`}>{label}</span>;
 }
 
 /** The leading PR icon — draft (muted) vs open. */
