@@ -75,7 +75,10 @@ function selfNeeds(pr: GitHubPR): NeedsIssue[] {
         : {
             verb: "Resolve threads",
             tone: "warning",
-            reason: `${open} unresolved ${open === 1 ? "thread" : "threads"}`,
+            reason:
+              pr.review_status === "APPROVED"
+                ? `approved · ${threads(open)}`
+                : `${open} unresolved ${open === 1 ? "thread" : "threads"}`,
           },
     );
   if (has.has("no_reviewer"))

@@ -280,13 +280,19 @@ describe("buildFocus needs", () => {
         openPRs: [
           pr(1, { unresolved_thread_count: 1, updated_at: "2026-10-09T10:00:00Z" }),
           pr(2, { review_status: "REVIEWED", unresolved_thread_count: 2 }),
+          pr(3, { review_status: "APPROVED", unresolved_thread_count: 1 }),
         ],
       }),
       NOW,
     );
-    expect(f.needs.map((i) => i.issues.map((x) => [x.verb, x.tone, x.reason]))).toEqual([
+    expect(
+      f.needs
+        .sort((a, b) => a.pr.number - b.pr.number)
+        .map((i) => i.issues.map((x) => [x.verb, x.tone, x.reason])),
+    ).toEqual([
       [["Resolve threads", "warning", "1 unresolved thread"]],
       [["Address feedback", "warning", "reviewed · 2 threads"]],
+      [["Resolve threads", "warning", "approved · 1 thread"]],
     ]);
   });
 
