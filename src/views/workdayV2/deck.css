@@ -17,13 +17,274 @@
   cursor: not-allowed;
 }
 
-/* Focus mode fills the content area so the rail and card scroll on their own.
-   Viewport minus app header (46px) and .main-content padding, like PRsView. */
-.workday-v2--focus {
+/* Both tabs fill the content area, so the header never moves and the deck
+   (or the standup sheet) scrolls on its own. Viewport minus app header (46px)
+   and .main-content padding, like PRsView. */
+.workday-v2 {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 46px - var(--space-3) - var(--space-6));
   min-height: 0;
+}
+
+/* The header row never wraps; the ⌘K hint gives way first on narrow screens. */
+.workday-v2 .workday-header {
+  flex-wrap: nowrap;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.workday-v2 .workday-header > * {
+  flex: none;
+}
+
+.workday-v2 .workday-header > .workday-header-spacer {
+  flex: 1;
+}
+
+.workday-v2 .workday-header > .workday-v2-cmd-k-hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workday-v2-summary {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Matches the 14px refresh icon it stands in for. */
+.workday-v2-refresh-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  vertical-align: -0.15em;
+}
+
+/* ---------- Standup sheet ---------- */
+
+.standup-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6);
+}
+
+/* Reading width: a crib sheet, not a dashboard. */
+.standup-sheet-body {
+  max-width: 900px;
+}
+
+/* Each section: a coloured rail down the left, its heading in the same colour. */
+.standup-sheet-section {
+  --standup-accent: var(--color-text-secondary);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--standup-accent) 45%, transparent);
+}
+
+.standup-sheet-section + .standup-sheet-section {
+  margin-top: var(--space-6);
+}
+
+.standup-sheet-section--yesterday {
+  --standup-accent: var(--color-status-success);
+}
+.standup-sheet-section--today {
+  --standup-accent: var(--color-status-info);
+}
+.standup-sheet-section--blockers {
+  --standup-accent: var(--color-status-warning);
+}
+
+.standup-sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--standup-accent);
+}
+
+.standup-sheet-heading-icon {
+  display: inline-flex;
+}
+
+.standup-sheet-since {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+}
+
+/* A group: coloured dot + label + count, then its rows. */
+.standup-group {
+  --group-color: var(--color-text-secondary);
+  --group-bg: var(--color-status-neutral-bg);
+}
+
+.standup-group + .standup-group {
+  margin-top: var(--space-3);
+}
+
+.standup-group--info {
+  --group-color: var(--color-status-info);
+  --group-bg: var(--color-status-info-bg);
+}
+.standup-group--success {
+  --group-color: var(--color-status-success);
+  --group-bg: var(--color-status-success-bg);
+}
+.standup-group--warning {
+  --group-color: var(--color-status-warning);
+  --group-bg: var(--color-status-warning-bg);
+}
+.standup-group--danger {
+  --group-color: var(--color-status-danger);
+  --group-bg: var(--color-status-danger-bg);
+}
+.standup-group--purple {
+  --group-color: var(--color-status-purple);
+  --group-bg: var(--color-status-purple-bg);
+}
+
+.standup-group-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--group-color);
+}
+
+.standup-group-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--group-color);
+}
+
+.standup-group-count {
+  min-width: 1.25rem;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--group-bg);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.standup-group-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: KEY title repo#12 [badge] detail; the left edge takes the group colour on hover. */
+.standup-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 3px var(--space-2) 3px calc(var(--space-2) + 8px);
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.standup-row:hover,
+.standup-row:focus-visible {
+  outline: none;
+  background: var(--color-bg-hover);
+  border-left-color: var(--group-color);
+}
+
+.standup-row .badge {
+  align-self: center;
+  flex: none;
+}
+
+.standup-row-key {
+  flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.standup-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.standup-row:hover .standup-row-title {
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+}
+
+.standup-row-pr {
+  flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.standup-row-repo {
+  color: var(--color-text-secondary);
+}
+
+.standup-row-detail {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.standup-sheet-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.standup-sheet-warning {
+  margin: 0 0 var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--bs-danger);
+}
+
+/* Reads as the list's next row until you type. */
+.standup-sheet-note {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  resize: none;
+}
+
+.standup-sheet-note:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--bs-primary);
 }
 
 .deck-mode {

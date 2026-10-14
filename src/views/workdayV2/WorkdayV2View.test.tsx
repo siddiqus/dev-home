@@ -110,24 +110,25 @@ describe("WorkdayV2View", () => {
 
   it("defaults to Focus mode with the deck", () => {
     renderView();
-    expect(screen.getByText("Workday V2")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Focus/ })).toHaveAttribute("aria-pressed", "true");
+    // Today's date leads the header (no page title).
+    expect(screen.getByText("Wed 14 Oct")).toBeTruthy();
     expect(screen.getByTestId("deck-mode")).toBeTruthy();
   });
 
-  it("switches to Standup mode and renders v1's StandupMode", () => {
+  it("switches to Standup mode and renders the standup sheet", () => {
     renderView();
     fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
-    // Check for standup sections from v1
-    expect(screen.getByText("In Progress")).toBeTruthy();
-    expect(screen.getByText("Done since last workday")).toBeTruthy();
+    expect(screen.getByRole("region", { name: /Yesterday/ })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Today" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Blockers" })).toBeTruthy();
     expect(localStorage.getItem("workday-v2.mode")).toBe("standup");
   });
 
   it("switches modes with F / S keys", () => {
     renderView();
     fireEvent.keyDown(window, { key: "s" });
-    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy();
     fireEvent.keyDown(window, { key: "F" });
     expect(screen.getByTestId("deck-mode")).toBeTruthy();
   });
@@ -135,15 +136,15 @@ describe("WorkdayV2View", () => {
   it("ignores mode keys while typing", () => {
     renderView();
     fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
-    const box = screen.getByPlaceholderText(/Anything to raise at standup/);
+    const box = screen.getByRole("textbox", { name: /Your blockers/ });
     fireEvent.keyDown(box, { key: "f" });
-    expect(screen.getByText("In Progress")).toBeTruthy(); // Still in Standup
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy(); // Still in Standup
   });
 
   it("shows not-configured state", () => {
     renderView({ configured: false });
     expect(screen.getByText("Connect Jira and GitHub")).toBeTruthy();
-    expect(screen.queryByText("Workday V2")).toBeNull();
+    expect(screen.queryByTestId("deck-mode")).toBeNull();
   });
 
   it("shows the header summary with counts", () => {
@@ -155,11 +156,11 @@ describe("WorkdayV2View", () => {
   it("remembers the mode across reloads", () => {
     localStorage.setItem("workday-v2.mode", "standup");
     renderView();
-    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy();
     cleanup();
 
     renderView();
-    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy();
   });
 
   it("shows spinner while loading after first data, but not on first load", () => {
@@ -881,7 +882,7 @@ describe("WorkdayV2View polish", () => {
     // Nothing closed: no "Show closed" link.
     expect(screen.queryByRole("button", { name: "Show closed" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Switch to Standup" }));
-    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy();
   });
 
   it("Show closed on the empty deck unfolds the Closed group", () => {
@@ -1209,31 +1210,35 @@ describe("WorkdayV2View final review follow-ups", () => {
     void rerender;
   });
 
-  it("collapses and expands Standup sections and remembers them, with v1's defaults", () => {
+  it("standup sheet: grouped rows open their ticket or PR, and Copy copies the same groups", async () => {
+    const opened: string[] = [];
+    drawer.open = (key) => opened.push(key);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
     renderDeck();
     fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
-    const toggle = (name: RegExp) =>
-      screen
-        .getAllByRole("button", { expanded: undefined })
-        .find(
-          (b) => b.classList.contains("workday-section-toggle") && name.test(b.textContent ?? ""),
-        )!;
-    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "true");
-    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle(/In Progress/));
-    fireEvent.click(toggle(/Not started/i));
-    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "false");
-    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "true");
-    expect(JSON.parse(localStorage.getItem("dev-home-workday-v2-collapsed")!)).toEqual([
-      "inProgress",
-    ]);
-    expect(JSON.parse(localStorage.getItem("dev-home-workday-v2-expanded")!)).toEqual([
-      "notStarted",
-    ]);
-    cleanup();
-    renderDeck();
-    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "false");
-    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "true");
+    const today = screen.getByRole("region", { name: "Today" });
+    const lines = within(today).getAllByRole("listitem");
+    expect(lines.length).toBeGreaterThan(0);
+    const inReview = screen.getByTestId("standup-group-review");
+    expect(inReview).toHaveTextContent("In review");
+    const ticketLine = within(inReview).getAllByRole("button")[0];
+    // KEY, title and each PR as repo#number.
+    expect(ticketLine).toHaveTextContent(/CCP-412.*Move asset sync to a queue.*r#1207.*r#1203/);
+    fireEvent.click(ticketLine);
+    expect(opened).toEqual(["CCP-412"]);
+
+    fireEvent.change(screen.getByRole("textbox", { name: /Your blockers/ }), {
+      target: { value: "- waiting on design" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Copy/ }));
+    await act(async () => {});
+    const text = writeText.mock.calls[0][0] as string;
+    expect(text).toContain("*Today*");
+    expect(text).toContain(
+      "*Today*\n_In review_\n• CCP-412 Move asset sync to a queue (r#1207, r#1203)",
+    );
+    expect(text).toMatch(/\*Blockers\*[\s\S]*• waiting on design/);
   });
 
   it("shows first-load skeletons until every source has loaded, whatever loading says", () => {

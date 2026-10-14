@@ -6,7 +6,7 @@ import { standupRef, standupTitle } from "./dates";
 
 const SAVE_DEBOUNCE_MS = 600;
 
-interface StandupNotesProps {
+export interface StandupNoteOptions {
   now: Date;
   notes: Note[];
   /** False until Notes have loaded; creating before then could duplicate today's note. */
@@ -20,16 +20,17 @@ interface StandupNotesProps {
 /**
  * Today's standup note, autosaved (debounced) into Notes. The first save
  * creates the note; keystrokes during that create are folded into one
- * follow-up edit so we never create two notes for the same day.
+ * follow-up edit so we never create two notes for the same day. Callers key
+ * the component using it on standupRef(now), so it remounts per day.
  */
-export function StandupNotes({
+export function useStandupNote({
   now,
   notes,
   notesLoaded,
   addNote,
   editNote,
   onChange,
-}: StandupNotesProps) {
+}: StandupNoteOptions) {
   const referenceId = standupRef(now);
   const title = standupTitle(now);
   const note = notes.find((n) => n.type === "standup" && n.reference_id === referenceId);
@@ -147,6 +148,12 @@ export function StandupNotes({
     timerRef.current = setTimeout(() => void saveRef.current(), SAVE_DEBOUNCE_MS);
   };
 
+  return { text, onChange: handleChange, saveError, title };
+}
+
+/** v1's "Notes for today" card around useStandupNote. */
+export function StandupNotes(props: StandupNoteOptions) {
+  const { text, onChange: handleChange, saveError, title } = useStandupNote(props);
   return (
     <Card className="workday-side-card">
       <Card.Body className="p-0">

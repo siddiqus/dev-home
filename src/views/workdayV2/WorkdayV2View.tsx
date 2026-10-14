@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconRefresh, IconSun } from "@tabler/icons-react";
+import { IconCopy, IconRefresh, IconSun } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
-import { usePersistedSet } from "../../hooks/usePersistedSet";
 import { usePersistedState } from "../../hooks/usePersistedState";
 import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import type { WorkdayViewProps } from "../workday/WorkdayView";
-import { useStoredState, isTypingTarget, DEFAULT_COLLAPSED } from "../workday/WorkdayView";
-import { buildWorkday, filterWorkday } from "../workday/buildWorkday";
-import { workdayToMarkdown } from "../workday/workdayMarkdown";
+import { useStoredState, isTypingTarget } from "../workday/WorkdayView";
+import { buildWorkday } from "../workday/buildWorkday";
 import { formatSinceLabel, sinceFor, type Lookback } from "../workday/dates";
-import type { SprintFilter, TicketRef, WorkdaySections } from "../workday/types";
-import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
+import type { TicketRef, WorkdaySections } from "../workday/types";
+import { LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
 import { prPin, ticketPin } from "../workday/pins";
 import { prNoteKey } from "../../utils/prNotes";
@@ -32,6 +30,8 @@ import { jiraCommentUrl } from "./DeckContext";
 import type { DeckPR } from "./types";
 import { DeckMode, type SwipeDirection } from "./DeckMode";
 import { ShortcutSheet } from "./ShortcutSheet";
+import { StandupSheet } from "./StandupSheet";
+import { standupGroups, standupGroupsToMarkdown } from "./standupModel";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
 import { useSeenTimer } from "./useSeenTimer";
@@ -54,15 +54,14 @@ const MODE_KEY = "workday-v2.mode";
 const MODES = ["focus", "standup"] as const satisfies readonly Mode[];
 const MODE_LABELS: Record<Mode, string> = { focus: "Focus", standup: "Standup" };
 const LOOKBACK_KEY = "dev-home-workday-v2-lookback";
-const FILTER_KEY = "dev-home-workday-v2-filter";
-const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilter[];
 const CLOSED_FOLDED_KEY = "dev-home-workday-v2-closed-folded";
 const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
 const HIDE_HINTS_KEY = "dev-home-workday-v2-hide-hints";
-/** Standup sections open by default; ids here are collapsed (v1's rule, own keys). */
-const COLLAPSED_KEY = "dev-home-workday-v2-collapsed";
-/** Standup sections collapsed by default; ids here are expanded. */
-const EXPANDED_KEY = "dev-home-workday-v2-expanded";
+const LOOKBACK_LABELS: Record<Lookback, string> = {
+  workday: "Last workday",
+  "3d": "3 days",
+  "7d": "7 days",
+};
 const NO_MENTIONS: never[] = [];
 const noop = () => {};
 
@@ -174,10 +173,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
 
   const now = useMemo(() => props.now ?? new Date(), [props.now, refreshKey]);
   const [mode, setMode] = useStoredState<Mode>(MODE_KEY, "focus", MODES);
-  const [filter, setFilter] = useStoredState<SprintFilter>(FILTER_KEY, "all", FILTERS);
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  const { onCopyLink, onCopyTicket, onCopyBranch, toast } = usePRCopyActions();
+  const { copy, onCopyLink, onCopyTicket, onCopyBranch, toast } = usePRCopyActions();
   const showToast = toast.show;
   const [closedFolded, setClosedFolded] = usePersistedState(CLOSED_FOLDED_KEY, true);
   const [onlyCurrent, setOnlyCurrent] = usePersistedState(ONLY_CURRENT_KEY, false);
@@ -222,15 +220,12 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       ),
     [openPRs, reviewRequests, reviewingPRs, assignedIssues, allIssues, extras, now],
   );
-  const filtered = useMemo(() => filterWorkday(sections, filter), [sections, filter]);
   const offSprintKeys = useMemo(() => offSprintKeysOf(sections), [sections]);
 
   // Standup markdown for the Copy button.
   const [noteText, setNoteText] = useState("");
-  const markdown = useMemo(
-    () => workdayToMarkdown(filtered, noteText, now),
-    [filtered, noteText, now],
-  );
+  const groups = useMemo(() => standupGroups(sections, now), [sections, now]);
+  const markdown = useMemo(() => standupGroupsToMarkdown(groups, noteText), [groups, noteText]);
 
   // Deck state and composition for Focus mode.
   const { state, select, toggleCurrent, markSeen, markUnread, close, reopen, applyUpdates } =
@@ -783,16 +778,20 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const hideHelp = useCallback(() => setHelpOpen(false), []);
   const showClosed = useCallback(() => setClosedFolded(false), [setClosedFolded]);
   const toStandup = useCallback(() => setMode("standup"), [setMode]);
-
-  // Standup section folding: v1's rule (defaults per section, flips persisted).
-  const [collapsedSections, , toggleCollapsed] = usePersistedSet(COLLAPSED_KEY);
-  const [expandedSections, , toggleExpanded] = usePersistedSet(EXPANDED_KEY);
-  const sectionToggle = useCallback(
-    (id: string) => ({
-      collapsed: DEFAULT_COLLAPSED.has(id) ? !expandedSections.has(id) : collapsedSections.has(id),
-      onToggle: () => (DEFAULT_COLLAPSED.has(id) ? toggleExpanded(id) : toggleCollapsed(id)),
-    }),
-    [collapsedSections, expandedSections, toggleCollapsed, toggleExpanded],
+  const copyStandup = useCallback(
+    () => copy(markdown, "Copied standup to clipboard"),
+    [copy, markdown],
+  );
+  // Standup ticket lines: the Jira drawer, else the issue in a new tab.
+  const openTicketKey = useCallback(
+    (key: string) => {
+      if (openIssue) openIssue(key);
+      else {
+        const url = jiraBrowseUrl(jiraBaseUrl, key);
+        if (url) openTab(url);
+      }
+    },
+    [openIssue, jiraBaseUrl],
   );
 
   if (!configured) {
@@ -812,30 +811,16 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const notStartedCount =
     sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
-
-  const filterLabels: Record<SprintFilter, string> = {
-    all: "All",
-    sprint: "Sprint only",
-    off: `Off-sprint · ${sections.offSprintCount}`,
-  };
+  const { done, workingOn, reviewing, blockers, waiting } = sections;
+  const standupIncomplete =
+    sourceError !== null ||
+    [done, workingOn, reviewing, blockers, waiting].some((sec) => sec.error !== null);
 
   return (
     <CopyTicketContext.Provider value={onCopyTicket}>
       <CopyPRLinkContext.Provider value={onCopyLink}>
-        <div className={`workday-page workday-v2${mode === "focus" ? " workday-v2--focus" : ""}`}>
+        <div className="workday-page workday-v2">
           <div className="workday-header">
-            <h5>Workday V2</h5>
-            {mode === "focus" && <span className="workday-date-pill">{summary}</span>}
-            {mode === "standup" && <span className="workday-date-pill">{sinceLabel}</span>}
-            <Button
-              variant="link"
-              size="sm"
-              className="workday-v2-cmd-k-hint"
-              title="Find and act (⌘K)"
-              onClick={openPalette}
-            >
-              ⌘K find &amp; act
-            </Button>
             <SegmentedTabs
               className="inline-control workday-mode-toggle"
               tabs={MODES.map((m) => ({
@@ -849,20 +834,45 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               activeKey={mode}
               onChange={(k) => setMode(k as Mode)}
             />
+            <span className="workday-date-pill">{formatSinceLabel(now)}</span>
+            <span className="workday-v2-summary">{summary}</span>
+            <Button
+              variant="link"
+              size="sm"
+              className="workday-v2-cmd-k-hint"
+              title="Find and act (⌘K)"
+              onClick={openPalette}
+            >
+              ⌘K find &amp; act
+            </Button>
             <div className="workday-header-spacer" />
             {mode === "standup" && (
-              <SegmentedTabs
-                className="inline-control"
-                tabs={FILTERS.map((f) => ({ key: f, label: filterLabels[f] }))}
-                activeKey={filter}
-                onChange={(k) => setFilter(k as SprintFilter)}
-              />
+              <>
+                <SegmentedTabs
+                  className="inline-control"
+                  tabs={LOOKBACKS.map((l) => ({ key: l, label: LOOKBACK_LABELS[l] }))}
+                  activeKey={lookback}
+                  onChange={(k) => setLookback(k as Lookback)}
+                />
+                <Button variant="primary" size="sm" onClick={copyStandup}>
+                  <IconCopy size={14} /> Copy
+                </Button>
+              </>
             )}
-            {loading && hasLoadedOnce && (
-              <Spinner animation="border" size="sm" role="status" aria-label="Refreshing" />
-            )}
+            {/* The spinner takes the icon's place, so nothing in the row moves. */}
             <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
-              <IconRefresh size={14} /> Refresh
+              {loading && hasLoadedOnce ? (
+                <Spinner
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-label="Refreshing"
+                  className="workday-v2-refresh-spinner"
+                />
+              ) : (
+                <IconRefresh size={14} />
+              )}{" "}
+              Refresh
             </Button>
           </div>
 
@@ -894,22 +904,22 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               onSwitchToStandup={toStandup}
             />
           ) : (
-            <StandupMode
-              sections={filtered}
+            <StandupSheet
+              groups={groups}
               sinceLabel={sinceLabel}
-              lookback={lookback}
-              onLookback={setLookback}
               loading={loading}
-              jiraBaseUrl={jiraBaseUrl}
-              now={now}
-              sectionToggle={sectionToggle}
-              onOpen={setSelectedPR}
-              markdown={markdown}
-              onNoteChange={setNoteText}
-              notes={notes}
-              notesLoaded={notesLoaded}
-              addNote={addNote}
-              editNote={editNote}
+              doneLoading={done.loading}
+              incomplete={standupIncomplete}
+              onOpenPR={setSelectedPR}
+              onOpenTicket={openTicketKey}
+              note={{
+                now,
+                notes,
+                notesLoaded,
+                addNote,
+                editNote,
+                onChange: setNoteText,
+              }}
             />
           )}
 

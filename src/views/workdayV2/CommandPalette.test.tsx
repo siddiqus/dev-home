@@ -440,7 +440,7 @@ describe("⌘K command palette", () => {
     const cmd = screen.getByRole("option", { name: /Switch to Standup/ });
     fireEvent.click(cmd);
     await flush();
-    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.getByTestId("standup-sheet")).toBeTruthy();
     openPalette();
     expect(screen.getByRole("option", { name: /Switch to Focus/ })).toBeTruthy();
   });
