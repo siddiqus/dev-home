@@ -21,6 +21,7 @@ import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
 import { prPin, ticketPin } from "../workday/pins";
 import { prNoteKey } from "../../utils/prNotes";
+import { jiraBrowseUrl } from "../../utils/tickets";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
 import { fetchPR } from "../../services/github";
 import type { MentionItem } from "../workday/types";
@@ -625,7 +626,10 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       const ext = r.external;
       if (ext?.kind === "ticket") {
         if (openIssue) openIssue(ext.key);
-        else openTab(`${jiraBaseUrl}/browse/${ext.key}`);
+        else {
+          const url = jiraBrowseUrl(jiraBaseUrl, ext.key);
+          if (url) openTab(url);
+        }
         return;
       }
       if (ext?.kind === "pr") {
