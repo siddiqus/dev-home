@@ -1,6 +1,13 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Spinner from "react-bootstrap/Spinner";
-import { IconRefresh, IconFold, IconFoldDown, IconLock } from "@tabler/icons-react";
+import {
+  forwardRef,
+  useState,
+  useEffect,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useMemo,
+} from "react";
+import { IconFold, IconFoldDown, IconLock } from "@tabler/icons-react";
 import "./TeamPRsTab.css";
 import type { GitHubPR, JiraIssue } from "../../types";
 import type { TeamMember } from "../../types/teams";
@@ -30,6 +37,14 @@ interface TeamPRsTabProps {
   teamName: string;
   jiraBaseUrl?: string;
   jiraIssues?: JiraIssue[];
+  /** Reports whether any of the tab's fetches is in flight, so the dashboard's
+      single refresh icon can spin. */
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+/** Lets the dashboard's refresh button reload this tab. */
+export interface TeamPRsTabHandle {
+  refresh: () => void;
 }
 
 /**
@@ -38,14 +53,10 @@ interface TeamPRsTabProps {
  * repository. Not sprint-scoped: shows all open PRs by team members plus recently
  * merged (last 2 weeks), mirroring Org PRs.
  */
-export function TeamPRsTab({
-  active,
-  configured,
-  teamId,
-  teamName,
-  jiraBaseUrl,
-  jiraIssues,
-}: TeamPRsTabProps) {
+export const TeamPRsTab = forwardRef<TeamPRsTabHandle, TeamPRsTabProps>(function TeamPRsTab(
+  { active, configured, teamId, teamName, jiraBaseUrl, jiraIssues, onLoadingChange },
+  ref,
+) {
   const prTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
@@ -163,6 +174,13 @@ export function TeamPRsTab({
     loadMergedPRs(true);
   }, [loadOpenPRs, loadMergedPRs]);
 
+  useImperativeHandle(ref, () => ({ refresh }), [refresh]);
+
+  const anyLoading = loading || mergedLoading || membersLoading;
+  useEffect(() => {
+    onLoadingChange?.(anyLoading);
+  }, [anyLoading, onLoadingChange]);
+
   // --- dropdown items ---
   const memberItems = useMemo<DropdownItem[]>(
     () =>
@@ -181,7 +199,7 @@ export function TeamPRsTab({
 
   return (
     <div className="team-prs-tab">
-      {/* One toolbar: member/repo filters (left) · collapse + Open/Merged + refresh (right).
+      {/* One toolbar: member/repo filters (left) · collapse + Open/Merged (right).
           Authors are locked to the roster, signalled by the lock icon on the members
           filter — so there's no separate sub-tab bar. */}
       <div className="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap flex-shrink-0">
@@ -210,9 +228,6 @@ export function TeamPRsTab({
           />
         </div>
         <div className="d-flex align-items-center gap-2">
-          {(loading || mergedLoading || membersLoading) && (
-            <Spinner animation="border" size="sm" variant="secondary" />
-          )}
           {subTab === "open" && groupState.hasGroups && (
             <button
               type="button"
@@ -244,15 +259,6 @@ export function TeamPRsTab({
               Merged{!mergedLoading && ` (${mergedPRs.length})`}
             </button>
           </div>
-          <button
-            type="button"
-            className="pr-table-collapse-btn pr-toolbar-btn"
-            onClick={refresh}
-            disabled={loading || mergedLoading}
-            title="Refresh"
-          >
-            <IconRefresh size={14} />
-          </button>
         </div>
       </div>
 
@@ -294,4 +300,4 @@ export function TeamPRsTab({
       </div>
     </div>
   );
-}
+});

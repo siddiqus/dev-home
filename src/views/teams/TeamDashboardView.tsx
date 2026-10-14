@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   IconChartBar,
   IconUsersGroup,
@@ -22,7 +22,7 @@ import { fetchPR } from "../../services/github";
 import { formatRelativeTime } from "../../utils/time";
 import type { JiraIssue, GitHubPR } from "../../types";
 import type { LinkedPR, Ref } from "../../types/teams";
-import { TeamPRsTab } from "./TeamPRsTab";
+import { TeamPRsTab, type TeamPRsTabHandle } from "./TeamPRsTab";
 import "./TeamDashboardView.css";
 // --- Sprint cockpit ---
 import { SprintMetaBar } from "./cockpit/SprintMetaBar";
@@ -72,6 +72,13 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   }, [initialTeamId]);
 
   const { dashboard, loading, error, refresh } = useTeamDashboard(teamId, sprintId);
+
+  // One refresh icon next to the team picker serves both tabs; it reloads and
+  // spins for whichever tab is showing.
+  const prsTabRef = useRef<TeamPRsTabHandle>(null);
+  const [prsLoading, setPrsLoading] = useState(false);
+  const activeLoading = tab === "sprint" ? loading : prsLoading;
+  const refreshActive = tab === "sprint" ? refresh : () => prsTabRef.current?.refresh();
 
   const teamItems: DropdownItem[] = useMemo(
     () => teams.map((t) => ({ value: String(t.id), label: t.name })),
@@ -199,6 +206,19 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
         />
 
         {teamId != null && (
+          <button
+            type="button"
+            className="pr-table-collapse-btn pr-toolbar-btn"
+            onClick={refreshActive}
+            disabled={activeLoading}
+            title={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
+            aria-label={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
+          >
+            <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
+          </button>
+        )}
+
+        {teamId != null && (
           <SegmentedTabs
             className="inline-control"
             activeKey={tab}
@@ -224,31 +244,17 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           />
         )}
 
-        {teamId != null && tab === "sprint" && (
-          <>
-            {dashboard && dashboard.sprints.length > 0 && (
-              <SearchableDropdown
-                items={sprintItems}
-                value={selectedSprintId != null ? String(selectedSprintId) : ""}
-                onChange={(v) => setSprintId(v ? parseInt(v, 10) : null)}
-                placeholder="Search sprints…"
-                allLabel="Sprint"
-                hideAllOption
-                triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-                width={400}
-              />
-            )}
-            <button
-              type="button"
-              className="pr-table-collapse-btn pr-toolbar-btn"
-              onClick={refresh}
-              disabled={loading}
-              title="Refresh sprint data"
-              aria-label="Refresh sprint data"
-            >
-              <IconRefresh size={14} className={loading ? "spin" : ""} />
-            </button>
-          </>
+        {teamId != null && tab === "sprint" && dashboard && dashboard.sprints.length > 0 && (
+          <SearchableDropdown
+            items={sprintItems}
+            value={selectedSprintId != null ? String(selectedSprintId) : ""}
+            onChange={(v) => setSprintId(v ? parseInt(v, 10) : null)}
+            placeholder="Search sprints…"
+            allLabel="Sprint"
+            hideAllOption
+            triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
+            width={400}
+          />
         )}
       </div>
 
@@ -414,6 +420,8 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
       {teamId != null && prsEverOpened && (
         <div className={tab === "prs" ? "team-dashboard-prs" : "d-none"}>
           <TeamPRsTab
+            ref={prsTabRef}
+            onLoadingChange={setPrsLoading}
             active={tab === "prs"}
             configured={configured}
             teamId={teamId}
@@ -424,7 +432,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
         </div>
       )}
 
-      <LoadingOverlay show={loading && tab === "sprint"} label="Loading team data…" />
       <LoadingOverlay show={detailLoading} label="Loading…" />
 
       <JiraIssueDrawer
