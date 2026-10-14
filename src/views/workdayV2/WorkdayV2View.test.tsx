@@ -677,6 +677,15 @@ describe("WorkdayV2View card context", () => {
     expect(addNote).not.toHaveBeenCalled();
   });
 
+  it("drops the composer when the selection moves away", () => {
+    renderDeck();
+    press(".");
+    fireEvent.click(screen.getByRole("option", { name: /401/ }));
+    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /412/ }));
+    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+  });
+
   it("shows the Off-sprint pill for tickets v1 flags off-sprint", () => {
     // The mocked extras have an empty sprint, so assigned tickets are off-sprint (as in v1).
     renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });

@@ -279,6 +279,10 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     composer !== null &&
     composer.ticketId === selectedId &&
     composer.url === (pickedPR?.pr.html_url ?? null);
+  // Moving to another card or PR drops the composer rather than leaving it parked.
+  useEffect(() => {
+    if (composer && !composing) setComposer(null);
+  }, [composer, composing]);
   const cancelNote = useCallback(() => setComposer(null), []);
   const saveNote = useCallback(
     async (text: string) => {
