@@ -4,6 +4,7 @@ import { Badge } from "../../components/primitives/Badge";
 import { compactAge } from "../workday/dates";
 import { titleWithoutKey } from "../workday/prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
+import { blurOnPointer } from "./pointer";
 import { visibleChips } from "./signals";
 import type { DeckPR } from "./types";
 
@@ -37,9 +38,7 @@ export function DeckPRRow({
   const { pr } = item;
   const { shown, more } = visibleChips(item.signals);
   const onClick = (e: MouseEvent) => {
-    if (e.detail > 0 && document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
+    blurOnPointer(e);
     onSelect(pr.html_url);
     onOpen(pr);
   };

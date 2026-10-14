@@ -1,25 +1,35 @@
 import type { MouseEvent } from "react";
-import { Badge } from "../../components/primitives/Badge";
+import { blurOnPointer } from "./pointer";
 import type { DeckTicket } from "./types";
 
 export interface DeckRailRowProps {
   /** DOM id, referenced by the rail's `aria-activedescendant`. */
-  id: string;
+  id?: string;
   ticket: DeckTicket;
   /** The key as shown: shortened to the number when every ticket shares one project. */
   label: string;
   selected: boolean;
-  onSelect(id: string): void;
+  onSelect(id: string, e: MouseEvent): void;
+  /**
+   * "option" (default): a row of the rail listbox, driven by ←/→.
+   * "button": a Closed row outside the listbox, reachable with Tab and
+   * activated natively with Enter/Space.
+   */
+  as?: "option" | "button";
 }
 
 /** One rail row: stripe, key, title, review chip, status line and activity dot (spec §5.3). */
-export function DeckRailRow({ id, ticket, label, selected, onSelect }: DeckRailRowProps) {
+export function DeckRailRow({
+  id,
+  ticket,
+  label,
+  selected,
+  onSelect,
+  as = "option",
+}: DeckRailRowProps) {
   const onClick = (e: MouseEvent) => {
-    // Pointer clicks drop focus so no ring lingers after a modal closes (spec §5.14).
-    if (e.detail > 0 && document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    onSelect(ticket.id);
+    blurOnPointer(e);
+    onSelect(ticket.id, e);
   };
   const classes = [
     "deck-rail-row",
@@ -28,28 +38,43 @@ export function DeckRailRow({ id, ticket, label, selected, onSelect }: DeckRailR
   ]
     .filter(Boolean)
     .join(" ");
-  return (
-    <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
+  // Spans only: a button may hold phrasing content alone.
+  const content = (
+    <>
       <span className={`deck-stripe deck-stripe--${ticket.stripe}`} aria-hidden="true" />
-      <div className="deck-rail-main">
-        <div className="deck-rail-line">
+      <span className="deck-rail-main">
+        <span className="deck-rail-line">
           <span className={`deck-key${ticket.key ? "" : " deck-key--none"}`}>{label}</span>{" "}
           <span className="deck-rail-title" title={ticket.title}>
             {ticket.title}
           </span>
           {ticket.reviewOnly && (
-            <Badge variant="neutral" className="deck-rail-review">
+            // Badge's neutral tone by class: the Badge component pins an inline
+            // 12px font size that only !important could shrink.
+            <span className="badge badge-status badge-status--neutral deck-rail-review">
               review
-            </Badge>
+            </span>
           )}
-        </div>
-        <div className="deck-rail-status">{ticket.status}</div>
-      </div>
+        </span>
+        <span className="deck-rail-status">{ticket.status}</span>
+      </span>
       {ticket.unseen ? (
         <span className="deck-dot" role="img" aria-label="new activity" />
       ) : (
         <span aria-hidden="true" />
       )}
+    </>
+  );
+  if (as === "button") {
+    return (
+      <button type="button" id={id} className={classes} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
+      {content}
     </div>
   );
 }

@@ -50,6 +50,17 @@ const CLOSES: ReadonlySet<PaletteAction> = new Set([
   "note",
 ]);
 
+/**
+ * Whether closing for this action should restore focus. Opening the PR modal,
+ * the note composer, or an outside PR / ticket (modal or Jira drawer) moves
+ * focus on its own, so restoring would fight it.
+ */
+function restoresFocus(action: PaletteAction, result: SearchResult): boolean {
+  if (action === "openModal" || action === "note") return false;
+  if (action === "jump" && result.external) return false;
+  return true;
+}
+
 export interface CommandPaletteProps {
   show: boolean;
   onHide(): void;
@@ -80,9 +91,12 @@ export function CommandPalette({
   useEffect(() => {
     if (show) setRestoreFocus(true);
   }, [show]);
-  const closeThen = (fn: () => void) => {
+  // `restore`: hand focus back to where it was when the palette opened. Off
+  // only when the follow-up takes focus itself (a modal, the drawer, the note
+  // composer); copy, GitHub, commands and mentions leave the user where they were.
+  const closeThen = (fn: () => void, restore = true) => {
     pending.current = fn;
-    setRestoreFocus(false);
+    setRestoreFocus(restore);
     onHide();
   };
   const onExited = () => {
@@ -106,7 +120,8 @@ export function CommandPalette({
         deck={deck}
         commands={commands}
         onAction={(action, result) => {
-          if (CLOSES.has(action)) closeThen(() => onAction(action, result));
+          if (CLOSES.has(action))
+            closeThen(() => onAction(action, result), restoresFocus(action, result));
           else onAction(action, result);
         }}
         onCommand={(command) => closeThen(command.run)}
@@ -118,8 +133,13 @@ export function CommandPalette({
 
 const time = (iso: string | null | undefined) => (iso ? Date.parse(iso) || 0 : 0);
 
+interface Dated {
+  at: number;
+  entry: Entry;
+}
+
 /** "Updated since you looked": unseen PRs and tickets, plus unmatched mentions, newest first. */
-function updatedEntries(deck: DeckData): Entry[] {
+function updatedEntries(deck: DeckData): Dated[] {
   const dated: { at: number; entry: Entry }[] = [];
   for (const t of [...deck.current, ...deck.open]) {
     const unseen = t.prs.filter((p) => p.unseen);
@@ -165,7 +185,7 @@ function updatedEntries(deck: DeckData): Entry[] {
   for (const m of mentions.slice(0, UNMATCHED_CAP)) {
     dated.push({ at: time(m.at), entry: { kind: "mention", id: `m:${m.id}`, mention: m } });
   }
-  return dated.sort((a, b) => b.at - a.at).map((d) => d.entry);
+  return dated.sort((a, b) => b.at - a.at);
 }
 
 interface ActionDef {
@@ -244,18 +264,37 @@ function PaletteBody({
 }) {
   const [uid] = useState(() => `deck-palette-${++paletteSeq}`);
   const [query, setQuery] = useState("");
+  // Selection follows the entry id, so a row that moves keeps it; the index
+  // is the fallback when that entry is gone.
   const [active, setActive] = useState(0);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   // Tab moves between the results and the selected result's actions.
   const [zone, setZone] = useState<"results" | "actions">("results");
   const [actionIndex, setActionIndex] = useState(0);
   const queryEmpty = query.trim() === "";
 
+  // Rows closed (⌘⌫) from "Updated since you looked" stay listed, in place,
+  // until the query changes or the palette closes: otherwise the selection
+  // would slide to the neighbour and a second ⌘⌫ would close that instead.
+  const shown = useRef(new Map<string, Dated>());
   const sections = useMemo<Section[]>(() => {
     if (queryEmpty) {
+      const fresh = updatedEntries(deck);
+      const freshIds = new Set(fresh.map((d) => d.entry.id));
+      const closedNow = new Set(deck.closed.map((t) => t.id));
+      const kept = [...shown.current.values()].filter(
+        (d) =>
+          !freshIds.has(d.entry.id) &&
+          d.entry.kind === "result" &&
+          d.entry.result.ticketId !== null &&
+          closedNow.has(d.entry.result.ticketId),
+      );
+      const updated = [...fresh, ...kept].sort((a, b) => b.at - a.at);
+      shown.current = new Map(updated.map((d) => [d.entry.id, d]));
       return [
         {
           label: "Updated since you looked",
-          entries: updatedEntries(deck),
+          entries: updated.map((d) => d.entry),
           empty: "Nothing new since you looked",
         },
         {
@@ -264,6 +303,7 @@ function PaletteBody({
         },
       ];
     }
+    shown.current = new Map();
     const results = searchDeck(query, deck).map<Entry>((r, i) => ({
       kind: "result",
       id: `r:${i}`,
@@ -273,9 +313,19 @@ function PaletteBody({
   }, [query, queryEmpty, deck, commands]);
 
   const entries = useMemo(() => sections.flatMap((s) => s.entries), [sections]);
-  const index = Math.min(active, Math.max(entries.length - 1, 0));
+  const keyed = activeKey === null ? -1 : entries.findIndex((e) => e.id === activeKey);
+  const index = keyed !== -1 ? keyed : Math.min(active, Math.max(entries.length - 1, 0));
   const current = entries[index] ?? null;
-  const actions = current?.kind === "result" ? actionsFor(current.result, queryEmpty) : [];
+  const closedIds = useMemo(() => new Set(deck.closed.map((t) => t.id)), [deck]);
+  // Closed state is read live, so a row closed or reopened here offers the other action.
+  const currentResult =
+    current?.kind === "result"
+      ? {
+          ...current.result,
+          closed: current.result.ticketId ? closedIds.has(current.result.ticketId) : false,
+        }
+      : null;
+  const actions = currentResult ? actionsFor(currentResult, queryEmpty) : [];
   const inActions = zone === "actions" && actions.length > 0;
   const actionAt = Math.min(actionIndex, Math.max(actions.length - 1, 0));
 
@@ -285,7 +335,6 @@ function PaletteBody({
     for (const t of [...deck.current, ...deck.open, ...deck.closed]) map.set(t.id, t);
     return map;
   }, [deck]);
-  const closedIds = useMemo(() => new Set(deck.closed.map((t) => t.id)), [deck]);
 
   const optionId = (i: number) => `${uid}-opt-${i}`;
   const actionId = (i: number) => `${uid}-act-${i}`;
@@ -296,8 +345,9 @@ function PaletteBody({
     document.getElementById(activeId)?.scrollIntoView?.({ block: "nearest" });
   }, [activeId]);
 
-  const moveTo = (i: number) => {
+  const moveTo = (i: number, key: string | null = entries[i]?.id ?? null) => {
     setActive(i);
+    setActiveKey(key);
     setZone("results");
     setActionIndex(0);
   };
@@ -309,9 +359,9 @@ function PaletteBody({
       onAction("jump", entry.result);
   };
   const runAction = (action: PaletteAction) => {
-    if (current?.kind !== "result") return;
+    if (!currentResult) return;
     if (!actions.some((a) => a.action === action)) return;
-    onAction(action, current.result);
+    onAction(action, currentResult);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -381,7 +431,7 @@ function PaletteBody({
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
-          moveTo(0);
+          moveTo(0, null);
         }}
         onKeyDown={onKeyDown}
       />

@@ -38,7 +38,7 @@
 /* ---------- Rail (spec §5.3) ---------- */
 
 /* The rail is a column: the source banner (when set) stays put above the
-   listbox, which scrolls on its own. */
+   scroll area (the listbox, then the Closed group), which scrolls on its own. */
 .deck-rail {
   flex: none;
   display: flex;
@@ -49,7 +49,7 @@
   background: var(--color-bg-panel);
 }
 
-.deck-rail-list {
+.deck-rail-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -105,6 +105,17 @@
   text-decoration: underline;
 }
 
+.deck-rail-banner-retry {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The icon stands in for the label only in the collapsed slim rail. */
+.deck-rail-banner-retry-icon {
+  display: none;
+}
+
 .deck-rail-heading {
   display: flex;
   justify-content: space-between;
@@ -150,6 +161,7 @@
 }
 
 .deck-rail-main {
+  display: block;
   min-width: 0;
 }
 
@@ -168,13 +180,15 @@
   white-space: nowrap;
 }
 
-.deck-rail-review {
+/* Two classes: beats bootstrap's .badge sizing without !important. */
+.deck-rail-line .deck-rail-review {
   flex: none;
-  font-size: 0.625rem !important;
+  font-size: 0.625rem;
   padding: 0 5px;
 }
 
 .deck-rail-status {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -233,6 +247,8 @@
 .deck-stage {
   flex: 1;
   min-width: 0;
+  /* x hidden: a swiping card travels off to the side without a scrollbar flash. */
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   justify-content: center;
@@ -270,6 +286,10 @@
 }
 
 .deck-card {
+  /* PR row columns, shared with the note composer so it lines up with them. */
+  --deck-pr-marker-w: 16px;
+  --deck-pr-number-w: 52px;
+  --deck-pr-pad-x: 10px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -335,11 +355,11 @@
 
 .deck-pr {
   display: grid;
-  grid-template-columns: 16px 52px minmax(0, 1fr) auto;
+  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-number-w) minmax(0, 1fr) auto;
   gap: var(--space-2);
   align-items: start;
   margin-top: 7px;
-  padding: 9px 10px;
+  padding: 9px var(--deck-pr-pad-x);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: var(--color-bg-panel);
@@ -412,8 +432,33 @@ button.deck-rail-heading--closed:hover {
   color: var(--color-text-secondary);
 }
 
+/* The Closed group follows the listbox; its rows are buttons that reopen. */
+.deck-rail-closed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button.deck-rail-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+button.deck-rail-row:hover {
+  background: var(--color-bg-hover);
+}
+
+button.deck-rail-heading--closed:focus-visible,
+button.deck-rail-row:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
 /* Closed rows: muted until reopened. */
-.deck-rail-heading--closed ~ .deck-rail-row {
+.deck-rail-closed .deck-rail-row {
   color: var(--color-text-muted);
 }
 
@@ -500,11 +545,21 @@ button.deck-rail-heading--closed:hover {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 5px 0 0 calc(16px + 52px + 2 * var(--space-2) + 10px);
+  margin-top: 7px;
 }
 
-.deck-card-body > .deck-note-composer {
-  margin-left: 0;
+/* Under the PR list: a PR row's columns (plus its 1px border), so the icon,
+   the PR number and the input line up with the rows above. */
+.deck-note-composer--pr {
+  display: grid;
+  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-number-w) minmax(0, 1fr);
+  padding: 0 calc(var(--deck-pr-pad-x) + 1px);
+}
+
+.deck-note-target {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
 }
 
 /* ⌘K palette (spec §5.11). No transitions: it appears instantly, which also
@@ -766,14 +821,27 @@ button.deck-rail-heading--closed:hover {
 
 /* ---------- Card swipe (spec §5.4) ----------
    The column is re-keyed on every selection, so each change mounts fresh
-   elements and the animation restarts; nothing waits on animationend. "next"
-   (→, or later in rail order): a blank frame of the old card leaves to the
-   left while the new card and the ghosts come in from the right. "prev" mirrors it. */
+   elements and the animation restarts; nothing waits on animationend, and rapid
+   presses simply start over. "next" (→, n, or later in rail order): a blank
+   frame of the old card leaves to the left while the new card and the ghosts
+   come in from the right. "prev" mirrors it.
+   Tuned by eye (user feedback overrides the spec's ≤150ms, which read as a
+   jitter): one duration and one decelerating ease for every part. */
 
+.deck-mode {
+  --deck-swipe-ms: 280ms;
+  --deck-swipe-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Incoming card: 40% of its width, at least 120px. Ghosts move less, for depth. */
+  --deck-swipe-distance: max(40%, 120px);
+  --deck-swipe-ghost-distance: 48px;
+}
+
+/* The exit frame is absolutely positioned under the new card (earlier in the
+   DOM, no z-index), so it never covers it and the layout never jumps. Both are
+   the same blank surface, so where they overlap mid-swipe nothing flickers. */
 .deck-swipe-out {
   position: absolute;
   inset: 0;
-  z-index: 2;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
@@ -782,22 +850,22 @@ button.deck-rail-heading--closed:hover {
 }
 
 .deck-column[data-swipe="next"] .deck-swipe-out {
-  animation: deck-out-left 140ms ease-in forwards;
+  animation: deck-out-left var(--deck-swipe-ms) var(--deck-swipe-ease) forwards;
 }
 .deck-column[data-swipe="prev"] .deck-swipe-out {
-  animation: deck-out-right 140ms ease-in forwards;
+  animation: deck-out-right var(--deck-swipe-ms) var(--deck-swipe-ease) forwards;
 }
 .deck-column[data-swipe="next"] .deck-card {
-  animation: deck-in-right 140ms ease-out;
+  animation: deck-in-right var(--deck-swipe-ms) var(--deck-swipe-ease) both;
 }
 .deck-column[data-swipe="prev"] .deck-card {
-  animation: deck-in-left 140ms ease-out;
+  animation: deck-in-left var(--deck-swipe-ms) var(--deck-swipe-ease) both;
 }
 .deck-column[data-swipe="next"] .deck-ghost {
-  animation: deck-ghost-in-right 140ms ease-out;
+  animation: deck-ghost-in-right var(--deck-swipe-ms) var(--deck-swipe-ease) both;
 }
 .deck-column[data-swipe="prev"] .deck-ghost {
-  animation: deck-ghost-in-left 140ms ease-out;
+  animation: deck-ghost-in-left var(--deck-swipe-ms) var(--deck-swipe-ease) both;
 }
 
 @keyframes deck-out-left {
@@ -807,7 +875,7 @@ button.deck-rail-heading--closed:hover {
   }
   to {
     opacity: 0;
-    transform: translateX(-48px);
+    transform: translateX(calc(-1 * var(--deck-swipe-distance)));
   }
 }
 @keyframes deck-out-right {
@@ -817,30 +885,32 @@ button.deck-rail-heading--closed:hover {
   }
   to {
     opacity: 0;
-    transform: translateX(48px);
+    transform: translateX(var(--deck-swipe-distance));
   }
 }
 @keyframes deck-in-right {
   from {
-    opacity: 0.4;
-    transform: translateX(32px);
+    opacity: 0;
+    transform: translateX(var(--deck-swipe-distance));
   }
 }
 @keyframes deck-in-left {
   from {
-    opacity: 0.4;
-    transform: translateX(-32px);
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--deck-swipe-distance)));
   }
 }
-/* Ghosts keep their translateX(-50%) centring. */
+/* Ghosts keep their translateX(-50%) centring and fade up to their own opacity. */
 @keyframes deck-ghost-in-right {
   from {
-    transform: translateX(calc(-50% + 12px));
+    opacity: 0;
+    transform: translateX(calc(-50% + var(--deck-swipe-ghost-distance)));
   }
 }
 @keyframes deck-ghost-in-left {
   from {
-    transform: translateX(calc(-50% - 12px));
+    opacity: 0;
+    transform: translateX(calc(-50% - var(--deck-swipe-ghost-distance)));
   }
 }
 
@@ -881,6 +951,7 @@ button.deck-rail-heading--closed:hover {
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-status,
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading > span:first-child,
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-text,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-label,
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-empty,
   .deck-rail:not(:hover):not(:focus-within) .deck-skeleton--line {
     display: none;
@@ -888,6 +959,11 @@ button.deck-rail-heading--closed:hover {
 
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner {
     justify-content: center;
+  }
+
+  /* The collapsed rail keeps retry reachable as an icon button. */
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-icon {
+    display: inline;
   }
 
   .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading {

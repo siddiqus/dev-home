@@ -362,6 +362,21 @@ describe("WorkdayV2View deck", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("⌘K stays shut while the Jira drawer is open", () => {
+    renderDeck();
+    const drawer = document.createElement("div");
+    drawer.className = "offcanvas show";
+    document.body.appendChild(drawer);
+    try {
+      press("k", { metaKey: true });
+      expect(screen.queryByRole("combobox")).toBeNull();
+    } finally {
+      drawer.remove();
+    }
+    press("k", { metaKey: true });
+    expect(screen.getByRole("combobox")).toBeTruthy();
+  });
+
   it("ignores arrow keys when a drawer is open", () => {
     renderDeck();
     const drawer = document.createElement("div");
@@ -435,19 +450,60 @@ describe("WorkdayV2View personal state", () => {
       expect.stringContaining("388"),
     ]);
     expect(card()).toHaveAccessibleName(/^CCP-401/);
-    const closed = within(rail()).getByRole("group", { name: "Closed" });
+    const closed = screen.getByRole("group", { name: "Closed" });
     // Folded by default.
-    expect(within(closed).queryAllByRole("option")).toHaveLength(0);
+    expect(within(closed).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(within(closed).getByRole("button", { name: /Closed · 1/ }));
     expect(localStorage.getItem("dev-home-workday-v2-closed-folded")).toBe("false");
-    fireEvent.click(within(closed).getByRole("option", { name: /412/ }));
+    fireEvent.click(within(closed).getByRole("button", { name: /412/ }));
     expect(groupRows("Open")).toEqual([
       expect.stringContaining("412"),
       expect.stringContaining("401"),
       expect.stringContaining("388"),
     ]);
     expect(card()).toHaveAccessibleName(/^CCP-412/);
-    expect(within(rail()).queryByRole("group", { name: "Closed" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Closed" })).toBeNull();
+  });
+
+  it("Enter and Space on the Closed toggle and rows stay native, not deck keys", async () => {
+    renderDeck();
+    press("x"); // close 412; card shows 401
+    const toggle = screen.getByRole("button", { name: /Closed · 1/ });
+    toggle.focus();
+    // Not swallowed: the browser turns these into clicks on the focused button.
+    expect(fireEvent.keyDown(toggle, { key: "Enter" })).toBe(true);
+    expect(fireEvent.keyDown(toggle, { key: " " })).toBe(true);
+    await act(async () => {});
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(groupRows("Current")).toEqual([]);
+    fireEvent.click(toggle);
+    const row = within(screen.getByRole("group", { name: "Closed" })).getByRole("button", {
+      name: /412/,
+    });
+    row.focus();
+    expect(fireEvent.keyDown(row, { key: "Enter" })).toBe(true);
+    fireEvent.click(row);
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(rail()).toHaveFocus();
+  });
+
+  it("x on the last rail ticket wraps to the first", () => {
+    renderDeck();
+    press("ArrowLeft"); // wraps to 388, the last
+    press("x");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(groupRows("Open")).toEqual([
+      expect.stringContaining("412"),
+      expect.stringContaining("401"),
+    ]);
+  });
+
+  it("x on the only ticket clears the selection and shows the empty deck", () => {
+    renderView({ openPRs: [deckPRs[3]], allIssues: [deckIssues[2]] });
+    press("x");
+    expect(screen.queryByRole("region", { name: /^CCP-/ })).toBeNull();
+    expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
+    expect(stored().selected ?? null).toBeNull();
   });
 
   it("←/→ skip Closed tabs", () => {
@@ -651,7 +707,7 @@ describe("WorkdayV2View card context", () => {
     const { addNote } = renderDeck();
     press("ArrowDown");
     press(".");
-    const input = screen.getByRole("textbox", { name: "New note" });
+    const input = screen.getByRole("textbox", { name: /^New note/ });
     expect(input).toHaveFocus();
     expect(input).toHaveValue("");
     fireEvent.change(input, { target: { value: "  ask about retries  " } });
@@ -659,8 +715,40 @@ describe("WorkdayV2View card context", () => {
       fireEvent.keyDown(input, { key: "Enter" });
     });
     expect(addNote).toHaveBeenCalledWith("github_pr", "ask about retries", "o/r#1203");
-    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /^New note/ })).toBeNull();
     expect(screen.getByText("Note saved")).toHaveClass("app-toast", "is-visible");
+  });
+
+  it("puts the composer outside the PR listbox, and its ⏎ never opens the PR modal", async () => {
+    renderDeck();
+    press(".");
+    const input = screen.getByRole("textbox", { name: "New note on #1207" });
+    expect(prList().contains(input)).toBe(false);
+    expect(within(card()).getByText("#1207", { selector: ".deck-note-target" })).toBeTruthy();
+    fireEvent.change(input, { target: { value: "hello" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the text and refocuses the input when saving fails", async () => {
+    const addNote = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    renderDeck({ addNote });
+    press(".");
+    const input = screen.getByRole("textbox", { name: /^New note/ });
+    fireEvent.change(input, { target: { value: "keep me" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(addNote).toHaveBeenCalled();
+    expect(screen.getByText("Couldn't save the note")).toHaveClass("is-visible");
+    const after = screen.getByRole("textbox", { name: /^New note/ });
+    expect(after).toHaveValue("keep me");
+    expect(after).not.toBeDisabled();
+    expect(after).toHaveFocus();
   });
 
   it("saves a PR-less ticket's note as a jira_ticket note", async () => {
@@ -669,7 +757,7 @@ describe("WorkdayV2View card context", () => {
       assignedIssues: [issue("CCP-371", "Thumbnail backfill")],
     });
     press(".");
-    const input = screen.getByRole("textbox", { name: "New note" });
+    const input = screen.getByRole("textbox", { name: /^New note/ });
     fireEvent.change(input, { target: { value: "backfill plan" } });
     await act(async () => {
       fireEvent.keyDown(input, { key: "Enter" });
@@ -690,12 +778,12 @@ describe("WorkdayV2View card context", () => {
   it("Esc cancels the composer without saving, and deck keys are ignored while typing", () => {
     const { addNote } = renderDeck();
     press(".");
-    const input = screen.getByRole("textbox", { name: "New note" });
+    const input = screen.getByRole("textbox", { name: /^New note/ });
     fireEvent.keyDown(input, { key: "ArrowRight" });
     expect(card()).toHaveAccessibleName(/^CCP-412/);
     fireEvent.change(input, { target: { value: "draft" } });
     fireEvent.keyDown(input, { key: "Escape" });
-    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /^New note/ })).toBeNull();
     expect(addNote).not.toHaveBeenCalled();
   });
 
@@ -703,9 +791,9 @@ describe("WorkdayV2View card context", () => {
     renderDeck();
     press(".");
     fireEvent.click(screen.getByRole("option", { name: /401/ }));
-    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /^New note/ })).toBeNull();
     fireEvent.click(screen.getByRole("option", { name: /412/ }));
-    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /^New note/ })).toBeNull();
   });
 
   it("shows the Off-sprint pill for tickets v1 flags off-sprint", () => {
@@ -743,9 +831,9 @@ describe("WorkdayV2View card context", () => {
     press("x"); // close CCP-412
     press("g");
     press("c"); // only current: nothing is current
-    fireEvent.click(within(rail()).getByRole("button", { name: /Closed · 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Closed · 1/ }));
     fireEvent.click(
-      within(within(rail()).getByRole("group", { name: "Closed" })).getByRole("option", {
+      within(screen.getByRole("group", { name: "Closed" })).getByRole("button", {
         name: /412/,
       }),
     );
@@ -788,12 +876,10 @@ describe("WorkdayV2View polish", () => {
     press("x");
     expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
     expect(screen.getByText(/^1 closed tab · 0 assigned tickets not started$/)).toBeTruthy();
-    const closed = within(screen.getByRole("listbox", { name: "Tickets" })).getByRole("group", {
-      name: "Closed",
-    });
-    expect(within(closed).queryAllByRole("option")).toHaveLength(0);
+    const closed = screen.getByRole("group", { name: "Closed" });
+    expect(within(closed).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Show closed" }));
-    expect(within(closed).getAllByRole("option")).toHaveLength(1);
+    expect(within(closed).getAllByRole("listitem")).toHaveLength(1);
   });
 
   it("shows rail and card skeletons on a first load with no data, not on refresh", () => {
@@ -820,7 +906,7 @@ describe("WorkdayV2View polish", () => {
     expect(banner()!.closest(".deck-rail")).toBeTruthy();
     // The rail keeps rendering the other source.
     expect(screen.getAllByRole("option", { name: /412/ }).length).toBeGreaterThan(0);
-    fireEvent.click(within(banner()!).getByRole("button", { name: "retry" }));
+    fireEvent.click(within(banner()!).getByRole("button", { name: "Retry" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 

@@ -82,6 +82,7 @@ function renderDeck(props: Partial<DeckModeProps> = {}) {
     onSelect: vi.fn(),
     onSelectPr: vi.fn(),
     onOpen: vi.fn(),
+    onReopen: vi.fn(),
   };
   const d = props.deck ?? deck();
   const all = [...d.current, ...d.open];
@@ -114,9 +115,42 @@ describe("DeckMode rail", () => {
     expect(within(current).getByText("▶ Current")).toBeTruthy();
     expect(within(current).getByRole("option")).toHaveClass("deck-rail-row--current");
     expect(within(rail).getByRole("group", { name: "Open" })).toBeTruthy();
-    const closed = within(rail).getByRole("group", { name: "Closed" });
-    expect(within(closed).getByText("Closed · 2")).toBeTruthy();
+    // Closed sits outside the listbox: a disclosure button, folded by default.
+    expect(within(rail).queryByRole("group", { name: "Closed" })).toBeNull();
+    const closed = screen.getByRole("group", { name: "Closed" });
+    const toggle = within(closed).getByRole("button", { name: /Closed · 2/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(closed).queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("keeps retry outside the banner text, with an icon for the collapsed slim rail", () => {
+    const onRetry = vi.fn();
+    renderDeck({ deck: deck({ open: [ticket("CCP-2")] }), sourceError: "Jira down", onRetry });
+    const retry = screen.getByRole("button", { name: "Retry" });
+    // The slim rail hides .deck-rail-banner-text; retry must not live inside it.
+    expect(retry.closest(".deck-rail-banner-text")).toBeNull();
+    expect(retry.querySelector(".deck-rail-banner-retry-icon")).toBeTruthy();
+    fireEvent.click(retry);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists unfolded Closed rows as buttons that reopen, and describes the rail keys", () => {
+    const { onReopen } = renderDeck({
+      closedFolded: false,
+      deck: deck({ open: [ticket("CCP-2")], closed: [ticket("CCP-3")] }),
+    });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(rail).toHaveAccessibleDescription(/arrows move between tickets/);
+    const closed = screen.getByRole("group", { name: "Closed" });
+    const toggle = within(closed).getByRole("button", { name: /Closed · 1/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const list = within(closed).getByRole("list");
+    expect(toggle).toHaveAttribute("aria-controls", list.id);
     expect(within(closed).queryAllByRole("option")).toHaveLength(0);
+    // A keyboard activation (detail 0) reopens and hands focus to the listbox.
+    fireEvent.click(within(list).getByRole("button", { name: /Title CCP-3/ }));
+    expect(onReopen).toHaveBeenCalledWith("CCP-3");
+    expect(rail).toHaveFocus();
   });
 
   it("shows stripe, review chip, status line and activity dot", () => {

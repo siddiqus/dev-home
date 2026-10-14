@@ -429,11 +429,18 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   refreshRef.current = onRefresh;
   const refresh = useCallback(() => refreshRef.current(), []);
 
+  // The ⌘K outside-PR fetch in flight: opening the palette again (or a newer
+  // fetch) supersedes it, so a late result never lands a modal on the palette.
+  const prFetchSeq = useRef(0);
+  const openPalette = useCallback(() => {
+    prFetchSeq.current++;
+    setPaletteOpen(true);
+  }, []);
   // ⌘K: ignored while another modal or drawer is open (two focus traps would fight).
   const togglePalette = useCallback(() => {
     if (paletteOpen) setPaletteOpen(false);
-    else if (!drawerOpen() && selectedPR === null) setPaletteOpen(true);
-  }, [paletteOpen, selectedPR]);
+    else if (!drawerOpen() && selectedPR === null) openPalette();
+  }, [paletteOpen, selectedPR, openPalette]);
   const deckKeys = useMemo<DeckKeyHandlers>(() => {
     const guard = (fn: () => void) => () => {
       if (!drawerOpen()) fn();
@@ -559,9 +566,15 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
         // Not in the deck: the one on-demand fetch the deck makes (spec §5.11).
         if (action === "jump" || action === "openModal") {
           const [owner, repo] = ext.repo.split("/");
-          fetchPR(owner, repo, ext.number)
-            .then(setSelectedPR)
-            .catch(() => showToast("Couldn't load that PR"));
+          const seq = ++prFetchSeq.current;
+          fetchPR(owner, repo, ext.number).then(
+            (pr) => {
+              if (seq === prFetchSeq.current) setSelectedPR(pr);
+            },
+            () => {
+              if (seq === prFetchSeq.current) showToast("Couldn't load that PR");
+            },
+          );
         } else if (action === "openGitHub") openTab(ext.url);
         else if (action === "copyLink") onCopyLink(ext.url);
         return;
@@ -725,7 +738,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               size="sm"
               className="workday-v2-cmd-k-hint"
               title="Find and act (⌘K)"
-              onClick={() => setPaletteOpen(true)}
+              onClick={openPalette}
             >
               ⌘K find &amp; act
             </Button>

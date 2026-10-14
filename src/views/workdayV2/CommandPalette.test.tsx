@@ -292,7 +292,7 @@ describe("⌘K command palette", () => {
     key(".", { metaKey: true });
     await flush();
     expect(card()).toHaveAccessibleName(/^CCP-401/);
-    const box = screen.getByRole("textbox", { name: "New note" });
+    const box = screen.getByRole("textbox", { name: /^New note/ });
     expect(box).toHaveFocus();
     fireEvent.change(box, { target: { value: "retry later" } });
     fireEvent.keyDown(box, { key: "Enter" });
@@ -340,6 +340,82 @@ describe("⌘K command palette", () => {
     key("Enter");
     await flush();
     expect(screen.getByText("Couldn't load that PR")).toHaveClass("is-visible");
+  });
+
+  it("drops an outside PR that loads after the palette was reopened", async () => {
+    let resolve!: (v: unknown) => void;
+    getPrDetail.mockReturnValue(new Promise((r) => (resolve = r)));
+    renderDeck();
+    openPalette();
+    type("x/y#5");
+    key("Enter");
+    await flush();
+    expect(getPrDetail).toHaveBeenCalled();
+    openPalette();
+    await act(async () => {
+      resolve({
+        pr: pr(5, "Outside change", "2026-10-01T10:00:00Z", {
+          html_url: "https://github.com/x/y/pull/5",
+          repo_full_name: "x/y",
+        }),
+      });
+    });
+    expect(screen.queryByText(/Outside change/)).toBeNull();
+    expect(input()).toBeTruthy();
+  });
+
+  it("repeated ⌘⌫ on an empty query toggles the same row, not its neighbour", () => {
+    seedSeen([1199, 1150]);
+    renderDeck();
+    openPalette();
+    const group = screen.getByRole("group", { name: "Updated since you looked" });
+    expect(group.querySelectorAll(".deck-palette-option")).toHaveLength(2);
+    const first = activeOption()!.textContent!;
+    const [mine, other] = first.includes("#1199") ? ["CCP-401", "CCP-388"] : ["CCP-388", "CCP-401"];
+    key("Backspace", { metaKey: true });
+    expect(stored().closed).toHaveProperty(mine);
+    // The closed row stays put and selected, now offering Reopen.
+    expect(activeOption()!.textContent).toBe(first + "closed");
+    key("Tab");
+    expect(screen.getByRole("option", { name: /Reopen tab/ })).toBeTruthy();
+    key("Tab");
+    key("Backspace", { metaKey: true });
+    expect(stored().closed ?? {}).not.toHaveProperty(mine);
+    expect(stored().closed ?? {}).not.toHaveProperty(other);
+  });
+
+  it("restores focus after copy, GitHub and command actions, not after opening a modal", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    renderDeck();
+    const trigger = screen.getByRole("button", { name: /find & act/ });
+    const reopen = () => {
+      trigger.focus();
+      fireEvent.click(trigger);
+    };
+    reopen();
+    type("1199");
+    key("l", { metaKey: true });
+    await flush();
+    expect(queryInput()).toBeNull();
+    expect(trigger).toHaveFocus();
+
+    reopen();
+    type("1199");
+    key("Enter", { metaKey: true });
+    await flush();
+    expect(trigger).toHaveFocus();
+
+    reopen();
+    fireEvent.click(screen.getByRole("option", { name: /Hide key hints/ }));
+    await flush();
+    expect(trigger).toHaveFocus();
+
+    reopen();
+    type("1199");
+    key("Enter", { altKey: true });
+    await flush();
+    expect(trigger).not.toHaveFocus();
+    open.mockRestore();
   });
 
   it("opens a ticket that isn't in the deck in Jira when there's no drawer", async () => {

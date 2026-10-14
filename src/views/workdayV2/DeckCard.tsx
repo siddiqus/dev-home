@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { TicketChip } from "../../components/TicketGroupHeader";
@@ -50,9 +49,14 @@ export function DeckCard({
   );
   const currentCount = prs.filter((p) => p.current).length;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
+  const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
   const composer =
     composing && onSaveNote ? (
-      <DeckNoteComposer onSave={onSaveNote} onCancel={() => onCancelNote?.()} />
+      <DeckNoteComposer
+        target={activePR ? `#${activePR.number}` : undefined}
+        onSave={onSaveNote}
+        onCancel={() => onCancelNote?.()}
+      />
     ) : null;
 
   return (
@@ -93,16 +97,17 @@ export function DeckCard({
             {composer}
           </>
         ) : (
-          <div
-            className="deck-pr-list"
-            role="listbox"
-            aria-label="Pull requests"
-            aria-activedescendant={activeIndex === -1 ? undefined : prRowId(activeIndex)}
-            tabIndex={0}
-          >
-            {prs.map((p, i) => (
-              <Fragment key={p.pr.html_url}>
+          <>
+            <div
+              className="deck-pr-list"
+              role="listbox"
+              aria-label="Pull requests"
+              aria-activedescendant={activeIndex === -1 ? undefined : prRowId(activeIndex)}
+              tabIndex={0}
+            >
+              {prs.map((p, i) => (
                 <DeckPRRow
+                  key={p.pr.html_url}
                   id={prRowId(i)}
                   item={p}
                   ticketKey={key}
@@ -112,10 +117,12 @@ export function DeckCard({
                   onOpenNote={onOpenNote}
                   now={now}
                 />
-                {i === activeIndex && composer}
-              </Fragment>
-            ))}
-          </div>
+              ))}
+            </div>
+            {/* Outside the listbox (only options belong in it), right under the
+              list, naming the PR it's for. */}
+            {composer}
+          </>
         )}
       </div>
     </section>
