@@ -23,6 +23,7 @@ import {
   IconSun,
   IconMoon,
   IconFilePlus,
+  IconCards,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -83,6 +84,9 @@ const PomodoroView = lazy(() =>
 );
 const WorkdayView = lazy(() =>
   import("./views/workday/WorkdayView").then((m) => ({ default: m.WorkdayView })),
+);
+const WorkdayV2View = lazy(() =>
+  import("./views/workdayV2/WorkdayV2View").then((m) => ({ default: m.WorkdayV2View })),
 );
 
 const viewFallback = (
@@ -483,6 +487,7 @@ export default function App() {
               const tabMeta: Record<string, { icon: Icon }> = {
                 summary: { icon: IconLayoutDashboard },
                 workday: { icon: IconSun },
+                "workday-v2": { icon: IconCards },
                 board: { icon: IconColumns3 },
                 notes: { icon: IconNotes },
                 jira: { icon: IconSubtask },
@@ -664,6 +669,28 @@ export default function App() {
                         notesLoaded={notesLoaded}
                         addNote={addNote}
                         editNote={editNote}
+                      />
+                    )}
+                    {effectiveTab === "workday-v2" && (
+                      <WorkdayV2View
+                        configured={configured}
+                        openPRs={openPRs}
+                        reviewRequests={reviewRequests}
+                        reviewingPRs={reviewingPRs}
+                        assignedIssues={assignedJiraIssues}
+                        allIssues={jiraIssues}
+                        githubMentions={githubMentions}
+                        jiraMentions={jiraComments}
+                        loading={openPRsLoading || reviewRequestsLoading || jiraIssuesLoading}
+                        jiraBaseUrl={jiraBaseUrl}
+                        weekendDays={weekendDays}
+                        refreshKey={refreshKey}
+                        onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
+                        notes={notes}
+                        notesLoaded={notesLoaded}
+                        addNote={addNote}
+                        editNote={editNote}
+                        onOpenNote={setOpenNote}
                       />
                     )}
                     {effectiveTab === "board" && (

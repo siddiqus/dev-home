@@ -27,6 +27,7 @@ export const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { key: "summary", label: "Summary" },
       { key: "workday", label: "Workday" },
+      { key: "workday-v2", label: "Workday V2" },
       { key: "board", label: "Board" },
       { key: "notes", label: "Notes" },
     ],

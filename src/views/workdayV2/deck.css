@@ -1,0 +1,22 @@
+/* Workday V2 deck styles */
+
+.workday-v2 {
+  /* Inherits most styles from workday.css; deck-specific styles go here */
+}
+
+.workday-v2-cmd-k-hint {
+  color: var(--bs-secondary);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.workday-v2-cmd-k-hint:hover:not(:disabled) {
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+.workday-v2-cmd-k-hint:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
