@@ -16,7 +16,7 @@ function ms(iso: string | null | undefined): number {
   return Number.isNaN(t) ? NaN : t;
 }
 
-function isPersonReview(r: RawReview, author: string): boolean {
+export function isPersonReview(r: RawReview, author: string): boolean {
   return r.typename === "User" && r.login !== author && !IGNORED_LOGINS.has(r.login);
 }
 

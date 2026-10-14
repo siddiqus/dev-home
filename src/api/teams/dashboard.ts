@@ -27,6 +27,9 @@ const PR_NODE_FRAGMENT = `
     repository { nameWithOwner }
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(first: 20) { nodes { author { login __typename } state submittedAt } }
+    timelineItems(itemTypes: [READY_FOR_REVIEW_EVENT], first: 1) {
+      nodes { ... on ReadyForReviewEvent { createdAt } }
+    }
     reviewRequests(first: 20) {
       totalCount
       nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } } }

@@ -76,6 +76,71 @@ describe("mapPullRequestNode", () => {
     expect(pr.first_review_at).toBe("2026-08-02T00:00:00Z");
     expect(pr.review_state).toBe("CHANGES_REQUESTED");
     expect(pr.review_requested).toBe(true);
+    // still a draft with no ready event → never ready for review
+    expect(pr.ready_at).toBeNull();
+  });
+
+  it("first_review_at ignores bot reviews and the author's own reviews", () => {
+    const pr = mapPullRequestNode(
+      {
+        ...node,
+        reviews: {
+          nodes: [
+            {
+              author: { login: "copilot", __typename: "Bot" },
+              state: "COMMENTED",
+              submittedAt: "2026-08-01T00:05:00Z",
+            },
+            {
+              author: { login: "carol", __typename: "User" },
+              state: "COMMENTED",
+              submittedAt: "2026-08-01T01:00:00Z",
+            },
+            {
+              author: { login: "bob", __typename: "User" },
+              state: "APPROVED",
+              submittedAt: "2026-08-01T09:00:00Z",
+            },
+          ],
+        },
+      },
+      "fallback",
+    );
+    expect(pr.first_review_at).toBe("2026-08-01T09:00:00Z");
+  });
+
+  it("first_review_at is null when only bots reviewed", () => {
+    const pr = mapPullRequestNode(
+      {
+        ...node,
+        reviews: {
+          nodes: [
+            {
+              author: { login: "copilot", __typename: "Bot" },
+              state: "COMMENTED",
+              submittedAt: "2026-08-01T00:05:00Z",
+            },
+          ],
+        },
+      },
+      "fallback",
+    );
+    expect(pr.first_review_at).toBeNull();
+  });
+
+  it("ready_at is the first ready-for-review event, else created_at for non-drafts", () => {
+    const wasDraft = mapPullRequestNode(
+      {
+        ...node,
+        isDraft: false,
+        timelineItems: { nodes: [{ createdAt: "2026-08-02T03:00:00Z" }] },
+      },
+      "fallback",
+    );
+    expect(wasDraft.ready_at).toBe("2026-08-02T03:00:00Z");
+
+    const openedReady = mapPullRequestNode({ ...node, isDraft: false }, "fallback");
+    expect(openedReady.ready_at).toBe("2026-08-01T00:00:00Z");
   });
 
   it("uses fallbackLogin only when author is missing", () => {

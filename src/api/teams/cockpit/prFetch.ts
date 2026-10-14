@@ -3,6 +3,7 @@
  * file so they can be unit-tested without importing Express/DB/graphql clients.
  */
 import type { RawPR, RawReview, RawReviewRequest } from "../aggregation";
+import { isPersonReview } from "./reviewQueue";
 
 /** Map a GraphQL PullRequest node to RawPR (new fields + preserved legacy scalars). */
 export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
@@ -14,14 +15,18 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
     submittedAt: r.submittedAt || null,
   }));
 
-  // Legacy scalars — risk.ts / prFlow.ts still read these.
-  let first_review_at: string | null = null;
+  const author = n.author?.login || fallbackLogin;
+
+  // Legacy scalars — risk.ts / prFlow.ts still read these. The first review is
+  // the first by a person other than the author: bots answer within minutes
+  // and an author replying in a thread files a review of their own.
+  const first_review_at =
+    reviews
+      .filter((r) => r.submittedAt && isPersonReview(r, author))
+      .map((r) => r.submittedAt!)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ?? null;
   let review_state: string | null = null;
   if (reviewNodes.length > 0) {
-    const sorted = [...reviewNodes].sort(
-      (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime(),
-    );
-    first_review_at = sorted[0].submittedAt;
     const hasChanges = reviewNodes.some((r) => r.state === "CHANGES_REQUESTED");
     const hasApproved = reviewNodes.some((r) => r.state === "APPROVED");
     review_state = hasChanges ? "CHANGES_REQUESTED" : hasApproved ? "APPROVED" : "COMMENTED";
@@ -41,7 +46,7 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
     html_url: n.url,
     state: (n.state || "").toLowerCase(),
     checks_status: n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state || null,
-    author: n.author?.login || fallbackLogin,
+    author,
     created_at: n.createdAt,
     updatedAt: n.updatedAt || null,
     merged_at: n.mergedAt || null,
@@ -49,6 +54,9 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
     reviewDecision: n.reviewDecision || null,
     lastCommitAt: n.commits?.nodes?.[0]?.commit?.committedDate || null,
     first_review_at,
+    // When review could start: the first time a draft was marked ready, else
+    // creation for PRs opened ready. Null while it has never left draft.
+    ready_at: n.timelineItems?.nodes?.[0]?.createdAt || (n.isDraft ? null : n.createdAt),
     review_state,
     review_requested: (n.reviewRequests?.totalCount || 0) > 0,
     reviews,

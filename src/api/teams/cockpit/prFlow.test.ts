@@ -84,7 +84,7 @@ describe("computePrFlow", () => {
     expect(result.merged).toBe(2);
   });
 
-  it("computes avgFirstReviewH from first_review_at - created_at", () => {
+  it("computes medianFirstReviewH from first_review_at - created_at", () => {
     const prs: RawPR[] = [
       // first_review_at 2h after created → 2 hours
       {
@@ -112,11 +112,12 @@ describe("computePrFlow", () => {
       },
     ];
     const result = computePrFlow(prs, [], now);
-    // (2 + 4) / 2 = 3.0
-    expect(result.avgFirstReviewH).toBe(3.0);
+    // median of [2, 4] = 3.0
+    expect(result.medianFirstReviewH).toBe(3.0);
+    expect(result.firstReviewSample).toBe(2);
   });
 
-  it("returns null for avgFirstReviewH when no PRs have first_review_at", () => {
+  it("returns null for medianFirstReviewH when no PRs have first_review_at", () => {
     const prs: RawPR[] = [
       {
         number: 1,
@@ -140,7 +141,8 @@ describe("computePrFlow", () => {
       },
     ];
     const result = computePrFlow(prs, [], now);
-    expect(result.avgFirstReviewH).toBeNull();
+    expect(result.medianFirstReviewH).toBeNull();
+    expect(result.firstReviewSample).toBe(0);
   });
 
   it("computes avgAgeDays only from open PRs (now - created_at)", () => {
@@ -428,6 +430,50 @@ describe("computePrFlow", () => {
     expect(result.jiraNoPR).toBe(2);
   });
 
+  describe("first review", () => {
+    const base: RawPR = {
+      number: 1,
+      title: "PROJ-1 foo",
+      repo_full_name: "org/repo",
+      html_url: "",
+      state: "open",
+      checks_status: null,
+      author: "alice",
+      created_at: "2026-07-01T00:00:00Z",
+    };
+    const reviewedAfter = (hours: number, extra: Partial<RawPR> = {}): RawPR => ({
+      ...base,
+      first_review_at: new Date(Date.parse(base.created_at) + hours * 3600_000).toISOString(),
+      ...extra,
+    });
+
+    it("uses the median so one slow PR doesn't dominate", () => {
+      const prs = [reviewedAfter(1), reviewedAfter(2), reviewedAfter(3), reviewedAfter(200)];
+      const result = computePrFlow(prs, [], now);
+      // median of [1, 2, 3, 200] = 2.5 (the mean would be 51.5)
+      expect(result.medianFirstReviewH).toBe(2.5);
+      expect(result.firstReviewSample).toBe(4);
+    });
+
+    it("measures from ready_at, not created_at, when the PR started as a draft", () => {
+      const prs = [reviewedAfter(50, { ready_at: "2026-07-03T00:00:00Z" })];
+      // ready 48h after creation, reviewed 2h later
+      expect(computePrFlow(prs, [], now).medianFirstReviewH).toBe(2);
+    });
+
+    it("skips PRs that were never ready for review", () => {
+      const prs = [reviewedAfter(5, { ready_at: null }), reviewedAfter(1)];
+      const result = computePrFlow(prs, [], now);
+      expect(result.medianFirstReviewH).toBe(1);
+      expect(result.firstReviewSample).toBe(1);
+    });
+
+    it("counts a review left on the draft as 0h, not negative", () => {
+      const prs = [reviewedAfter(1, { ready_at: "2026-07-01T05:00:00Z" })];
+      expect(computePrFlow(prs, [], now).medianFirstReviewH).toBe(0);
+    });
+  });
+
   it("computes all metrics together", () => {
     const prs: RawPR[] = [
       {
@@ -499,8 +545,8 @@ describe("computePrFlow", () => {
 
     expect(result.open).toBe(2);
     expect(result.merged).toBe(1);
-    // avgFirstReviewH: (2 + 2) / 2 = 2.0
-    expect(result.avgFirstReviewH).toBe(2.0);
+    // medianFirstReviewH: median of [2, 2] = 2.0
+    expect(result.medianFirstReviewH).toBe(2.0);
     // avgAgeDays (open only): PR#1 = 1d+2h = ~1.08d, PR#2 = 1d+4h = ~1.17d → mean ~1.1d
     // 2026-07-02T12:00 - 2026-07-01T10:00 = 26h = 1.08333... days
     // 2026-07-02T12:00 - 2026-07-01T08:00 = 28h = 1.16666... days

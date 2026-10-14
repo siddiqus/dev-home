@@ -235,7 +235,8 @@ export const dashboardFixture: TeamDashboard = {
   prFlow: {
     open: 4,
     merged: 2,
-    avgFirstReviewH: 18.5,
+    medianFirstReviewH: 18.5,
+    firstReviewSample: 6,
     avgAgeDays: 2.4,
     failingChecks: 1,
     noJira: 1,

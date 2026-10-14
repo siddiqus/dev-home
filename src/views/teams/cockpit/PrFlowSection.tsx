@@ -8,9 +8,12 @@ interface MetricCardProps {
   value: string | number;
   label: string;
   emphasis?: "danger" | "warning" | null;
+  /** Small muted line under the label, e.g. the sample size. */
+  hint?: string;
+  title?: string;
 }
 
-function MetricCard({ value, label, emphasis }: MetricCardProps) {
+function MetricCard({ value, label, emphasis, hint, title }: MetricCardProps) {
   const valueClass =
     emphasis === "danger"
       ? "text-danger fw-bold"
@@ -19,15 +22,26 @@ function MetricCard({ value, label, emphasis }: MetricCardProps) {
         : "text-body";
 
   return (
-    <div className="border rounded p-2 text-center" style={{ flex: "1 1 0", minWidth: 0 }}>
+    <div
+      className="border rounded p-2 text-center"
+      style={{ flex: "1 1 0", minWidth: 0 }}
+      title={title}
+    >
       <div className={`fs-4 ${valueClass}`}>{value}</div>
       <div className="small text-muted">{label}</div>
+      {hint && (
+        <div className="text-muted" style={{ fontSize: "0.6875rem" }}>
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
 
 export function PrFlowSection({ prFlow }: Props) {
-  const avgFirstReview = prFlow.avgFirstReviewH !== null ? prFlow.avgFirstReviewH.toFixed(1) : "—";
+  const firstReview =
+    prFlow.medianFirstReviewH !== null ? `${prFlow.medianFirstReviewH.toFixed(1)}h` : "—";
+  const sample = prFlow.firstReviewSample;
 
   const failingEmphasis = prFlow.failingChecks > 0 ? "danger" : null;
   const noJiraEmphasis = prFlow.noJira > 0 ? "warning" : null;
@@ -39,7 +53,12 @@ export function PrFlowSection({ prFlow }: Props) {
       <div className="d-flex gap-2">
         <MetricCard value={prFlow.open} label="Open PRs" />
         <MetricCard value={prFlow.merged} label="Merged" />
-        <MetricCard value={`${avgFirstReview}h`} label="Avg First Review" />
+        <MetricCard
+          value={firstReview}
+          label="Median First Review"
+          hint={sample > 0 ? `${sample} PR${sample === 1 ? "" : "s"}` : undefined}
+          title="Median time from ready-for-review to the first review by someone other than the author (bots excluded)"
+        />
         <MetricCard value={`${prFlow.avgAgeDays.toFixed(1)}d`} label="Avg PR Age" />
         <MetricCard
           value={prFlow.failingChecks}

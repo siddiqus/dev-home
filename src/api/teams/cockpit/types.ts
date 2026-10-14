@@ -127,7 +127,10 @@ export interface WorkloadEntry {
 export interface PrFlow {
   open: number;
   merged: number;
-  avgFirstReviewH: number | null;
+  /** Median hours from ready-for-review to the first human review. */
+  medianFirstReviewH: number | null;
+  /** How many PRs the median is based on. */
+  firstReviewSample: number;
   avgAgeDays: number;
   failingChecks: number;
   noJira: number;

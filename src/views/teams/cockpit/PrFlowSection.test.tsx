@@ -19,9 +19,10 @@ describe("PrFlowSection", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("Merged")).toBeInTheDocument();
 
-    // Check Avg First Review (18.5h)
+    // Check Median First Review (18.5h over 6 PRs)
     expect(screen.getByText("18.5h")).toBeInTheDocument();
-    expect(screen.getByText("Avg First Review")).toBeInTheDocument();
+    expect(screen.getByText("Median First Review")).toBeInTheDocument();
+    expect(screen.getByText("6 PRs")).toBeInTheDocument();
 
     // Check Avg PR Age (2.4d)
     expect(screen.getByText("2.4d")).toBeInTheDocument();
@@ -56,22 +57,25 @@ describe("PrFlowSection", () => {
     expect(screen.getByText("Jira w/o PR")).toBeInTheDocument();
   });
 
-  it("renders em dash when avgFirstReviewH is null", () => {
+  it("renders em dash and no sample size when medianFirstReviewH is null", () => {
     const prFlowWithNull = {
       ...dashboardFixture.prFlow,
-      avgFirstReviewH: null,
+      medianFirstReviewH: null,
+      firstReviewSample: 0,
     };
     render(<PrFlowSection prFlow={prFlowWithNull} />);
 
-    expect(screen.getByText("—h")).toBeInTheDocument();
-    expect(screen.getByText("Avg First Review")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("Median First Review")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ PRs?$/)).not.toBeInTheDocument();
   });
 
   it("applies no emphasis when problem metrics are zero", () => {
     const prFlowClean = {
       open: 4,
       merged: 2,
-      avgFirstReviewH: 18.5,
+      medianFirstReviewH: 18.5,
+      firstReviewSample: 6,
       avgAgeDays: 2.4,
       failingChecks: 0,
       noJira: 0,
