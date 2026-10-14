@@ -1,4 +1,4 @@
-import type { GitHubPR } from "../../types";
+import type { GitHubComment, GitHubPR, JiraComment } from "../../types";
 import { extractTicketKey, ticketKeyOf } from "../../utils/tickets";
 import { ACTIONABLE_REASONS, RED_CHECK_STATUSES } from "../../utils/prCategories";
 import { groupUpdatedAt } from "./buildWorkday";
@@ -147,33 +147,35 @@ const snippetOf = (text: string) =>
     ?.replace(/\s+/g, " ")
     .slice(0, 200) ?? "";
 
+/** A GitHub mention as a MentionItem. Shared with Workday V2's deck. */
+export const githubMentionItem = (m: GitHubComment): MentionItem => ({
+  id: `gh:${m.id}`,
+  source: "GitHub",
+  who: m.user.login,
+  ticketKey: extractTicketKey({ title: m.context_title }),
+  where: `${m.repo_full_name.split("/").pop()}#${m.pr_number}`,
+  snippet: snippetOf(m.body),
+  at: m.created_at,
+  url: m.html_url,
+});
+
+/** A Jira mention as a MentionItem. Shared with Workday V2's deck. */
+export const jiraMentionItem = (c: JiraComment): MentionItem => ({
+  id: `jira:${c.id}`,
+  source: "Jira",
+  who: c.author.displayName,
+  ticketKey: c.issueKey,
+  where: c.issueKey,
+  snippet: snippetOf(c.body.text),
+  at: c.created,
+  url: "",
+});
+
 function buildMentions(inp: FocusInputs, now: Date): MentionItem[] {
   const cutoff = now.getTime() - MENTION_WINDOW_MS;
   const items: MentionItem[] = [
-    ...inp.githubMentions.map(
-      (m): MentionItem => ({
-        id: `gh:${m.id}`,
-        source: "GitHub",
-        who: m.user.login,
-        ticketKey: extractTicketKey({ title: m.context_title }),
-        where: `${m.repo_full_name.split("/").pop()}#${m.pr_number}`,
-        snippet: snippetOf(m.body),
-        at: m.created_at,
-        url: m.html_url,
-      }),
-    ),
-    ...inp.jiraMentions.map(
-      (c): MentionItem => ({
-        id: `jira:${c.id}`,
-        source: "Jira",
-        who: c.author.displayName,
-        ticketKey: c.issueKey,
-        where: c.issueKey,
-        snippet: snippetOf(c.body.text),
-        at: c.created,
-        url: "",
-      }),
-    ),
+    ...inp.githubMentions.map(githubMentionItem),
+    ...inp.jiraMentions.map(jiraMentionItem),
   ];
   return newestFirst(
     items.filter((m) => time(m.at) >= cutoff),
