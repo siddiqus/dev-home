@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { compactAge } from "../workday/dates";
-import { titleWithoutKey } from "../workday/prState";
+import { repoRef, titleWithoutKey } from "../workday/prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
 import { blurOnPointer } from "./pointer";
 import { visibleChips } from "./signals";
@@ -37,6 +37,9 @@ export function DeckPRRow({
 }: DeckPRRowProps) {
   const { pr } = item;
   const { shown, more } = visibleChips(item.signals);
+  // v1's repoRef ("dev-home#1203"), split so the repo part can be muted and truncated.
+  const ref = repoRef(pr);
+  const repo = ref.slice(0, ref.lastIndexOf("#"));
   const onClick = (e: MouseEvent) => {
     blurOnPointer(e);
     onSelect(pr.html_url);
@@ -48,7 +51,10 @@ export function DeckPRRow({
   return (
     <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
       <span className="deck-pr-marker">{item.current ? "▶" : ""}</span>
-      <span className="deck-pr-number">#{pr.number}</span>
+      <span className="deck-pr-ref" title={ref}>
+        <span className="deck-pr-repo">{repo}</span>
+        <span className="deck-pr-number">#{pr.number}</span>
+      </span>
       <div className="deck-pr-main">
         <div className="deck-pr-title">
           <span>{titleWithoutKey(pr.title, ticketKey)}</span>

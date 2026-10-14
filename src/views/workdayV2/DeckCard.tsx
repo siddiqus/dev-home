@@ -3,6 +3,7 @@ import { Badge } from "../../components/primitives/Badge";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { OffSprintPill } from "../workday/CompactRow";
 import { compactAge } from "../workday/dates";
+import { repoRef } from "../workday/prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
@@ -53,7 +54,7 @@ export function DeckCard({
   const composer =
     composing && onSaveNote ? (
       <DeckNoteComposer
-        target={activePR ? `#${activePR.number}` : undefined}
+        target={activePR ? repoRef(activePR) : undefined}
         onSave={onSaveNote}
         onCancel={() => onCancelNote?.()}
       />

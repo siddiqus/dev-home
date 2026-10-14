@@ -1,6 +1,7 @@
 import type { GitHubPR } from "../../types";
 import type { DeckData } from "./types";
 import { normalizeNoteRef } from "../../utils/prNotes";
+import { repoRef } from "../workday/prState";
 
 export type LinkTarget =
   | { kind: "pr"; repo: string; number: number; url: string }
@@ -139,7 +140,7 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
           ticketId: ticket.id,
           pr: pr,
           ticketKey: ticket.key,
-          label: `#${pr.number} ${pr.title}`,
+          label: `${repoRef(pr)} ${pr.title}`,
           sub: ticket.key ? `${ticket.key} · ${ticket.title}` : "",
           closed: isClosed,
           score,
@@ -184,7 +185,9 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
           pr: null,
           ticketKey: linkTarget.kind === "ticket" ? linkTarget.key : null,
           label:
-            linkTarget.kind === "pr" ? `${linkTarget.repo}#${linkTarget.number}` : linkTarget.key,
+            linkTarget.kind === "pr"
+              ? `${linkTarget.repo.split("/").pop()}#${linkTarget.number}`
+              : linkTarget.key,
           sub: linkTarget.kind === "pr" ? linkTarget.url : "",
           closed: false,
           score: Infinity,

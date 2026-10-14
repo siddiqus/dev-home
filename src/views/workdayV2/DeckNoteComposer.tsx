@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 export interface DeckNoteComposerProps {
-  /** What the note is for, shown before the input, e.g. "#1203". */
+  /** What the note is for, shown before the input, e.g. "dev-home#1203". */
   target?: string;
   /** Saves the trimmed text; the composer stays open (and editable) if it rejects. */
   onSave(text: string): Promise<void>;
@@ -41,7 +41,7 @@ export function DeckNoteComposer({ target, onSave, onCancel }: DeckNoteComposerP
     <div className={`deck-note-composer${target ? " deck-note-composer--pr" : ""}`}>
       <span aria-hidden="true">📝</span>
       {target && (
-        <span className="deck-note-target" aria-hidden="true">
+        <span className="deck-note-target" aria-hidden="true" title={target}>
           {target}
         </span>
       )}

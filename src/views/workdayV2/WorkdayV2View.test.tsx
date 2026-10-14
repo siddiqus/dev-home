@@ -260,6 +260,11 @@ describe("WorkdayV2View deck", () => {
     expect(options).toHaveLength(2);
     // Newest first, key stripped from PR titles; top row selected on open.
     expect(within(options[0]).getByText("#1207")).toBeTruthy();
+    // repo#number: the short repo (no org), muted, with the full ref as a tooltip.
+    const ref = options[0].querySelector(".deck-pr-ref")!;
+    expect(ref).toHaveTextContent(/^r#1207$/);
+    expect(ref).toHaveAttribute("title", "r#1207");
+    expect(within(options[0]).getByText("r")).toHaveClass("deck-pr-repo");
     expect(within(options[0]).getByText("frontend: sync progress UI")).toBeTruthy();
     expect(within(options[1]).getByText("backend: queue worker")).toBeTruthy();
     expect(options[0]).toHaveAttribute("aria-selected", "true");
@@ -722,9 +727,9 @@ describe("WorkdayV2View card context", () => {
   it("puts the composer outside the PR listbox, and its ⏎ never opens the PR modal", async () => {
     renderDeck();
     press(".");
-    const input = screen.getByRole("textbox", { name: "New note on #1207" });
+    const input = screen.getByRole("textbox", { name: "New note on r#1207" });
     expect(prList().contains(input)).toBe(false);
-    expect(within(card()).getByText("#1207", { selector: ".deck-note-target" })).toBeTruthy();
+    expect(within(card()).getByText("r#1207", { selector: ".deck-note-target" })).toBeTruthy();
     fireEvent.change(input, { target: { value: "hello" } });
     await act(async () => {
       fireEvent.keyDown(input, { key: "Enter" });

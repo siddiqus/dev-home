@@ -288,7 +288,8 @@
 .deck-card {
   /* PR row columns, shared with the note composer so it lines up with them. */
   --deck-pr-marker-w: 16px;
-  --deck-pr-number-w: 52px;
+  /* repo#number: fixed so the composer can share it; long repos truncate. */
+  --deck-pr-ref-w: 128px;
   --deck-pr-pad-x: 10px;
   position: relative;
   display: flex;
@@ -355,7 +356,7 @@
 
 .deck-pr {
   display: grid;
-  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-number-w) minmax(0, 1fr) auto;
+  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-ref-w) minmax(0, 1fr) auto;
   gap: var(--space-2);
   align-items: start;
   margin-top: 7px;
@@ -383,6 +384,26 @@
 .deck-pr-marker {
   font-weight: 700;
   color: var(--color-status-warning);
+}
+
+/* repo#number: the repo is muted body text and gives way (ellipsis, full ref
+   in the title tooltip); the mono #number is unchanged and never truncates. */
+.deck-pr-ref {
+  display: flex;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.deck-pr-repo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-ref .deck-pr-number {
+  flex: none;
 }
 
 .deck-pr-number,
@@ -552,11 +573,15 @@ button.deck-rail-row:focus-visible {
    the PR number and the input line up with the rows above. */
 .deck-note-composer--pr {
   display: grid;
-  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-number-w) minmax(0, 1fr);
+  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-ref-w) minmax(0, 1fr);
   padding: 0 calc(var(--deck-pr-pad-x) + 1px);
 }
 
 .deck-note-target {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--color-text-muted);

@@ -234,6 +234,19 @@ describe("DeckMode card", () => {
     expect(within(theirs).getByText("+2")).toHaveAttribute("title", "E, F");
   });
 
+  it("labels each PR row repo#number with the short repo name", () => {
+    const t = ticket("CCP-1", {
+      prs: [deckPR(42, {}, { repo_full_name: "optimizely/content-marketing-platform-api" })],
+    });
+    renderDeck({ deck: deck({ open: [t] }) });
+    const row = within(screen.getByRole("listbox", { name: "Pull requests" })).getByRole("option");
+    const ref = row.querySelector(".deck-pr-ref")!;
+    expect(ref).toHaveTextContent(/^content-marketing-platform-api#42$/);
+    expect(ref).toHaveAttribute("title", "content-marketing-platform-api#42");
+    expect(within(row).getByText("content-marketing-platform-api")).toHaveClass("deck-pr-repo");
+    expect(within(row).getByText("#42")).toHaveClass("deck-pr-number");
+  });
+
   it("selects and opens a PR row on click", () => {
     const t = ticket("CCP-1", { prs: [deckPR(7), deckPR(8)] });
     const { onSelectPr, onOpen } = renderDeck({ deck: deck({ open: [t] }) });

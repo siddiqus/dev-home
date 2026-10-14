@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Modal from "react-bootstrap/Modal";
 import { Badge } from "../../components/primitives/Badge";
+import { repoRef } from "../workday/prState";
 import type { MentionItem } from "../workday/types";
 import { searchDeck, type SearchResult } from "./deckSearch";
 import type { DeckData, DeckTicket } from "./types";
@@ -153,7 +154,7 @@ function updatedEntries(deck: DeckData): Dated[] {
             ticketId: t.id,
             pr: p.pr,
             ticketKey: t.key,
-            label: `#${p.pr.number} ${p.pr.title}`,
+            label: `${repoRef(p.pr)} ${p.pr.title}`,
             sub: t.key ? `${t.key} · ${t.title}` : "",
             closed: false,
             score: 0,

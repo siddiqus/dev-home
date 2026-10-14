@@ -171,7 +171,7 @@ describe("⌘K command palette", () => {
     openPalette();
     const updated = screen.getByRole("group", { name: "Updated since you looked" });
     const rows = within(updated).getAllByRole("option");
-    expect(rows[0].textContent).toContain("#1150 CCP-388 Bulk tag editor");
+    expect(rows[0].textContent).toContain("r#1150 CCP-388 Bulk tag editor");
     const commands = within(screen.getByRole("group", { name: "Commands" }))
       .getAllByRole("option")
       .map((o) => o.textContent);
