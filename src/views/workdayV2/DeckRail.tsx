@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
-import { shortKey } from "./buildDeck";
+import { deckProjects, shortKey } from "./buildDeck";
 import { DeckRailRow } from "./DeckRailRow";
 import { blurOnPointer } from "./pointer";
 import type { DeckData, DeckTicket } from "./types";
@@ -32,8 +32,8 @@ const CLOSED_LIST_ID = "deck-rail-closed-list";
 const rowId = (group: string, index: number) => `deck-rail-${group}-${index}`;
 
 /** The key column: short key, or `#number` for a ticketless PR tab. */
-function railLabel(t: DeckTicket, all: DeckTicket[]): string {
-  if (t.key) return shortKey(t.key, all);
+function railLabel(t: DeckTicket, projects: Set<string>): string {
+  if (t.key) return shortKey(t.key, projects);
   return t.prs[0] ? `#${t.prs[0].pr.number}` : "—";
 }
 
@@ -57,7 +57,8 @@ export function DeckRail({
   sourceError = null,
   onRetry,
 }: DeckRailProps) {
-  const all = [...deck.current, ...deck.open, ...deck.closed];
+  // Built once per render: every row's short key checks against it.
+  const projects = deckProjects([...deck.current, ...deck.open, ...deck.closed]);
   const groups = [
     { name: "current", label: "Current", heading: "▶ Current", tickets: deck.current },
     ...(onlyCurrent ? [] : [{ name: "open", label: "Open", heading: "Open", tickets: deck.open }]),
@@ -142,7 +143,7 @@ export function DeckRail({
                       key={t.id}
                       id={rowId(g.name, i)}
                       ticket={t}
-                      label={railLabel(t, all)}
+                      label={railLabel(t, projects)}
                       selected={t.id === selectedId}
                       onSelect={(id) => onSelect(id)}
                     />
@@ -176,7 +177,7 @@ export function DeckRail({
                     <DeckRailRow
                       as="button"
                       ticket={t}
-                      label={railLabel(t, all)}
+                      label={railLabel(t, projects)}
                       selected={false}
                       onSelect={(id, e) => {
                         onReopen?.(id);

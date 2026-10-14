@@ -66,6 +66,38 @@ describe("useDeckState persistence", () => {
     });
   });
 
+  it("falls back per field when a saved field has the wrong shape", () => {
+    localStorage.setItem(
+      DECK_STATE_KEY,
+      JSON.stringify({
+        v: 1,
+        closed: null,
+        current: "x",
+        seen: { a: "2026-10-01T00:00:00Z", b: 5 },
+        arrival: [1, 2],
+        selected: "CCP-1",
+        seeded: "yes",
+      }),
+    );
+    const { result } = renderHook(() => useDeckState());
+    expect(result.current.state).toEqual({
+      arrival: {},
+      current: [],
+      currentTickets: [],
+      seen: { a: "2026-10-01T00:00:00Z" },
+      closed: {},
+      selected: "CCP-1",
+      seeded: false,
+    });
+    // Mutators work on the repaired state.
+    act(() => {
+      result.current.close("CCP-2", new Date("2026-10-14T10:00:00Z"));
+      result.current.toggleCurrent("pr:a", "CCP-1");
+    });
+    expect(result.current.state.closed).toEqual({ "CCP-2": "2026-10-14T10:00:00.000Z" });
+    expect(result.current.state.current).toEqual(["pr:a"]);
+  });
+
   it("tolerates wrong version number", () => {
     localStorage.setItem(DECK_STATE_KEY, JSON.stringify({ v: 99, arrival: { "CCP-1": 0 } }));
     const { result } = renderHook(() => useDeckState());
@@ -307,6 +339,63 @@ describe("useDeckState applyUpdates", () => {
     });
     // CCP-2 and CCP-3 should be pruned (absent > 30 days)
     expect(result.current.state.arrival).toEqual({ "CCP-1": 0 });
+  });
+
+  it("migrates a ticket pin onto its PR in place, mapping the PR to the ticket", () => {
+    const { result } = renderHook(() => useDeckState());
+    const now = new Date("2026-10-14T12:00:00Z");
+    act(() => {
+      result.current.toggleCurrent("pr:a", "CCP-1");
+      result.current.toggleCurrent("ticket:CCP-9", "CCP-9");
+      result.current.toggleCurrent("pr:b", "CCP-2");
+    });
+    act(() => {
+      result.current.applyUpdates(
+        { migrateCurrent: [{ from: "ticket:CCP-9", to: "pr:c", ticketId: "CCP-9" }] },
+        ["CCP-1", "CCP-2", "CCP-9"],
+        now,
+      );
+    });
+    expect(result.current.state.current).toEqual(["pr:a", "pr:c", "pr:b"]);
+    expect(result.current.state.currentTickets).toEqual(["CCP-1", "CCP-9", "CCP-2"]);
+    // Space on the PR now un-pins the ticket.
+    act(() => result.current.toggleCurrent("pr:c", "CCP-9"));
+    expect(result.current.state.current).toEqual(["pr:a", "pr:b"]);
+    expect(result.current.state.currentTickets).toEqual(["CCP-1", "CCP-2"]);
+  });
+
+  it("prunes seen and closed entries older than 30 days for ids no longer present", () => {
+    localStorage.setItem(
+      DECK_STATE_KEY,
+      JSON.stringify({
+        v: 1,
+        seen: {
+          "https://gh/old-gone": "2026-08-01T00:00:00Z",
+          "https://gh/old-present": "2026-08-01T00:00:00Z",
+          "https://gh/recent-gone": "2026-10-10T00:00:00Z",
+          "ticket:CCP-OLD": "2026-08-01T00:00:00Z",
+        },
+        closed: {
+          "CCP-OLD": "2026-08-01T00:00:00Z",
+          "CCP-KEPT": "2026-08-01T00:00:00Z",
+          "CCP-RECENT": "2026-10-10T00:00:00Z",
+        },
+      }),
+    );
+    const { result } = renderHook(() => useDeckState());
+    act(() => {
+      result.current.applyUpdates({}, ["CCP-KEPT"], new Date("2026-10-14T12:00:00Z"), [
+        "https://gh/old-present",
+      ]);
+    });
+    expect(result.current.state.seen).toEqual({
+      "https://gh/old-present": "2026-08-01T00:00:00Z",
+      "https://gh/recent-gone": "2026-10-10T00:00:00Z",
+    });
+    expect(result.current.state.closed).toEqual({
+      "CCP-KEPT": "2026-08-01T00:00:00Z",
+      "CCP-RECENT": "2026-10-10T00:00:00Z",
+    });
   });
 
   it("does not change identity when empty updates are applied", () => {

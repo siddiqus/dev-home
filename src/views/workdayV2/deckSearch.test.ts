@@ -438,4 +438,65 @@ describe("searchDeck", () => {
       expect(results[0].pr).toBeNull();
     });
   });
+
+  describe("scoring edge cases", () => {
+    it("returns nothing for a query that matches nothing, with ticketless tabs present", () => {
+      const d = deck({
+        open: [ticket("pr:https://github.com/owner/repo/pull/7", [pr(7)]), ticket("CCP-1", [])],
+      });
+      expect(searchDeck("zzzz", d)).toEqual([]);
+    });
+
+    it("does not let a short key or PR number inside the query match", () => {
+      const d = deck({
+        open: [ticket("CCP-1", [pr(1)]), ticket("CCP-12", [pr(12)])],
+      });
+      const results = searchDeck("CCP-12", d);
+      expect(results.map((r) => r.ticketKey)).toEqual(["CCP-12"]);
+    });
+
+    it("matches PR numbers by exact equality only", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [pr(1, { title: "fix 12 things" })]),
+          ticket("CCP-2", [pr(12, { title: "other" })]),
+        ],
+      });
+      const results = searchDeck("fix 12", d);
+      expect(results.map((r) => r.pr?.number)).toEqual([1]);
+      expect(searchDeck("12", d)[0].pr?.number).toBe(12);
+      expect(searchDeck("Repo#12", d)[0].pr?.number).toBe(12);
+    });
+
+    it("ranks the exact key ticket above a ticket that mentions the key in its title", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [], { title: "Follow-up to CCP-22" }),
+          ticket("CCP-22", [], { title: "Something" }),
+        ],
+      });
+      const results = searchDeck("CCP-22", d);
+      expect(results.map((r) => r.ticketKey)).toEqual(["CCP-22", "CCP-1"]);
+      expect(results[0].score).toBeGreaterThan(results[1].score);
+    });
+
+    it("compares a pasted PR link's repo case-insensitively", () => {
+      const d = deck({ open: [ticket("CCP-1", [pr(1234)])] });
+      const results = searchDeck("https://github.com/Owner/Repo/pull/1234", d);
+      expect(results).toHaveLength(1);
+      expect(results[0].external).toBeUndefined();
+    });
+
+    it("accepts Jira keys with digits in the project key", () => {
+      expect(parseLink("AB2-12")).toEqual({ kind: "ticket", key: "AB2-12" });
+      expect(parseLink("https://x.atlassian.net/browse/ab2-12")).toEqual({
+        kind: "ticket",
+        key: "AB2-12",
+      });
+      expect(parseLink("https://x.atlassian.net/jira?selectedIssue=AB2-12")).toEqual({
+        kind: "ticket",
+        key: "AB2-12",
+      });
+    });
+  });
 });

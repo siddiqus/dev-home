@@ -417,26 +417,69 @@ describe("useDeckKeys", () => {
     document.body.removeChild(button);
   });
 
-  it("calls open when Enter is pressed on a button inside a listbox", () => {
+  it("leaves Enter and Space native on links and buttons inside a listbox", () => {
     renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
 
     const listbox = document.createElement("div");
     listbox.setAttribute("role", "listbox");
+    const option = document.createElement("div");
+    option.setAttribute("role", "option");
+    const link = document.createElement("a");
+    link.href = "https://example.com";
     const button = document.createElement("button");
-    listbox.appendChild(button);
+    option.append(link, button);
+    listbox.appendChild(option);
     document.body.appendChild(listbox);
-    button.focus();
+    try {
+      for (const target of [link, button]) {
+        for (const key of ["Enter", " "]) {
+          const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+          target.dispatchEvent(event);
+          expect(event.defaultPrevented).toBe(false);
+        }
+      }
+      expect(handlers.open).not.toHaveBeenCalled();
+      expect(handlers.toggleCurrent).not.toHaveBeenCalled();
+    } finally {
+      document.body.removeChild(listbox);
+    }
+  });
 
-    const event = new KeyboardEvent("keydown", {
-      key: "Enter",
-      bubbles: true,
-      cancelable: true,
-    });
-    button.dispatchEvent(event);
+  it("still handles Enter and Space on the listbox itself", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+    const listbox = document.createElement("div");
+    listbox.setAttribute("role", "listbox");
+    listbox.tabIndex = 0;
+    document.body.appendChild(listbox);
+    try {
+      const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+      listbox.dispatchEvent(enter);
+      const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+      listbox.dispatchEvent(space);
+      expect(handlers.open).toHaveBeenCalledTimes(1);
+      expect(handlers.toggleCurrent).toHaveBeenCalledTimes(1);
+      expect(enter.defaultPrevented).toBe(true);
+      expect(space.defaultPrevented).toBe(true);
+    } finally {
+      document.body.removeChild(listbox);
+    }
+  });
 
-    expect(handlers.open).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
-
-    document.body.removeChild(listbox);
+  it("stands down without preventDefault while isBlocked() says so, except ⌘K", () => {
+    let open = true;
+    renderHook(() =>
+      useDeckKeys(handlers, { enabled: true, blocked: false, isBlocked: () => open }),
+    );
+    for (const key of ["ArrowDown", "ArrowUp", " ", "Enter", "x", "n"]) {
+      expect(fireKey(key).defaultPrevented).toBe(false);
+    }
+    expect(handlers.down).not.toHaveBeenCalled();
+    expect(handlers.toggleCurrent).not.toHaveBeenCalled();
+    expect(handlers.close).not.toHaveBeenCalled();
+    expect(fireKey("k", { metaKey: true }).defaultPrevented).toBe(true);
+    expect(handlers.palette).toHaveBeenCalledTimes(1);
+    open = false;
+    expect(fireKey("ArrowDown").defaultPrevented).toBe(true);
+    expect(handlers.down).toHaveBeenCalledTimes(1);
   });
 });

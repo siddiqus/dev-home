@@ -47,6 +47,13 @@ export interface DeckStateUpdates {
   dropCurrent?: string[];
   /** Ticket ids whose every current item is being dropped (spec §5.6). */
   dropCurrentTickets?: string[];
+  /**
+   * `ticket:<KEY>` pins whose ticket now has PRs, replaced in place by a pin on
+   * the ticket's first card-order PR (`to`), or just removed (`to: null`) when
+   * one of its PRs is already current. Keeps the ticket in ▶ Current and lets
+   * Space on that PR un-pin it.
+   */
+  migrateCurrent?: { from: string; to: string | null; ticketId: string }[];
   /** First-run seeding. */
   seen?: Record<string, string>;
   seeded?: true;
@@ -341,6 +348,30 @@ export function buildDeck(
     }
   }
 
+  // A `ticket:<KEY>` pin set while the ticket had no PR moves onto its first
+  // card-order PR once PRs land, else nothing could ever un-pin it (Space and
+  // ⌘K toggle the PR). Rebuild with the migrated pins so this build shows them.
+  const migrateCurrent: NonNullable<DeckStateUpdates["migrateCurrent"]> = [];
+  for (const id of state.current) {
+    if (!id.startsWith("ticket:")) continue;
+    const key = id.slice("ticket:".length).toUpperCase();
+    const t = tickets.find((x) => x.key === key);
+    if (!t || t.prs.length === 0) continue;
+    const to = t.prs.some((p) => p.current) ? null : prPin(t.prs[0].pr);
+    migrateCurrent.push({ from: id, to, ticketId: t.id });
+  }
+  if (migrateCurrent.length > 0) {
+    const swap = new Map(migrateCurrent.map((m) => [m.from, m.to]));
+    const migrated = state.current.flatMap((id) => {
+      if (!swap.has(id)) return [id];
+      const to = swap.get(id);
+      return to ? [to] : [];
+    });
+    const out = buildDeck(inp, { ...state, current: migrated }, now);
+    out.stateUpdates.migrateCurrent = migrateCurrent;
+    return out;
+  }
+
   // Step 5: split into groups (spec §5.3). Arrival is never rewritten.
   const added = newArrivals(tickets, state.arrival, issueOf);
   const arrival = { ...state.arrival, ...added };
@@ -418,10 +449,18 @@ export function buildDeck(
   };
 }
 
-/** A ticket key for the rail: just the number when every keyed ticket shares one project. */
-export function shortKey(key: string, deck: DeckTicket[]): string {
-  const projects = new Set(
-    deck.flatMap((t) => (t.key ? [projectOfKey(t.key)] : [])).concat(projectOfKey(key)),
-  );
-  return projects.size === 1 ? key.slice(key.lastIndexOf("-") + 1) : key;
+/** The projects of every keyed ticket on the deck, for `shortKey`. */
+export function deckProjects(deck: DeckTicket[]): Set<string> {
+  return new Set(deck.flatMap((t) => (t.key ? [projectOfKey(t.key)] : [])));
+}
+
+/**
+ * A ticket key for the rail: just the number when every keyed ticket shares one
+ * project. Pass `deckProjects(deck)` when shortening many keys, so the project
+ * set is built once per render rather than once per row.
+ */
+export function shortKey(key: string, deck: DeckTicket[] | Set<string>): string {
+  const projects = deck instanceof Set ? deck : deckProjects(deck);
+  const only = projects.size === 0 || (projects.size === 1 && projects.has(projectOfKey(key)));
+  return only ? key.slice(key.lastIndexOf("-") + 1) : key;
 }

@@ -4,7 +4,7 @@ import { TicketChip } from "../../components/TicketGroupHeader";
 import { OffSprintPill } from "../workday/CompactRow";
 import { compactAge } from "../workday/dates";
 import { repoRef } from "../workday/prState";
-import { DeckNoteLine, DeckQuote } from "./DeckContext";
+import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
 import type { DeckTicket } from "./types";
@@ -25,9 +25,6 @@ export interface DeckCardProps {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const prRowId = (index: number) => `deck-pr-${index}`;
-/** Jira mentions carry no url; link to the comment on the issue page. */
-const jiraCommentUrl = (base: string, key: string, mentionId: string) =>
-  `${base.replace(/\/$/, "")}/browse/${key}?focusedCommentId=${mentionId.replace(/^jira:/, "")}`;
 
 /** The ticket card (spec §5.4): header, sub-line and PR rows as a listbox. */
 export function DeckCard({

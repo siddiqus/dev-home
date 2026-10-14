@@ -19,17 +19,49 @@ const EMPTY_PERSISTED: PersistedDeckState = {
   itemTickets: {},
 };
 
-/** Read from localStorage, tolerating missing/garbled/other-version JSON. */
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** A string → `T` map, keeping only entries whose value passes `ok`; else null. */
+function recordOf<T>(v: unknown, ok: (x: unknown) => x is T): Record<string, T> | null {
+  if (!isRecord(v)) return null;
+  const out: Record<string, T> = {};
+  for (const [k, x] of Object.entries(v)) if (ok(x)) out[k] = x;
+  return out;
+}
+
+const isString = (x: unknown): x is string => typeof x === "string";
+const isNumber = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+const stringsOf = (v: unknown): string[] | null => (Array.isArray(v) ? v.filter(isString) : null);
+
+/**
+ * The saved fields, each checked for shape: a field of the wrong type (a
+ * hand-edited or corrupted entry) falls back to its default on its own.
+ */
+function sanitize(raw: Record<string, unknown>): PersistedDeckState {
+  const d = EMPTY_PERSISTED;
+  return {
+    arrival: recordOf(raw.arrival, isNumber) ?? d.arrival,
+    current: stringsOf(raw.current) ?? d.current,
+    currentTickets: stringsOf(raw.currentTickets) ?? d.currentTickets,
+    seen: recordOf(raw.seen, isString) ?? d.seen,
+    closed: recordOf(raw.closed, isString) ?? d.closed,
+    selected: isString(raw.selected) ? raw.selected : d.selected,
+    seeded: typeof raw.seeded === "boolean" ? raw.seeded : d.seeded,
+    lastPresent: recordOf(raw.lastPresent, isString) ?? d.lastPresent,
+    itemTickets: recordOf(raw.itemTickets, isString) ?? d.itemTickets,
+  };
+}
+
+/** Read from localStorage, tolerating missing/garbled/other-version/wrong-shape JSON. */
 function read(): PersistedDeckState {
   try {
     const saved = localStorage.getItem(DECK_STATE_KEY);
     if (!saved) return EMPTY_PERSISTED;
-    const parsed = JSON.parse(saved);
+    const parsed: unknown = JSON.parse(saved);
     // Version check: only accept v: 1
-    if (parsed.v !== 1) return EMPTY_PERSISTED;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { v: _v, ...state } = parsed;
-    return { ...EMPTY_PERSISTED, ...state };
+    if (!isRecord(parsed) || parsed.v !== 1) return EMPTY_PERSISTED;
+    return sanitize(parsed);
   } catch {
     return EMPTY_PERSISTED;
   }
@@ -157,93 +189,148 @@ export function useDeckState() {
     setInternalState((prev) => ({ ...prev, selected: ticketId }));
   }, []);
 
-  const applyUpdates = useCallback((u: DeckStateUpdates, presentIds: string[], now: Date) => {
-    setInternalState((prev) => {
-      let next = prev;
-      let changed = false;
+  /**
+   * Applies buildDeck's patch. `presentIds` are the deck's ticket ids;
+   * `presentSeen`, when given, the `seen` ids still on the deck (PR urls and
+   * `ticket:<KEY>`), so stale `seen` entries can be pruned.
+   */
+  const applyUpdates = useCallback(
+    (u: DeckStateUpdates, presentIds: string[], now: Date, presentSeen?: string[]) => {
+      setInternalState((prev) => {
+        let next = prev;
+        let changed = false;
 
-      // Merge new arrivals
-      if (u.arrival && Object.keys(u.arrival).length > 0) {
-        next = { ...next, arrival: { ...next.arrival, ...u.arrival } };
-        changed = true;
-      }
-
-      // Reopen closed tickets
-      if (u.reopen && u.reopen.length > 0) {
-        const newClosed = { ...next.closed };
-        for (const id of u.reopen) delete newClosed[id];
-        next = { ...next, closed: newClosed };
-        changed = true;
-      }
-
-      // Prune dropCurrent entries from current, itemTickets, and dropCurrentTickets from currentTickets
-      if (u.dropCurrent && u.dropCurrent.length > 0) {
-        const dropSet = new Set(u.dropCurrent);
-        const newCurrent = next.current.filter((id) => !dropSet.has(id));
-        const newItemTickets = { ...next.itemTickets };
-        for (const id of u.dropCurrent) delete newItemTickets[id];
-        if (newCurrent.length !== next.current.length) {
+        // Move migrated ticket pins onto their PR, in place (or drop them).
+        if (u.migrateCurrent && u.migrateCurrent.length > 0) {
+          const newItemTickets = { ...next.itemTickets };
+          const swap = new Map(u.migrateCurrent.map((m) => [m.from, m]));
+          const newCurrent = next.current.flatMap((id) => {
+            const m = swap.get(id);
+            if (!m) return [id];
+            delete newItemTickets[id];
+            if (!m.to || next.current.includes(m.to)) return [];
+            newItemTickets[m.to] = m.ticketId;
+            return [m.to];
+          });
           next = { ...next, current: newCurrent, itemTickets: newItemTickets };
           changed = true;
         }
-      }
-      if (u.dropCurrentTickets && u.dropCurrentTickets.length > 0) {
-        const dropSet = new Set(u.dropCurrentTickets);
-        const newCurrentTickets = next.currentTickets.filter((id) => !dropSet.has(id));
-        if (newCurrentTickets.length !== next.currentTickets.length) {
-          next = { ...next, currentTickets: newCurrentTickets };
+
+        // Merge new arrivals
+        if (u.arrival && Object.keys(u.arrival).length > 0) {
+          next = { ...next, arrival: { ...next.arrival, ...u.arrival } };
           changed = true;
         }
-      }
 
-      // Seed seen map on first run
-      if (u.seen) {
-        next = { ...next, seen: { ...next.seen, ...u.seen } };
-        changed = true;
-      }
-      if (u.seeded) {
-        next = { ...next, seeded: true };
-        changed = true;
-      }
-
-      // Update lastPresent for all present ids
-      const nowIso = now.toISOString();
-      const newLastPresent = { ...next.lastPresent };
-      let lastPresentChanged = false;
-      for (const id of presentIds) {
-        if (newLastPresent[id] !== nowIso) {
-          newLastPresent[id] = nowIso;
-          lastPresentChanged = true;
+        // Reopen closed tickets
+        if (u.reopen && u.reopen.length > 0) {
+          const newClosed = { ...next.closed };
+          for (const id of u.reopen) delete newClosed[id];
+          next = { ...next, closed: newClosed };
+          changed = true;
         }
-      }
-      if (lastPresentChanged) {
-        next = { ...next, lastPresent: newLastPresent };
-        changed = true;
-      }
 
-      // Prune arrival entries absent for > 30 days
-      const cutoff = now.getTime() - ARRIVAL_TTL_MS;
-      const presentSet = new Set(presentIds);
-      const newArrival = { ...next.arrival };
-      let arrivalChanged = false;
-      for (const id in newArrival) {
-        if (!presentSet.has(id)) {
-          const lastSeen = newLastPresent[id];
-          if (lastSeen && new Date(lastSeen).getTime() < cutoff) {
-            delete newArrival[id];
-            delete newLastPresent[id];
-            arrivalChanged = true;
+        // Prune dropCurrent entries from current, itemTickets, and dropCurrentTickets from currentTickets
+        if (u.dropCurrent && u.dropCurrent.length > 0) {
+          const dropSet = new Set(u.dropCurrent);
+          const newCurrent = next.current.filter((id) => !dropSet.has(id));
+          const newItemTickets = { ...next.itemTickets };
+          for (const id of u.dropCurrent) delete newItemTickets[id];
+          if (newCurrent.length !== next.current.length) {
+            next = { ...next, current: newCurrent, itemTickets: newItemTickets };
+            changed = true;
           }
         }
-      }
-      if (arrivalChanged) {
-        next = { ...next, arrival: newArrival, lastPresent: newLastPresent };
-        changed = true;
-      }
+        if (u.dropCurrentTickets && u.dropCurrentTickets.length > 0) {
+          const dropSet = new Set(u.dropCurrentTickets);
+          const newCurrentTickets = next.currentTickets.filter((id) => !dropSet.has(id));
+          if (newCurrentTickets.length !== next.currentTickets.length) {
+            next = { ...next, currentTickets: newCurrentTickets };
+            changed = true;
+          }
+        }
 
-      return changed ? next : prev;
-    });
-  }, []);
+        // Seed seen map on first run
+        if (u.seen) {
+          next = { ...next, seen: { ...next.seen, ...u.seen } };
+          changed = true;
+        }
+        if (u.seeded) {
+          next = { ...next, seeded: true };
+          changed = true;
+        }
+
+        // Update lastPresent for all present ids
+        const nowIso = now.toISOString();
+        const newLastPresent = { ...next.lastPresent };
+        let lastPresentChanged = false;
+        for (const id of presentIds) {
+          if (newLastPresent[id] !== nowIso) {
+            newLastPresent[id] = nowIso;
+            lastPresentChanged = true;
+          }
+        }
+        if (lastPresentChanged) {
+          next = { ...next, lastPresent: newLastPresent };
+          changed = true;
+        }
+
+        // Prune arrival entries absent for > 30 days
+        const cutoff = now.getTime() - ARRIVAL_TTL_MS;
+        const presentSet = new Set(presentIds);
+        const newArrival = { ...next.arrival };
+        let arrivalChanged = false;
+        for (const id in newArrival) {
+          if (!presentSet.has(id)) {
+            const lastSeen = newLastPresent[id];
+            if (lastSeen && new Date(lastSeen).getTime() < cutoff) {
+              delete newArrival[id];
+              delete newLastPresent[id];
+              arrivalChanged = true;
+            }
+          }
+        }
+        if (arrivalChanged) {
+          next = { ...next, arrival: newArrival, lastPresent: newLastPresent };
+          changed = true;
+        }
+
+        // Prune `seen` entries older than the TTL for PRs and tickets no longer on the deck.
+        if (presentSeen) {
+          const seenSet = new Set(presentSeen);
+          const newSeen = { ...next.seen };
+          let seenChanged = false;
+          for (const id in newSeen) {
+            if (!seenSet.has(id) && new Date(newSeen[id]).getTime() < cutoff) {
+              delete newSeen[id];
+              seenChanged = true;
+            }
+          }
+          if (seenChanged) {
+            next = { ...next, seen: newSeen };
+            changed = true;
+          }
+        }
+
+        // Prune `closed` entries older than the TTL for tickets no longer on the deck.
+        const newClosed = { ...next.closed };
+        let closedChanged = false;
+        for (const id in newClosed) {
+          if (!presentSet.has(id) && new Date(newClosed[id]).getTime() < cutoff) {
+            delete newClosed[id];
+            closedChanged = true;
+          }
+        }
+        if (closedChanged) {
+          next = { ...next, closed: newClosed };
+          changed = true;
+        }
+
+        return changed ? next : prev;
+      });
+    },
+    [],
+  );
 
   return {
     state,

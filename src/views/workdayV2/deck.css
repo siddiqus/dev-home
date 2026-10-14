@@ -757,9 +757,10 @@ button.deck-rail-row:focus-visible {
   vertical-align: top;
 }
 
-.deck-shortcuts-keys {
+/* td + class: outranks `.deck-shortcuts-table td`'s padding without !important. */
+.deck-shortcuts-table td.deck-shortcuts-keys {
   width: 30%;
-  padding-right: var(--space-3) !important;
+  padding-right: var(--space-3);
   white-space: nowrap;
   color: var(--color-text-muted);
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
-import { buildDeck, shortKey, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
+import { buildDeck, deckProjects, shortKey, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
 import type { DeckInputs, DeckTicket } from "./types";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
@@ -470,6 +470,51 @@ describe("buildDeck auto-close and pruning", () => {
   });
 });
 
+describe("buildDeck ticket pin migration", () => {
+  it("moves a ticket:<KEY> pin to the first card-order PR once the ticket has PRs", () => {
+    const failing = pr(2, {
+      title: "CCP-9 b",
+      checks_status: "FAILURE",
+      checks: [{ name: "unit", status: "FAILURE" }] as GitHubPR["checks"],
+    });
+    const deck = build(
+      { openPRs: [pr(1, { title: "CCP-9 a" }), failing], assignedIssues: [issue("CCP-9")] },
+      { current: ["ticket:CCP-9"], currentTickets: ["CCP-9"] },
+    );
+    const t = byId(deck.current, "CCP-9");
+    // Still Current, now through the PR pin: Space on that PR un-pins it.
+    expect(t.current).toBe(true);
+    expect(t.prs[0].pr.number).toBe(2);
+    expect(t.prs[0].current).toBe(true);
+    expect(t.prs[1].current).toBe(false);
+    expect(deck.stateUpdates.migrateCurrent).toEqual([
+      { from: "ticket:CCP-9", to: `pr:${failing.html_url}`, ticketId: "CCP-9" },
+    ]);
+    expect(deck.stateUpdates.dropCurrentTickets).toBeUndefined();
+  });
+
+  it("just drops the ticket pin when one of its PRs is already current", () => {
+    const a = pr(1, { title: "CCP-9 a" });
+    const deck = build(
+      { openPRs: [a, pr(2, { title: "CCP-9 b" })] },
+      { current: ["ticket:CCP-9", `pr:${a.html_url}`], currentTickets: ["CCP-9"] },
+    );
+    expect(byId(deck.current, "CCP-9").prs.filter((p) => p.current)).toHaveLength(1);
+    expect(deck.stateUpdates.migrateCurrent).toEqual([
+      { from: "ticket:CCP-9", to: null, ticketId: "CCP-9" },
+    ]);
+  });
+
+  it("leaves a PR-less ticket's pin alone", () => {
+    const deck = build(
+      { assignedIssues: [issue("CCP-9")] },
+      { current: ["ticket:CCP-9"], currentTickets: ["CCP-9"] },
+    );
+    expect(deck.stateUpdates.migrateCurrent).toBeUndefined();
+    expect(byId(deck.current, "CCP-9").current).toBe(true);
+  });
+});
+
 describe("buildDeck closed group and reopening", () => {
   const a = pr(1, { title: "CCP-1 a", updated_at: "2026-10-10T10:00:00Z" });
   const b = pr(2, { title: "CCP-2 b", updated_at: "2026-10-10T10:00:00Z" });
@@ -750,6 +795,13 @@ describe("shortKey", () => {
   it("shortens to the number when every keyed ticket shares one prefix", () => {
     const deck = [t("CCP-412"), t("CCP-7"), t(null)];
     expect(shortKey("CCP-412", deck)).toBe("412");
+  });
+
+  it("accepts a precomputed project set", () => {
+    const projects = deckProjects([t("CCP-412"), t("CCP-7")]);
+    expect(shortKey("CCP-412", projects)).toBe("412");
+    expect(shortKey("OPS-1", projects)).toBe("OPS-1");
+    expect(shortKey("OPS-1", deckProjects([t("CCP-412"), t("OPS-7")]))).toBe("OPS-1");
   });
 
   it("keeps the full key when prefixes differ", () => {

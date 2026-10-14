@@ -7,11 +7,12 @@ import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
+import { usePersistedSet } from "../../hooks/usePersistedSet";
 import { usePersistedState } from "../../hooks/usePersistedState";
 import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import type { WorkdayViewProps } from "../workday/WorkdayView";
-import { useStoredState, isTypingTarget } from "../workday/WorkdayView";
+import { useStoredState, isTypingTarget, DEFAULT_COLLAPSED } from "../workday/WorkdayView";
 import { buildWorkday, filterWorkday } from "../workday/buildWorkday";
 import { workdayToMarkdown } from "../workday/workdayMarkdown";
 import { formatSinceLabel, sinceFor, type Lookback } from "../workday/dates";
@@ -26,6 +27,8 @@ import type { MentionItem } from "../workday/types";
 import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
 import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
+import { jiraCommentUrl } from "./DeckContext";
+import type { DeckPR } from "./types";
 import { DeckMode, type SwipeDirection } from "./DeckMode";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
@@ -55,6 +58,10 @@ const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilte
 const CLOSED_FOLDED_KEY = "dev-home-workday-v2-closed-folded";
 const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
 const HIDE_HINTS_KEY = "dev-home-workday-v2-hide-hints";
+/** Standup sections open by default; ids here are collapsed (v1's rule, own keys). */
+const COLLAPSED_KEY = "dev-home-workday-v2-collapsed";
+/** Standup sections collapsed by default; ids here are expanded. */
+const EXPANDED_KEY = "dev-home-workday-v2-expanded";
 const NO_MENTIONS: never[] = [];
 const noop = () => {};
 
@@ -66,6 +73,22 @@ const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer
 /** useDashboard's per-source prefixes. Only the first three feed the deck's tickets. */
 const SOURCE_PREFIX =
   /(?:^|; )(GitHub PRs|GitHub Reviews|GitHub Mentions|JIRA Issues|JIRA Mentions): /g;
+const DECK_SOURCES = new Set(["GitHub PRs", "GitHub Reviews", "JIRA Issues"]);
+
+/** The sources named in a useDashboard error message. */
+const errorSources = (error: string) =>
+  new Set([...error.matchAll(SOURCE_PREFIX)].map((m) => m[1]));
+
+/**
+ * True when an error could have hidden tickets: a deck source failed, or the
+ * error names no known source. A mentions-only failure only loses quotes, so
+ * deck state updates still apply.
+ */
+export function blocksDeckUpdates(error: string | null): boolean {
+  if (!error) return false;
+  const sources = errorSources(error);
+  return sources.size === 0 || [...sources].some((s) => DECK_SOURCES.has(s));
+}
 
 /**
  * The rail banner for a failed source. useDashboard joins per-source messages
@@ -75,7 +98,7 @@ const SOURCE_PREFIX =
  */
 export function sourceErrorText(error: string | null): string | null {
   if (!error) return null;
-  const sources = new Set([...error.matchAll(SOURCE_PREFIX)].map((m) => m[1]));
+  const sources = errorSources(error);
   const github = sources.has("GitHub PRs") || sources.has("GitHub Reviews");
   const jira = sources.has("JIRA Issues");
   if (github && jira) return "GitHub and Jira unavailable";
@@ -135,7 +158,6 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     githubMentions = NO_MENTIONS,
     jiraMentions = NO_MENTIONS,
     loading,
-    mentionsLoading = false,
     sourcesLoaded = true,
     sourceError = null,
     jiraBaseUrl,
@@ -162,7 +184,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const openIssue = useOptionalJiraDrawer();
-  // Track if we've finished at least one load, so the spinner shows on refreshes but not first load.
+  // Track if we've finished at least one load, so the refresh spinner skips the first load.
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   useEffect(() => {
     if (!loading && !hasLoadedOnce) {
@@ -174,7 +196,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || selectedPR || paletteOpen || helpOpen) return;
+      if (isTypingTarget(e.target) || selectedPR || paletteOpen || helpOpen || drawerOpen()) return;
       const key = e.key.toLowerCase();
       if (key === "f") setMode("focus");
       else if (key === "s") setMode("standup");
@@ -248,20 +270,25 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   // after a complete, error-free load, so a partial or failed fetch never drops
   // pins or seeds from incomplete data. Keyed on the patch content, not its
   // identity: once applied, the next build's patch is empty and the effect settles.
-  const canApply = sourcesLoaded && !loading && !mentionsLoading && !sourceError;
-  const patchKey = useMemo(
-    () =>
-      JSON.stringify({
-        updates: deck.stateUpdates,
-        present: [...deck.current, ...deck.open, ...deck.closed].map((t) => t.id),
-        at: now.toISOString(),
-      }),
-    [deck, now],
-  );
+  // Mentions only feed quotes: their loading or failing doesn't hold the patch back.
+  const canApply = sourcesLoaded && !loading && !blocksDeckUpdates(sourceError);
+  const patchKey = useMemo(() => {
+    const tabs = [...deck.current, ...deck.open, ...deck.closed];
+    return JSON.stringify({
+      updates: deck.stateUpdates,
+      present: tabs.map((t) => t.id),
+      // `seen` ids still on the deck, so stale entries can be pruned.
+      seen: tabs.flatMap((t) => [
+        ...t.prs.map((p) => p.pr.html_url),
+        ...(t.key ? [ticketPin(t.key)] : []),
+      ]),
+      at: now.toISOString(),
+    });
+  }, [deck, now]);
   useEffect(() => {
     if (!canApply) return;
-    const { updates, present, at } = JSON.parse(patchKey);
-    applyUpdates(updates, present, new Date(at));
+    const { updates, present, seen, at } = JSON.parse(patchKey);
+    applyUpdates(updates, present, new Date(at), seen);
   }, [canApply, patchKey, applyUpdates]);
 
   // The time stamped on closes and seen marks: the wall clock, but never before
@@ -314,7 +341,39 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   );
   // The picked PR is per card; opening a card picks its first current PR, else the top row.
   const [prPick, setPrPick] = useState<{ ticketId: string; url: string } | null>(null);
-  const cardPRs = useMemo(() => selectedTicket?.prs ?? [], [selectedTicket]);
+  // The card's PR order is frozen for a card visit: captured when the card
+  // opens, with PRs that arrive later appended. Marking PRs seen (the dwell)
+  // re-sorts equal-priority PRs, which would otherwise move the highlight
+  // under the user and drop an open `.` composer. Adjusted during render, so
+  // the card never paints in the live order first.
+  const livePRs = selectedTicket?.prs;
+  const [prOrder, setPrOrder] = useState<{ ticketId: string | null; urls: string[] }>(() => ({
+    ticketId: selectedId,
+    urls: (livePRs ?? []).map((p) => p.pr.html_url),
+  }));
+  let order = prOrder;
+  if (order.ticketId !== selectedId) {
+    order = { ticketId: selectedId, urls: (livePRs ?? []).map((p) => p.pr.html_url) };
+    setPrOrder(order);
+  } else {
+    const added = (livePRs ?? []).filter((p) => !order.urls.includes(p.pr.html_url));
+    if (added.length > 0) {
+      order = { ticketId: selectedId, urls: [...order.urls, ...added.map((p) => p.pr.html_url)] };
+      setPrOrder(order);
+    }
+  }
+  // Pin the default pick for the visit too (unless a jump already picked one),
+  // so a PR turning current mid-visit doesn't move the highlight either.
+  if (selectedId && prPick?.ticketId !== selectedId) {
+    const first = livePRs?.find((p) => p.current) ?? livePRs?.[0];
+    if (first) setPrPick({ ticketId: selectedId, url: first.pr.html_url });
+  }
+  const orderUrls = order.urls;
+  const cardPRs = useMemo<DeckPR[]>(() => {
+    const prs = livePRs ?? [];
+    const at = (p: DeckPR) => orderUrls.indexOf(p.pr.html_url);
+    return [...prs].sort((a, b) => at(a) - at(b));
+  }, [livePRs, orderUrls]);
   const pickedPR =
     (prPick?.ticketId === selectedId && cardPRs.find((p) => p.pr.html_url === prPick.url)) ||
     cardPRs.find((p) => p.current) ||
@@ -411,7 +470,11 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   // moves to the next ticket in rail order.
   const closeTicket = useCallback(
     (id: string) => {
-      close(id, stamp());
+      // Never before the ticket's newest PR update: a PR clock ahead of ours
+      // would otherwise reopen the tab on the next build.
+      const t = [...deck.current, ...deck.open].find((x) => x.id === id);
+      const newest = Math.max(0, ...(t?.prs ?? []).map((p) => Date.parse(p.pr.updated_at) || 0));
+      close(id, new Date(Math.max(stamp().getTime(), newest)));
       if (id !== selectedId) return;
       const i = rail.findIndex((t) => t.id === id);
       const rest = rail.filter((t) => t.id !== id);
@@ -421,7 +484,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
         selectTicket(next.id);
       } else select(null);
     },
-    [close, stamp, selectedId, rail, selectTicket, select, intendNav],
+    [close, stamp, deck, selectedId, rail, selectTicket, select, intendNav],
   );
 
   // Read through a ref so a new onRefresh identity doesn't re-bind the deck keys.
@@ -442,6 +505,8 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     else if (!drawerOpen() && selectedPR === null) openPalette();
   }, [paletteOpen, selectedPR, openPalette]);
   const deckKeys = useMemo<DeckKeyHandlers>(() => {
+    // The drawer/modal check lives in useDeckKeys (isBlocked), before any
+    // preventDefault; this guard covers ⌘K's palette commands calling handlers.
     const guard = (fn: () => void) => () => {
       if (!drawerOpen()) fn();
     };
@@ -522,6 +587,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   useDeckKeys(deckKeys, {
     enabled: configured && mode === "focus",
     blocked: selectedPR !== null || helpOpen,
+    isBlocked: drawerOpen,
   });
 
   // ⌘K in Standup too ("from anywhere on the page"); Focus gets it from useDeckKeys.
@@ -640,7 +706,23 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       markUnread,
     ],
   );
-  const onOpenMention = useCallback((m: MentionItem) => openTab(m.url), []);
+  // Jira mentions carry no url: show the issue in the drawer, else link to the
+  // comment, else (no Jira base URL) there is nothing to open.
+  const onOpenMention = useCallback(
+    (m: MentionItem) => {
+      if (m.source !== "Jira") {
+        if (m.url) openTab(m.url);
+        return;
+      }
+      if (m.ticketKey && openIssue) openIssue(m.ticketKey);
+      else if (m.url) openTab(m.url);
+      else if (m.ticketKey) {
+        const url = jiraCommentUrl(jiraBaseUrl, m.ticketKey, m.id);
+        if (url) openTab(url);
+      }
+    },
+    [openIssue, jiraBaseUrl],
+  );
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
@@ -698,8 +780,16 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const showClosed = useCallback(() => setClosedFolded(false), [setClosedFolded]);
   const toStandup = useCallback(() => setMode("standup"), [setMode]);
 
-  // Section toggle stubs for Standup (not implemented yet; Task 8 does state management).
-  const sectionToggle = useCallback(() => ({ collapsed: false, onToggle: () => {} }), []);
+  // Standup section folding: v1's rule (defaults per section, flips persisted).
+  const [collapsedSections, , toggleCollapsed] = usePersistedSet(COLLAPSED_KEY);
+  const [expandedSections, , toggleExpanded] = usePersistedSet(EXPANDED_KEY);
+  const sectionToggle = useCallback(
+    (id: string) => ({
+      collapsed: DEFAULT_COLLAPSED.has(id) ? !expandedSections.has(id) : collapsedSections.has(id),
+      onToggle: () => (DEFAULT_COLLAPSED.has(id) ? toggleExpanded(id) : toggleCollapsed(id)),
+    }),
+    [collapsedSections, expandedSections, toggleCollapsed, toggleExpanded],
+  );
 
   if (!configured) {
     return (
@@ -714,7 +804,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const sinceLabel = formatSinceLabel(since);
   // First load with nothing to show yet: skeletons instead of the empty deck.
   const firstLoad =
-    loading && !hasLoadedOnce && deck.current.length + deck.open.length + deck.closed.length === 0;
+    !sourcesLoaded && deck.current.length + deck.open.length + deck.closed.length === 0;
   const notStartedCount =
     sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
@@ -778,6 +868,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               selectedId={selectedId}
               onSelect={clickTicket}
               selectedPrUrl={selectedPrUrl}
+              cardPRs={cardPRs}
               onSelectPr={selectPr}
               onOpen={openPR}
               jiraBaseUrl={jiraBaseUrl}

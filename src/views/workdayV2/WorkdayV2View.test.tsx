@@ -17,6 +17,12 @@ vi.mock("../../hooks/usePRBody", () => ({
   usePRBody: () => ({ body: "PR body text", loading: false }),
 }));
 
+const drawer = vi.hoisted(() => ({ open: null as null | ((key: string) => void) }));
+vi.mock("../../context/JiraDrawerContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../context/JiraDrawerContext")>()),
+  useOptionalJiraDrawer: () => drawer.open,
+}));
+
 import { WorkdayV2View, sourceErrorText } from "./WorkdayV2View";
 
 const NOW = new Date(2026, 9, 14, 10, 0);
@@ -390,6 +396,9 @@ describe("WorkdayV2View deck", () => {
 
     press("ArrowRight");
     expect(card()).toHaveAccessibleName(/^CCP-412/); // Still on first card
+    // Not even preventDefault: arrows and Space scroll the open drawer.
+    expect(press("ArrowDown")).toBe(true);
+    expect(press(" ")).toBe(true);
 
     document.body.removeChild(drawer);
   });
@@ -888,17 +897,17 @@ describe("WorkdayV2View polish", () => {
   });
 
   it("shows rail and card skeletons on a first load with no data, not on refresh", () => {
-    const { rerender } = renderView({ openPRs: [], loading: true });
+    const { rerender } = renderView({ openPRs: [], loading: true, sourcesLoaded: false });
     const rows = screen.getByTestId("deck-rail-skeleton").querySelectorAll(".deck-skeleton-row");
     expect(rows).toHaveLength(6);
     expect(screen.getByTestId("deck-card-skeleton")).toBeTruthy();
     expect(screen.queryByText("Nothing open. Nice.")).toBeNull();
 
-    rerender({ openPRs: [], loading: false });
+    rerender({ openPRs: [], loading: false, sourcesLoaded: true });
     expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
     expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
 
-    rerender({ openPRs: [], loading: true });
+    rerender({ openPRs: [], loading: true, sourcesLoaded: true });
     expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
     expect(screen.getByLabelText("Refreshing")).toBeTruthy();
   });
@@ -1056,5 +1065,216 @@ describe("WorkdayV2View polish", () => {
     press("s");
     press("f");
     expect(column()).not.toHaveAttribute("data-swipe");
+  });
+});
+
+describe("WorkdayV2View final review follow-ups", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    drawer.open = null;
+  });
+
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+    renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
+  const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
+  const seedSeen = (unseen: number[] = []) => {
+    const seen: Record<string, string> = {};
+    for (const p of deckPRs) if (!unseen.includes(p.number)) seen[p.html_url] = p.updated_at;
+    for (const k of ["CCP-412", "CCP-401", "CCP-388"]) seen[`ticket:${k}`] = NOW.toISOString();
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, seeded: true, seen }));
+  };
+  const rowNumbers = () =>
+    within(prList())
+      .getAllByRole("option")
+      .map((o) => o.querySelector(".deck-pr-number")?.textContent);
+
+  it("keeps the highlighted PR and the card order when the dwell marks PRs seen", () => {
+    vi.useFakeTimers();
+    try {
+      // 1203 unseen sorts above the newer 1207; once seen, newest-first would flip them.
+      seedSeen([1203]);
+      renderDeck();
+      expect(rowNumbers()).toEqual(["#1203", "#1207"]);
+      expect(selectedPRRow()).toHaveTextContent("#1203");
+      act(() => vi.advanceTimersByTime(1500));
+      expect(stored().seen[deckPRs[0].html_url]).toBe(deckPRs[0].updated_at);
+      expect(rowNumbers()).toEqual(["#1203", "#1207"]);
+      expect(selectedPRRow()).toHaveTextContent("#1203");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps an open composer and its text through the dwell", () => {
+    vi.useFakeTimers();
+    try {
+      seedSeen([1203]);
+      renderDeck();
+      act(() => vi.advanceTimersByTime(500));
+      press(".");
+      const input = screen.getByRole("textbox", { name: "New note on r#1203" });
+      fireEvent.change(input, { target: { value: "half a thought" } });
+      act(() => vi.advanceTimersByTime(1500));
+      expect(screen.getByRole("textbox", { name: "New note on r#1203" })).toHaveValue(
+        "half a thought",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts a new card visit with a fresh order", () => {
+    seedSeen([1203]);
+    renderDeck();
+    press("ArrowRight");
+    press("ArrowLeft");
+    expect(selectedPRRow()).toHaveTextContent("#1203");
+  });
+
+  const jiraMention: JiraComment = {
+    id: "901",
+    issueKey: "OPS-7",
+    issueSummary: "Elsewhere",
+    author: { displayName: "Dana", avatarUrls: { "48x48": "" } },
+    body: { text: "can you look?" },
+    created: new Date(NOW.getTime() - 60_000).toISOString(),
+    updated: new Date(NOW.getTime() - 60_000).toISOString(),
+  } as unknown as JiraComment;
+
+  const openMention = async () => {
+    press("k", { metaKey: true });
+    fireEvent.click(screen.getByRole("option", { name: /Dana on OPS-7/ }));
+    await act(async () => {});
+    await act(async () => new Promise((r) => setTimeout(r, 400)));
+  };
+
+  it("⌘K on an unmatched Jira mention opens the Jira drawer, never a blank tab", async () => {
+    const open = vi.fn();
+    drawer.open = open;
+    const win = vi.spyOn(window, "open").mockImplementation(() => null);
+    try {
+      renderDeck({ jiraMentions: [jiraMention] });
+      await openMention();
+      expect(open).toHaveBeenCalledWith("OPS-7");
+      expect(win).not.toHaveBeenCalled();
+    } finally {
+      win.mockRestore();
+    }
+  });
+
+  it("⌘K on a Jira mention without a drawer links to the comment, or does nothing without a base URL", async () => {
+    const win = vi.spyOn(window, "open").mockImplementation(() => null);
+    try {
+      renderDeck({ jiraMentions: [jiraMention] });
+      await openMention();
+      expect(win).toHaveBeenCalledWith(
+        "https://example.atlassian.net/browse/OPS-7?focusedCommentId=901",
+        "_blank",
+        "noopener,noreferrer",
+      );
+      cleanup();
+      win.mockClear();
+      renderDeck({ jiraMentions: [jiraMention], jiraBaseUrl: "" });
+      await openMention();
+      expect(win).not.toHaveBeenCalled();
+    } finally {
+      win.mockRestore();
+    }
+  });
+
+  it("renders a card's Jira mention quote as plain text when there is no Jira base URL", () => {
+    const m = { ...jiraMention, issueKey: "CCP-412" } as JiraComment;
+    const seen: Record<string, string> = {};
+    for (const p of deckPRs) seen[p.html_url] = p.updated_at;
+    seen["ticket:CCP-412"] = "2026-10-01T00:00:00Z";
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, seeded: true, seen }));
+    renderDeck({ jiraMentions: [m], jiraBaseUrl: "" });
+    const quote = card().querySelector(".deck-quote")!;
+    expect(quote).toHaveTextContent("can you look?");
+    expect(quote.tagName).not.toBe("A");
+    expect(quote.getAttribute("href")).toBeNull();
+  });
+
+  it("applies state updates with mentions still loading or failed, not with a deck source down", () => {
+    const { rerender } = renderDeck({ mentionsLoading: true, sourceError: "GitHub Mentions: 502" });
+    expect(stored().seeded).toBe(true);
+    localStorage.clear();
+    cleanup();
+    const second = renderDeck({ sourceError: "JIRA Mentions: x; GitHub Reviews: y" });
+    expect(stored().seeded).toBeFalsy();
+    second.rerender({ sourceError: "Something else broke" });
+    expect(stored().seeded).toBeFalsy();
+    second.rerender({ sourceError: "JIRA Mentions: down" });
+    expect(stored().seeded).toBe(true);
+    void rerender;
+  });
+
+  it("collapses and expands Standup sections and remembers them, with v1's defaults", () => {
+    renderDeck();
+    fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
+    const toggle = (name: RegExp) =>
+      screen
+        .getAllByRole("button", { expanded: undefined })
+        .find(
+          (b) => b.classList.contains("workday-section-toggle") && name.test(b.textContent ?? ""),
+        )!;
+    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "true");
+    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle(/In Progress/));
+    fireEvent.click(toggle(/Not started/i));
+    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "false");
+    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "true");
+    expect(JSON.parse(localStorage.getItem("dev-home-workday-v2-collapsed")!)).toEqual([
+      "inProgress",
+    ]);
+    expect(JSON.parse(localStorage.getItem("dev-home-workday-v2-expanded")!)).toEqual([
+      "notStarted",
+    ]);
+    cleanup();
+    renderDeck();
+    expect(toggle(/In Progress/)).toHaveAttribute("aria-expanded", "false");
+    expect(toggle(/Not started/i)).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows first-load skeletons until every source has loaded, whatever loading says", () => {
+    const { rerender } = renderView({ openPRs: [], loading: false, sourcesLoaded: false });
+    expect(screen.getByTestId("deck-rail-skeleton")).toBeTruthy();
+    rerender({ openPRs: [], loading: false, sourcesLoaded: true });
+    expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
+    expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
+  });
+
+  it("stamps a close no earlier than the ticket's newest PR update", () => {
+    const future = new Date(NOW.getTime() + 10 * 60_000).toISOString();
+    const skewed = deckPRs.map((p) => (p.number === 1207 ? { ...p, updated_at: future } : p));
+    renderView({ openPRs: skewed, allIssues: deckIssues });
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    const realNow = Date.now;
+    Date.now = () => NOW.getTime();
+    try {
+      press("x");
+    } finally {
+      Date.now = realNow;
+    }
+    expect(stored().closed["CCP-412"]).toBe(future.replace(/\.\d{3}Z$/, ".000Z"));
+    // It stays closed rather than bouncing straight back.
+    expect(
+      within(screen.getByRole("group", { name: "Closed" })).getByText(/Closed · 1/),
+    ).toBeTruthy();
+  });
+
+  it("F / S stand down while the Jira drawer or a modal is open", () => {
+    renderDeck();
+    const shown = document.createElement("div");
+    shown.className = "offcanvas show";
+    document.body.appendChild(shown);
+    try {
+      fireEvent.keyDown(window, { key: "s" });
+      expect(screen.getByTestId("deck-mode")).toBeTruthy();
+    } finally {
+      shown.remove();
+    }
+    fireEvent.keyDown(window, { key: "s" });
+    expect(screen.queryByTestId("deck-mode")).toBeNull();
   });
 });

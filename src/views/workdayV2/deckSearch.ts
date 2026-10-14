@@ -2,6 +2,13 @@ import type { GitHubPR } from "../../types";
 import type { DeckData } from "./types";
 import { normalizeNoteRef } from "../../utils/prNotes";
 import { repoRef } from "../workday/prState";
+import { TICKET_KEY_REGEX } from "../../../shared/tickets";
+
+/** The shared ticket-key pattern (digits allowed in the project, e.g. AB2-12), unanchored. */
+const KEY = TICKET_KEY_REGEX.source.replace(/\\b/g, "");
+const BROWSE_RE = new RegExp(`/browse/${KEY}`, "i");
+const SELECTED_ISSUE_RE = new RegExp(`[?&]selectedIssue=${KEY}`, "i");
+const BARE_KEY_RE = new RegExp(`^${KEY}$`, "i");
 
 export type LinkTarget =
   | { kind: "pr"; repo: string; number: number; url: string }
@@ -59,18 +66,18 @@ export function parseLink(query: string): LinkTarget | null {
   }
 
   // Jira URLs: /browse/KEY or ?selectedIssue=KEY
-  const browseMatch = trimmed.match(/\/browse\/([A-Z]+-\d+)/i);
+  const browseMatch = trimmed.match(BROWSE_RE);
   if (browseMatch) {
     return { kind: "ticket", key: browseMatch[1].toUpperCase() };
   }
 
-  const selectedIssueMatch = trimmed.match(/[?&]selectedIssue=([A-Z]+-\d+)/i);
+  const selectedIssueMatch = trimmed.match(SELECTED_ISSUE_RE);
   if (selectedIssueMatch) {
     return { kind: "ticket", key: selectedIssueMatch[1].toUpperCase() };
   }
 
   // Bare Jira key: PROJECT-123
-  if (/^[A-Z]+-\d+$/i.test(trimmed)) {
+  if (BARE_KEY_RE.test(trimmed)) {
     return { kind: "ticket", key: trimmed.toUpperCase() };
   }
 
@@ -109,18 +116,26 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     // - branch name
 
     // Check for ticket-level match
-    const ticketScore = fuzzyMatch(trimmed, [ticket.key || "", ticket.title]);
+    // A pasted Jira link or key for this ticket pins it to the top.
+    const ticketLinked =
+      linkTarget?.kind === "ticket" && ticket.key?.toUpperCase() === linkTarget.key;
+    const ticketScore = ticketLinked
+      ? Infinity
+      : fuzzyMatch(trimmed, [ticket.key ?? "", ticket.title]);
 
     // Check each PR
     for (const deckPR of ticket.prs) {
       const pr = deckPR.pr;
 
-      // PR number matches - these should rank highest
-      const prNumberScore = fuzzyMatch(trimmed, [
-        `#${pr.number}`,
-        `${pr.number}`,
-        `${pr.repo_full_name.split("/")[1]}#${pr.number}`, // repo#123
-      ]);
+      // PR number matches rank highest: exact `1199`, `#1199` or `repo#1199` only,
+      // so a short number never matches inside a longer query.
+      const lowerQuery = trimmed.toLowerCase();
+      const repoName = (pr.repo_full_name.split("/")[1] ?? "").toLowerCase();
+      const prNumberScore = [`#${pr.number}`, `${pr.number}`, `${repoName}#${pr.number}`].includes(
+        lowerQuery,
+      )
+        ? 1000
+        : 0;
 
       // Other PR fields
       const prOtherScore = fuzzyMatch(trimmed, [
@@ -133,7 +148,12 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
 
       // Boost PR number matches to rank higher than title/other matches
       const prScore = prNumberScore > 0 ? prNumberScore + 10000 : prOtherScore;
-      const score = Math.max(ticketScore, prScore);
+      // A pasted PR link for this PR pins it to the top.
+      const prLinked =
+        linkTarget?.kind === "pr" &&
+        pr.repo_full_name.toLowerCase() === linkTarget.repo.toLowerCase() &&
+        pr.number === linkTarget.number;
+      const score = prLinked ? Infinity : Math.max(ticketScore, prScore);
 
       if (score > 0) {
         results.push({
@@ -165,73 +185,50 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   // Sort by score descending
   results.sort((a, b) => b.score - a.score);
 
-  // If we have a link target, check if it's in the results
-  if (linkTarget) {
-    const foundIndex = results.findIndex((r) => {
-      if (linkTarget.kind === "pr" && r.pr) {
-        return r.pr.repo_full_name === linkTarget.repo && r.pr.number === linkTarget.number;
-      }
-      if (linkTarget.kind === "ticket" && r.ticketKey) {
-        return r.ticketKey === linkTarget.key;
-      }
-      return false;
-    });
-
-    if (foundIndex === -1) {
-      // Not in the deck - return only the external result
-      return [
-        {
-          ticketId: null,
-          pr: null,
-          ticketKey: linkTarget.kind === "ticket" ? linkTarget.key : null,
-          label:
-            linkTarget.kind === "pr"
-              ? `${linkTarget.repo.split("/").pop()}#${linkTarget.number}`
-              : linkTarget.key,
-          sub: linkTarget.kind === "pr" ? linkTarget.url : "",
-          closed: false,
-          score: Infinity,
-          external: linkTarget,
-        },
-      ];
-    } else {
-      // Found in deck - boost it to the top but don't mark as external
-      results[foundIndex].score = Infinity;
-      results.sort((a, b) => b.score - a.score);
-    }
+  // A link that isn't in the deck: only the external result.
+  if (linkTarget && !results.some((r) => r.score === Infinity)) {
+    return [
+      {
+        ticketId: null,
+        pr: null,
+        ticketKey: linkTarget.kind === "ticket" ? linkTarget.key : null,
+        label:
+          linkTarget.kind === "pr"
+            ? `${linkTarget.repo.split("/").pop()}#${linkTarget.number}`
+            : linkTarget.key,
+        sub: linkTarget.kind === "pr" ? linkTarget.url : "",
+        closed: false,
+        score: Infinity,
+        external: linkTarget,
+      },
+    ];
   }
 
   return results;
 }
 
 /**
- * Fuzzy subsequence match: check if the query appears as a subsequence in any
- * of the targets (case-insensitive). Returns a score: higher is better.
- * Exact matches score highest.
+ * Fuzzy match of the query against each target (case-insensitive); the best
+ * target wins. Exact 1000, target contains the query 500, query is a
+ * subsequence of the target 100. Empty targets never match.
  */
 function fuzzyMatch(query: string, targets: string[]): number {
   const lowerQuery = query.toLowerCase();
-
+  let best = 0;
   for (const target of targets) {
+    if (!target) continue;
     const lowerTarget = target.toLowerCase();
-
-    // Exact match
-    if (lowerTarget === lowerQuery) {
-      return 1000;
-    }
-
-    // Exact substring match (query contains target OR target contains query)
-    if (lowerTarget.includes(lowerQuery) || lowerQuery.includes(lowerTarget)) {
-      return 500;
-    }
-
-    // Subsequence match
-    if (isSubsequence(lowerQuery, lowerTarget)) {
-      return 100;
-    }
+    const score =
+      lowerTarget === lowerQuery
+        ? 1000
+        : lowerTarget.includes(lowerQuery)
+          ? 500
+          : isSubsequence(lowerQuery, lowerTarget)
+            ? 100
+            : 0;
+    if (score > best) best = score;
   }
-
-  return 0;
+  return best;
 }
 
 /**

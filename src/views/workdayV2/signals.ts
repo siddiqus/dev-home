@@ -31,7 +31,9 @@ export const PRIORITY: Record<BadgeVariant, number> = {
 
 /**
  * Signals for my own PRs, worst first. Spec §5.5 "My PRs" table.
- * Reuses v1's selfNeeds, readyToMerge, ciFailing so v1 and v2 never disagree.
+ * Reuses v1's readyToMerge and ciFailing (prState), noReviewer and RED_CHECK_STATUSES
+ * (prCategories) and diffSize so v1 and v2 agree on the underlying facts. It does
+ * not call v1's selfNeeds: the chips and their wording are built here.
  */
 export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   const signals: Signal[] = [];

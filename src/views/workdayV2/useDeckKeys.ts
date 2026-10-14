@@ -23,17 +23,23 @@ export interface DeckKeyHandlers {
 
 const SEQUENCE_TIMEOUT_MS = 1000;
 
+/** Links and buttons keep their native Enter/Space, wherever they sit (rows included). */
+const isInteractiveControl = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.matches('button, a[href], [role="button"], summary');
+
 /**
  * Focus-mode keyboard map with guards.
  * Ignores keys while typing in input/textarea/contenteditable,
  * and while blocked (modal/drawer/note editor/palette open),
- * except ⌘K/Ctrl+K which always works.
+ * except ⌘K/Ctrl+K which always works. `isBlocked` is checked on every key,
+ * for state only the DOM knows (an open drawer or modal): a blocked key is
+ * left alone entirely, so arrows and Space still scroll the drawer.
  */
 export function useDeckKeys(
   h: DeckKeyHandlers,
-  opts: { enabled: boolean; blocked: boolean },
+  opts: { enabled: boolean; blocked: boolean; isBlocked?: () => boolean },
 ): void {
-  const { enabled, blocked } = opts;
+  const { enabled, blocked, isBlocked } = opts;
   const sequenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const waitingForCRef = useRef(false);
 
@@ -49,14 +55,7 @@ export function useDeckKeys(
       }
 
       // Ignore if typing target or blocked (after checking for ⌘K above)
-      if (isTypingTarget(e.target) || blocked) return;
-
-      // Helper: is target an interactive control outside of deck listboxes?
-      const isInteractiveControl = (target: EventTarget | null): boolean => {
-        if (!(target instanceof Element)) return false;
-        if (target.closest('[role="listbox"]')) return false;
-        return target.matches('button, a[href], [role="button"], summary');
-      };
+      if (isTypingTarget(e.target) || blocked || isBlocked?.()) return;
 
       const key = e.key;
       const lowerKey = key.toLowerCase();
@@ -210,5 +209,5 @@ export function useDeckKeys(
         clearTimeout(sequenceTimerRef.current);
       }
     };
-  }, [enabled, blocked, h]);
+  }, [enabled, blocked, isBlocked, h]);
 }

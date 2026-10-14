@@ -1,7 +1,7 @@
 import type { GitHubPR, Note } from "../../types";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
-import type { DeckData } from "./types";
+import type { DeckData, DeckPR } from "./types";
 
 /** Which way the card swipes when the selection changes: "next" enters from the right. */
 export type SwipeDirection = "next" | "prev";
@@ -11,6 +11,8 @@ export interface DeckModeProps {
   selectedId: string | null;
   onSelect(id: string): void;
   selectedPrUrl: string | null;
+  /** The selected card's PRs in their frozen per-visit order; defaults to the ticket's. */
+  cardPRs?: DeckPR[];
   onSelectPr(url: string): void;
   onOpen(pr: GitHubPR): void;
   jiraBaseUrl: string;
@@ -48,6 +50,7 @@ export function DeckMode({
   selectedId,
   onSelect,
   selectedPrUrl,
+  cardPRs,
   onSelectPr,
   onOpen,
   jiraBaseUrl,
@@ -68,7 +71,8 @@ export function DeckMode({
   onShowClosed,
   onSwitchToStandup,
 }: DeckModeProps) {
-  const ticket = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
+  const found = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
+  const ticket = found && cardPRs ? { ...found, prs: cardPRs } : found;
   const empty = !loading && deck.current.length === 0 && deck.open.length === 0;
   return (
     <div className="deck-mode" data-testid="deck-mode">

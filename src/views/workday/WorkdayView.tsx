@@ -62,7 +62,7 @@ const MODE_LABELS: Record<Mode, string> = { focus: "Focus", standup: "Standup" }
 const COLLAPSED_KEY = "dev-home-workday-collapsed";
 /** Sections collapsed by default; ids here are expanded. */
 const EXPANDED_KEY = "dev-home-workday-expanded";
-const DEFAULT_COLLAPSED = new Set(["waiting", "notStarted"]);
+export const DEFAULT_COLLAPSED = new Set(["waiting", "notStarted"]);
 const MODE_SECTIONS: Record<Mode, string[]> = {
   focus: ["needs", "mentions", "working", "waiting"],
   standup: ["done", "inProgress", "blockers", "reviewing", "notStarted"],
