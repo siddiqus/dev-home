@@ -3,7 +3,7 @@ import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 import { deckProjects, shortKey } from "./buildDeck";
 import { DeckRailRow } from "./DeckRailRow";
 import { blurOnPointer } from "./pointer";
-import type { DeckData, DeckTicket } from "./types";
+import type { DeckData, DeckTicket } from "./deckTypes";
 
 export interface DeckRailProps {
   deck: DeckData;

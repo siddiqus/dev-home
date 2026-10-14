@@ -147,7 +147,7 @@ const snippetOf = (text: string) =>
     ?.replace(/\s+/g, " ")
     .slice(0, 200) ?? "";
 
-/** A GitHub mention as a MentionItem. Shared with Workday V2's deck. */
+/** A GitHub mention as a MentionItem. Shared with the Focus deck. */
 export const githubMentionItem = (m: GitHubComment): MentionItem => ({
   id: `gh:${m.id}`,
   source: "GitHub",
@@ -159,7 +159,7 @@ export const githubMentionItem = (m: GitHubComment): MentionItem => ({
   url: m.html_url,
 });
 
-/** A Jira mention as a MentionItem. Shared with Workday V2's deck. */
+/** A Jira mention as a MentionItem. Shared with the Focus deck. */
 export const jiraMentionItem = (c: JiraComment): MentionItem => ({
   id: `jira:${c.id}`,
   source: "Jira",

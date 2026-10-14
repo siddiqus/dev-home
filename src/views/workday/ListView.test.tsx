@@ -41,8 +41,8 @@ vi.mock("../../hooks/usePRBody", () => ({
   usePRBody: () => ({ body: "PR body text", loading: false }),
 }));
 
-import { WorkdayV2View } from "./WorkdayV2View";
-import { WorkdaySection } from "../workday/WorkdaySection";
+import { WorkdayView } from "./WorkdayView";
+import { WorkdaySection } from "./WorkdaySection";
 const NOW = new Date(2026, 9, 11, 10, 0);
 const prs: GitHubPR[] = [
   {
@@ -65,14 +65,14 @@ const prs: GitHubPR[] = [
   },
 ];
 
-function renderView(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) {
+function renderView(extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) {
   const addNote = vi.fn(
     async (type, content, reference_id, title) =>
       ({ id: 7, type, content, reference_id, title }) as Note,
   );
   const editNote = vi.fn(async () => {});
-  const view = (more: Partial<React.ComponentProps<typeof WorkdayV2View>>) => (
-    <WorkdayV2View
+  const view = (more: Partial<React.ComponentProps<typeof WorkdayView>>) => (
+    <WorkdayView
       configured
       openPRs={prs}
       reviewRequests={[]}
@@ -97,7 +97,7 @@ function renderView(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> =
   return {
     addNote,
     editNote,
-    rerender: (more: Partial<React.ComponentProps<typeof WorkdayV2View>>) => rerender(view(more)),
+    rerender: (more: Partial<React.ComponentProps<typeof WorkdayView>>) => rerender(view(more)),
   };
 }
 

@@ -1,6 +1,6 @@
 import type { GitHubPR, GitHubComment, JiraIssue, JiraComment, Note } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
-import type { TicketRef, MentionItem } from "../workday/types";
+import type { TicketRef, MentionItem } from "./types";
 
 /** A signal chip: a label with a tone. */
 export interface Signal {

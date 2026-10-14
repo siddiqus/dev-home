@@ -1,12 +1,12 @@
 import type { MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
-import { compactAge } from "../workday/dates";
-import { repoRef, titleWithoutKey } from "../workday/prState";
+import { compactAge } from "./dates";
+import { repoRef, titleWithoutKey } from "./prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
 import { blurOnPointer } from "./pointer";
 import { visibleChips } from "./signals";
-import type { DeckPR } from "./types";
+import type { DeckPR } from "./deckTypes";
 
 export interface DeckPRRowProps {
   /** DOM id, referenced by the PR list's `aria-activedescendant`. */

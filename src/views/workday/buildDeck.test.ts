@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 import { buildDeck, deckProjects, shortKey, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
-import type { DeckInputs, DeckTicket } from "./types";
+import type { DeckInputs, DeckTicket } from "./deckTypes";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
 

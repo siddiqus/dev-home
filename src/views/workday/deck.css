@@ -1,26 +1,26 @@
-/* Workday V2 deck styles */
+/* Workday deck styles */
 
-.workday-v2-cmd-k-hint {
+.workday-cmd-k-hint {
   color: var(--bs-secondary);
   text-decoration: none;
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
 }
 
-.workday-v2-cmd-k-hint:hover:not(:disabled) {
+.workday-cmd-k-hint:hover:not(:disabled) {
   color: var(--bs-body-color);
   text-decoration: none;
 }
 
-.workday-v2-cmd-k-hint:disabled {
+.workday-cmd-k-hint:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Both tabs fill the content area, so the header never moves and the deck
-   (or the standup sheet) scrolls on its own. Viewport minus app header (46px)
+/* All tabs fill the content area, so the header never moves and the deck
+   (or list, or standup sheet) scrolls on its own. Viewport minus app header (46px)
    and .main-content padding, like PRsView. */
-.workday-v2 {
+.workday-page {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 46px - var(--space-3) - var(--space-6));
@@ -28,35 +28,35 @@
 }
 
 /* The header row never wraps; the ⌘K hint gives way first on narrow screens. */
-.workday-v2 .workday-header {
+.workday-page .workday-header {
   flex-wrap: nowrap;
   align-items: center;
   white-space: nowrap;
 }
 
-.workday-v2 .workday-header > * {
+.workday-page .workday-header > * {
   flex: none;
 }
 
-.workday-v2 .workday-header > .workday-header-spacer {
+.workday-page .workday-header > .workday-header-spacer {
   flex: 1;
 }
 
-.workday-v2 .workday-header > .workday-v2-cmd-k-hint {
+.workday-page .workday-header > .workday-cmd-k-hint {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.workday-v2-summary {
+.workday-summary {
   font-size: 0.8125rem;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 /* Matches the 14px refresh icon it stands in for. */
-.workday-v2-refresh-spinner {
+.workday-refresh-spinner {
   width: 14px;
   height: 14px;
   border-width: 2px;

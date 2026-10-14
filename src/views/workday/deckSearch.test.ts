@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubPR } from "../../types";
 import { parseLink, searchDeck } from "./deckSearch";
-import type { DeckData, DeckTicket } from "./types";
+import type { DeckData, DeckTicket } from "./deckTypes";
 
 function pr(n: number, o: Partial<GitHubPR> = {}): GitHubPR {
   return {

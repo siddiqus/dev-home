@@ -1,9 +1,9 @@
 import type { GitHubPR } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
-import type { Signal } from "./types";
-import { diffSize } from "../workday/buildFocus";
-import { readyToMerge, ciFailing } from "../workday/prState";
-import { compactAge } from "../workday/dates";
+import type { Signal } from "./deckTypes";
+import { diffSize } from "./buildFocus";
+import { readyToMerge, ciFailing } from "./prState";
+import { compactAge } from "./dates";
 import { RED_CHECK_STATUSES, noReviewer } from "../../utils/prCategories";
 
 /** Get just the check names that are failing, formatted. */

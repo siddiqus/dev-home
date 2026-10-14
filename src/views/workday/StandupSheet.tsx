@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { IconAlertTriangle, IconHistory, IconSun } from "@tabler/icons-react";
 import { Badge } from "../../components/primitives/Badge";
 import type { GitHubPR } from "../../types";
-import { standupRef } from "../workday/dates";
-import { repoRef } from "../workday/prState";
-import { useStandupNote, type StandupNoteOptions } from "../workday/StandupNotes";
+import { standupRef } from "./dates";
+import { repoRef } from "./prState";
+import { useStandupNote, type StandupNoteOptions } from "./StandupNotes";
 import type { StandupGroup, StandupGroups, StandupItem } from "./standupModel";
 
 export interface StandupSheetProps {

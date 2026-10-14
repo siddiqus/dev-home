@@ -23,7 +23,7 @@ vi.mock("../../context/JiraDrawerContext", async (importOriginal) => ({
   useOptionalJiraDrawer: () => drawer.open,
 }));
 
-import { WorkdayV2View, sourceErrorText } from "./WorkdayV2View";
+import { WorkdayView, sourceErrorText } from "./WorkdayView";
 
 const NOW = new Date(2026, 9, 14, 10, 0);
 const prs: GitHubPR[] = [
@@ -47,14 +47,14 @@ const prs: GitHubPR[] = [
   },
 ];
 
-function renderView(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) {
+function renderView(extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) {
   const addNote = vi.fn(
     async (type, content, reference_id, title) =>
       ({ id: 7, type, content, reference_id, title }) as Note,
   );
   const editNote = vi.fn(async () => {});
-  const view = (more: Partial<React.ComponentProps<typeof WorkdayV2View>>) => (
-    <WorkdayV2View
+  const view = (more: Partial<React.ComponentProps<typeof WorkdayView>>) => (
+    <WorkdayView
       configured
       openPRs={prs}
       reviewRequests={[]}
@@ -79,7 +79,7 @@ function renderView(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> =
   return {
     addNote,
     editNote,
-    rerender: (more: Partial<React.ComponentProps<typeof WorkdayV2View>>) => rerender(view(more)),
+    rerender: (more: Partial<React.ComponentProps<typeof WorkdayView>>) => rerender(view(more)),
   };
 }
 
@@ -105,7 +105,7 @@ describe("sourceErrorText", () => {
   });
 });
 
-describe("WorkdayV2View", () => {
+describe("WorkdayView", () => {
   beforeEach(() => localStorage.clear());
 
   it("defaults to Focus mode with the deck", () => {
@@ -234,10 +234,10 @@ const selectedPRRow = () =>
 const press = (key: string, init: Partial<KeyboardEventInit> = {}) =>
   fireEvent.keyDown(document.body, { key, ...init });
 
-describe("WorkdayV2View deck", () => {
+describe("WorkdayView deck", () => {
   beforeEach(() => localStorage.clear());
 
-  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
 
   it("renders the rail groups and the first ticket's card", () => {
@@ -405,10 +405,10 @@ describe("WorkdayV2View deck", () => {
   });
 });
 
-describe("WorkdayV2View personal state", () => {
+describe("WorkdayView personal state", () => {
   beforeEach(() => localStorage.clear());
 
-  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
   const rail = () => screen.getByRole("listbox", { name: "Tickets" });
   const groupRows = (name: string) => {
@@ -631,10 +631,10 @@ describe("WorkdayV2View personal state", () => {
   });
 });
 
-describe("WorkdayV2View card context", () => {
+describe("WorkdayView card context", () => {
   beforeEach(() => localStorage.clear());
 
-  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
   const rail = () => screen.getByRole("listbox", { name: "Tickets" });
   const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
@@ -858,10 +858,10 @@ describe("WorkdayV2View card context", () => {
   });
 });
 
-describe("WorkdayV2View polish", () => {
+describe("WorkdayView polish", () => {
   beforeEach(() => localStorage.clear());
 
-  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
   const column = () => card().closest(".deck-column");
   const seedSeen = (unseen: number[] = []) => {
@@ -1069,13 +1069,13 @@ describe("WorkdayV2View polish", () => {
   });
 });
 
-describe("WorkdayV2View final review follow-ups", () => {
+describe("WorkdayView final review follow-ups", () => {
   beforeEach(() => {
     localStorage.clear();
     drawer.open = null;
   });
 
-  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
   const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
   const seedSeen = (unseen: number[] = []) => {

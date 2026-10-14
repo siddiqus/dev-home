@@ -1,7 +1,7 @@
 import type { GitHubPR, Note } from "../../types";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
-import type { DeckData, DeckPR } from "./types";
+import type { DeckData, DeckPR } from "./deckTypes";
 
 /** Which way the card swipes when the selection changes: "next" enters from the right. */
 export type SwipeDirection = "next" | "prev";
@@ -43,7 +43,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 /**
  * Focus mode: the rail and one centred card with two ghost cards behind it
- * (spec §5.1). Stateless; WorkdayV2View owns selection and keys.
+ * (spec §5.1). Stateless; WorkdayView owns selection and keys.
  */
 export function DeckMode({
   deck,

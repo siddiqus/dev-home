@@ -1,7 +1,7 @@
 import type { GitHubPR } from "../../types";
-import type { DeckData } from "./types";
+import type { DeckData } from "./deckTypes";
 import { normalizeNoteRef } from "../../utils/prNotes";
-import { repoRef } from "../workday/prState";
+import { repoRef } from "./prState";
 import { TICKET_KEY_REGEX } from "../../../shared/tickets";
 
 /** The shared ticket-key pattern (digits allowed in the project, e.g. AB2-12), unanchored. */

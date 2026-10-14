@@ -13,23 +13,23 @@ import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import { useStoredState } from "../../hooks/useStoredState";
 import { isTypingTarget } from "../../utils/dom";
-import { buildWorkday } from "../workday/buildWorkday";
-import { buildFocus } from "../workday/buildFocus";
-import { formatSinceLabel, LOOKBACKS, sinceFor, type Lookback } from "../workday/dates";
-import type { TicketRef, WorkdaySections } from "../workday/types";
-import { CopyPRLinkContext, CopyTicketContext, PinContext } from "../workday/CompactRow";
-import { FocusMode } from "../workday/FocusMode";
-import { PINS_KEY, prPin, ticketPin } from "../workday/pins";
+import { buildWorkday } from "./buildWorkday";
+import { buildFocus } from "./buildFocus";
+import { formatSinceLabel, LOOKBACKS, sinceFor, type Lookback } from "./dates";
+import type { TicketRef, WorkdaySections } from "./types";
+import { CopyPRLinkContext, CopyTicketContext, PinContext } from "./CompactRow";
+import { FocusMode } from "./FocusMode";
+import { PINS_KEY, prPin, ticketPin } from "./pins";
 import { prNoteKey } from "../../utils/prNotes";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
 import { fetchPR } from "../../services/github";
-import type { MentionItem } from "../workday/types";
+import type { MentionItem } from "./types";
 import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
 import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
 import { jiraCommentUrl } from "./DeckContext";
-import type { DeckPR } from "./types";
+import type { DeckPR } from "./deckTypes";
 import { DeckMode, type SwipeDirection } from "./DeckMode";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { StandupSheet } from "./StandupSheet";
@@ -37,10 +37,10 @@ import { standupGroups, standupGroupsToMarkdown } from "./standupModel";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
 import { useSeenTimer } from "./useSeenTimer";
-import "../workday/workday.css";
+import "./workday.css";
 import "./deck.css";
 
-export interface WorkdayV2ViewProps {
+export interface WorkdayViewProps {
   configured: boolean;
   openPRs: GitHubPR[];
   reviewRequests: GitHubPR[];
@@ -185,7 +185,7 @@ function offSprintKeysOf(s: WorkdaySections): Set<string> {
  * mentions / working-on / waiting lists; Standup Sheet is the grouped crib
  * sheet with a Copy button.
  */
-export function WorkdayV2View(props: WorkdayV2ViewProps) {
+export function WorkdayView(props: WorkdayViewProps) {
   const {
     configured,
     openPRs,
@@ -908,7 +908,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   return (
     <CopyTicketContext.Provider value={onCopyTicket}>
       <CopyPRLinkContext.Provider value={onCopyLink}>
-        <div className="workday-page workday-v2">
+        <div className="workday-page">
           <div className="workday-header">
             <SegmentedTabs
               className="inline-control workday-mode-toggle"
@@ -924,11 +924,11 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               onChange={(k) => setMode(k as Mode)}
             />
             <span className="workday-date-pill">{formatSinceLabel(now)}</span>
-            <span className="workday-v2-summary">{summary}</span>
+            <span className="workday-summary">{summary}</span>
             <Button
               variant="link"
               size="sm"
-              className="workday-v2-cmd-k-hint"
+              className="workday-cmd-k-hint"
               title="Find and act (⌘K)"
               onClick={openPalette}
             >
@@ -967,7 +967,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
                   size="sm"
                   role="status"
                   aria-label="Refreshing"
-                  className="workday-v2-refresh-spinner"
+                  className="workday-refresh-spinner"
                 />
               ) : (
                 <IconRefresh size={14} />

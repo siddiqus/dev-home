@@ -3,13 +3,13 @@ import type { BadgeVariant } from "../../components/primitives/Badge";
 import { ticketKeyOf } from "../../utils/tickets";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
 import { projectOfKey } from "../../../shared/tickets";
-import { githubMentionItem, jiraMentionItem } from "../workday/buildFocus";
-import { statusCategoryOf } from "../workday/buildWorkday";
-import { repoRef, reviewingState, titleWithoutKey } from "../workday/prState";
-import { prPin, ticketPin } from "../workday/pins";
-import type { MentionItem, TicketRef } from "../workday/types";
+import { githubMentionItem, jiraMentionItem } from "./buildFocus";
+import { statusCategoryOf } from "./buildWorkday";
+import { repoRef, reviewingState, titleWithoutKey } from "./prState";
+import { prPin, ticketPin } from "./pins";
+import type { MentionItem, TicketRef } from "./types";
 import { headline, mySignals, prPriority, reviewSignals, PRIORITY } from "./signals";
-import type { DeckData, DeckInputs, DeckPR, DeckTicket } from "./types";
+import type { DeckData, DeckInputs, DeckPR, DeckTicket } from "./deckTypes";
 
 /** Persisted deck state, minus the version (useDeckState owns storage). Spec §6.3. */
 export interface DeckState {

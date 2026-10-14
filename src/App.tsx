@@ -81,8 +81,8 @@ const TeamDashboardView = lazy(() =>
 const PomodoroView = lazy(() =>
   import("./views/pomodoro/PomodoroView").then((m) => ({ default: m.PomodoroView })),
 );
-const WorkdayV2View = lazy(() =>
-  import("./views/workdayV2/WorkdayV2View").then((m) => ({ default: m.WorkdayV2View })),
+const WorkdayView = lazy(() =>
+  import("./views/workday/WorkdayView").then((m) => ({ default: m.WorkdayView })),
 );
 
 const viewFallback = (
@@ -647,7 +647,7 @@ export default function App() {
                       />
                     )}
                     {effectiveTab === "workday" && (
-                      <WorkdayV2View
+                      <WorkdayView
                         configured={configured}
                         openPRs={openPRs}
                         reviewRequests={reviewRequests}

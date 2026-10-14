@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import type { Note } from "../../types";
-import { compactAge } from "../workday/dates";
-import type { MentionItem } from "../workday/types";
+import { compactAge } from "./dates";
+import type { MentionItem } from "./types";
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 

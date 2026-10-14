@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GitHubPR } from "../../types";
-import type { TicketRef, WorkdaySections } from "../workday/types";
+import type { TicketRef, WorkdaySections } from "./types";
 import { standupGroups, standupGroupsToMarkdown, statusTone } from "./standupModel";
 
 const now = new Date("2026-10-14T10:00:00Z");

@@ -1,13 +1,13 @@
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { TicketChip } from "../../components/TicketGroupHeader";
-import { OffSprintPill } from "../workday/CompactRow";
-import { compactAge } from "../workday/dates";
-import { repoRef } from "../workday/prState";
+import { OffSprintPill } from "./CompactRow";
+import { compactAge } from "./dates";
+import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
-import type { DeckTicket } from "./types";
+import type { DeckTicket } from "./deckTypes";
 
 export interface DeckCardProps {
   ticket: DeckTicket;

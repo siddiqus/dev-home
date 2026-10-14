@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import { blurOnPointer } from "./pointer";
-import type { DeckTicket } from "./types";
+import type { DeckTicket } from "./deckTypes";
 
 export interface DeckRailRowProps {
   /** DOM id, referenced by the rail's `aria-activedescendant`. */

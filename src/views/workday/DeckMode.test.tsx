@@ -2,7 +2,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import type { GitHubPR } from "../../types";
 import { DeckMode, type DeckModeProps } from "./DeckMode";
-import type { DeckData, DeckPR, DeckTicket } from "./types";
+import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
 

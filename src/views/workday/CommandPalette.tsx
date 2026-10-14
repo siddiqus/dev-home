@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Modal from "react-bootstrap/Modal";
 import { Badge } from "../../components/primitives/Badge";
-import { repoRef } from "../workday/prState";
-import type { MentionItem } from "../workday/types";
+import { repoRef } from "./prState";
+import type { MentionItem } from "./types";
 import { searchDeck, type SearchResult } from "./deckSearch";
-import type { DeckData, DeckTicket } from "./types";
+import type { DeckData, DeckTicket } from "./deckTypes";
 
 /** Actions on a selected result (spec §5.11 table). */
 export type PaletteAction =

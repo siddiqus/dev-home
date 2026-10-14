@@ -1,8 +1,8 @@
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import type { GitHubPR, ReviewState } from "../../types";
-import { compactAge } from "../workday/dates";
-import { repoRef, reviewingState, REVIEWING_LABEL, titleWithoutKey } from "../workday/prState";
-import type { TicketRef, WorkdaySections } from "../workday/types";
+import { compactAge } from "./dates";
+import { repoRef, reviewingState, REVIEWING_LABEL, titleWithoutKey } from "./prState";
+import type { TicketRef, WorkdaySections } from "./types";
 
 /** What a standup row points at: a PR (opens it) or a ticket (opens the issue). */
 export type StandupTarget = { kind: "pr"; pr: GitHubPR } | { kind: "ticket"; key: string };

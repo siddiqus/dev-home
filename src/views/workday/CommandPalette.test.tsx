@@ -1,8 +1,8 @@
 import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR, JiraIssue, Note } from "../../types";
-import type { MentionItem } from "../workday/types";
-import type { DeckData } from "./types";
+import type { MentionItem } from "./types";
+import type { DeckData } from "./deckTypes";
 
 vi.mock("../../hooks/useWorkdayExtras", () => ({
   useWorkdayExtras: () => ({
@@ -23,7 +23,7 @@ vi.mock("../../api/github", async (importOriginal) => ({
   getPrDetail: (args: unknown) => getPrDetail(args),
 }));
 
-import { WorkdayV2View } from "./WorkdayV2View";
+import { WorkdayView } from "./WorkdayView";
 import { CommandPalette, UNMATCHED_CAP } from "./CommandPalette";
 
 const NOW = new Date(2026, 9, 14, 10, 0);
@@ -85,13 +85,13 @@ function seedSeen(unseen: number[] = []) {
 }
 const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
 
-function renderDeck(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) {
+function renderDeck(extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) {
   const addNote = vi.fn(
     async (type, content, reference_id, title) =>
       ({ id: 7, type, content, reference_id, title }) as Note,
   );
   render(
-    <WorkdayV2View
+    <WorkdayView
       configured
       openPRs={deckPRs}
       reviewRequests={[]}
