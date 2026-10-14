@@ -146,6 +146,131 @@ export async function removeTeamMember(teamId: number, memberId: number): Promis
   teamMembersCollection.removeWhere((m) => m.id === memberId && m.team_id === teamId);
 }
 
+// --- Export / import ---
+// Teams travel by name and members by Jira account, so local ids never leave
+// the machine and an import merges cleanly into an existing setup.
+
+export interface TeamsExport {
+  kind: "dev-home-teams";
+  version: 1;
+  exportedAt?: string;
+  teams: Array<{
+    name: string;
+    jiraBoardId?: number | null;
+    jiraBoardName?: string | null;
+    members: Array<{
+      displayName: string;
+      jiraAccountId: string;
+      jiraEmail?: string | null;
+      githubUsername: string;
+    }>;
+  }>;
+}
+
+export function exportTeams(): TeamsExport {
+  const members = teamMembersCollection.all();
+  const teams = [...teamsCollection.all()]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    .map((t) => ({
+      name: t.name,
+      jiraBoardId: t.jira_board_id,
+      jiraBoardName: t.jira_board_name,
+      members: members
+        .filter((m) => m.team_id === t.id)
+        .sort((a, b) =>
+          a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+        )
+        .map((m) => ({
+          displayName: m.display_name,
+          jiraAccountId: m.jira_account_id,
+          jiraEmail: m.jira_email,
+          githubUsername: m.github_username,
+        })),
+    }));
+  return { kind: "dev-home-teams", version: 1, exportedAt: new Date().toISOString(), teams };
+}
+
+function parseTeamsExport(data: unknown): TeamsExport["teams"] {
+  const d = data as Partial<TeamsExport> | null;
+  if (!d || d.kind !== "dev-home-teams" || !Array.isArray(d.teams)) {
+    throw new Error("Not a teams export file");
+  }
+  return d.teams.map((t, i) => {
+    const name = typeof t?.name === "string" ? t.name.trim() : "";
+    if (!name) throw new Error(`Team #${i + 1} has no name`);
+    const members = Array.isArray(t.members) ? t.members : [];
+    for (const m of members) {
+      if (!m?.displayName || !m.jiraAccountId || !m.githubUsername) {
+        throw new Error(`Team "${name}" has a member missing a name, Jira account or GitHub user`);
+      }
+    }
+    return { ...t, name, members };
+  });
+}
+
+/**
+ * Merge an export into local teams. Same-named teams (case-insensitive) gain
+ * any members they're missing and take the file's board if it has one; other
+ * teams are created. Nothing is removed. Validates the whole file first.
+ */
+export function importTeams(data: unknown): {
+  created: number;
+  updated: number;
+  membersAdded: number;
+} {
+  const incoming = parseTeamsExport(data);
+  const now = sqliteNow();
+  let created = 0;
+  let updated = 0;
+  let membersAdded = 0;
+  for (const t of incoming) {
+    const existing = teamsCollection
+      .all()
+      .find((x) => x.name.toLowerCase() === t.name.toLowerCase());
+    let teamId: number;
+    if (existing) {
+      teamId = existing.id;
+      if (t.jiraBoardId != null) {
+        teamsCollection.update(existing.id, {
+          jira_board_id: t.jiraBoardId,
+          jira_board_name: t.jiraBoardName ?? null,
+          updated_at: now,
+        });
+      }
+      updated++;
+    } else {
+      teamId = teamsCollection.insert({
+        name: t.name,
+        jira_board_id: t.jiraBoardId ?? null,
+        jira_board_name: t.jiraBoardName ?? null,
+        created_at: now,
+        updated_at: now,
+      }).id;
+      created++;
+    }
+    const have = new Set(
+      teamMembersCollection
+        .all()
+        .filter((m) => m.team_id === teamId)
+        .map((m) => m.jira_account_id),
+    );
+    for (const m of t.members) {
+      if (have.has(m.jiraAccountId)) continue;
+      have.add(m.jiraAccountId);
+      teamMembersCollection.insert({
+        team_id: teamId,
+        display_name: m.displayName,
+        jira_account_id: m.jiraAccountId,
+        jira_email: m.jiraEmail ?? null,
+        github_username: m.githubUsername,
+        created_at: now,
+      });
+      membersAdded++;
+    }
+  }
+  return { created, updated, membersAdded };
+}
+
 export async function searchJiraUsers(q: string): Promise<JiraUserResult[]> {
   const { users } = await searchUsers({ q });
   return users || [];

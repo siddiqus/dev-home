@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Table from "react-bootstrap/Table";
-import { IconUsersGroup, IconPlus, IconTrash, IconPencil, IconChartBar } from "@tabler/icons-react";
+import {
+  IconUsersGroup,
+  IconPlus,
+  IconTrash,
+  IconPencil,
+  IconChartBar,
+  IconDownload,
+  IconUpload,
+} from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
-import { deleteTeam } from "../../services/teams";
+import { deleteTeam, exportTeams, importTeams } from "../../services/teams";
 import { TeamModal } from "./TeamModal";
 import { EmptyState } from "../../components/EmptyState";
+import { Toast, useToast } from "../../components/Toast";
+import { downloadTextFile } from "../../utils/tsvExport";
 import type { Team } from "../../types/teams";
 
 interface Props {
@@ -19,6 +29,8 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Team | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast(3000);
 
   const openCreate = () => {
     setEditing(null);
@@ -48,18 +60,74 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
     }
   };
 
+  const handleExport = () => {
+    const data = exportTeams();
+    downloadTextFile(
+      `dev-home-teams-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify(data, null, 2),
+      "application/json",
+    );
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+    setActionError(null);
+    try {
+      const { created, updated, membersAdded } = importTeams(JSON.parse(await file.text()));
+      refresh();
+      const parts = [
+        created && `${created} team${created === 1 ? "" : "s"} added`,
+        updated && `${updated} updated`,
+        `${membersAdded} member${membersAdded === 1 ? "" : "s"} added`,
+      ].filter(Boolean);
+      toast.show(`Imported: ${parts.join(" · ")}`);
+    } catch (err: any) {
+      setActionError(
+        err instanceof SyntaxError ? "That file isn't valid JSON" : err?.message || "Import failed",
+      );
+    }
+  };
+
   const showEmpty = !loading && teams.length === 0;
 
   return (
     <div className="p-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Teams</h5>
-        <button
-          className="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
-          onClick={openCreate}
-        >
-          <IconPlus size={15} /> Create team
-        </button>
+        <div className="d-flex align-items-center gap-1">
+          {/* Import / export stay low-key next to the primary action. */}
+          <button
+            className="btn btn-sm btn-link text-secondary text-decoration-none d-inline-flex align-items-center gap-1"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import teams from a JSON file (merges by team name)"
+          >
+            <IconUpload size={14} /> Import
+          </button>
+          <button
+            className="btn btn-sm btn-link text-secondary text-decoration-none d-inline-flex align-items-center gap-1 me-1"
+            onClick={handleExport}
+            disabled={teams.length === 0}
+            title="Export all teams and members as JSON"
+          >
+            <IconDownload size={14} /> Export
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="d-none"
+            onChange={handleImportFile}
+          />
+          <button
+            className="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+            onClick={openCreate}
+          >
+            <IconPlus size={15} /> Create team
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert-danger small">{error}</div>}
@@ -127,6 +195,7 @@ export function TeamsView({ configured, onOpenDashboard }: Props) {
         onClose={() => setModalOpen(false)}
         onSaved={refresh}
       />
+      <Toast message={toast.message} visible={toast.visible} />
     </div>
   );
 }

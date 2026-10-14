@@ -6,6 +6,8 @@ import {
   fetchTeamDashboard,
   fetchTeamMembers,
   fetchTeams,
+  exportTeams,
+  importTeams,
   removeTeamMember,
   updateTeam,
 } from "./teams";
@@ -68,5 +70,105 @@ describe("teams (localStorage)", () => {
       sprintId: 11,
     });
     expect(d.sprint?.id).toBe(11);
+  });
+
+  describe("export / import", () => {
+    async function seed() {
+      const t = await createTeam({ name: "Platform", boardId: 7, boardName: "PLAT board" });
+      await addTeamMember(t.id, {
+        displayName: "Alice",
+        jiraAccountId: "j-alice",
+        jiraEmail: "a@x.io",
+        githubUsername: "alice",
+      });
+      return t;
+    }
+
+    it("exports teams with their boards and members, without local ids", async () => {
+      await seed();
+      const data = exportTeams();
+      expect(data).toMatchObject({ kind: "dev-home-teams", version: 1 });
+      expect(data.teams).toEqual([
+        {
+          name: "Platform",
+          jiraBoardId: 7,
+          jiraBoardName: "PLAT board",
+          members: [
+            {
+              displayName: "Alice",
+              jiraAccountId: "j-alice",
+              jiraEmail: "a@x.io",
+              githubUsername: "alice",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("round-trips into an empty store", async () => {
+      await seed();
+      const data = exportTeams();
+      localStorage.clear();
+      expect(importTeams(data)).toEqual({ created: 1, updated: 0, membersAdded: 1 });
+      const teams = await fetchTeams();
+      expect(teams).toMatchObject([{ name: "Platform", jira_board_id: 7, member_count: 1 }]);
+    });
+
+    it("merges into a same-named team: adds missing members, keeps existing ones", async () => {
+      const t = await seed();
+      const result = importTeams({
+        kind: "dev-home-teams",
+        version: 1,
+        teams: [
+          {
+            name: "platform",
+            jiraBoardId: 9,
+            jiraBoardName: "New board",
+            members: [
+              { displayName: "Alice", jiraAccountId: "j-alice", githubUsername: "alice" },
+              { displayName: "Bob", jiraAccountId: "j-bob", githubUsername: "bob" },
+            ],
+          },
+        ],
+      });
+      expect(result).toEqual({ created: 0, updated: 1, membersAdded: 1 });
+      const members = await fetchTeamMembers(t.id);
+      expect(members.map((m) => m.display_name)).toEqual(["Alice", "Bob"]);
+      const [team] = await fetchTeams();
+      expect(team).toMatchObject({
+        name: "Platform",
+        jira_board_id: 9,
+        jira_board_name: "New board",
+      });
+    });
+
+    it("keeps the existing board when the import has none", async () => {
+      await seed();
+      importTeams({
+        kind: "dev-home-teams",
+        version: 1,
+        teams: [{ name: "Platform", members: [] }],
+      });
+      const [team] = await fetchTeams();
+      expect(team.jira_board_id).toBe(7);
+    });
+
+    it("rejects files that aren't a teams export, without writing anything", async () => {
+      expect(() => importTeams({ foo: 1 })).toThrow(/not a teams export/i);
+      expect(() =>
+        importTeams({
+          kind: "dev-home-teams",
+          version: 1,
+          teams: [
+            { name: "Ok", members: [] },
+            {
+              name: "Bad",
+              members: [{ displayName: "x", jiraAccountId: "", githubUsername: "g" }],
+            },
+          ],
+        }),
+      ).toThrow(/Bad/);
+      expect(await fetchTeams()).toEqual([]);
+    });
   });
 });
