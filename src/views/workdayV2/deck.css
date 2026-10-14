@@ -852,10 +852,11 @@ button.deck-rail-row:focus-visible {
    frame of the old card leaves to the left while the new card and the ghosts
    come in from the right. "prev" mirrors it.
    Tuned by eye (user feedback overrides the spec's ≤150ms, which read as a
-   jitter): one duration and one decelerating ease for every part. */
+   jitter, then asked for ~1s): one duration and one decelerating ease for
+   every part. */
 
 .deck-mode {
-  --deck-swipe-ms: 280ms;
+  --deck-swipe-ms: 500ms;
   --deck-swipe-ease: cubic-bezier(0.22, 1, 0.36, 1);
   /* Incoming card: 40% of its width, at least 120px. Ghosts move less, for depth. */
   --deck-swipe-distance: max(40%, 120px);
