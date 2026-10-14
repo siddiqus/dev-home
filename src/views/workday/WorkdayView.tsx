@@ -91,14 +91,7 @@ export function useStoredState<T extends string>(key: string, initial: T, allowe
 /** Typing targets where single-key shortcuts must not fire. */
 export function isTypingTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
-  const editable = t.contentEditable;
-  return (
-    t.isContentEditable ||
-    editable === "true" ||
-    editable === "plaintext-only" ||
-    (editable !== "false" && editable !== "inherit" && t.hasAttribute("contenteditable")) ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)
-  );
+  return t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName);
 }
 
 /**

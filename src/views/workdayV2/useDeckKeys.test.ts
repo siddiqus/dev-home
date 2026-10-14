@@ -255,10 +255,14 @@ describe("useDeckKeys", () => {
   it("ignores keys when typing in contenteditable", () => {
     renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
 
-    const container = document.createElement("div");
-    container.innerHTML = '<div contenteditable="true"></div>';
-    document.body.appendChild(container);
-    const div = container.firstElementChild as HTMLElement;
+    const div = document.createElement("div");
+    document.body.appendChild(div);
+
+    // JSDOM doesn't fully implement isContentEditable, so mock it
+    Object.defineProperty(div, "isContentEditable", {
+      value: true,
+      writable: true,
+    });
     div.focus();
 
     const event = new KeyboardEvent("keydown", {
@@ -270,7 +274,7 @@ describe("useDeckKeys", () => {
 
     expect(handlers.close).not.toHaveBeenCalled();
 
-    document.body.removeChild(container);
+    document.body.removeChild(div);
   });
 
   it("ignores ⌘+digit keys", () => {
