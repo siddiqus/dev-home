@@ -22,19 +22,25 @@ export function OffSprintPill() {
   return <span className="workday-pill workday-pill--offsprint">Off-sprint</span>;
 }
 
-/** Copies a ticket key with a toast; provided by WorkdayView. */
+/** Copies a ticket key with a toast; provided by the Workday page. */
 export const CopyTicketContext = React.createContext<((key: string) => void) | null>(null);
 
-/** Copies a PR link with a toast; provided by WorkdayView. */
+/** Copies a PR link with a toast; provided by the Workday page. */
 export const CopyPRLinkContext = React.createContext<((url: string) => void) | null>(null);
 
-/** Focus pins and their toggle; provided by WorkdayView in Focus mode only. */
+/** Copies a PR's branch name with a toast; provided by the Workday page. */
+export const CopyBranchContext = React.createContext<((branch: string) => void) | null>(null);
+
+/** The signed-in GitHub login, so rows can skip the author on my own PRs. */
+export const ViewerLoginContext = React.createContext("");
+
+/** Focus pins and their toggle; provided by the Workday List View only. */
 export const PinContext = React.createContext<{
   pins: Set<string>;
   toggle: (id: string) => void;
 } | null>(null);
 
-/** Pin / unpin toggle beside a ticket key or PR ref; renders nothing outside Focus. */
+/** Pin / unpin toggle beside a ticket key or PR ref; renders nothing outside the List View. */
 function PinButton({ id, name }: { id: string; name: string }) {
   const ctx = React.useContext(PinContext);
   if (!ctx) return null;
@@ -113,11 +119,23 @@ export function TicketKey({
  * plus any extra bits, after a one-liner's title.
  */
 export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
-  const onCopy = React.useContext(CopyPRLinkContext);
   const ref = repoRef(pr);
   return (
     <span className="workday-line-sub">
       {ref}
+      <PRLinkIcons pr={pr} />
+      <PinButton id={prPin(pr)} name={ref} />
+      {after && ` · ${after}`}
+    </span>
+  );
+}
+
+/** Copy-link and open-on-GitHub icons for a PR; they don't open the row. */
+export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
+  const onCopy = React.useContext(CopyPRLinkContext);
+  const ref = repoRef(pr);
+  return (
+    <>
       {onCopy && (
         <button
           type="button"
@@ -145,9 +163,7 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
       >
         <IconExternalLink size={13} stroke={1.8} />
       </a>
-      <PinButton id={prPin(pr)} name={ref} />
-      {after && ` · ${after}`}
-    </span>
+    </>
   );
 }
 

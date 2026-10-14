@@ -1,0 +1,1357 @@
+/* Workday deck styles */
+
+.workday-cmd-k-hint {
+  color: var(--bs-secondary);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.workday-cmd-k-hint:hover:not(:disabled) {
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+.workday-cmd-k-hint:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* All tabs fill the content area, so the header never moves and the deck
+   (or list, or standup sheet) scrolls on its own. Viewport minus app header (46px)
+   and .main-content padding, like PRsView. */
+.workday-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 46px - var(--space-3) - var(--space-6));
+  min-height: 0;
+}
+
+/* The header row never wraps; the ⌘K hint gives way first on narrow screens. */
+.workday-page .workday-header {
+  flex-wrap: nowrap;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.workday-page .workday-header > * {
+  flex: none;
+}
+
+.workday-page .workday-header > .workday-header-spacer {
+  flex: 1;
+}
+
+.workday-page .workday-header > .workday-cmd-k-hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workday-summary {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Matches the 14px refresh icon it stands in for. */
+.workday-refresh-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  vertical-align: -0.15em;
+}
+
+/* ---------- Standup sheet ---------- */
+
+.standup-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6);
+}
+
+/* Reading width: a crib sheet, not a dashboard. */
+.standup-sheet-body {
+  max-width: 900px;
+}
+
+/* Each section: a coloured rail down the left, its heading in the same colour. */
+.standup-sheet-section {
+  --standup-accent: var(--color-text-secondary);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--standup-accent) 45%, transparent);
+}
+
+.standup-sheet-section + .standup-sheet-section {
+  margin-top: var(--space-6);
+}
+
+.standup-sheet-section--yesterday {
+  --standup-accent: var(--color-status-success);
+}
+.standup-sheet-section--today {
+  --standup-accent: var(--color-status-info);
+}
+.standup-sheet-section--blockers {
+  --standup-accent: var(--color-status-warning);
+}
+
+.standup-sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--standup-accent);
+}
+
+.standup-sheet-heading-icon {
+  display: inline-flex;
+}
+
+.standup-sheet-since {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-secondary);
+}
+
+/* A group: coloured dot + label + count, then its rows. */
+.standup-group {
+  --group-color: var(--color-text-secondary);
+  --group-bg: var(--color-status-neutral-bg);
+}
+
+.standup-group + .standup-group {
+  margin-top: var(--space-3);
+}
+
+.standup-group--info {
+  --group-color: var(--color-status-info);
+  --group-bg: var(--color-status-info-bg);
+}
+.standup-group--success {
+  --group-color: var(--color-status-success);
+  --group-bg: var(--color-status-success-bg);
+}
+.standup-group--warning {
+  --group-color: var(--color-status-warning);
+  --group-bg: var(--color-status-warning-bg);
+}
+.standup-group--danger {
+  --group-color: var(--color-status-danger);
+  --group-bg: var(--color-status-danger-bg);
+}
+.standup-group--purple {
+  --group-color: var(--color-status-purple);
+  --group-bg: var(--color-status-purple-bg);
+}
+
+.standup-group-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--group-color);
+}
+
+.standup-group-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--group-color);
+}
+
+.standup-group-count {
+  min-width: 1.25rem;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--group-bg);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.standup-group-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: KEY title repo#12 [badge] detail; the left edge takes the group colour on hover. */
+.standup-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 3px var(--space-2) 3px calc(var(--space-2) + 8px);
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.standup-row:hover,
+.standup-row:focus-visible {
+  outline: none;
+  background: var(--color-bg-hover);
+  border-left-color: var(--group-color);
+}
+
+.standup-row .badge {
+  align-self: center;
+  flex: none;
+}
+
+.standup-row-key {
+  flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.standup-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.standup-row:hover .standup-row-title {
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+}
+
+.standup-row-pr {
+  flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.standup-row-repo {
+  color: var(--color-text-secondary);
+}
+
+.standup-row-detail {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.standup-sheet-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.standup-sheet-warning {
+  margin: 0 0 var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--bs-danger);
+}
+
+/* Reads as the list's next row until you type. */
+.standup-sheet-note {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  resize: none;
+}
+
+.standup-sheet-note:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--bs-primary);
+}
+
+.deck-mode {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* ---------- Rail (spec §5.3) ---------- */
+
+/* The rail is a column: the source banner (when set) stays put above the
+   scroll area (the listbox, then the Closed group), which scrolls on its own. */
+.deck-rail {
+  --deck-rail-w: 380px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--deck-rail-w);
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
+}
+
+.deck-rail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+
+.deck-rail-list:focus {
+  outline: none;
+}
+
+.deck-rail-list:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-focus-ring);
+}
+
+/* Source error (spec §5.13): one line, fixed above the list. */
+.deck-rail-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-status-warning) 10%, var(--color-bg-panel));
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.deck-rail-banner-icon {
+  flex: none;
+  color: var(--color-status-warning);
+}
+
+.deck-rail-banner-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-rail-banner-retry,
+.deck-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.deck-rail-banner-retry:hover,
+.deck-link:hover {
+  text-decoration: underline;
+}
+
+.deck-rail-banner-retry {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The icon stands in for the label only in the collapsed slim rail. */
+.deck-rail-banner-retry-icon {
+  display: none;
+}
+
+.deck-rail-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) 2px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.deck-rail-heading--current {
+  color: var(--color-status-warning);
+}
+
+.deck-rail-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 6px var(--space-2) 6px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.deck-rail-row:hover {
+  background: var(--color-nav-hover-bg);
+  color: var(--color-text-primary);
+}
+
+/* Faint amber outline: amber is reserved for current. */
+.deck-rail-row--current {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-status-warning) 25%, transparent);
+}
+
+/* Selected wins over hover and current: stronger tint plus an accent outline. */
+.deck-rail-row--selected,
+.deck-rail-row--selected:hover {
+  background: var(--color-nav-selected-bg);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.deck-rail-row:hover .deck-rail-status,
+.deck-rail-row--selected .deck-rail-status {
+  /* Muted grey washes out on the blue tint, notably in dark mode. */
+  color: var(--color-text-secondary);
+}
+
+.deck-rail-list:focus-visible .deck-rail-row--selected {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.deck-rail-main {
+  display: block;
+  min-width: 0;
+}
+
+.deck-rail-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.deck-rail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two classes: beats bootstrap's .badge sizing without !important. */
+.deck-rail-line .deck-rail-review {
+  flex: none;
+  font-size: 0.625rem;
+  padding: 0 5px;
+}
+
+.deck-rail-status {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.deck-key {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.deck-key--none {
+  color: var(--color-text-muted);
+}
+
+/* State stripe: the worst tone across the ticket's PRs (spec §5.5). */
+.deck-stripe {
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-text-muted);
+}
+
+.deck-stripe--danger {
+  background: var(--color-status-danger);
+}
+.deck-stripe--warning {
+  background: var(--color-status-warning);
+}
+.deck-stripe--info {
+  background: var(--color-status-info);
+}
+.deck-stripe--success {
+  background: var(--color-status-success);
+}
+.deck-stripe--purple {
+  background: var(--color-status-purple);
+}
+
+/* Blue dot: unseen activity. */
+.deck-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-status-info);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-status-info) 25%, transparent);
+}
+
+/* ---------- Stage and card (spec §5.1, §5.4) ---------- */
+
+.deck-stage {
+  flex: 1;
+  min-width: 0;
+  /* x hidden: a swiping card travels off to the side without a scrollbar flash. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) var(--space-5) var(--space-4);
+}
+
+.deck-column {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  align-self: flex-start;
+}
+
+/* Decorative cards peeking behind the front one. */
+.deck-ghost {
+  position: absolute;
+  left: 50%;
+  height: 40px;
+  transform: translateX(-50%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+}
+
+.deck-ghost--back {
+  top: -8px;
+  width: 90%;
+  opacity: 0.45;
+}
+
+.deck-ghost--mid {
+  top: -4px;
+  width: 95%;
+  opacity: 0.8;
+}
+
+.deck-card {
+  /* PR row columns, shared with the note composer so it lines up with them. */
+  --deck-note-icon-w: 16px;
+  /* The note composer's PR target column; long repos truncate. */
+  --deck-pr-ref-w: 128px;
+  --deck-pr-pad-x: 10px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.deck-card-header {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.deck-card-titleline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.deck-card-key {
+  flex: none;
+}
+
+.deck-card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-card-pills {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-card-sub {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* The body scrolls once the card would pass ~70vh. */
+.deck-card-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.deck-card-empty {
+  padding: var(--space-2) 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-list:focus {
+  outline: none;
+}
+
+.deck-pr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 7px;
+  padding: 9px var(--deck-pr-pad-x);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  cursor: pointer;
+}
+
+.deck-pr:hover {
+  border-color: var(--color-border);
+}
+
+/* Current: amber border and tint. */
+.deck-pr--current {
+  border-color: color-mix(in srgb, var(--color-status-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-warning) 7%, var(--color-bg-panel));
+}
+
+.deck-pr--selected {
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+.deck-pr-current {
+  font-weight: 600;
+  color: var(--color-status-warning);
+}
+
+/* Meta line: muted repo#number · author · age. The repo gives way first
+   (ellipsis, full ref in the title tooltip); the rest never truncates. */
+.deck-pr-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-meta > :not(.deck-pr-ref, .deck-pr-branch) {
+  flex: none;
+}
+
+/* Updated age and the unseen dot sit at the right end of the meta line. */
+.deck-pr-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 6px;
+}
+
+.deck-pr-ref {
+  display: flex;
+  min-width: 0;
+}
+
+.deck-pr-repo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-pr-ref .deck-pr-number {
+  flex: none;
+}
+
+/* Copy-link and open-on-GitHub, always visible (unlike the List View's hover icons). */
+.deck-pr-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deck-pr-number {
+  font-family: var(--font-mono);
+}
+
+.deck-pr-main {
+  min-width: 0;
+}
+
+.deck-pr-title {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+/* Long branch names give way first; full name on hover. */
+.deck-pr-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 100 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.deck-pr-branch svg,
+.deck-pr-branch button {
+  flex: none;
+}
+
+.deck-pr-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-pr-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+/* ---------- Personal state (spec §5.3, §5.8) ---------- */
+
+/* Closed group heading: a quiet toggle styled like the other headings. */
+button.deck-rail-heading--closed {
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.deck-rail-heading--closed:hover {
+  color: var(--color-text-secondary);
+}
+
+/* The Closed group follows the listbox; its rows are buttons that reopen. */
+.deck-rail-closed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button.deck-rail-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+button.deck-rail-row:hover {
+  background: var(--color-nav-hover-bg);
+}
+
+button.deck-rail-heading--closed:focus-visible,
+button.deck-rail-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Closed rows: muted until reopened. */
+.deck-rail-closed .deck-rail-row {
+  color: var(--color-text-muted);
+}
+
+.deck-rail-empty {
+  padding: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Card context (spec §5.4, §5.10) ---------- */
+
+/* Unseen comment / Jira mention quote: blue dot, author, age, one-line snippet. */
+.deck-quote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.deck-quote:hover .deck-quote-snippet {
+  text-decoration: underline;
+}
+
+.deck-quote-who {
+  flex: none;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-quote-age {
+  flex: none;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+.deck-quote-snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-card-header .deck-quote {
+  margin-top: var(--space-2);
+}
+
+.deck-note-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-note-line:hover .deck-note-text {
+  text-decoration: underline;
+}
+
+.deck-note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-note-composer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 7px;
+}
+
+/* Under the PR list: the icon, then the target ref and the input. */
+.deck-note-composer--pr {
+  display: grid;
+  grid-template-columns: var(--deck-note-icon-w) var(--deck-pr-ref-w) minmax(0, 1fr);
+  padding: 0 calc(var(--deck-pr-pad-x) + 1px);
+}
+
+.deck-note-target {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ⌘K palette (spec §5.11). No transitions: it appears instantly, which also
+   keeps it still under prefers-reduced-motion. */
+.deck-palette-dialog {
+  max-width: 600px;
+  margin-top: 12vh;
+}
+
+.deck-palette .modal-content {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.deck-palette-input.form-control {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: 1rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.deck-palette-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.deck-palette-heading {
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.deck-palette-empty {
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.deck-palette-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.deck-palette-option:hover {
+  background: var(--color-bg-hover);
+}
+
+.deck-palette-option--active,
+.deck-palette-option--active:hover {
+  background: var(--color-accent-bg-subtle);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.deck-palette-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.deck-palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-palette-sub {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bottom tray: the selected row's actions, then the commands, as flat chips.
+   Each row keeps at least one chip's height so the tray doesn't jump. */
+.deck-palette-tray {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Label column, then chips that wrap under each other, not under the label. */
+.deck-palette-chips {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: baseline;
+  min-height: 24px;
+}
+
+.deck-palette-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-palette-chips-empty {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 1px 0;
+}
+
+.deck-palette-chips-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.deck-palette-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.deck-palette-chip:hover,
+.deck-palette-chip--active {
+  color: var(--color-accent);
+  background: var(--color-accent-bg-subtle);
+}
+
+.deck-palette-chip--active {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.deck-palette kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.deck-palette-footer {
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Key hints, shortcut sheet (spec §5.1, §5.12) ---------- */
+
+.deck-hints {
+  flex: none;
+  display: flex;
+  gap: var(--space-4);
+  overflow: hidden;
+  padding: var(--space-2) var(--space-1) 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.deck-hints span {
+  flex: none;
+}
+
+.deck-hints kbd,
+.deck-shortcuts kbd {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.deck-shortcuts .modal-content {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.deck-shortcuts-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.deck-shortcuts-table td {
+  padding: 4px 0;
+  vertical-align: top;
+}
+
+/* td + class: outranks `.deck-shortcuts-table td`'s padding without !important. */
+.deck-shortcuts-table td.deck-shortcuts-keys {
+  width: 30%;
+  padding-right: var(--space-3);
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.deck-shortcuts-foot {
+  margin: var(--space-3) 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Empty and loading states (spec §5.13) ---------- */
+
+.deck-empty {
+  align-self: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.deck-empty p {
+  margin: 0 0 var(--space-2);
+}
+
+.deck-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-empty-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.deck-skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-hover);
+  animation: deck-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes deck-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.deck-skeleton-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  padding: 6px var(--space-2) 6px 4px;
+}
+
+.deck-skeleton--stripe {
+  height: 28px;
+}
+
+.deck-skeleton--line {
+  height: 0.75rem;
+  width: 80%;
+}
+
+.deck-card--skeleton {
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.deck-skeleton--title {
+  height: 1rem;
+  width: 60%;
+}
+
+.deck-skeleton--sub {
+  height: 0.75rem;
+  width: 35%;
+}
+
+.deck-skeleton--pr {
+  height: 52px;
+}
+
+/* ---------- Card swipe (spec §5.4) ----------
+   The column is re-keyed on every selection, so each change mounts fresh
+   elements and the animation restarts; nothing waits on animationend, and rapid
+   presses simply start over. "next" (→, n, or later in rail order): a blank
+   frame of the old card leaves to the left while the new card and the ghosts
+   come in from the right. "prev" mirrors it.
+   Tuned by eye (user feedback overrides the spec's ≤150ms, which read as a
+   jitter, then asked for ~1s): one duration and one decelerating ease for
+   every part. */
+
+.deck-mode {
+  --deck-swipe-ms: 500ms;
+  --deck-swipe-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Incoming card: 40% of its width, at least 120px. Ghosts move less, for depth. */
+  --deck-swipe-distance: max(40%, 120px);
+  --deck-swipe-ghost-distance: 48px;
+}
+
+/* The exit frame is absolutely positioned under the new card (earlier in the
+   DOM, no z-index), so it never covers it and the layout never jumps. Both are
+   the same blank surface, so where they overlap mid-swipe nothing flickers. */
+.deck-swipe-out {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.deck-column[data-swipe="next"] .deck-swipe-out {
+  animation: deck-out-left var(--deck-swipe-ms) var(--deck-swipe-ease) forwards;
+}
+.deck-column[data-swipe="prev"] .deck-swipe-out {
+  animation: deck-out-right var(--deck-swipe-ms) var(--deck-swipe-ease) forwards;
+}
+.deck-column[data-swipe="next"] .deck-card {
+  animation: deck-in-right var(--deck-swipe-ms) var(--deck-swipe-ease) both;
+}
+.deck-column[data-swipe="prev"] .deck-card {
+  animation: deck-in-left var(--deck-swipe-ms) var(--deck-swipe-ease) both;
+}
+.deck-column[data-swipe="next"] .deck-ghost {
+  animation: deck-ghost-in-right var(--deck-swipe-ms) var(--deck-swipe-ease) both;
+}
+.deck-column[data-swipe="prev"] .deck-ghost {
+  animation: deck-ghost-in-left var(--deck-swipe-ms) var(--deck-swipe-ease) both;
+}
+
+@keyframes deck-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--deck-swipe-distance)));
+  }
+}
+@keyframes deck-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--deck-swipe-distance));
+  }
+}
+@keyframes deck-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(var(--deck-swipe-distance));
+  }
+}
+@keyframes deck-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--deck-swipe-distance)));
+  }
+}
+/* Ghosts keep their translateX(-50%) centring and fade up to their own opacity. */
+@keyframes deck-ghost-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-50% + var(--deck-swipe-ghost-distance)));
+  }
+}
+@keyframes deck-ghost-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-50% - var(--deck-swipe-ghost-distance)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-column[data-swipe] .deck-card,
+  .deck-column[data-swipe] .deck-ghost,
+  .deck-skeleton {
+    animation: none;
+  }
+  .deck-swipe-out {
+    display: none;
+  }
+}
+
+/* ---------- Slim rail (spec §5.1: < 900px) ----------
+   Keys, stripes and dots only. Hover or focus-within widens it to full size as
+   an overlay: the negative margin keeps its layout width, so the stage doesn't move. */
+@media (max-width: 899.98px) {
+  .deck-mode {
+    position: relative;
+  }
+
+  .deck-rail {
+    position: relative;
+    z-index: 5;
+    width: 76px;
+  }
+
+  .deck-rail:hover,
+  .deck-rail:focus-within {
+    width: var(--deck-rail-w);
+    margin-right: calc(76px - var(--deck-rail-w));
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-title,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-review,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-status,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading > span:first-child,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-text,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-label,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-empty,
+  .deck-rail:not(:hover):not(:focus-within) .deck-skeleton--line {
+    display: none;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner {
+    justify-content: center;
+  }
+
+  /* The collapsed rail keeps retry reachable as an icon button. */
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-icon {
+    display: inline;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading {
+    justify-content: flex-end;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-row {
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .deck-stage {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+}
+
+/* List View: v1's Focus lists, scrolling inside the page's full-height frame. */
+.workday-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

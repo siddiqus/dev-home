@@ -24,8 +24,12 @@
   border-color: var(--color-accent);
 }
 
-.tiptap-editor-wrapper .ProseMirror p { margin-bottom: 0.75em; }
-.tiptap-editor-wrapper .ProseMirror p:last-child { margin-bottom: 0; }
+.tiptap-editor-wrapper .ProseMirror p {
+  margin-bottom: 0.75em;
+}
+.tiptap-editor-wrapper .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
 
 .tiptap-editor-wrapper .ProseMirror h1,
 .tiptap-editor-wrapper .ProseMirror h2,
@@ -37,9 +41,15 @@
   margin-bottom: 0.5em;
 }
 
-.tiptap-editor-wrapper .ProseMirror h1 { font-size: 1.5rem; }
-.tiptap-editor-wrapper .ProseMirror h2 { font-size: 1.25rem; }
-.tiptap-editor-wrapper .ProseMirror h3 { font-size: 1.1rem; }
+.tiptap-editor-wrapper .ProseMirror h1 {
+  font-size: 1.5rem;
+}
+.tiptap-editor-wrapper .ProseMirror h2 {
+  font-size: 1.25rem;
+}
+.tiptap-editor-wrapper .ProseMirror h3 {
+  font-size: 1.1rem;
+}
 
 .tiptap-editor-wrapper .ProseMirror ul,
 .tiptap-editor-wrapper .ProseMirror ol {
@@ -47,7 +57,9 @@
   margin-bottom: 0.75em;
 }
 
-.tiptap-editor-wrapper .ProseMirror li { margin-bottom: 0.25em; }
+.tiptap-editor-wrapper .ProseMirror li {
+  margin-bottom: 0.25em;
+}
 
 .tiptap-editor-wrapper .ProseMirror a {
   color: var(--color-accent);
@@ -127,7 +139,9 @@
   background: transparent;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .tiptap-toolbar button:hover {

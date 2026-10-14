@@ -10,6 +10,9 @@ import { NoteCard } from "./NoteCard";
 import { parseTimestamp } from "../../utils/time";
 import { noteMatchesQuery } from "../../utils/text";
 import "./notes.css";
+import { useStoredState } from "../../hooks/useStoredState";
+
+const NOTE_TABS = ["unresolved", "resolved"] as const;
 
 interface PersonalNotesProps {
   notes: Note[];
@@ -34,7 +37,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
   onAdd,
   jiraBaseUrl,
 }) => {
-  const [activeTab, setActiveTab] = useState<"unresolved" | "resolved">("unresolved");
+  const [activeTab, setActiveTab] = useStoredState("dev-home-notes-tab", "unresolved", NOTE_TABS);
   const [searchQuery, setSearchQuery] = useState("");
 
   if (loading && notes.length === 0) {
@@ -119,7 +122,7 @@ export const PersonalNotes: React.FC<PersonalNotesProps> = ({
             { key: "resolved", label: `Resolved (${resolved.length})` },
           ]}
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as "unresolved" | "resolved")}
+          onChange={(key) => setActiveTab(key as (typeof NOTE_TABS)[number])}
         />
         <div className="d-flex align-items-center gap-2">
           <SearchInput

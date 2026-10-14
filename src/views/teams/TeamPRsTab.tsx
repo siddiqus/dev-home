@@ -16,6 +16,9 @@ import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { DropdownItem } from "../../components/SearchableDropdown";
 import { EmptyState } from "../../components/EmptyState";
 import { effectiveAuthors } from "./teamPrsFilters";
+import { useStoredState } from "../../hooks/useStoredState";
+
+const SUB_TABS = ["open", "merged"] as const;
 
 interface TeamPRsTabProps {
   /** True while the PRs tab is the visible tab — gates fetching so a hidden tab
@@ -52,7 +55,7 @@ export function TeamPRsTab({
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [orgRepos, setOrgRepos] = useState<OrgRepo[]>([]);
 
-  const [subTab, setSubTab] = useState<"open" | "merged">("open");
+  const [subTab, setSubTab] = useStoredState("dev-home-team-prs-subtab", "open", SUB_TABS);
   const [prs, setPrs] = useState<GitHubPR[]>([]);
   const [loading, setLoading] = useState(false);
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);

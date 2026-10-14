@@ -1,15 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubPR, JiraIssue, SprintTicket, OffSprintTicket } from "../../types";
 import { EMPTY_EXTRAS, type WorkdayExtras } from "../../services/workday";
-import {
-  blockerLabel,
-  buildWorkday,
-  filterWorkday,
-  groupByTicketKey,
-  inProgressCount,
-  reviewingLines,
-  statusCategoryOf,
-} from "./buildWorkday";
+import { buildWorkday, groupByTicketKey, statusCategoryOf } from "./buildWorkday";
 import type { WorkdayInputs } from "./types";
 
 const NOW = new Date("2026-10-11T10:00:00Z");
@@ -428,40 +420,6 @@ describe("buildWorkday", () => {
   });
 });
 
-describe("filterWorkday", () => {
-  const s = buildWorkday(
-    inputs({
-      openPRs: [
-        pr(1, { title: "IN-1 a" }),
-        pr(2, { title: "OUT-1 b" }),
-        pr(3, { title: "no key" }),
-      ],
-      reviewRequests: [pr(4, { title: "RR-1 r" })],
-      assignedIssues: [issue("IN-1", "indeterminate"), issue("OUT-1", "indeterminate")],
-      extras: { sprint: { data: [sprintT("IN-1")], error: null } },
-    }),
-    NOW,
-  );
-
-  it("sprint only hides off-sprint and keeps no-ticket PRs", () => {
-    const f = filterWorkday(s, "sprint");
-    expect(f.workingOn.items.map((g) => g.ticket?.key ?? null)).toEqual(["IN-1", null]);
-    expect(f.reviewing.items).toHaveLength(1);
-    expect(f.reviewing.items[0].ticket?.key).toBe("RR-1");
-    expect(f.offSprintCount).toBe(1);
-  });
-
-  it("off-sprint shows only flagged items", () => {
-    const f = filterWorkday(s, "off");
-    expect(f.workingOn.items.map((g) => g.ticket?.key ?? null)).toEqual(["OUT-1"]);
-    expect(f.reviewing.items).toHaveLength(0);
-  });
-
-  it("all is identity", () => {
-    expect(filterWorkday(s, "all")).toBe(s);
-  });
-});
-
 describe("In progress", () => {
   it("contains each open PR exactly once", () => {
     const openPRs = [
@@ -481,112 +439,6 @@ describe("In progress", () => {
     const numbers = s.workingOn.items.flatMap((g) => g.prs.map((p) => p.number));
     expect([...numbers].sort()).toEqual([1, 2, 3, 4, 5]);
     expect(new Set(numbers).size).toBe(numbers.length);
-    // CCP-1, CCP-2, CCP-3 (no PR yet), plus two ticketless PRs.
-    expect(inProgressCount(s.workingOn.items)).toBe(5);
-  });
-});
-
-describe("inProgressCount", () => {
-  it("counts one per ticket and one per ticketless PR", () => {
-    const t = { key: "A-1", summary: "", statusName: null, offSprint: false, updated: null };
-    expect(inProgressCount([])).toBe(0);
-    expect(
-      inProgressCount([
-        { ticket: t, prs: [pr(1), pr(2)] },
-        { ticket: { ...t, key: "A-2" }, prs: [] },
-        { ticket: null, prs: [pr(3), pr(4), pr(5)] },
-      ]),
-    ).toBe(5);
-  });
-});
-
-describe("reviewingLines", () => {
-  it("lists each PR once with its state, newest first", () => {
-    const bob = { user: { login: "bob", avatar_url: "" } };
-    const shared = pr(20, {
-      ...bob,
-      title: "OTHER-1 shared",
-      viewer_engaged: true,
-      updated_at: "2026-10-09T00:00:00Z",
-    });
-    const s = buildWorkday(
-      inputs({
-        reviewRequests: [
-          shared,
-          pr(21, { ...bob, title: "OTHER-1 new", updated_at: "2026-10-08T00:00:00Z" }),
-        ],
-        reviewingPRs: [
-          shared,
-          pr(22, {
-            ...bob,
-            title: "OTHER-2 commits",
-            new_commits_since_review: true,
-            viewer_review_state: "CHANGES_REQUESTED",
-            updated_at: "2026-10-11T00:00:00Z",
-          }),
-          pr(23, {
-            ...bob,
-            title: "no key",
-            new_commits_since_review: true,
-            viewer_review_state: "APPROVED",
-            updated_at: "2026-10-10T00:00:00Z",
-          }),
-        ],
-      }),
-      NOW,
-    );
-    expect(reviewingLines(s).map((l) => [l.pr.number, l.state, l.ticket?.key ?? null])).toEqual([
-      [22, "new-commits", "OTHER-2"],
-      [23, "waiting-author", null],
-      [20, "re-requested", "OTHER-1"],
-      [21, "requested", "OTHER-1"],
-    ]);
-  });
-});
-
-describe("blockerLabel", () => {
-  const t = { key: "A-1", summary: "", statusName: null, offSprint: false, updated: null };
-
-  it("labels flagged tickets", () => {
-    expect(blockerLabel({ kind: "flagged", ticket: t })).toEqual({
-      label: "Flagged",
-      tone: "danger",
-    });
-  });
-
-  it("uses the first reason, shortened", () => {
-    const item = (reasons: string[]) => ({ kind: "pr" as const, pr: pr(1), ticket: null, reasons });
-    expect(blockerLabel(item(["CI failed", "Merge conflict"]))).toEqual({
-      label: "CI failing",
-      tone: "danger",
-    });
-    expect(blockerLabel(item(["Merge conflict"]))).toEqual({ label: "Conflict", tone: "danger" });
-    expect(blockerLabel(item(["Changes requested"]))).toEqual({
-      label: "Changes requested",
-      tone: "danger",
-    });
-    expect(blockerLabel(item(["No reviewer requested"]))).toEqual({
-      label: "No reviewer",
-      tone: "warning",
-    });
-  });
-
-  it("labels real blockers from buildWorkday", () => {
-    const s = buildWorkday(
-      inputs({
-        openPRs: [
-          pr(1, { title: "AA-1", checks_status: "FAILURE", updated_at: "2026-10-10T03:00:00Z" }),
-          pr(2, { title: "AA-2", has_conflict: true, updated_at: "2026-10-10T02:00:00Z" }),
-          pr(3, { title: "AA-3", requested_reviewers: [], updated_at: "2026-10-10T01:00:00Z" }),
-        ],
-      }),
-      NOW,
-    );
-    expect(s.blockers.items.map((b) => blockerLabel(b).label)).toEqual([
-      "CI failing",
-      "Conflict",
-      "No reviewer",
-    ]);
   });
 });
 

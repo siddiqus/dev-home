@@ -106,7 +106,9 @@ function formatAgo(ts: number, now: number): string {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem("dev-home-active-tab") || "summary";
+    const saved = localStorage.getItem("dev-home-active-tab");
+    // Workday V2 became Workday.
+    return (saved === "workday-v2" ? "workday" : saved) || "summary";
   });
   const prevTabRef = useRef(activeTab !== "settings" ? activeTab : "summary");
   useEffect(() => {
@@ -135,6 +137,7 @@ export default function App() {
     backendOnline,
     jiraBaseUrl,
     githubOrg,
+    githubUsername,
     hiddenTabs,
     weekendDays,
     saveSettings,
@@ -656,7 +659,14 @@ export default function App() {
                         jiraMentions={jiraComments}
                         loading={openPRsLoading || reviewRequestsLoading || jiraIssuesLoading}
                         mentionsLoading={githubMentionsLoading || jiraCommentsLoading}
+                        sourcesLoaded={
+                          loadedSources.has("openPRs") &&
+                          loadedSources.has("reviewRequests") &&
+                          loadedSources.has("jiraIssues")
+                        }
+                        sourceError={error}
                         jiraBaseUrl={jiraBaseUrl}
+                        githubUsername={githubUsername}
                         weekendDays={weekendDays}
                         refreshKey={refreshKey}
                         onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
@@ -664,6 +674,7 @@ export default function App() {
                         notesLoaded={notesLoaded}
                         addNote={addNote}
                         editNote={editNote}
+                        onOpenNote={setOpenNote}
                       />
                     )}
                     {effectiveTab === "board" && (

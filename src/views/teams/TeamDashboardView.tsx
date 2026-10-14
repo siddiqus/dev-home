@@ -32,6 +32,9 @@ import { EpicCards } from "./cockpit/EpicCards";
 import { PrFlowSection } from "./cockpit/PrFlowSection";
 import { DeliveryHygiene } from "./cockpit/DeliveryHygiene";
 import { ReviewQueuePanel } from "./cockpit/ReviewQueuePanel";
+import { useStoredState } from "../../hooks/useStoredState";
+
+const TEAM_TABS = ["sprint", "prs"] as const;
 
 interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
@@ -48,7 +51,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
   const [sprintId, setSprintId] = useState<number | null>(null);
   // Top-level view: the Jira sprint cockpit, or the team's PRs.
-  const [tab, setTab] = useState<"sprint" | "prs">("sprint");
+  const [tab, setTab] = useStoredState("dev-home-team-tab", "sprint", TEAM_TABS);
   // Mount the PRs tab lazily on first open, then keep it alive so switching back
   // doesn't refetch (it self-fetches on mount, gated on `active`).
   const [prsEverOpened, setPrsEverOpened] = useState(false);
@@ -199,7 +202,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           <SegmentedTabs
             className="inline-control"
             activeKey={tab}
-            onChange={(k) => setTab(k as "sprint" | "prs")}
+            onChange={(k) => setTab(k as (typeof TEAM_TABS)[number])}
             tabs={[
               {
                 key: "sprint",
