@@ -18,7 +18,7 @@ export type PaletteAction =
   | "closeReopen"
   | "unread";
 
-/** A command in the empty-query "Commands" group. */
+/** A command in the palette's always-visible Commands row. */
 export interface PaletteCommand {
   id: string;
   label: string;
@@ -29,8 +29,17 @@ export interface PaletteCommand {
 
 type Entry =
   | { kind: "result"; id: string; result: SearchResult }
-  | { kind: "mention"; id: string; mention: MentionItem }
-  | { kind: "command"; id: string; command: PaletteCommand };
+  | { kind: "mention"; id: string; mention: MentionItem };
+
+/** A chip in the bottom tray: an action on the selected row, or a command. */
+interface Chip {
+  id: string;
+  label: string;
+  keys?: string;
+  run(): void;
+}
+
+type Zone = "results" | "actions" | "commands";
 
 interface Section {
   label: string;
@@ -74,8 +83,8 @@ export interface CommandPaletteProps {
 
 /**
  * ⌘K: find and act (spec §5.11). A combobox over the deck: the empty query
- * lists what's new plus commands; typing searches the deck (and pasted links).
- * Each result lists its actions underneath, each with a shortcut.
+ * lists what's new; typing searches the deck (and pasted links). A tray at the
+ * bottom always shows the selected row's actions and the commands as chips.
  */
 export function CommandPalette({
   show,
@@ -269,9 +278,9 @@ function PaletteBody({
   // is the fallback when that entry is gone.
   const [active, setActive] = useState(0);
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  // Tab moves between the results and the selected result's actions.
-  const [zone, setZone] = useState<"results" | "actions">("results");
-  const [actionIndex, setActionIndex] = useState(0);
+  // Tab cycles the results, the selected row's actions and the commands.
+  const [zone, setZone] = useState<Zone>("results");
+  const [chipIndex, setChipIndex] = useState(0);
   const queryEmpty = query.trim() === "";
 
   // Rows closed (⌘⌫) from "Updated since you looked" stay listed, in place,
@@ -298,10 +307,6 @@ function PaletteBody({
           entries: updated.map((d) => d.entry),
           empty: "Nothing new since you looked",
         },
-        {
-          label: "Commands",
-          entries: commands.map((c) => ({ kind: "command", id: `c:${c.id}`, command: c })),
-        },
       ];
     }
     shown.current = new Map();
@@ -311,7 +316,7 @@ function PaletteBody({
       result: r,
     }));
     return [{ label: "Results", entries: results, empty: "No matches" }];
-  }, [query, queryEmpty, deck, commands]);
+  }, [query, queryEmpty, deck]);
 
   const entries = useMemo(() => sections.flatMap((s) => s.entries), [sections]);
   const keyed = activeKey === null ? -1 : entries.findIndex((e) => e.id === activeKey);
@@ -327,8 +332,29 @@ function PaletteBody({
         }
       : null;
   const actions = currentResult ? actionsFor(currentResult, queryEmpty) : [];
-  const inActions = zone === "actions" && actions.length > 0;
-  const actionAt = Math.min(actionIndex, Math.max(actions.length - 1, 0));
+  const runAction = (action: PaletteAction) => {
+    if (!currentResult) return;
+    if (!actions.some((a) => a.action === action)) return;
+    onAction(action, currentResult);
+  };
+  const actionChips: Chip[] =
+    current?.kind === "mention"
+      ? [
+          {
+            id: "open",
+            label: "Open comment",
+            keys: "⏎",
+            run: () => onOpenMention(current.mention),
+          },
+        ]
+      : actions.map((a) => ({ id: a.action, ...a, run: () => runAction(a.action) }));
+  const commandChips: Chip[] = commands.map((c) => ({ ...c, run: () => onCommand(c) }));
+  const zones: Zone[] = ["results"];
+  if (actionChips.length > 0) zones.push("actions");
+  if (commandChips.length > 0) zones.push("commands");
+  const zoneNow: Zone = zones.includes(zone) ? zone : "results";
+  const chips = zoneNow === "actions" ? actionChips : zoneNow === "commands" ? commandChips : [];
+  const chipAt = Math.min(chipIndex, Math.max(chips.length - 1, 0));
 
   // Live lookups so badges follow toggles made while the palette is open.
   const tickets = useMemo(() => {
@@ -338,8 +364,9 @@ function PaletteBody({
   }, [deck]);
 
   const optionId = (i: number) => `${uid}-opt-${i}`;
-  const actionId = (i: number) => `${uid}-act-${i}`;
-  const activeId = current ? (inActions ? actionId(actionAt) : optionId(index)) : undefined;
+  const chipId = (z: Zone, i: number) => `${uid}-${z}-${i}`;
+  const activeId =
+    zoneNow !== "results" ? chipId(zoneNow, chipAt) : current ? optionId(index) : undefined;
 
   useEffect(() => {
     if (!activeId) return;
@@ -350,41 +377,40 @@ function PaletteBody({
     setActive(i);
     setActiveKey(key);
     setZone("results");
-    setActionIndex(0);
+    setChipIndex(0);
   };
 
   const runPrimary = (entry: Entry) => {
-    if (entry.kind === "command") onCommand(entry.command);
-    else if (entry.kind === "mention") onOpenMention(entry.mention);
+    if (entry.kind === "mention") onOpenMention(entry.mention);
     else if (actionsFor(entry.result, queryEmpty).some((a) => a.action === "jump"))
       onAction("jump", entry.result);
-  };
-  const runAction = (action: PaletteAction) => {
-    if (!currentResult) return;
-    if (!actions.some((a) => a.action === action)) return;
-    onAction(action, currentResult);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return;
     const key = e.key;
+    const inChips = zoneNow !== "results";
+    // ←→ (and ↑↓) walk a chip row; in the results, ←→ stay with the input.
+    if (
+      inChips &&
+      (key === "ArrowLeft" || key === "ArrowRight" || key === "ArrowUp" || key === "ArrowDown")
+    ) {
+      e.preventDefault();
+      const delta = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
+      setChipIndex((chipAt + delta + chips.length) % chips.length);
+      return;
+    }
     if (key === "ArrowDown" || key === "ArrowUp") {
       e.preventDefault();
       const delta = key === "ArrowDown" ? 1 : -1;
-      if (inActions) {
-        setActionIndex(Math.min(Math.max(actionAt + delta, 0), actions.length - 1));
-      } else if (entries.length > 0) {
-        moveTo((index + delta + entries.length) % entries.length);
-      }
+      if (entries.length > 0) moveTo((index + delta + entries.length) % entries.length);
       return;
     }
     if (key === "Tab") {
       e.preventDefault();
-      if (inActions) setZone("results");
-      else if (actions.length > 0) {
-        setZone("actions");
-        setActionIndex(0);
-      }
+      const step = e.shiftKey ? -1 : 1;
+      setZone(zones[(zones.indexOf(zoneNow) + step + zones.length) % zones.length]);
+      setChipIndex(0);
       return;
     }
     const shortcut = shortcutOf(e, queryEmpty);
@@ -397,15 +423,15 @@ function PaletteBody({
     }
     if (key === "Enter" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       e.preventDefault();
-      if (inActions) runAction(actions[actionAt].action);
+      if (inChips) chips[chipAt]?.run();
       else if (current) runPrimary(current);
       return;
     }
-    if (inActions && key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (inChips && key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       // Plain b / l in the actions row: a fallback for browsers that reserve
       // ⌘B / ⌘L (spec §11). Any other key goes back to typing the query.
       const lower = key.toLowerCase();
-      if (lower === "b" || lower === "l") {
+      if (zoneNow === "actions" && (lower === "b" || lower === "l")) {
         e.preventDefault();
         runAction(lower === "b" ? "copyBranch" : "copyLink");
         return;
@@ -449,43 +475,88 @@ function PaletteBody({
               const i = flat++;
               const selected = i === index;
               return (
-                <div key={entry.id} role="presentation">
-                  <div
-                    role="option"
-                    id={optionId(i)}
-                    aria-selected={selected && !inActions}
-                    className={`deck-palette-option${selected ? " deck-palette-option--active" : ""}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseMove={() => !selected && moveTo(i)}
-                    onClick={() => runPrimary(entry)}
-                  >
-                    {renderEntry(entry, tickets, closedIds)}
-                  </div>
-                  {selected && actions.length > 0 && (
-                    <div className="deck-palette-actions" role="presentation">
-                      {actions.map((a, j) => (
-                        <div
-                          key={a.action}
-                          role="option"
-                          id={actionId(j)}
-                          aria-selected={inActions && j === actionAt}
-                          className={`deck-palette-action${inActions && j === actionAt ? " deck-palette-action--active" : ""}`}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => runAction(a.action)}
-                        >
-                          <span>{a.label}</span>
-                          <kbd>{a.keys}</kbd>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div
+                  key={entry.id}
+                  role="option"
+                  id={optionId(i)}
+                  aria-selected={selected && zoneNow === "results"}
+                  className={`deck-palette-option${selected ? " deck-palette-option--active" : ""}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => runPrimary(entry)}
+                >
+                  {renderEntry(entry, tickets, closedIds)}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-      <div className="deck-palette-footer">↑↓ move · ⏎ jump · Tab actions · esc close</div>
+      <div className="deck-palette-tray">
+        <ChipRow
+          label="Actions"
+          className="deck-palette-action"
+          chips={actionChips}
+          empty="Select a result to act on it"
+          activeIndex={zoneNow === "actions" ? chipAt : -1}
+          chipId={(j) => chipId("actions", j)}
+        />
+        <ChipRow
+          label="Commands"
+          className="deck-palette-command"
+          chips={commandChips}
+          activeIndex={zoneNow === "commands" ? chipAt : -1}
+          chipId={(j) => chipId("commands", j)}
+        />
+      </div>
+      <div className="deck-palette-footer">
+        ↑↓ move · ⏎ open · Tab actions, commands · esc close
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One tray row: a flat, wrapping run of chips. Always rendered (even empty) so
+ * the tray keeps its height as the selection moves.
+ */
+function ChipRow({
+  label,
+  className,
+  chips,
+  empty,
+  activeIndex,
+  chipId,
+}: {
+  label: string;
+  className: string;
+  chips: Chip[];
+  /** Muted text while there are no chips. */
+  empty?: string;
+  activeIndex: number;
+  chipId(i: number): string;
+}) {
+  return (
+    <div className="deck-palette-chips" role="listbox" aria-label={label}>
+      <span className="deck-palette-chips-label" aria-hidden="true">
+        {label}
+      </span>
+      <div className="deck-palette-chip-list" role="presentation">
+        {chips.length === 0 && <span className="deck-palette-chips-empty">{empty}</span>}
+        {chips.map((c, j) => (
+          <div
+            key={c.id}
+            role="option"
+            id={chipId(j)}
+            aria-selected={j === activeIndex}
+            className={`deck-palette-chip ${className}${j === activeIndex ? " deck-palette-chip--active" : ""}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={c.run}
+          >
+            <span>{c.label}</span>
+            {c.keys && <kbd>{c.keys}</kbd>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -495,14 +566,6 @@ function renderEntry(
   tickets: Map<string, DeckTicket>,
   closedIds: Set<string>,
 ): ReactNode {
-  if (entry.kind === "command") {
-    return (
-      <>
-        <span className="deck-palette-label">{entry.command.label}</span>
-        {entry.command.keys && <kbd>{entry.command.keys}</kbd>}
-      </>
-    );
-  }
   if (entry.kind === "mention") {
     const m = entry.mention;
     return (

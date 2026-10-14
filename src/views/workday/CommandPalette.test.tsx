@@ -141,7 +141,7 @@ describe("⌘K command palette", () => {
     openPalette();
     expect(input()).toHaveFocus();
     expect(input()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("↑↓ move · ⏎ jump · Tab actions · esc close")).toBeTruthy();
+    expect(screen.getByText("↑↓ move · ⏎ open · Tab actions, commands · esc close")).toBeTruthy();
     fireEvent.keyDown(input(), { key: "Escape", code: "Escape", keyCode: 27 });
     expect(queryInput()).toBeNull();
 
@@ -172,7 +172,7 @@ describe("⌘K command palette", () => {
     const updated = screen.getByRole("group", { name: "Updated since you looked" });
     const rows = within(updated).getAllByRole("option");
     expect(rows[0].textContent).toContain("r#1150 CCP-388 Bulk tag editor");
-    const commands = within(screen.getByRole("group", { name: "Commands" }))
+    const commands = within(screen.getByRole("listbox", { name: "Commands" }))
       .getAllByRole("option")
       .map((o) => o.textContent);
     expect(commands).toEqual([
@@ -273,6 +273,44 @@ describe("⌘K command palette", () => {
     key("b");
     await flush();
     expect(writeText).toHaveBeenCalledWith("branch-1203");
+  });
+
+  it("keeps the commands in the tray while typing; Tab cycles results, actions and commands", () => {
+    renderDeck();
+    openPalette();
+    type("1199");
+    const commands = within(screen.getByRole("listbox", { name: "Commands" })).getAllByRole(
+      "option",
+    );
+    expect(commands.length).toBeGreaterThan(0);
+    // Actions live in the tray, not under the row.
+    const results = screen.getByRole("listbox", { name: "Results" });
+    expect(within(results).queryByText("Jump to card")).toBeNull();
+
+    key("Tab");
+    expect(activeOption()?.textContent).toBe("Jump to card⏎");
+    key("Tab");
+    expect(activeOption()).toBe(commands[0]);
+    key("ArrowRight");
+    expect(activeOption()).toBe(commands[1]);
+    key("ArrowLeft");
+    expect(activeOption()).toBe(commands[0]);
+    key("Tab", { shiftKey: true });
+    expect(activeOption()?.textContent).toBe("Jump to card⏎");
+    key("Tab", { shiftKey: true });
+    expect(activeOption()?.textContent).toContain("#1199");
+  });
+
+  it("hovering a row shades it but doesn't move the selection", () => {
+    seedSeen([1199, 1150]);
+    renderDeck();
+    openPalette();
+    const before = activeOption();
+    const rows = within(
+      screen.getByRole("group", { name: "Updated since you looked" }),
+    ).getAllByRole("option");
+    fireEvent.mouseMove(rows.find((r) => r !== before)!);
+    expect(activeOption()).toBe(before);
   });
 
   it("⌥⏎ opens the PR modal and marks it seen", async () => {
@@ -496,6 +534,21 @@ describe("CommandPalette", () => {
     fireEvent.keyDown(input(), { key: "Enter" });
     // Closing actions wait for the parent to hide the palette.
     expect(onOpenMention).not.toHaveBeenCalled();
+  });
+
+  it("offers Open comment for a mention in the tray", () => {
+    render(
+      <CommandPalette
+        show
+        onHide={() => {}}
+        deck={deck([mention(1)])}
+        commands={[]}
+        onAction={vi.fn()}
+        onOpenMention={vi.fn()}
+      />,
+    );
+    const actions = within(screen.getByRole("listbox", { name: "Actions" })).getAllByRole("option");
+    expect(actions.map((a) => a.textContent)).toEqual(["Open comment⏎"]);
   });
 
   it("says when nothing is new or nothing matches", () => {
