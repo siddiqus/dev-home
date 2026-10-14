@@ -137,6 +137,7 @@ export default function App() {
     backendOnline,
     jiraBaseUrl,
     githubOrg,
+    githubUsername,
     hiddenTabs,
     weekendDays,
     saveSettings,
@@ -665,6 +666,7 @@ export default function App() {
                         }
                         sourceError={error}
                         jiraBaseUrl={jiraBaseUrl}
+                        githubUsername={githubUsername}
                         weekendDays={weekendDays}
                         refreshKey={refreshKey}
                         onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}

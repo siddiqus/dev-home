@@ -382,6 +382,25 @@ describe("WorkdayView deck", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("card shows each PR's branch in the meta line with a copy icon, without opening the PR", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderDeck();
+    const c = card();
+    expect(within(c).getByTitle("branch-1203")).toHaveTextContent("branch-1203");
+    fireEvent.click(within(c).getByRole("button", { name: "Copy branch branch-1207" }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith("branch-1207");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("hides the author on my own PRs and shows it on others'", () => {
+    const { rerender } = renderDeck({ githubUsername: "Me" });
+    expect(card().querySelector(".deck-pr-author")).toBeNull();
+    rerender({ githubUsername: "someone-else" });
+    expect(card().querySelector(".deck-pr-author")).toHaveTextContent("me");
+  });
+
   it("shows a No PR yet card for an in-progress ticket without PRs", () => {
     renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
     expect(card()).toHaveAccessibleName("CCP-371 Thumbnail backfill");
@@ -461,6 +480,7 @@ describe("WorkdayView personal state", () => {
     ]);
     // Space marked the selected PR (the top row), which is now the current one.
     expect(selectedPRRow()).toHaveClass("deck-pr--current");
+    expect(within(selectedPRRow()!).getByText("▶ current")).toBeTruthy();
     expect(card()).toHaveAccessibleName(/^CCP-412/);
     expect(screen.getByText(/tickets · 1 current/)).toBeTruthy();
 

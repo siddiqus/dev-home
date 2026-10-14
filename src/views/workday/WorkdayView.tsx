@@ -17,7 +17,13 @@ import { buildWorkday } from "./buildWorkday";
 import { buildFocus } from "./buildFocus";
 import { formatSinceLabel, LOOKBACKS, sinceFor, type Lookback } from "./dates";
 import type { TicketRef, WorkdaySections } from "./types";
-import { CopyPRLinkContext, CopyTicketContext, PinContext } from "./CompactRow";
+import {
+  CopyBranchContext,
+  CopyPRLinkContext,
+  CopyTicketContext,
+  PinContext,
+  ViewerLoginContext,
+} from "./CompactRow";
 import { FocusMode } from "./FocusMode";
 import { PINS_KEY, prPin, ticketPin } from "./pins";
 import { prNoteKey } from "../../utils/prNotes";
@@ -53,6 +59,8 @@ export interface WorkdayViewProps {
   loading: boolean;
   mentionsLoading?: boolean;
   jiraBaseUrl: string;
+  /** My GitHub login; the deck hides the author on my own PRs. */
+  githubUsername?: string;
   weekendDays: number[];
   refreshKey: number;
   onRefresh: () => void;
@@ -908,188 +916,192 @@ export function WorkdayView(props: WorkdayViewProps) {
   return (
     <CopyTicketContext.Provider value={onCopyTicket}>
       <CopyPRLinkContext.Provider value={onCopyLink}>
-        <div className="workday-page">
-          <div className="workday-header">
-            <SegmentedTabs
-              className="inline-control workday-mode-toggle"
-              tabs={MODES.map((m) => ({
-                key: m,
-                label: (
-                  <>
-                    {MODE_LABELS[m]} <kbd>{MODE_KEYS[m]}</kbd>
-                  </>
-                ),
-              }))}
-              activeKey={mode}
-              onChange={(k) => setMode(k as Mode)}
-            />
-            <span className="workday-date-pill">{formatSinceLabel(now)}</span>
-            <span className="workday-summary">{summary}</span>
-            <Button
-              variant="link"
-              size="sm"
-              className="workday-cmd-k-hint"
-              title="Find and act (⌘K)"
-              onClick={openPalette}
-            >
-              ⌘K find &amp; act
-            </Button>
-            <div className="workday-header-spacer" />
-            {mode === "list" && (
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={toggleCollapseAll}
-                title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
-              >
-                {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
-                {allCollapsed ? "Expand all" : "Collapse all"}
-              </Button>
-            )}
-            {mode === "standup" && (
-              <>
+        <CopyBranchContext.Provider value={onCopyBranch}>
+          <ViewerLoginContext.Provider value={props.githubUsername ?? ""}>
+            <div className="workday-page">
+              <div className="workday-header">
                 <SegmentedTabs
-                  className="inline-control"
-                  tabs={LOOKBACKS.map((l) => ({ key: l, label: LOOKBACK_LABELS[l] }))}
-                  activeKey={lookback}
-                  onChange={(k) => setLookback(k as Lookback)}
+                  className="inline-control workday-mode-toggle"
+                  tabs={MODES.map((m) => ({
+                    key: m,
+                    label: (
+                      <>
+                        {MODE_LABELS[m]} <kbd>{MODE_KEYS[m]}</kbd>
+                      </>
+                    ),
+                  }))}
+                  activeKey={mode}
+                  onChange={(k) => setMode(k as Mode)}
                 />
-                <Button variant="primary" size="sm" onClick={copyStandup}>
-                  <IconCopy size={14} /> Copy
-                </Button>
-              </>
-            )}
-            {/* The spinner takes the icon's place, so nothing in the row moves. */}
-            <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
-              {loading && hasLoadedOnce ? (
-                <Spinner
-                  animation="border"
+                <span className="workday-date-pill">{formatSinceLabel(now)}</span>
+                <span className="workday-summary">{summary}</span>
+                <Button
+                  variant="link"
                   size="sm"
-                  role="status"
-                  aria-label="Refreshing"
-                  className="workday-refresh-spinner"
-                />
-              ) : (
-                <IconRefresh size={14} />
-              )}{" "}
-              Refresh
-            </Button>
-          </div>
+                  className="workday-cmd-k-hint"
+                  title="Find and act (⌘K)"
+                  onClick={openPalette}
+                >
+                  ⌘K find &amp; act
+                </Button>
+                <div className="workday-header-spacer" />
+                {mode === "list" && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={toggleCollapseAll}
+                    title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
+                  >
+                    {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
+                    {allCollapsed ? "Expand all" : "Collapse all"}
+                  </Button>
+                )}
+                {mode === "standup" && (
+                  <>
+                    <SegmentedTabs
+                      className="inline-control"
+                      tabs={LOOKBACKS.map((l) => ({ key: l, label: LOOKBACK_LABELS[l] }))}
+                      activeKey={lookback}
+                      onChange={(k) => setLookback(k as Lookback)}
+                    />
+                    <Button variant="primary" size="sm" onClick={copyStandup}>
+                      <IconCopy size={14} /> Copy
+                    </Button>
+                  </>
+                )}
+                {/* The spinner takes the icon's place, so nothing in the row moves. */}
+                <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
+                  {loading && hasLoadedOnce ? (
+                    <Spinner
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-label="Refreshing"
+                      className="workday-refresh-spinner"
+                    />
+                  ) : (
+                    <IconRefresh size={14} />
+                  )}{" "}
+                  Refresh
+                </Button>
+              </div>
 
-          {mode === "focus" ? (
-            <DeckMode
-              deck={deck}
-              selectedId={selectedId}
-              onSelect={clickTicket}
-              selectedPrUrl={selectedPrUrl}
-              cardPRs={cardPRs}
-              onSelectPr={selectPr}
-              onOpen={openPR}
-              jiraBaseUrl={jiraBaseUrl}
-              now={now}
-              closedFolded={closedFolded}
-              onToggleClosed={() => setClosedFolded((v) => !v)}
-              onReopen={reopenTicket}
-              onlyCurrent={onlyCurrent}
-              onOpenNote={onOpenNote}
-              composing={composing}
-              onSaveNote={saveNote}
-              onCancelNote={cancelNote}
-              swipe={swipe.dir}
-              loading={firstLoad}
-              sourceError={sourceErrorText(sourceError)}
-              onRetry={refresh}
-              notStartedCount={notStartedCount}
-              onShowClosed={showClosed}
-              onSwitchToStandup={toStandup}
-            />
-          ) : mode === "list" ? (
-            <div className="workday-list" data-testid="workday-list">
-              <PinContext.Provider value={pinContext}>
-                <FocusMode
-                  focus={focus}
-                  loading={loading}
-                  mentionsLoading={mentionsLoading}
+              {mode === "focus" ? (
+                <DeckMode
+                  deck={deck}
+                  selectedId={selectedId}
+                  onSelect={clickTicket}
+                  selectedPrUrl={selectedPrUrl}
+                  cardPRs={cardPRs}
+                  onSelectPr={selectPr}
+                  onOpen={openPR}
                   jiraBaseUrl={jiraBaseUrl}
-                  ticketTitles={ticketTitles}
                   now={now}
-                  sectionToggle={sectionToggle}
-                  onOpen={setSelectedPR}
+                  closedFolded={closedFolded}
+                  onToggleClosed={() => setClosedFolded((v) => !v)}
+                  onReopen={reopenTicket}
+                  onlyCurrent={onlyCurrent}
+                  onOpenNote={onOpenNote}
+                  composing={composing}
+                  onSaveNote={saveNote}
+                  onCancelNote={cancelNote}
+                  swipe={swipe.dir}
+                  loading={firstLoad}
+                  sourceError={sourceErrorText(sourceError)}
+                  onRetry={refresh}
+                  notStartedCount={notStartedCount}
+                  onShowClosed={showClosed}
+                  onSwitchToStandup={toStandup}
                 />
-              </PinContext.Provider>
+              ) : mode === "list" ? (
+                <div className="workday-list" data-testid="workday-list">
+                  <PinContext.Provider value={pinContext}>
+                    <FocusMode
+                      focus={focus}
+                      loading={loading}
+                      mentionsLoading={mentionsLoading}
+                      jiraBaseUrl={jiraBaseUrl}
+                      ticketTitles={ticketTitles}
+                      now={now}
+                      sectionToggle={sectionToggle}
+                      onOpen={setSelectedPR}
+                    />
+                  </PinContext.Provider>
+                </div>
+              ) : (
+                <StandupSheet
+                  groups={groups}
+                  sinceLabel={sinceLabel}
+                  loading={loading}
+                  doneLoading={done.loading}
+                  incomplete={standupIncomplete}
+                  onOpenPR={setSelectedPR}
+                  onOpenTicket={openTicketKey}
+                  note={{
+                    now,
+                    notes,
+                    notesLoaded,
+                    addNote,
+                    editNote,
+                    onChange: setNoteText,
+                  }}
+                />
+              )}
+
+              {mode === "focus" && !hideHints && (
+                // "? all keys" leads: the bar clips on the right, so it must never be the one cut.
+                <div className="deck-hints" data-testid="deck-hints">
+                  <span>
+                    <kbd>?</kbd> all keys
+                  </span>
+                  <span>
+                    <kbd>←→</kbd> back/skip
+                  </span>
+                  <span>
+                    <kbd>↑↓</kbd> pick PR
+                  </span>
+                  <span>
+                    <kbd>Space</kbd> current
+                  </span>
+                  <span>
+                    <kbd>⏎</kbd> open
+                  </span>
+                  <span>
+                    <kbd>.</kbd> note
+                  </span>
+                  <span>
+                    <kbd>x</kbd> close
+                  </span>
+                  <span>
+                    <kbd>n</kbd> next updated
+                  </span>
+                  <span>
+                    <kbd>⌘K</kbd> find
+                  </span>
+                </div>
+              )}
+
+              <ShortcutSheet show={helpOpen} onHide={hideHelp} />
+
+              <PRDetailModal
+                pr={selectedPR}
+                onHide={() => setSelectedPR(null)}
+                jiraBaseUrl={jiraBaseUrl}
+              />
+
+              <CommandPalette
+                show={paletteOpen}
+                onHide={hidePalette}
+                deck={deck}
+                commands={paletteCommands}
+                onAction={onPaletteAction}
+                onOpenMention={onOpenMention}
+              />
+
+              <Toast message={toast.message} visible={toast.visible} />
             </div>
-          ) : (
-            <StandupSheet
-              groups={groups}
-              sinceLabel={sinceLabel}
-              loading={loading}
-              doneLoading={done.loading}
-              incomplete={standupIncomplete}
-              onOpenPR={setSelectedPR}
-              onOpenTicket={openTicketKey}
-              note={{
-                now,
-                notes,
-                notesLoaded,
-                addNote,
-                editNote,
-                onChange: setNoteText,
-              }}
-            />
-          )}
-
-          {mode === "focus" && !hideHints && (
-            // "? all keys" leads: the bar clips on the right, so it must never be the one cut.
-            <div className="deck-hints" data-testid="deck-hints">
-              <span>
-                <kbd>?</kbd> all keys
-              </span>
-              <span>
-                <kbd>←→</kbd> back/skip
-              </span>
-              <span>
-                <kbd>↑↓</kbd> pick PR
-              </span>
-              <span>
-                <kbd>Space</kbd> current
-              </span>
-              <span>
-                <kbd>⏎</kbd> open
-              </span>
-              <span>
-                <kbd>.</kbd> note
-              </span>
-              <span>
-                <kbd>x</kbd> close
-              </span>
-              <span>
-                <kbd>n</kbd> next updated
-              </span>
-              <span>
-                <kbd>⌘K</kbd> find
-              </span>
-            </div>
-          )}
-
-          <ShortcutSheet show={helpOpen} onHide={hideHelp} />
-
-          <PRDetailModal
-            pr={selectedPR}
-            onHide={() => setSelectedPR(null)}
-            jiraBaseUrl={jiraBaseUrl}
-          />
-
-          <CommandPalette
-            show={paletteOpen}
-            onHide={hidePalette}
-            deck={deck}
-            commands={paletteCommands}
-            onAction={onPaletteAction}
-            onOpenMention={onOpenMention}
-          />
-
-          <Toast message={toast.message} visible={toast.visible} />
-        </div>
+          </ViewerLoginContext.Provider>
+        </CopyBranchContext.Provider>
       </CopyPRLinkContext.Provider>
     </CopyTicketContext.Provider>
   );

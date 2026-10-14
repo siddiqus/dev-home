@@ -222,7 +222,7 @@ describe("DeckMode card", () => {
     expect(within(card).getByText("2 PRs · 1 current · updated 2h")).toBeTruthy();
 
     const [mine, theirs] = within(card).getAllByRole("option");
-    expect(within(mine).getByText("▶")).toBeTruthy();
+    expect(within(mine).getByText("▶ current")).toBeTruthy();
     expect(mine).toHaveClass("deck-pr--current");
     expect(within(mine).getByText("backend worker")).toBeTruthy();
     expect(within(mine).queryByText("tomas")).toBeNull();

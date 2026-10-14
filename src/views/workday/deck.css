@@ -530,7 +530,7 @@
 .deck-column {
   position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 680px;
   align-self: flex-start;
 }
 
@@ -559,7 +559,7 @@
 
 .deck-card {
   /* PR row columns, shared with the note composer so it lines up with them. */
-  --deck-pr-marker-w: 16px;
+  --deck-note-icon-w: 16px;
   /* The note composer's PR target column; long repos truncate. */
   --deck-pr-ref-w: 128px;
   --deck-pr-pad-x: 10px;
@@ -628,9 +628,7 @@
 
 .deck-pr {
   display: grid;
-  grid-template-columns: var(--deck-pr-marker-w) minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 7px;
   padding: 9px var(--deck-pr-pad-x);
   border: 1px solid var(--color-border-subtle);
@@ -653,8 +651,8 @@
   outline: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
 }
 
-.deck-pr-marker {
-  font-weight: 700;
+.deck-pr-current {
+  font-weight: 600;
   color: var(--color-status-warning);
 }
 
@@ -669,8 +667,17 @@
   color: var(--color-text-muted);
 }
 
-.deck-pr-meta > :not(.deck-pr-ref) {
+.deck-pr-meta > :not(.deck-pr-ref, .deck-pr-branch) {
   flex: none;
+}
+
+/* Updated age and the unseen dot sit at the right end of the meta line. */
+.deck-pr-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 6px;
 }
 
 .deck-pr-ref {
@@ -708,6 +715,29 @@
   margin-top: 2px;
   font-size: 0.8125rem;
   color: var(--color-text-primary);
+}
+
+/* Long branch names give way first; full name on hover. */
+.deck-pr-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 100 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.deck-pr-branch svg,
+.deck-pr-branch button {
+  flex: none;
+}
+
+.deck-pr-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deck-pr-signals {
@@ -842,11 +872,10 @@ button.deck-rail-row:focus-visible {
   margin-top: 7px;
 }
 
-/* Under the PR list: the icon sits in the PR rows' marker column (plus their
-   1px border), followed by the target ref and the input. */
+/* Under the PR list: the icon, then the target ref and the input. */
 .deck-note-composer--pr {
   display: grid;
-  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-ref-w) minmax(0, 1fr);
+  grid-template-columns: var(--deck-note-icon-w) var(--deck-pr-ref-w) minmax(0, 1fr);
   padding: 0 calc(var(--deck-pr-pad-x) + 1px);
 }
 
