@@ -133,4 +133,22 @@ describe("WorkdayV2View", () => {
     renderView();
     expect(screen.getByText("In Progress")).toBeTruthy();
   });
+
+  it("shows spinner while loading after first data, but not on first load", () => {
+    const { rerender } = renderView({ loading: true });
+    // First load: no spinner even though loading=true
+    expect(screen.queryByLabelText("Refreshing")).toBeNull();
+
+    // First load completes
+    rerender({ loading: false });
+    expect(screen.queryByLabelText("Refreshing")).toBeNull();
+
+    // Subsequent refresh: spinner shows
+    rerender({ loading: true });
+    expect(screen.getByLabelText("Refreshing")).toBeTruthy();
+
+    // Refresh completes: spinner disappears
+    rerender({ loading: false });
+    expect(screen.queryByLabelText("Refreshing")).toBeNull();
+  });
 });

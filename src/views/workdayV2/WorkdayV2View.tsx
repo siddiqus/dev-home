@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "react-bootstrap/Button";
+import Spinner from "react-bootstrap/Spinner";
 import { IconRefresh, IconSun } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
@@ -65,6 +66,13 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { onCopyLink, onCopyTicket, toast } = usePRCopyActions();
+  // Track if we've finished at least one load, so the spinner shows on refreshes but not first load.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  useEffect(() => {
+    if (!loading && !hasLoadedOnce) {
+      setHasLoadedOnce(true);
+    }
+  }, [loading, hasLoadedOnce]);
 
   // F / S switch modes, except while typing or with a modal open.
   useEffect(() => {
@@ -196,6 +204,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
                 activeKey={filter}
                 onChange={(k) => setFilter(k as SprintFilter)}
               />
+            )}
+            {loading && hasLoadedOnce && (
+              <Spinner animation="border" size="sm" role="status" aria-label="Refreshing" />
             )}
             <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
               <IconRefresh size={14} /> Refresh
