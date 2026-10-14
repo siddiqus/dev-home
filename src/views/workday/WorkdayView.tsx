@@ -73,7 +73,7 @@ const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilte
 const NO_MENTIONS: never[] = [];
 
 /** A localStorage-backed string state limited to `allowed` values. */
-function useStoredState<T extends string>(key: string, initial: T, allowed: readonly T[]) {
+export function useStoredState<T extends string>(key: string, initial: T, allowed: readonly T[]) {
   const [value, setValue] = useState<T>(() => {
     const v = localStorage.getItem(key) as T | null;
     return v && allowed.includes(v) ? v : initial;
@@ -89,9 +89,16 @@ function useStoredState<T extends string>(key: string, initial: T, allowed: read
 }
 
 /** Typing targets where single-key shortcuts must not fire. */
-function isTypingTarget(t: EventTarget | null): boolean {
+export function isTypingTarget(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
-  return t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName);
+  const editable = t.contentEditable;
+  return (
+    t.isContentEditable ||
+    editable === "true" ||
+    editable === "plaintext-only" ||
+    (editable !== "false" && editable !== "inherit" && t.hasAttribute("contenteditable")) ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)
+  );
 }
 
 /**
