@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { shortKey } from "./buildDeck";
 import { DeckRailRow } from "./DeckRailRow";
 import type { DeckData, DeckTicket } from "./types";
@@ -14,7 +15,15 @@ export interface DeckRailProps {
   onReopen?(id: string): void;
   /** `g c`: show only ▶ Current, hiding Open. */
   onlyCurrent?: boolean;
+  /** First load with no data yet: six skeleton rows (spec §5.13). */
+  loading?: boolean;
+  /** A source failed: a one-line banner at the top of the rail, e.g. "Jira unavailable, showing PRs only". */
+  sourceError?: string | null;
+  /** The banner's "retry" link. */
+  onRetry?(): void;
 }
+
+const SKELETON_ROWS = 6;
 
 /** DOM id of a rail row: index-based, since ticket ids can be URLs. */
 const rowId = (group: string, index: number) => `deck-rail-${group}-${index}`;
@@ -37,6 +46,9 @@ export function DeckRail({
   onToggleClosed,
   onReopen,
   onlyCurrent = false,
+  loading = false,
+  sourceError = null,
+  onRetry,
 }: DeckRailProps) {
   const all = [...deck.current, ...deck.open, ...deck.closed];
   const groups = [
@@ -55,64 +67,103 @@ export function DeckRail({
   }, [activeId]);
 
   return (
-    <div
-      className="deck-rail"
-      role="listbox"
-      aria-label="Tickets"
-      aria-activedescendant={activeId}
-      tabIndex={0}
-    >
-      {groups.map(
-        (g) =>
-          g.tickets.length > 0 && (
-            <div key={g.name} role="group" aria-label={g.label} className="deck-rail-group">
-              <div className={`deck-rail-heading deck-rail-heading--${g.name}`} aria-hidden="true">
-                <span>{g.heading}</span>
-                <span>{g.tickets.length}</span>
-              </div>
-              {g.tickets.map((t, i) => (
-                <DeckRailRow
-                  key={t.id}
-                  id={rowId(g.name, i)}
-                  ticket={t}
-                  label={railLabel(t, all)}
-                  selected={t.id === selectedId}
-                  onSelect={onSelect}
-                />
-              ))}
-            </div>
-          ),
-      )}
-      {onlyCurrent && deck.current.length === 0 && (
-        <div className="deck-rail-empty">Nothing current · g c shows all</div>
-      )}
-      {deck.closed.length > 0 && (
-        <div role="group" aria-label="Closed" className="deck-rail-group">
-          <button
-            type="button"
-            className="deck-rail-heading deck-rail-heading--closed"
-            aria-expanded={!closedFolded}
-            onClick={(e) => {
-              if (e.detail > 0) e.currentTarget.blur();
-              onToggleClosed?.();
-            }}
-          >
-            <span>Closed · {deck.closed.length}</span>
-            <span aria-hidden="true">{closedFolded ? "▸" : "▾"}</span>
-          </button>
-          {!closedFolded &&
-            deck.closed.map((t, i) => (
-              <DeckRailRow
-                key={t.id}
-                id={rowId("closed", i)}
-                ticket={t}
-                label={railLabel(t, all)}
-                selected={false}
-                onSelect={(id) => onReopen?.(id)}
-              />
-            ))}
+    <div className="deck-rail">
+      {sourceError && (
+        <div className="deck-rail-banner" role="status">
+          <IconAlertTriangle size={14} aria-hidden="true" className="deck-rail-banner-icon" />
+          <span className="deck-rail-banner-text">
+            {sourceError}
+            {onRetry && (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  className="deck-rail-banner-retry"
+                  onClick={(e) => {
+                    if (e.detail > 0) e.currentTarget.blur();
+                    onRetry();
+                  }}
+                >
+                  retry
+                </button>
+              </>
+            )}
+          </span>
         </div>
       )}
+      <div
+        className="deck-rail-list"
+        role="listbox"
+        aria-label="Tickets"
+        aria-activedescendant={activeId}
+        aria-busy={loading || undefined}
+        tabIndex={0}
+      >
+        {loading && (
+          <div className="deck-rail-skeleton" data-testid="deck-rail-skeleton" aria-hidden="true">
+            {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+              <div key={i} className="deck-skeleton-row">
+                <span className="deck-skeleton deck-skeleton--stripe" />
+                <span className="deck-skeleton deck-skeleton--line" />
+              </div>
+            ))}
+          </div>
+        )}
+        {groups.map(
+          (g) =>
+            g.tickets.length > 0 && (
+              <div key={g.name} role="group" aria-label={g.label} className="deck-rail-group">
+                <div
+                  className={`deck-rail-heading deck-rail-heading--${g.name}`}
+                  aria-hidden="true"
+                >
+                  <span>{g.heading}</span>
+                  <span>{g.tickets.length}</span>
+                </div>
+                {g.tickets.map((t, i) => (
+                  <DeckRailRow
+                    key={t.id}
+                    id={rowId(g.name, i)}
+                    ticket={t}
+                    label={railLabel(t, all)}
+                    selected={t.id === selectedId}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            ),
+        )}
+        {onlyCurrent && deck.current.length === 0 && (
+          <div className="deck-rail-empty">Nothing current · g c shows all</div>
+        )}
+        {deck.closed.length > 0 && (
+          <div role="group" aria-label="Closed" className="deck-rail-group">
+            <button
+              type="button"
+              className="deck-rail-heading deck-rail-heading--closed"
+              aria-expanded={!closedFolded}
+              onClick={(e) => {
+                if (e.detail > 0) e.currentTarget.blur();
+                onToggleClosed?.();
+              }}
+            >
+              <span>Closed · {deck.closed.length}</span>
+              <span aria-hidden="true">{closedFolded ? "▸" : "▾"}</span>
+            </button>
+            {!closedFolded &&
+              deck.closed.map((t, i) => (
+                <DeckRailRow
+                  key={t.id}
+                  id={rowId("closed", i)}
+                  ticket={t}
+                  label={railLabel(t, all)}
+                  selected={false}
+                  onSelect={(id) => onReopen?.(id)}
+                />
+              ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

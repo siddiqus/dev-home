@@ -37,21 +37,72 @@
 
 /* ---------- Rail (spec §5.3) ---------- */
 
+/* The rail is a column: the source banner (when set) stays put above the
+   listbox, which scrolls on its own. */
 .deck-rail {
   flex: none;
+  display: flex;
+  flex-direction: column;
   width: 268px;
-  overflow-y: auto;
-  padding: var(--space-1);
+  min-height: 0;
   border-right: 1px solid var(--color-border);
   background: var(--color-bg-panel);
 }
 
-.deck-rail:focus {
+.deck-rail-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+
+.deck-rail-list:focus {
   outline: none;
 }
 
-.deck-rail:focus-visible {
+.deck-rail-list:focus-visible {
   box-shadow: inset 0 0 0 2px var(--color-focus-ring);
+}
+
+/* Source error (spec §5.13): one line, fixed above the list. */
+.deck-rail-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-status-warning) 10%, var(--color-bg-panel));
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.deck-rail-banner-icon {
+  flex: none;
+  color: var(--color-status-warning);
+}
+
+.deck-rail-banner-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-rail-banner-retry,
+.deck-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.deck-rail-banner-retry:hover,
+.deck-link:hover {
+  text-decoration: underline;
 }
 
 .deck-rail-heading {
@@ -94,7 +145,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-status-warning) 25%, transparent);
 }
 
-.deck-rail:focus-visible .deck-rail-row--selected {
+.deck-rail-list:focus-visible .deck-rail-row--selected {
   outline: 1px solid var(--color-focus-ring);
 }
 
@@ -579,4 +630,277 @@ button.deck-rail-heading--closed:hover {
   border-top: 1px solid var(--color-border);
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+/* ---------- Key hints, shortcut sheet (spec §5.1, §5.12) ---------- */
+
+.deck-hints {
+  flex: none;
+  display: flex;
+  gap: var(--space-4);
+  overflow: hidden;
+  padding: var(--space-2) var(--space-1) 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.deck-hints span {
+  flex: none;
+}
+
+.deck-hints kbd,
+.deck-shortcuts kbd {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.deck-shortcuts .modal-content {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.deck-shortcuts-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.deck-shortcuts-table td {
+  padding: 4px 0;
+  vertical-align: top;
+}
+
+.deck-shortcuts-keys {
+  width: 30%;
+  padding-right: var(--space-3) !important;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.deck-shortcuts-foot {
+  margin: var(--space-3) 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Empty and loading states (spec §5.13) ---------- */
+
+.deck-empty {
+  align-self: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.deck-empty p {
+  margin: 0 0 var(--space-2);
+}
+
+.deck-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-empty-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.deck-skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-hover);
+  animation: deck-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes deck-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.deck-skeleton-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  padding: 6px var(--space-2) 6px 4px;
+}
+
+.deck-skeleton--stripe {
+  height: 28px;
+}
+
+.deck-skeleton--line {
+  height: 0.75rem;
+  width: 80%;
+}
+
+.deck-card--skeleton {
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.deck-skeleton--title {
+  height: 1rem;
+  width: 60%;
+}
+
+.deck-skeleton--sub {
+  height: 0.75rem;
+  width: 35%;
+}
+
+.deck-skeleton--pr {
+  height: 52px;
+}
+
+/* ---------- Card swipe (spec §5.4) ----------
+   The column is re-keyed on every selection, so each change mounts fresh
+   elements and the animation restarts; nothing waits on animationend. "next"
+   (→, or later in rail order): a blank frame of the old card leaves to the
+   left while the new card and the ghosts come in from the right. "prev" mirrors it. */
+
+.deck-swipe-out {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.deck-column[data-swipe="next"] .deck-swipe-out {
+  animation: deck-out-left 140ms ease-in forwards;
+}
+.deck-column[data-swipe="prev"] .deck-swipe-out {
+  animation: deck-out-right 140ms ease-in forwards;
+}
+.deck-column[data-swipe="next"] .deck-card {
+  animation: deck-in-right 140ms ease-out;
+}
+.deck-column[data-swipe="prev"] .deck-card {
+  animation: deck-in-left 140ms ease-out;
+}
+.deck-column[data-swipe="next"] .deck-ghost {
+  animation: deck-ghost-in-right 140ms ease-out;
+}
+.deck-column[data-swipe="prev"] .deck-ghost {
+  animation: deck-ghost-in-left 140ms ease-out;
+}
+
+@keyframes deck-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+}
+@keyframes deck-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+}
+@keyframes deck-in-right {
+  from {
+    opacity: 0.4;
+    transform: translateX(32px);
+  }
+}
+@keyframes deck-in-left {
+  from {
+    opacity: 0.4;
+    transform: translateX(-32px);
+  }
+}
+/* Ghosts keep their translateX(-50%) centring. */
+@keyframes deck-ghost-in-right {
+  from {
+    transform: translateX(calc(-50% + 12px));
+  }
+}
+@keyframes deck-ghost-in-left {
+  from {
+    transform: translateX(calc(-50% - 12px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-column[data-swipe] .deck-card,
+  .deck-column[data-swipe] .deck-ghost,
+  .deck-skeleton {
+    animation: none;
+  }
+  .deck-swipe-out {
+    display: none;
+  }
+}
+
+/* ---------- Slim rail (spec §5.1: < 900px) ----------
+   Keys, stripes and dots only. Hover or focus-within widens it to full size as
+   an overlay: the negative margin keeps its layout width, so the stage doesn't move. */
+@media (max-width: 899.98px) {
+  .deck-mode {
+    position: relative;
+  }
+
+  .deck-rail {
+    position: relative;
+    z-index: 5;
+    width: 76px;
+  }
+
+  .deck-rail:hover,
+  .deck-rail:focus-within {
+    width: 268px;
+    margin-right: calc(76px - 268px);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-title,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-review,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-status,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading > span:first-child,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-text,
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-empty,
+  .deck-rail:not(:hover):not(:focus-within) .deck-skeleton--line {
+    display: none;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner {
+    justify-content: center;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading {
+    justify-content: flex-end;
+  }
+
+  .deck-rail:not(:hover):not(:focus-within) .deck-rail-row {
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .deck-stage {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
 }

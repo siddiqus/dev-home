@@ -732,3 +732,133 @@ describe("WorkdayV2View card context", () => {
     expect(card()).toHaveAccessibleName(/^CCP-412/);
   });
 });
+
+describe("WorkdayV2View polish", () => {
+  beforeEach(() => localStorage.clear());
+
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+    renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
+  const column = () => card().closest(".deck-column");
+  const banner = () => document.querySelector<HTMLElement>(".deck-rail-banner");
+  const todo = issue("CCP-500", "Not started yet", {
+    status: { name: "To Do", statusCategory: { key: "new", colorName: "blue-gray" } },
+  });
+
+  it("shows the empty deck with closed and not-started counts and its links", () => {
+    renderView({ openPRs: [], assignedIssues: [todo], allIssues: [todo] });
+    expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
+    expect(screen.getByText("0 closed tabs · 1 assigned ticket not started")).toBeTruthy();
+    // Nothing closed: no "Show closed" link.
+    expect(screen.queryByRole("button", { name: "Show closed" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Standup" }));
+    expect(screen.getByText("In Progress")).toBeTruthy();
+  });
+
+  it("Show closed on the empty deck unfolds the Closed group", () => {
+    const one = [deckPRs[3]];
+    renderView({ openPRs: one, allIssues: [deckIssues[2]] });
+    press("x");
+    expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
+    expect(screen.getByText(/^1 closed tab · 0 assigned tickets not started$/)).toBeTruthy();
+    const closed = within(screen.getByRole("listbox", { name: "Tickets" })).getByRole("group", {
+      name: "Closed",
+    });
+    expect(within(closed).queryAllByRole("option")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Show closed" }));
+    expect(within(closed).getAllByRole("option")).toHaveLength(1);
+  });
+
+  it("shows rail and card skeletons on a first load with no data, not on refresh", () => {
+    const { rerender } = renderView({ openPRs: [], loading: true });
+    const rows = screen.getByTestId("deck-rail-skeleton").querySelectorAll(".deck-skeleton-row");
+    expect(rows).toHaveLength(6);
+    expect(screen.getByTestId("deck-card-skeleton")).toBeTruthy();
+    expect(screen.queryByText("Nothing open. Nice.")).toBeNull();
+
+    rerender({ openPRs: [], loading: false });
+    expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
+    expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
+
+    rerender({ openPRs: [], loading: true });
+    expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
+    expect(screen.getByLabelText("Refreshing")).toBeTruthy();
+  });
+
+  it("shows a Jira source error banner at the top of the rail; retry refreshes", () => {
+    const onRefresh = vi.fn();
+    renderDeck({ sourceError: "JIRA Issues: 503 Service Unavailable", onRefresh });
+    expect(banner()).toHaveAttribute("role", "status");
+    expect(banner()).toHaveTextContent("Jira unavailable, showing PRs only · retry");
+    expect(banner()!.closest(".deck-rail")).toBeTruthy();
+    // The rail keeps rendering the other source.
+    expect(screen.getAllByRole("option", { name: /412/ }).length).toBeGreaterThan(0);
+    fireEvent.click(within(banner()!).getByRole("button", { name: "retry" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("names GitHub, or both sources, in the banner", () => {
+    const { rerender } = renderDeck({ sourceError: "GitHub PRs: timeout" });
+    expect(banner()).toHaveTextContent("GitHub unavailable, showing Jira tickets only · retry");
+    rerender({ sourceError: "GitHub Reviews: x; JIRA Mentions: y" });
+    expect(banner()).toHaveTextContent("GitHub and Jira unavailable · retry");
+    rerender({ sourceError: null });
+    expect(banner()).toBeNull();
+  });
+
+  it("? opens the shortcut sheet; deck keys wait until it closes", () => {
+    renderDeck();
+    press("?", { shiftKey: true });
+    const sheet = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
+    expect(within(sheet).getByText("Next ticket with unseen activity")).toBeTruthy();
+    expect(within(sheet).getByText("Show only current (toggle)")).toBeTruthy();
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    fireEvent.keyDown(sheet, { key: "Escape", code: "Escape", keyCode: 27 });
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).toBeNull();
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-401/);
+  });
+
+  it("hides the key hint bar from ⌘K and remembers it", async () => {
+    renderDeck();
+    expect(screen.getByTestId("deck-hints")).toHaveTextContent("←→ back/skip");
+    press("k", { metaKey: true });
+    fireEvent.click(screen.getByRole("option", { name: /Hide key hints/ }));
+    await act(async () => {});
+    expect(screen.queryByTestId("deck-hints")).toBeNull();
+    expect(localStorage.getItem("dev-home-workday-v2-hide-hints")).toBe("true");
+    cleanup();
+    renderDeck();
+    expect(screen.queryByTestId("deck-hints")).toBeNull();
+  });
+
+  it("swipes the card the way the selection moves, with ←/→ wraps following the key", () => {
+    renderDeck();
+    expect(column()).not.toHaveAttribute("data-swipe");
+    press("ArrowRight"); // 412 → 401
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    press("ArrowLeft"); // 401 → 412
+    expect(column()).toHaveAttribute("data-swipe", "prev");
+    press("ArrowLeft"); // wraps 412 → 388: still the key's direction
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    expect(column()).toHaveAttribute("data-swipe", "prev");
+    press("ArrowRight"); // wraps 388 → 412
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    // Other moves go by rail order: a click from 412 up to 388 is "next", back is "prev".
+    fireEvent.click(screen.getByRole("option", { name: /388/ }));
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    fireEvent.click(screen.getByRole("option", { name: /401/ }));
+    expect(column()).toHaveAttribute("data-swipe", "prev");
+  });
+
+  it("x swipes forward to the next ticket and a mode switch doesn't replay the swipe", () => {
+    renderDeck();
+    press("x"); // closes 412, selects 401
+    expect(card()).toHaveAccessibleName(/^CCP-401/);
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    press("s");
+    press("f");
+    expect(column()).not.toHaveAttribute("data-swipe");
+  });
+});

@@ -215,3 +215,26 @@ describe("DeckMode card", () => {
     ghosts.forEach((g) => expect(g).toHaveAttribute("aria-hidden", "true"));
   });
 });
+
+describe("DeckMode states and motion", () => {
+  it("hides the Open group when every open ticket is current", () => {
+    renderDeck({ deck: deck({ current: [ticket("CCP-1", { current: true })] }) });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(within(rail).getByRole("group", { name: "Current" })).toBeTruthy();
+    expect(within(rail).queryByRole("group", { name: "Open" })).toBeNull();
+    expect(screen.queryByText("Nothing open. Nice.")).toBeNull();
+  });
+
+  it("marks the column with the swipe direction and adds the leaving frame", () => {
+    renderDeck({ deck: deck({ open: [ticket("CCP-1")] }), swipe: "prev" });
+    const column = document.querySelector(".deck-column")!;
+    expect(column).toHaveAttribute("data-swipe", "prev");
+    expect(column.querySelector(".deck-swipe-out")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("has no swipe markup without a direction", () => {
+    renderDeck({ deck: deck({ open: [ticket("CCP-1")] }) });
+    expect(document.querySelector(".deck-column")).not.toHaveAttribute("data-swipe");
+    expect(document.querySelector(".deck-swipe-out")).toBeNull();
+  });
+});

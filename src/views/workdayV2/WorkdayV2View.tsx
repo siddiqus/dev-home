@@ -26,7 +26,8 @@ import type { MentionItem } from "../workday/types";
 import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
 import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
-import { DeckMode } from "./DeckMode";
+import { DeckMode, type SwipeDirection } from "./DeckMode";
+import { ShortcutSheet } from "./ShortcutSheet";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
 import { useSeenTimer } from "./useSeenTimer";
@@ -61,6 +62,40 @@ const noop = () => {};
 const drawerOpen = () => document.querySelector(".offcanvas.show, .modal.show") !== null;
 
 const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
+
+/**
+ * The rail banner for a failed source. App joins per-source messages with "; ",
+ * each prefixed with its source ("GitHub PRs: …", "JIRA Issues: …").
+ */
+export function sourceErrorText(error: string | null): string | null {
+  if (!error) return null;
+  const msgs = error.split("; ");
+  const github = msgs.some((m) => /^github/i.test(m));
+  const jira = msgs.some((m) => /^jira/i.test(m));
+  if (github && jira) return "GitHub and Jira unavailable";
+  if (jira) return "Jira unavailable, showing PRs only";
+  if (github) return "GitHub unavailable, showing Jira tickets only";
+  return "Some data failed to load";
+}
+
+/**
+ * Swipe direction from rail order: later = "next". Uses the current rail when
+ * both tickets are in it, else the rail as it was at the last selection change
+ * (the old ticket may have just been closed). Defaults to "next".
+ */
+function railDirection(
+  from: string,
+  to: string,
+  rail: string[],
+  previousRail: string[],
+): SwipeDirection {
+  for (const order of [rail, previousRail]) {
+    const a = order.indexOf(from);
+    const b = order.indexOf(to);
+    if (a !== -1 && b !== -1) return b > a ? "next" : "prev";
+  }
+  return "next";
+}
 
 /** Keys v1 flags off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
 function offSprintKeysOf(s: WorkdaySections): Set<string> {
@@ -116,9 +151,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const showToast = toast.show;
   const [closedFolded, setClosedFolded] = usePersistedState(CLOSED_FOLDED_KEY, true);
   const [onlyCurrent, setOnlyCurrent] = usePersistedState(ONLY_CURRENT_KEY, false);
-  // The key hint bar itself lands with Task 12; ⌘K already toggles the pref.
   const [hideHints, setHideHints] = usePersistedState(HIDE_HINTS_KEY, false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const openIssue = useOptionalJiraDrawer();
   // Track if we've finished at least one load, so the spinner shows on refreshes but not first load.
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -132,14 +167,14 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || selectedPR || paletteOpen) return;
+      if (isTypingTarget(e.target) || selectedPR || paletteOpen || helpOpen) return;
       const key = e.key.toLowerCase();
       if (key === "f") setMode("focus");
       else if (key === "s") setMode("standup");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setMode, selectedPR, paletteOpen]);
+  }, [setMode, selectedPR, paletteOpen, helpOpen]);
 
   const weekendKey = weekendDays.join(",");
   const since = useMemo(
@@ -234,6 +269,30 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   );
   const selectedTicket = rail.find((t) => t.id === state.selected) ?? rail[0] ?? null;
   const selectedId = selectedTicket?.id ?? null;
+
+  // Card swipe (spec §5.4): each selection change records a direction, derived
+  // during render so the new card mounts already animating. ←/→ set `keyNav`
+  // first so a wrap-around still swipes the way the key points; everything
+  // else (n, x, ⌘K, clicks) goes by rail order. A mode switch resets it.
+  const railIds = useMemo(() => rail.map((t) => t.id), [rail]);
+  const [keyNav, setKeyNav] = useState<{ to: string; dir: SwipeDirection } | null>(null);
+  const [swipe, setSwipe] = useState<{
+    id: string | null;
+    mode: Mode;
+    dir: SwipeDirection | null;
+    rail: string[];
+  }>(() => ({ id: selectedId, mode, dir: null, rail: railIds }));
+  if (swipe.id !== selectedId || swipe.mode !== mode) {
+    let dir: SwipeDirection | null = null;
+    if (swipe.mode === mode && swipe.id && selectedId) {
+      dir =
+        keyNav?.to === selectedId
+          ? keyNav.dir
+          : railDirection(swipe.id, selectedId, railIds, swipe.rail);
+    }
+    setSwipe({ id: selectedId, mode, dir, rail: railIds });
+    if (keyNav) setKeyNav(null);
+  }
   // The picked PR is per card; opening a card picks its first current PR, else the top row.
   const [prPick, setPrPick] = useState<{ ticketId: string; url: string } | null>(null);
   const cardPRs = useMemo(() => selectedTicket?.prs ?? [], [selectedTicket]);
@@ -352,7 +411,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     const step = (delta: number) => {
       if (rail.length === 0) return;
       const i = rail.findIndex((t) => t.id === selectedId);
-      selectTicket(rail[(i + delta + rail.length) % rail.length].id);
+      const target = rail[(i + delta + rail.length) % rail.length].id;
+      if (target !== selectedId) setKeyNav({ to: target, dir: delta > 0 ? "next" : "prev" });
+      selectTicket(target);
     };
     const movePr = (delta: number) => {
       const i = cardPRs.findIndex((p) => p.pr.html_url === selectedPrUrl);
@@ -394,11 +455,10 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       }),
       refresh: guard(refresh),
       palette: togglePalette,
-      // Wired by a later task (help).
       // F / S are handled by the mode effect above.
       focusMode: noop,
       standupMode: noop,
-      help: noop,
+      help: guard(() => setHelpOpen(true)),
     };
   }, [
     rail,
@@ -418,7 +478,10 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     refresh,
     togglePalette,
   ]);
-  useDeckKeys(deckKeys, { enabled: configured && mode === "focus", blocked: selectedPR !== null });
+  useDeckKeys(deckKeys, {
+    enabled: configured && mode === "focus",
+    blocked: selectedPR !== null || helpOpen,
+  });
 
   // ⌘K in Standup too ("from anywhere on the page"); Focus gets it from useDeckKeys.
   useEffect(() => {
@@ -583,6 +646,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     ],
   );
   const hidePalette = useCallback(() => setPaletteOpen(false), []);
+  const hideHelp = useCallback(() => setHelpOpen(false), []);
+  const showClosed = useCallback(() => setClosedFolded(false), [setClosedFolded]);
+  const toStandup = useCallback(() => setMode("standup"), [setMode]);
 
   // Section toggle stubs for Standup (not implemented yet; Task 8 does state management).
   const sectionToggle = useCallback(() => ({ collapsed: false, onToggle: () => {} }), []);
@@ -598,6 +664,11 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   }
 
   const sinceLabel = formatSinceLabel(since);
+  // First load with nothing to show yet: skeletons instead of the empty deck.
+  const firstLoad =
+    loading && !hasLoadedOnce && deck.current.length + deck.open.length + deck.closed.length === 0;
+  const notStartedCount =
+    sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
 
   const filterLabels: Record<SprintFilter, string> = {
@@ -671,6 +742,13 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               composing={composing}
               onSaveNote={saveNote}
               onCancelNote={cancelNote}
+              swipe={swipe.dir}
+              loading={firstLoad}
+              sourceError={sourceErrorText(sourceError)}
+              onRetry={refresh}
+              notStartedCount={notStartedCount}
+              onShowClosed={showClosed}
+              onSwitchToStandup={toStandup}
             />
           ) : (
             <StandupMode
@@ -691,6 +769,40 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               editNote={editNote}
             />
           )}
+
+          {mode === "focus" && !hideHints && (
+            <div className="deck-hints" data-testid="deck-hints">
+              <span>
+                <kbd>←→</kbd> back/skip
+              </span>
+              <span>
+                <kbd>↑↓</kbd> pick PR
+              </span>
+              <span>
+                <kbd>Space</kbd> current
+              </span>
+              <span>
+                <kbd>⏎</kbd> open
+              </span>
+              <span>
+                <kbd>.</kbd> note
+              </span>
+              <span>
+                <kbd>x</kbd> close
+              </span>
+              <span>
+                <kbd>n</kbd> next updated
+              </span>
+              <span>
+                <kbd>⌘K</kbd> find
+              </span>
+              <span>
+                <kbd>?</kbd> all keys
+              </span>
+            </div>
+          )}
+
+          <ShortcutSheet show={helpOpen} onHide={hideHelp} />
 
           <PRDetailModal
             pr={selectedPR}
