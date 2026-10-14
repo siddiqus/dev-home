@@ -359,6 +359,29 @@ describe("WorkdayView deck", () => {
     expect(card()).toHaveAccessibleName(/^CCP-412/);
   });
 
+  it("card has copy and open icons for the ticket and each PR, without opening the PR", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderDeck();
+    const c = card();
+    expect(within(c).getByRole("link", { name: "Open CCP-412 in Jira" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/browse/CCP-412"),
+    );
+    fireEvent.click(within(c).getByRole("button", { name: "Copy CCP-412" }));
+    expect(writeText).toHaveBeenCalledWith("CCP-412");
+
+    for (const n of [1203, 1207]) {
+      expect(
+        within(c).getByRole("link", { name: new RegExp(`Open .*#${n} on GitHub`) }),
+      ).toHaveAttribute("href", `https://github.com/o/r/pull/${n}`);
+    }
+    fireEvent.click(within(c).getByRole("button", { name: /Copy link to .*#1207/ }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith("https://github.com/o/r/pull/1207");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("shows a No PR yet card for an in-progress ticket without PRs", () => {
     renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
     expect(card()).toHaveAccessibleName("CCP-371 Thumbnail backfill");

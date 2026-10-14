@@ -113,11 +113,23 @@ export function TicketKey({
  * plus any extra bits, after a one-liner's title.
  */
 export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
-  const onCopy = React.useContext(CopyPRLinkContext);
   const ref = repoRef(pr);
   return (
     <span className="workday-line-sub">
       {ref}
+      <PRLinkIcons pr={pr} />
+      <PinButton id={prPin(pr)} name={ref} />
+      {after && ` · ${after}`}
+    </span>
+  );
+}
+
+/** Copy-link and open-on-GitHub icons for a PR; they don't open the row. */
+export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
+  const onCopy = React.useContext(CopyPRLinkContext);
+  const ref = repoRef(pr);
+  return (
+    <>
       {onCopy && (
         <button
           type="button"
@@ -145,9 +157,7 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
       >
         <IconExternalLink size={13} stroke={1.8} />
       </a>
-      <PinButton id={prPin(pr)} name={ref} />
-      {after && ` · ${after}`}
-    </span>
+    </>
   );
 }
 

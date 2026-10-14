@@ -1,7 +1,6 @@
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
-import { TicketChip } from "../../components/TicketGroupHeader";
-import { OffSprintPill } from "./CompactRow";
+import { OffSprintPill, TicketKey } from "./CompactRow";
 import { compactAge } from "./dates";
 import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
@@ -63,7 +62,7 @@ export function DeckCard({
         <div className="deck-card-titleline">
           {key && (
             <span className="deck-card-key">
-              <TicketChip ticket={key} jiraBaseUrl={jiraBaseUrl} />
+              <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} />
             </span>
           )}
           <h3 className="deck-card-title">{ticket.title}</h3>

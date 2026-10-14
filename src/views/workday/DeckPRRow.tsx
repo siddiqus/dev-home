@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
+import { PRLinkIcons } from "./CompactRow";
 import { compactAge } from "./dates";
 import { repoRef, titleWithoutKey } from "./prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
@@ -22,7 +23,8 @@ export interface DeckPRRowProps {
 
 /**
  * One PR on the card (spec §5.4): current marker; a muted meta line with
- * repo#number · author · updated age and the unseen dot; the title without the
+ * repo#number, copy-link / open-on-GitHub icons · author · updated age and
+ * the unseen dot; the title without the
  * key; up to four signal chips with "+N"; the newest unseen comment and my
  * newest unresolved note.
  */
@@ -58,6 +60,9 @@ export function DeckPRRow({
           <span className="deck-pr-ref" title={ref}>
             <span className="deck-pr-repo">{repo}</span>
             <span className="deck-pr-number">#{pr.number}</span>
+          </span>
+          <span className="deck-pr-links">
+            <PRLinkIcons pr={pr} />
           </span>
           <span aria-hidden="true">·</span>
           <span className="deck-pr-author">{pr.user.login}</span>

@@ -678,6 +678,13 @@
   flex: none;
 }
 
+/* Copy-link and open-on-GitHub, always visible (unlike the List View's hover icons). */
+.deck-pr-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .deck-pr-number {
   font-family: var(--font-mono);
 }
