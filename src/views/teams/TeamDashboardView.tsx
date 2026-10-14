@@ -122,6 +122,17 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     return map;
   }, [dashboard]);
 
+  const prAuthors = useMemo(
+    () =>
+      new Map(
+        (dashboard?.offBoardPRs ?? []).map((pr) => [
+          `${pr.repo_full_name}#${pr.number}`,
+          pr.author,
+        ]),
+      ),
+    [dashboard?.offBoardPRs],
+  );
+
   // --- Detail modals (Jira drawer + PR description modal) ---
   // Every cockpit panel drills down through a single `openRef` handler; the
   // modals are rendered once here at the dashboard level. Each ref only carries
@@ -333,6 +344,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                         needsAttention={dashboard.needsAttention}
                         onOpenRef={openRef}
                         staleDays={staleDaysMap}
+                        prAuthors={prAuthors}
                       />
                     </div>
                   </div>

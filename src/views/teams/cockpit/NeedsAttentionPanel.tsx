@@ -6,6 +6,8 @@ interface Props {
   needsAttention: NeedsAttention;
   onOpenRef?: (ref: Ref) => void;
   staleDays?: Map<string, number>;
+  /** PR author by "owner/repo#number", appended to PR refs when known. */
+  prAuthors?: Map<string, string>;
 }
 
 interface SignalRow {
@@ -15,7 +17,7 @@ interface SignalRow {
   refs: Ref[];
 }
 
-export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays }: Props) {
+export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays, prAuthors }: Props) {
   const [expandedRow, setExpandedRow] = useState<keyof NeedsAttention | null>(null);
 
   const rows: SignalRow[] = [
@@ -69,7 +71,9 @@ export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays }: Pr
     if (ref.kind === "issue") {
       return ref.key;
     }
-    return `${ref.repo}#${ref.number}`;
+    const label = `${ref.repo}#${ref.number}`;
+    const author = prAuthors?.get(label);
+    return author ? `${label} (${author})` : label;
   };
 
   const getBadgeClass = (severity: "danger" | "warning" | "secondary"): string => {
