@@ -15,10 +15,11 @@ import { useStoredState, isTypingTarget } from "../workday/WorkdayView";
 import { buildWorkday, filterWorkday } from "../workday/buildWorkday";
 import { workdayToMarkdown } from "../workday/workdayMarkdown";
 import { formatSinceLabel, sinceFor, type Lookback } from "../workday/dates";
-import type { SprintFilter } from "../workday/types";
+import type { SprintFilter, TicketRef, WorkdaySections } from "../workday/types";
 import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
 import { prPin, ticketPin } from "../workday/pins";
+import { prNoteKey } from "../../utils/prNotes";
 import { buildDeck } from "./buildDeck";
 import { DeckMode } from "./DeckMode";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
@@ -50,8 +51,24 @@ const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
 const NO_MENTIONS: never[] = [];
 const noop = () => {};
 
-/** Deck keys stand down while a drawer (the Jira issue drawer) is open. */
-const drawerOpen = () => document.querySelector(".offcanvas.show") !== null;
+/** Deck keys stand down while a drawer (Jira issue) or a modal (note editor) is open. */
+const drawerOpen = () => document.querySelector(".offcanvas.show, .modal.show") !== null;
+
+/** Keys v1 flags off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
+function offSprintKeysOf(s: WorkdaySections): Set<string> {
+  const refs: (TicketRef | null)[] = [
+    ...s.workingOn.items.map((i) => i.ticket),
+    ...s.reviewing.items.map((i) => i.ticket),
+    ...s.blockers.items.map((i) => i.ticket),
+    ...s.waiting.items.map((i) => i.ticket),
+    ...s.notStarted.items.map((i) => i.ticket),
+    ...s.notStarted.offSprintItems.map((i) => i.ticket),
+    ...s.done.items.map((i) => i.ticket),
+  ];
+  const keys = new Set<string>();
+  for (const r of refs) if (r?.offSprint) keys.add(r.key.toUpperCase());
+  return keys;
+}
 
 /**
  * Workday V2: the ticket deck. Focus mode is a deck (rail + card) that stays
@@ -79,6 +96,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     notesLoaded,
     addNote,
     editNote,
+    onOpenNote,
   } = props;
 
   const now = useMemo(() => props.now ?? new Date(), [props.now, refreshKey]);
@@ -128,6 +146,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     [openPRs, reviewRequests, reviewingPRs, assignedIssues, allIssues, extras, now],
   );
   const filtered = useMemo(() => filterWorkday(sections, filter), [sections, filter]);
+  const offSprintKeys = useMemo(() => offSprintKeysOf(sections), [sections]);
 
   // Standup markdown for the Copy button.
   const [noteText, setNoteText] = useState("");
@@ -151,6 +170,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
           githubMentions,
           jiraMentions,
           notes,
+          offSprintKeys,
         },
         state,
         now,
@@ -164,6 +184,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       githubMentions,
       jiraMentions,
       notes,
+      offSprintKeys,
       state,
       now,
     ],
@@ -218,12 +239,14 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     },
     [select],
   );
+  // A reopened tab lands in Open, so `g c` (only current) turns off to show it.
   const reopenTicket = useCallback(
     (id: string) => {
       reopen(id);
+      setOnlyCurrent(false);
       selectTicket(id);
     },
-    [reopen, selectTicket],
+    [reopen, selectTicket, setOnlyCurrent],
   );
   // Opening a PR (⏎ or a click) marks it seen immediately (spec §5.8).
   const openPR = useCallback(
@@ -248,6 +271,31 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   };
   const onDwell = useCallback(() => seenRef.current(), []);
   useSeenTimer(configured && mode === "focus" && !selectedPR ? selectedId : null, onDwell);
+
+  // The `.` composer: open for one card and PR (null url = a PR-less ticket).
+  // It shows only while that card and PR are still the selected ones.
+  const [composer, setComposer] = useState<{ ticketId: string; url: string | null } | null>(null);
+  const composing =
+    composer !== null &&
+    composer.ticketId === selectedId &&
+    composer.url === (pickedPR?.pr.html_url ?? null);
+  const cancelNote = useCallback(() => setComposer(null), []);
+  const saveNote = useCallback(
+    async (text: string) => {
+      const pr = pickedPR?.pr;
+      try {
+        if (pr) await addNote("github_pr", text, prNoteKey(pr));
+        else if (selectedTicket?.key) await addNote("jira_ticket", text, selectedTicket.key);
+        else return;
+      } catch (err) {
+        showToast("Couldn't save the note");
+        throw err;
+      }
+      setComposer(null);
+      showToast("Note saved");
+    },
+    [pickedPR, selectedTicket, addNote, showToast],
+  );
 
   const selectPr = useCallback(
     (url: string) => {
@@ -305,8 +353,13 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
         else showToast("Nothing new");
       }),
       toggleOnlyCurrent: guard(() => setOnlyCurrent((v) => !v)),
-      // Wired by later tasks (notes, palette, help).
-      note: noop,
+      // .: the inline note composer under the selected PR (or the PR-less ticket).
+      note: guard(() => {
+        if (!selectedTicket) return;
+        if (pr) setComposer({ ticketId: selectedTicket.id, url: pr.html_url });
+        else if (selectedTicket.key) setComposer({ ticketId: selectedTicket.id, url: null });
+      }),
+      // Wired by later tasks (palette, help).
       refresh: noop,
       palette: noop,
       // F / S are handled by the mode effect above.
@@ -417,6 +470,10 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               onToggleClosed={() => setClosedFolded((v) => !v)}
               onReopen={reopenTicket}
               onlyCurrent={onlyCurrent}
+              onOpenNote={onOpenNote}
+              composing={composing}
+              onSaveNote={saveNote}
+              onCancelNote={cancelNote}
             />
           ) : (
             <StandupMode

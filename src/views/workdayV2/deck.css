@@ -377,3 +377,81 @@ button.deck-rail-heading--closed:hover {
   align-items: center;
   gap: 6px;
 }
+
+/* ---------- Card context (spec §5.4, §5.10) ---------- */
+
+/* Unseen comment / Jira mention quote: blue dot, author, age, one-line snippet. */
+.deck-quote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.deck-quote:hover .deck-quote-snippet {
+  text-decoration: underline;
+}
+
+.deck-quote-who {
+  flex: none;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-quote-age {
+  flex: none;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+.deck-quote-snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-card-header .deck-quote {
+  margin-top: var(--space-2);
+}
+
+.deck-note-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-note-line:hover .deck-note-text {
+  text-decoration: underline;
+}
+
+.deck-note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-note-composer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 5px 0 0 calc(16px + 52px + 2 * var(--space-2) + 10px);
+}
+
+.deck-card-body > .deck-note-composer {
+  margin-left: 0;
+}

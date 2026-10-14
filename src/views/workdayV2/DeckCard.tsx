@@ -1,8 +1,11 @@
-import type { GitHubPR } from "../../types";
+import { Fragment } from "react";
+import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { OffSprintPill } from "../workday/CompactRow";
 import { compactAge } from "../workday/dates";
+import { DeckNoteLine, DeckQuote } from "./DeckContext";
+import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
 import type { DeckTicket } from "./types";
 
@@ -13,10 +16,18 @@ export interface DeckCardProps {
   onOpen(pr: GitHubPR): void;
   jiraBaseUrl: string;
   now: Date;
+  onOpenNote?(note: Note): void;
+  /** The `.` composer is open under the selected PR (or the "No PR yet" line). */
+  composing?: boolean;
+  onSaveNote?(text: string): Promise<void>;
+  onCancelNote?(): void;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const prRowId = (index: number) => `deck-pr-${index}`;
+/** Jira mentions carry no url; link to the comment on the issue page. */
+const jiraCommentUrl = (base: string, key: string, mentionId: string) =>
+  `${base.replace(/\/$/, "")}/browse/${key}?focusedCommentId=${mentionId.replace(/^jira:/, "")}`;
 
 /** The ticket card (spec §5.4): header, sub-line and PR rows as a listbox. */
 export function DeckCard({
@@ -26,6 +37,10 @@ export function DeckCard({
   onOpen,
   jiraBaseUrl,
   now,
+  onOpenNote,
+  composing = false,
+  onSaveNote,
+  onCancelNote,
 }: DeckCardProps) {
   const { key, prs } = ticket;
   const label = key ? `${key} ${ticket.title}` : ticket.title;
@@ -35,6 +50,10 @@ export function DeckCard({
   );
   const currentCount = prs.filter((p) => p.current).length;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
+  const composer =
+    composing && onSaveNote ? (
+      <DeckNoteComposer onSave={onSaveNote} onCancel={() => onCancelNote?.()} />
+    ) : null;
 
   return (
     <section className="deck-card" role="region" aria-label={label}>
@@ -58,10 +77,21 @@ export function DeckCard({
             {`${plural(prs.length, "PR")} · ${currentCount} current · updated ${compactAge(newest, now)}`}
           </div>
         )}
+        {ticket.jiraMention && key && (
+          <DeckQuote
+            item={ticket.jiraMention}
+            now={now}
+            href={ticket.jiraMention.url || jiraCommentUrl(jiraBaseUrl, key, ticket.jiraMention.id)}
+          />
+        )}
       </div>
       <div className="deck-card-body">
         {prs.length === 0 ? (
-          <div className="deck-card-empty">No PR yet</div>
+          <>
+            <div className="deck-card-empty">No PR yet</div>
+            {ticket.note && <DeckNoteLine note={ticket.note} onOpen={onOpenNote} />}
+            {composer}
+          </>
         ) : (
           <div
             className="deck-pr-list"
@@ -71,16 +101,19 @@ export function DeckCard({
             tabIndex={0}
           >
             {prs.map((p, i) => (
-              <DeckPRRow
-                key={p.pr.html_url}
-                id={prRowId(i)}
-                item={p}
-                ticketKey={key}
-                selected={i === activeIndex}
-                onSelect={onSelectPr}
-                onOpen={onOpen}
-                now={now}
-              />
+              <Fragment key={p.pr.html_url}>
+                <DeckPRRow
+                  id={prRowId(i)}
+                  item={p}
+                  ticketKey={key}
+                  selected={i === activeIndex}
+                  onSelect={onSelectPr}
+                  onOpen={onOpen}
+                  onOpenNote={onOpenNote}
+                  now={now}
+                />
+                {i === activeIndex && composer}
+              </Fragment>
             ))}
           </div>
         )}

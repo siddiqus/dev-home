@@ -1,6 +1,6 @@
 import { act, render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { GitHubPR, JiraIssue, Note } from "../../types";
+import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 
 vi.mock("../../hooks/useWorkdayExtras", () => ({
   useWorkdayExtras: () => ({
@@ -535,5 +535,191 @@ describe("WorkdayV2View personal state", () => {
     cleanup();
     renderView({ openPRs: [], allIssues: deckIssues, loading: true });
     expect(stored().current).toEqual(pins);
+  });
+});
+
+describe("WorkdayV2View card context", () => {
+  beforeEach(() => localStorage.clear());
+
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+    renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
+  const rail = () => screen.getByRole("listbox", { name: "Tickets" });
+  const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
+  /** Seeded: every PR seen at its updated_at, except `unseen`, seen at `before`. */
+  const seed = (unseen: number[] = [], before = "2026-10-01T00:00:00Z") => {
+    const seen: Record<string, string> = {};
+    for (const p of deckPRs) seen[p.html_url] = unseen.includes(p.number) ? before : p.updated_at;
+    for (const k of ["CCP-412", "CCP-401", "CCP-388"]) seen[`ticket:${k}`] = before;
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, seeded: true, seen }));
+  };
+  const note = (o: Partial<Note>): Note => ({
+    id: 1,
+    type: "github_pr",
+    title: "",
+    content: "ask Claude why retry is sync",
+    reference_id: "o/r#1207",
+    resolved: 0,
+    pinned: 0,
+    remind_at: null,
+    created_at: "2026-10-13T10:00:00Z",
+    updated_at: "2026-10-13T10:00:00Z",
+    ...o,
+  });
+
+  it("quotes the newest unseen comment under the PR row, linking to it", () => {
+    seed([1207]);
+    const comment: GitHubComment = {
+      id: 55,
+      html_url: "https://github.com/o/r/pull/1207#issuecomment-55",
+      body: "should the retry here be async?\nsecond line",
+      created_at: new Date(NOW.getTime() - 4 * 60_000).toISOString(),
+      updated_at: new Date(NOW.getTime() - 4 * 60_000).toISOString(),
+      user: { login: "tomas", avatar_url: "" },
+      pr_number: 1207,
+      repo_full_name: "o/r",
+      context_title: "CCP-412 frontend",
+      reason: "comment",
+    };
+    renderDeck({ githubMentions: [comment] });
+    const row = within(prList()).getAllByRole("option")[0];
+    const link = within(row).getByRole("link", { name: /tomas/ });
+    expect(link).toHaveAttribute("href", comment.html_url);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link.textContent).toContain("4m");
+    expect(link.textContent).toContain("should the retry here be async?");
+    expect(link.textContent).not.toContain("second line");
+    // Clicking the quote doesn't open the PR modal.
+    fireEvent.click(link);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("quotes an unseen Jira mention under the card header", () => {
+    seed();
+    const mention: JiraComment = {
+      id: "9001",
+      author: { displayName: "Abu", avatarUrls: { "48x48": "" } },
+      body: { text: "can you look at the retry?" },
+      // After the newest PR's seen time (09:56Z), so it counts as unseen.
+      created: "2026-10-14T09:58:00Z",
+      updated: "2026-10-14T09:58:00Z",
+      issueKey: "CCP-412",
+      issueSummary: "Move asset sync to a queue",
+    } as JiraComment;
+    renderDeck({ jiraMentions: [mention] });
+    const link = within(card()).getByRole("link", { name: /Abu/ });
+    expect(link.textContent).toContain("can you look at the retry?");
+    expect(link).toHaveAttribute(
+      "href",
+      "https://example.atlassian.net/browse/CCP-412?focusedCommentId=9001",
+    );
+  });
+
+  it("shows my newest unresolved note on the PR and opens it on click", () => {
+    const onOpenNote = vi.fn();
+    const n = note({});
+    renderDeck({ notes: [n, note({ id: 2, content: "old", resolved: 1 })], onOpenNote });
+    const row = within(prList()).getAllByRole("option")[0];
+    fireEvent.click(within(row).getByRole("button", { name: /ask Claude why retry is sync/ }));
+    expect(onOpenNote).toHaveBeenCalledWith(n);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(row).queryByText("old")).toBeNull();
+  });
+
+  it(". opens the composer under the selected PR; ⏎ saves it as a github_pr note", async () => {
+    const { addNote } = renderDeck();
+    press("ArrowDown");
+    press(".");
+    const input = screen.getByRole("textbox", { name: "New note" });
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("");
+    fireEvent.change(input, { target: { value: "  ask about retries  " } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(addNote).toHaveBeenCalledWith("github_pr", "ask about retries", "o/r#1203");
+    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(screen.getByText("Note saved")).toHaveClass("app-toast", "is-visible");
+  });
+
+  it("saves a PR-less ticket's note as a jira_ticket note", async () => {
+    const { addNote } = renderView({
+      openPRs: [],
+      assignedIssues: [issue("CCP-371", "Thumbnail backfill")],
+    });
+    press(".");
+    const input = screen.getByRole("textbox", { name: "New note" });
+    fireEvent.change(input, { target: { value: "backfill plan" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    expect(addNote).toHaveBeenCalledWith("jira_ticket", "backfill plan", "CCP-371");
+    expect(screen.getByText("Note saved")).toHaveClass("is-visible");
+  });
+
+  it("shows a PR-less ticket's newest jira_ticket note", () => {
+    renderView({
+      openPRs: [],
+      assignedIssues: [issue("CCP-371", "Thumbnail backfill")],
+      notes: [note({ type: "jira_ticket", reference_id: "CCP-371", content: "plan it" })],
+    });
+    expect(within(card()).getByRole("button", { name: /plan it/ })).toBeTruthy();
+  });
+
+  it("Esc cancels the composer without saving, and deck keys are ignored while typing", () => {
+    const { addNote } = renderDeck();
+    press(".");
+    const input = screen.getByRole("textbox", { name: "New note" });
+    fireEvent.keyDown(input, { key: "ArrowRight" });
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    fireEvent.change(input, { target: { value: "draft" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "New note" })).toBeNull();
+    expect(addNote).not.toHaveBeenCalled();
+  });
+
+  it("shows the Off-sprint pill for tickets v1 flags off-sprint", () => {
+    // The mocked extras have an empty sprint, so assigned tickets are off-sprint (as in v1).
+    renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
+    expect(within(card()).getByText("Off-sprint")).toBeTruthy();
+  });
+
+  it("does not let the dwell undo u after the PR modal opens and closes on another PR", async () => {
+    vi.useFakeTimers();
+    try {
+      seed();
+      renderDeck();
+      act(() => vi.advanceTimersByTime(1500)); // dwell fires for this visit
+      press("u"); // the top row (#1207) unread
+      const unreadRow = within(prList()).getAllByRole("option")[0];
+      expect(within(unreadRow).getByLabelText("new activity")).toBeTruthy();
+      press("ArrowDown");
+      press("Enter"); // open #1203 in the modal
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: /close/i }));
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      act(() => vi.advanceTimersByTime(5000));
+      const row = within(prList()).getAllByRole("option")[0];
+      expect(within(row).getByLabelText("new activity")).toBeTruthy();
+      expect(stored().seen[deckPRs[1].html_url]).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("turns off only-current when a Closed tab is reopened", () => {
+    renderDeck();
+    press("x"); // close CCP-412
+    press("g");
+    press("c"); // only current: nothing is current
+    fireEvent.click(within(rail()).getByRole("button", { name: /Closed · 1/ }));
+    fireEvent.click(
+      within(within(rail()).getByRole("group", { name: "Closed" })).getByRole("option", {
+        name: /412/,
+      }),
+    );
+    expect(localStorage.getItem("dev-home-workday-v2-only-current")).toBe("false");
+    expect(within(rail()).getByRole("group", { name: "Open" })).toBeTruthy();
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
   });
 });

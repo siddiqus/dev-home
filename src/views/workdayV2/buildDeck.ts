@@ -1,6 +1,7 @@
-import type { GitHubComment, GitHubPR, JiraComment, JiraIssue } from "../../types";
+import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import { ticketKeyOf } from "../../utils/tickets";
+import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
 import { projectOfKey } from "../../../shared/tickets";
 import { githubMentionItem, jiraMentionItem } from "../workday/buildFocus";
 import { statusCategoryOf } from "../workday/buildWorkday";
@@ -88,6 +89,10 @@ interface BuildContext {
   jiraMentions: Map<string, JiraComment[]>;
   /** Unseen GitHub mention count per PR url, filled by deckPR for the status line. */
   newComments: Map<string, number>;
+  /** Unresolved notes per PR, keyed by `prNoteKey` (spec §6.4). */
+  prNotes: Map<string, Note[]>;
+  /** Unresolved `jira_ticket` notes per upper-cased key. */
+  ticketNotes: Map<string, Note[]>;
 }
 
 /** Matches a GitHub mention to its PR: repo and number. */
@@ -98,7 +103,11 @@ function newest<T extends { id: string | number }>(items: T[], at: (item: T) => 
   let best: T | null = null;
   for (const i of items) {
     const d = best ? time(at(i)) - time(at(best)) : 1;
-    if (d > 0 || (d === 0 && best && String(i.id) > String(best.id))) best = i;
+    const later =
+      typeof i.id === "number" && typeof best?.id === "number"
+        ? i.id > best.id
+        : String(i.id) > String(best?.id);
+    if (d > 0 || (d === 0 && best && later)) best = i;
   }
   return best;
 }
@@ -118,7 +127,7 @@ function deckPR(c: Collected, ctx: BuildContext, now: Date): DeckPR {
     signals,
     priority: prPriority(signals),
     unseenComment: comment ? githubMentionItem(comment) : null,
-    note: null,
+    note: newest(ctx.prNotes.get(prNoteKey(c.pr)) ?? [], (n) => n.created_at),
     current: ctx.current.has(prPin(c.pr)),
     // A missing `seen` entry reads as 0, so a newly arrived PR starts unseen.
     unseen: time(c.pr.updated_at) > seenAt,
@@ -151,7 +160,7 @@ function statusLine(prs: DeckPR[], newComments: Map<string, number>): string {
   const top = [...prs].sort(byNeedsMe)[0];
   const line = [`#${top.pr.number}`, headline(top.signals)].filter(Boolean).join(" ");
   const count = newComments.get(top.pr.html_url) ?? 0;
-  return count > 0 ? `${line} · ${count} new comments` : line;
+  return count > 0 ? `${line} · ${count} new comment${count === 1 ? "" : "s"}` : line;
 }
 
 /** Ticket-level fields derived from its PRs (spec §6.2 step 4). */
@@ -196,6 +205,10 @@ function deckTicket(
     unseen: sorted.some((p) => p.unseen) || mention !== null,
     current: sorted.some((p) => p.current) || (key !== null && ctx.current.has(ticketPin(key))),
     jiraMention: mention ? jiraMentionItem(mention) : null,
+    note:
+      key && sorted.length === 0
+        ? newest(ctx.ticketNotes.get(key) ?? [], (n) => n.created_at)
+        : null,
   };
 }
 
@@ -270,12 +283,24 @@ export function buildDeck(
     const k = c.issueKey.toUpperCase();
     jiraMentions.set(k, [...(jiraMentions.get(k) ?? []), c]);
   }
+  const prNotes = new Map<string, Note[]>();
+  const ticketNotes = new Map<string, Note[]>();
+  const push = (m: Map<string, Note[]>, k: string, n: Note) => m.set(k, [...(m.get(k) ?? []), n]);
+  for (const n of inp.notes) {
+    if (n.resolved !== 0) continue;
+    const prKey = normalizeNoteRef(n.reference_id);
+    if (prKey) push(prNotes, prKey, n);
+    else if (n.type === "jira_ticket" && n.reference_id?.trim())
+      push(ticketNotes, n.reference_id.trim().toUpperCase(), n);
+  }
   const ctx: BuildContext = {
     current: new Set(state.current),
     seenAt: (id) => (seeding ? Infinity : time(state.seen[id])),
     ghMentions,
     jiraMentions,
     newComments: new Map(),
+    prNotes,
+    ticketNotes,
   };
 
   const issues = new Map<string, JiraIssue>();
@@ -288,8 +313,7 @@ export function buildDeck(
       summary: issue?.summary ?? "",
       statusName: issue?.status?.name ?? null,
       updated: issue?.updated ?? null,
-      // Off-sprint needs v1's sprint extras, which the deck doesn't receive.
-      offSprint: false,
+      offSprint: inp.offSprintKeys?.has(key.toUpperCase()) ?? false,
     };
   };
 

@@ -19,6 +19,8 @@ export interface DeckInputs {
   githubMentions: GitHubComment[];
   jiraMentions: JiraComment[];
   notes: Note[];
+  /** Upper-cased keys v1 flags off-sprint (from buildWorkday's TicketRefs). */
+  offSprintKeys?: Set<string>;
 }
 
 /** A PR on the deck with its signals and context. */
@@ -46,6 +48,8 @@ export interface DeckTicket {
   unseen: boolean;
   current: boolean;
   jiraMention: MentionItem | null;
+  /** Newest unresolved `jira_ticket` note on a PR-less ticket. */
+  note: Note | null;
 }
 
 /** The composed deck, split into groups. */

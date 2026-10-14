@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { GitHubComment, GitHubPR, JiraComment, JiraIssue } from "../../types";
+import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 import { buildDeck, shortKey, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
 import type { DeckInputs, DeckTicket } from "./types";
 
@@ -653,6 +653,93 @@ describe("buildDeck seen state", () => {
       seenAll([a]),
     );
     expect(deck.unmatched.map((m) => m.id)).toEqual(["jira:j2", "gh:11"]);
+  });
+});
+
+describe("buildDeck rail status line", () => {
+  it("says '1 new comment' for a single unseen comment", () => {
+    const a = pr(1, { title: "CCP-1 a", updated_at: "2026-10-13T10:00:00Z" });
+    const deck = build(
+      { openPRs: [a], githubMentions: [ghMention(10, 1)] },
+      { seeded: true, seen: { [a.html_url]: "2026-10-11T10:00:00Z" } },
+    );
+    expect(deck.open[0].status).toBe("#1 ⏳ Waiting on guru · 13d · 1 new comment");
+  });
+});
+
+function note(id: number, o: Partial<Note> = {}): Note {
+  return {
+    id,
+    type: "github_pr",
+    title: "",
+    content: `note ${id}`,
+    reference_id: "o/repo#1",
+    resolved: 0,
+    pinned: 0,
+    remind_at: null,
+    created_at: "2026-10-10T10:00:00Z",
+    updated_at: "2026-10-10T10:00:00Z",
+    ...o,
+  };
+}
+
+describe("buildDeck notes", () => {
+  const a = pr(1, { title: "CCP-1 a" });
+
+  it("picks the newest unresolved note per PR, matching normalised references", () => {
+    const deck = build({
+      openPRs: [a, pr(2, { title: "CCP-1 b" })],
+      notes: [
+        note(1, { created_at: "2026-10-11T10:00:00Z" }),
+        note(2, {
+          reference_id: "https://github.com/o/repo/pull/1/",
+          created_at: "2026-10-12T10:00:00Z",
+        }),
+        note(3, { created_at: "2026-10-13T10:00:00Z", resolved: 1 }),
+        note(4, { reference_id: "o/repo#2", created_at: "2026-10-09T10:00:00Z" }),
+        note(5, { reference_id: "o/other#1", created_at: "2026-10-14T10:00:00Z" }),
+      ],
+    });
+    const t = deck.open[0];
+    expect(t.prs.find((p) => p.pr.number === 1)!.note?.id).toBe(2);
+    expect(t.prs.find((p) => p.pr.number === 2)!.note?.id).toBe(4);
+    expect(t.note).toBeNull();
+  });
+
+  it("has no note when every note on the PR is resolved", () => {
+    const deck = build({ openPRs: [a], notes: [note(1, { resolved: 1 })] });
+    expect(deck.open[0].prs[0].note).toBeNull();
+  });
+
+  it("gives a PR-less ticket its newest unresolved jira_ticket note", () => {
+    const deck = build({
+      assignedIssues: [issue("CCP-9")],
+      notes: [
+        note(1, { type: "jira_ticket", reference_id: "CCP-9", created_at: "2026-10-11T10:00:00Z" }),
+        note(2, { type: "jira_ticket", reference_id: "ccp-9", created_at: "2026-10-12T10:00:00Z" }),
+        note(3, { type: "jira_ticket", reference_id: "CCP-9", resolved: 1 }),
+        note(4, { type: "jira_ticket", reference_id: "CCP-8", created_at: "2026-10-13T10:00:00Z" }),
+      ],
+    });
+    expect(deck.open[0].note?.id).toBe(2);
+  });
+});
+
+describe("buildDeck off-sprint", () => {
+  it("flags tickets whose key is in offSprintKeys", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 a" }), pr(2, { title: "CCP-2 b" })],
+      assignedIssues: [issue("CCP-3")],
+      offSprintKeys: new Set(["CCP-1", "CCP-3"]),
+    });
+    expect(byId(deck.open, "CCP-1").ticket?.offSprint).toBe(true);
+    expect(byId(deck.open, "CCP-2").ticket?.offSprint).toBe(false);
+    expect(byId(deck.open, "CCP-3").ticket?.offSprint).toBe(true);
+  });
+
+  it("defaults to not off-sprint without offSprintKeys", () => {
+    const deck = build({ openPRs: [pr(1, { title: "CCP-1 a" })] });
+    expect(deck.open[0].ticket?.offSprint).toBe(false);
   });
 });
 

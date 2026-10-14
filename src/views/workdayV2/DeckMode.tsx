@@ -1,4 +1,4 @@
-import type { GitHubPR } from "../../types";
+import type { GitHubPR, Note } from "../../types";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
 import type { DeckData } from "./types";
@@ -16,6 +16,11 @@ export interface DeckModeProps {
   onToggleClosed?(): void;
   onReopen?(id: string): void;
   onlyCurrent?: boolean;
+  onOpenNote?(note: Note): void;
+  /** The `.` note composer is open on the selected card. */
+  composing?: boolean;
+  onSaveNote?(text: string): Promise<void>;
+  onCancelNote?(): void;
 }
 
 /**
@@ -35,6 +40,10 @@ export function DeckMode({
   onToggleClosed,
   onReopen,
   onlyCurrent,
+  onOpenNote,
+  composing,
+  onSaveNote,
+  onCancelNote,
 }: DeckModeProps) {
   const ticket = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
   return (
@@ -61,6 +70,10 @@ export function DeckMode({
               onOpen={onOpen}
               jiraBaseUrl={jiraBaseUrl}
               now={now}
+              onOpenNote={onOpenNote}
+              composing={composing}
+              onSaveNote={onSaveNote}
+              onCancelNote={onCancelNote}
             />
           </div>
         )}

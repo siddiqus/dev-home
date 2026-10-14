@@ -129,4 +129,38 @@ describe("useSeenTimer", () => {
     vi.advanceTimersByTime(200);
     expect(onSeen).not.toHaveBeenCalled();
   });
+
+  it("does not fire again when the same card returns after a null gap", () => {
+    const onSeen = vi.fn();
+    const { rerender } = renderHook(({ cardId }) => useSeenTimer(cardId, onSeen), {
+      initialProps: { cardId: "card-1" as string | null },
+    });
+    vi.advanceTimersByTime(SEEN_DWELL_MS);
+    expect(onSeen).toHaveBeenCalledTimes(1);
+
+    rerender({ cardId: null }); // e.g. the PR modal opened
+    rerender({ cardId: "card-1" });
+    vi.advanceTimersByTime(SEEN_DWELL_MS * 3);
+    expect(onSeen).toHaveBeenCalledTimes(1);
+
+    // A different card is a new visit, and so is coming back to the first.
+    rerender({ cardId: "card-2" });
+    vi.advanceTimersByTime(SEEN_DWELL_MS);
+    expect(onSeen).toHaveBeenCalledTimes(2);
+    rerender({ cardId: "card-1" });
+    vi.advanceTimersByTime(SEEN_DWELL_MS);
+    expect(onSeen).toHaveBeenCalledTimes(3);
+  });
+
+  it("still fires for the same card after a null gap if it hadn't fired yet", () => {
+    const onSeen = vi.fn();
+    const { rerender } = renderHook(({ cardId }) => useSeenTimer(cardId, onSeen), {
+      initialProps: { cardId: "card-1" as string | null },
+    });
+    vi.advanceTimersByTime(SEEN_DWELL_MS - 100);
+    rerender({ cardId: null });
+    rerender({ cardId: "card-1" });
+    vi.advanceTimersByTime(SEEN_DWELL_MS);
+    expect(onSeen).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,8 +1,9 @@
 import type { MouseEvent } from "react";
-import type { GitHubPR } from "../../types";
+import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { compactAge } from "../workday/dates";
 import { titleWithoutKey } from "../workday/prState";
+import { DeckNoteLine, DeckQuote } from "./DeckContext";
 import { visibleChips } from "./signals";
 import type { DeckPR } from "./types";
 
@@ -15,12 +16,13 @@ export interface DeckPRRowProps {
   now: Date;
   onSelect(url: string): void;
   onOpen(pr: GitHubPR): void;
+  onOpenNote?(note: Note): void;
 }
 
 /**
  * One PR on the card (spec §5.4): current marker, `#number`, title without the
- * key, author when not mine, up to four signal chips with "+N", an unseen
- * dot and age.
+ * key, author when not mine, up to four signal chips with "+N", the newest
+ * unseen comment, my newest unresolved note, an unseen dot and age.
  */
 export function DeckPRRow({
   id,
@@ -30,6 +32,7 @@ export function DeckPRRow({
   now,
   onSelect,
   onOpen,
+  onOpenNote,
 }: DeckPRRowProps) {
   const { pr } = item;
   const { shown, more } = visibleChips(item.signals);
@@ -66,6 +69,8 @@ export function DeckPRRow({
             )}
           </div>
         )}
+        {item.unseenComment && <DeckQuote item={item.unseenComment} now={now} />}
+        {item.note && <DeckNoteLine note={item.note} onOpen={onOpenNote} />}
       </div>
       <span className="deck-pr-end">
         {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}

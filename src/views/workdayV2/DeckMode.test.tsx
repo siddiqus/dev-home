@@ -61,6 +61,7 @@ function ticket(key: string, o: Partial<DeckTicket> = {}): DeckTicket {
     unseen: false,
     current: false,
     jiraMention: null,
+    note: null,
     ...o,
   };
 }
