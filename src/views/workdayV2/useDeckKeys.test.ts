@@ -316,4 +316,127 @@ describe("useDeckKeys", () => {
     fireKey("ArrowDown", { repeat: true });
     expect(handlers.down).toHaveBeenCalledTimes(1);
   });
+
+  it("does not call open when Enter is pressed on a button", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(handlers.open).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+
+    document.body.removeChild(button);
+  });
+
+  it("does not call open when Enter is pressed on a link", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const link = document.createElement("a");
+    link.href = "#";
+    document.body.appendChild(link);
+    link.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    link.dispatchEvent(event);
+
+    expect(handlers.open).not.toHaveBeenCalled();
+
+    document.body.removeChild(link);
+  });
+
+  it("does not call open when Enter is pressed on [role=button]", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const div = document.createElement("div");
+    div.setAttribute("role", "button");
+    document.body.appendChild(div);
+    div.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    div.dispatchEvent(event);
+
+    expect(handlers.open).not.toHaveBeenCalled();
+
+    document.body.removeChild(div);
+  });
+
+  it("does not call toggleCurrent when Space is pressed on a button", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(handlers.toggleCurrent).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+
+    document.body.removeChild(button);
+  });
+
+  it("does not call openExternal when ⌘Enter is pressed on a button", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(handlers.openExternal).not.toHaveBeenCalled();
+
+    document.body.removeChild(button);
+  });
+
+  it("calls open when Enter is pressed on a button inside a listbox", () => {
+    renderHook(() => useDeckKeys(handlers, { enabled: true, blocked: false }));
+
+    const listbox = document.createElement("div");
+    listbox.setAttribute("role", "listbox");
+    const button = document.createElement("button");
+    listbox.appendChild(button);
+    document.body.appendChild(listbox);
+    button.focus();
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(handlers.open).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+
+    document.body.removeChild(listbox);
+  });
 });

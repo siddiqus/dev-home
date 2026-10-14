@@ -331,4 +331,24 @@ describe("WorkdayV2View deck", () => {
     expect(within(card()).getByText("No PR yet")).toBeTruthy();
     expect(within(card()).queryByRole("listbox")).toBeNull();
   });
+
+  it("does not open PR modal when Enter is pressed on the Refresh button", () => {
+    renderDeck();
+    const refreshButton = screen.getByRole("button", { name: /Refresh/ });
+    refreshButton.focus();
+    fireEvent.keyDown(refreshButton, { key: "Enter" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("ignores arrow keys when a drawer is open", () => {
+    renderDeck();
+    const drawer = document.createElement("div");
+    drawer.className = "offcanvas show";
+    document.body.appendChild(drawer);
+
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-412/); // Still on first card
+
+    document.body.removeChild(drawer);
+  });
 });

@@ -51,6 +51,13 @@ export function useDeckKeys(
       // Ignore if typing target or blocked (after checking for ⌘K above)
       if (isTypingTarget(e.target) || blocked) return;
 
+      // Helper: is target an interactive control outside of deck listboxes?
+      const isInteractiveControl = (target: EventTarget | null): boolean => {
+        if (!(target instanceof Element)) return false;
+        if (target.closest('[role="listbox"]')) return false;
+        return target.matches('button, a[href], [role="button"], summary');
+      };
+
       const key = e.key;
       const lowerKey = key.toLowerCase();
 
@@ -83,6 +90,7 @@ export function useDeckKeys(
 
       // ⌘Enter → openExternal
       if (key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        if (isInteractiveControl(e.target)) return;
         e.preventDefault();
         h.openExternal();
         return;
@@ -93,6 +101,7 @@ export function useDeckKeys(
 
       // Enter → open
       if (key === "Enter" && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        if (isInteractiveControl(e.target)) return;
         e.preventDefault();
         h.open();
         return;
@@ -100,6 +109,7 @@ export function useDeckKeys(
 
       // Space → toggleCurrent
       if (key === " " && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        if (isInteractiveControl(e.target)) return;
         e.preventDefault();
         h.toggleCurrent();
         return;
