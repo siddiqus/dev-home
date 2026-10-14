@@ -44,6 +44,8 @@ export interface DeckStateUpdates {
   reopen?: string[];
   /** Current ids whose PR (or ticket) left the deck. */
   dropCurrent?: string[];
+  /** Ticket ids whose every current item is being dropped (spec §5.6). */
+  dropCurrentTickets?: string[];
   /** First-run seeding. */
   seen?: Record<string, string>;
   seeded?: true;
@@ -347,10 +349,22 @@ export function buildDeck(
       (id.startsWith("ticket:") && !ticketIds.has(id.slice("ticket:".length))),
   );
 
+  // Ticket ids whose every current item is being dropped (spec §5.6).
+  // A ticket loses its place in ▶ Current if it's no longer in the deck or no longer current.
+  const dropCurrentTickets: string[] = [];
+  for (const ticketId of state.currentTickets) {
+    const ticket = tickets.find((t) => t.id === ticketId);
+    // If the ticket is gone or no longer current, it should be removed from currentTickets
+    if (!ticket || !ticket.current) {
+      dropCurrentTickets.push(ticketId);
+    }
+  }
+
   const stateUpdates: DeckStateUpdates = {};
   if (Object.keys(added).length > 0) stateUpdates.arrival = added;
   if (reopen.length > 0) stateUpdates.reopen = reopen;
   if (dropCurrent.length > 0) stateUpdates.dropCurrent = dropCurrent;
+  if (dropCurrentTickets.length > 0) stateUpdates.dropCurrentTickets = dropCurrentTickets;
   if (seeding) {
     // Every PR at its updated_at, plus `ticket:<KEY>` = now for keyed tickets so
     // older Jira mentions don't light up on the second build.

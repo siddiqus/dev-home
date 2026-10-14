@@ -442,6 +442,32 @@ describe("buildDeck auto-close and pruning", () => {
     const deck = build({ openPRs: [a] }, { current: [`pr:${a.html_url}`] });
     expect(deck.stateUpdates.dropCurrent).toBeUndefined();
   });
+
+  it("emits dropCurrentTickets when every current item of a ticket is being dropped", () => {
+    // CCP-1 has two current items (a and b), both are dropped (a merges)
+    const deck = build(
+      { openPRs: [] },
+      {
+        current: [`pr:${a.html_url}`, `pr:${b.html_url}`],
+        currentTickets: ["CCP-1"],
+      },
+    );
+    expect(deck.stateUpdates.dropCurrent).toEqual([`pr:${a.html_url}`, `pr:${b.html_url}`]);
+    expect(deck.stateUpdates.dropCurrentTickets).toEqual(["CCP-1"]);
+  });
+
+  it("does not emit dropCurrentTickets when only some current items of a ticket are dropped", () => {
+    // CCP-1 has two current items (a and b), only a is dropped
+    const deck = build(
+      { openPRs: [b] },
+      {
+        current: [`pr:${a.html_url}`, `pr:${b.html_url}`],
+        currentTickets: ["CCP-1"],
+      },
+    );
+    expect(deck.stateUpdates.dropCurrent).toEqual([`pr:${a.html_url}`]);
+    expect(deck.stateUpdates.dropCurrentTickets).toBeUndefined();
+  });
 });
 
 describe("buildDeck closed group and reopening", () => {
