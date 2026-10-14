@@ -1,10 +1,10 @@
 import type { GitHubPR } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import type { Signal } from "./types";
-import { selfNeeds, diffSize } from "../workday/buildFocus";
+import { diffSize } from "../workday/buildFocus";
 import { readyToMerge, ciFailing } from "../workday/prState";
 import { compactAge } from "../workday/dates";
-import { RED_CHECK_STATUSES } from "../../utils/prCategories";
+import { RED_CHECK_STATUSES, noReviewer } from "../../utils/prCategories";
 
 /** Get just the check names that are failing, formatted. */
 function failingCheckNames(pr: GitHubPR): string {
@@ -35,7 +35,6 @@ export const PRIORITY: Record<BadgeVariant, number> = {
  */
 export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   const signals: Signal[] = [];
-  const needs = selfNeeds(pr);
 
   // CI failing (danger)
   if (ciFailing(pr)) {
@@ -61,11 +60,8 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   }
 
   // No reviewer (warning) - only for non-drafts
-  if (!pr.draft) {
-    const noReviewerNeed = needs.find((n) => n.verb === "Request review");
-    if (noReviewerNeed) {
-      signals.push({ label: "No reviewer", tone: "warning" });
-    }
+  if (!pr.draft && noReviewer(pr)) {
+    signals.push({ label: "No reviewer", tone: "warning" });
   }
 
   // Ready to merge (success)
@@ -94,7 +90,7 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
     pr.review_status !== "APPROVED" &&
     !pr.in_merge_queue &&
     (pr.unresolved_thread_count ?? 0) === 0 &&
-    !needs.find((n) => n.verb === "Request review")
+    !noReviewer(pr)
   ) {
     const age = compactAge(pr.created_at, now);
     signals.push({ label: `⏳ Waiting on ${reviewers.join(", ")} · ${age}`, tone: "neutral" });
