@@ -9,7 +9,7 @@ export interface Signal {
   detail?: string;
 }
 
-/** Inputs to buildDeck, from the same data WorkdayView already receives. */
+/** Inputs to buildDeck, from the same data the Workday page receives. */
 export interface DeckInputs {
   openPRs: GitHubPR[];
   reviewRequests: GitHubPR[];
@@ -19,7 +19,7 @@ export interface DeckInputs {
   githubMentions: GitHubComment[];
   jiraMentions: JiraComment[];
   notes: Note[];
-  /** Upper-cased keys v1 flags off-sprint (from buildWorkday's TicketRefs). */
+  /** Upper-cased keys flagged off-sprint (from buildWorkday's TicketRefs). */
   offSprintKeys?: Set<string>;
 }
 

@@ -22,19 +22,19 @@ export function OffSprintPill() {
   return <span className="workday-pill workday-pill--offsprint">Off-sprint</span>;
 }
 
-/** Copies a ticket key with a toast; provided by WorkdayView. */
+/** Copies a ticket key with a toast; provided by the Workday page. */
 export const CopyTicketContext = React.createContext<((key: string) => void) | null>(null);
 
-/** Copies a PR link with a toast; provided by WorkdayView. */
+/** Copies a PR link with a toast; provided by the Workday page. */
 export const CopyPRLinkContext = React.createContext<((url: string) => void) | null>(null);
 
-/** Focus pins and their toggle; provided by WorkdayView in Focus mode only. */
+/** Focus pins and their toggle; provided by the Workday List View only. */
 export const PinContext = React.createContext<{
   pins: Set<string>;
   toggle: (id: string) => void;
 } | null>(null);
 
-/** Pin / unpin toggle beside a ticket key or PR ref; renders nothing outside Focus. */
+/** Pin / unpin toggle beside a ticket key or PR ref; renders nothing outside the List View. */
 function PinButton({ id, name }: { id: string; name: string }) {
   const ctx = React.useContext(PinContext);
   if (!ctx) return null;

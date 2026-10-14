@@ -163,7 +163,7 @@ function railDirection(
   return "next";
 }
 
-/** Keys v1 flags off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
+/** Keys flagged off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
 function offSprintKeysOf(s: WorkdaySections): Set<string> {
   const refs: (TicketRef | null)[] = [
     ...s.workingOn.items.map((i) => i.ticket),

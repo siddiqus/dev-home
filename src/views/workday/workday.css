@@ -24,11 +24,6 @@
   vertical-align: -0.15em;
 }
 
-.workday-header h5 {
-  margin: 0;
-  font-weight: 600;
-}
-
 .workday-header-spacer {
   flex: 1;
 }
@@ -41,37 +36,7 @@
   padding: 1px 10px;
 }
 
-.workday-subtitle {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  margin-bottom: var(--space-4);
-}
-
-/* Two columns: sections left, sticky notes + preview right. */
-.workday {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-}
-
-.workday-side {
-  position: sticky;
-  top: var(--space-3);
-}
-
-@media (max-width: 1100px) {
-  .workday {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .workday-side {
-    position: static;
-  }
-}
-
-.workday-section,
-.workday-side-card {
+.workday-section {
   margin-bottom: var(--space-3);
   overflow: hidden;
 }
@@ -263,36 +228,6 @@
   text-align: left;
   padding: 6px var(--space-4);
   cursor: pointer;
-}
-
-.workday-side-body {
-  padding: 10px var(--space-4);
-}
-
-.workday-side-body textarea {
-  font-size: 0.8125rem;
-  resize: vertical;
-}
-
-.workday-hint {
-  color: var(--color-text-muted);
-  font-size: 0.6875rem;
-  margin-top: 6px;
-}
-
-.workday-hint--error {
-  color: var(--color-status-danger);
-}
-
-.workday-preview {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  font-family: var(--font-mono);
-  font-size: 0.71875rem;
-  line-height: 1.55;
-  color: var(--color-text-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* ---------- Mode toggle ---------- */
@@ -723,15 +658,7 @@
   color: var(--color-text-secondary);
 }
 
-/* The mode tabs and item filter are both 30px; centre them so their tops and
-   bottoms line up (baseline alignment would offset them). */
-.workday-mode-toggle,
-.workday-item-filter {
+/* The 30px mode tabs: centre them, baseline alignment would offset them. */
+.workday-mode-toggle {
   align-self: center;
-}
-
-/* Ticket and PR titles are long: take up to 440px, shrink before wrapping. */
-.workday-item-filter {
-  flex: 0 1 440px;
-  min-width: 240px;
 }
