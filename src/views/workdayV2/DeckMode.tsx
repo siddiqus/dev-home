@@ -97,7 +97,10 @@ export function DeckMode({
         )}
         {empty && (
           <div className="deck-empty">
-            <p className="deck-empty-title">Nothing open. Nice.</p>
+            <p className="deck-empty-title">
+              {/* A source is down: the deck may be empty only because data is missing. */}
+              {sourceError ? "Nothing to show" : "Nothing open. Nice."}
+            </p>
             <p className="deck-empty-counts">
               {plural(deck.closed.length, "closed tab")} ·{" "}
               {plural(notStartedCount, "assigned ticket")} not started

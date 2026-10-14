@@ -17,7 +17,7 @@ vi.mock("../../hooks/usePRBody", () => ({
   usePRBody: () => ({ body: "PR body text", loading: false }),
 }));
 
-import { WorkdayV2View } from "./WorkdayV2View";
+import { WorkdayV2View, sourceErrorText } from "./WorkdayV2View";
 
 const NOW = new Date(2026, 9, 14, 10, 0);
 const prs: GitHubPR[] = [
@@ -76,6 +76,28 @@ function renderView(extra: Partial<React.ComponentProps<typeof WorkdayV2View>> =
     rerender: (more: Partial<React.ComponentProps<typeof WorkdayV2View>>) => rerender(view(more)),
   };
 }
+
+describe("sourceErrorText", () => {
+  it("maps deck sources to a source down and mentions to Mentions unavailable", () => {
+    expect(sourceErrorText(null)).toBeNull();
+    expect(sourceErrorText("GitHub PRs: 500")).toBe(
+      "GitHub unavailable, showing Jira tickets only",
+    );
+    expect(sourceErrorText("GitHub Reviews: 500")).toBe(
+      "GitHub unavailable, showing Jira tickets only",
+    );
+    expect(sourceErrorText("JIRA Issues: 500")).toBe("Jira unavailable, showing PRs only");
+    expect(sourceErrorText("GitHub PRs: a; JIRA Issues: b")).toBe("GitHub and Jira unavailable");
+    expect(sourceErrorText("GitHub Mentions: a")).toBe("Mentions unavailable");
+    expect(sourceErrorText("JIRA Mentions: a; GitHub Mentions: b")).toBe("Mentions unavailable");
+    expect(sourceErrorText("JIRA Mentions: a; GitHub PRs: b")).toBe(
+      "GitHub unavailable, showing Jira tickets only",
+    );
+    // A message that itself contains "; " doesn't confuse the split.
+    expect(sourceErrorText("GitHub Mentions: bad; very bad")).toBe("Mentions unavailable");
+    expect(sourceErrorText("oops")).toBe("Some data failed to load");
+  });
+});
 
 describe("WorkdayV2View", () => {
   beforeEach(() => localStorage.clear());
@@ -739,6 +761,12 @@ describe("WorkdayV2View polish", () => {
   const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
     renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
   const column = () => card().closest(".deck-column");
+  const seedSeen = (unseen: number[] = []) => {
+    const seen: Record<string, string> = {};
+    for (const p of deckPRs) if (!unseen.includes(p.number)) seen[p.html_url] = p.updated_at;
+    for (const k of ["CCP-412", "CCP-401", "CCP-388"]) seen[`ticket:${k}`] = NOW.toISOString();
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, seeded: true, seen }));
+  };
   const banner = () => document.querySelector<HTMLElement>(".deck-rail-banner");
   const todo = issue("CCP-500", "Not started yet", {
     status: { name: "To Do", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -799,10 +827,26 @@ describe("WorkdayV2View polish", () => {
   it("names GitHub, or both sources, in the banner", () => {
     const { rerender } = renderDeck({ sourceError: "GitHub PRs: timeout" });
     expect(banner()).toHaveTextContent("GitHub unavailable, showing Jira tickets only · retry");
-    rerender({ sourceError: "GitHub Reviews: x; JIRA Mentions: y" });
+    rerender({ sourceError: "GitHub Reviews: x; JIRA Issues: y" });
     expect(banner()).toHaveTextContent("GitHub and Jira unavailable · retry");
     rerender({ sourceError: null });
     expect(banner()).toBeNull();
+  });
+
+  it("only deck sources count as a source down; mentions failures say so", () => {
+    const { rerender } = renderDeck({ sourceError: "GitHub Mentions: 502" });
+    expect(banner()).toHaveTextContent("Mentions unavailable · retry");
+    rerender({ sourceError: "JIRA Mentions: 500" });
+    expect(banner()).toHaveTextContent("Mentions unavailable · retry");
+    rerender({ sourceError: "GitHub Mentions: a; JIRA Mentions: b" });
+    expect(banner()).toHaveTextContent("Mentions unavailable · retry");
+    // A deck source plus a mentions source: the deck source wins.
+    rerender({ sourceError: "GitHub Reviews: x; JIRA Mentions: y" });
+    expect(banner()).toHaveTextContent("GitHub unavailable, showing Jira tickets only · retry");
+    rerender({ sourceError: "JIRA Issues: x; GitHub Mentions: y" });
+    expect(banner()).toHaveTextContent("Jira unavailable, showing PRs only · retry");
+    rerender({ sourceError: "Something else broke" });
+    expect(banner()).toHaveTextContent("Some data failed to load · retry");
   });
 
   it("? opens the shortcut sheet; deck keys wait until it closes", () => {
@@ -850,6 +894,67 @@ describe("WorkdayV2View polish", () => {
     expect(column()).toHaveAttribute("data-swipe", "next");
     fireEvent.click(screen.getByRole("option", { name: /401/ }));
     expect(column()).toHaveAttribute("data-swipe", "prev");
+  });
+
+  it("says Nothing to show, not Nice, on an empty deck while a source is down", () => {
+    renderView({ openPRs: [], sourceError: "GitHub PRs: 500" });
+    expect(screen.queryByText("Nothing open. Nice.")).toBeNull();
+    expect(screen.getByText("Nothing to show")).toBeTruthy();
+  });
+
+  it("puts ? all keys first in the hint bar so clipping drops the others", () => {
+    renderDeck();
+    const hints = screen.getByTestId("deck-hints").children;
+    expect(hints[0]).toHaveTextContent("? all keys");
+  });
+
+  it("n swipes forward even when it wraps", () => {
+    seedSeen([1203]);
+    renderDeck();
+    press("ArrowRight"); // 412 → 401
+    press("ArrowRight"); // 401 → 388
+    press("n"); // wraps to 412, the only unseen one
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(column()).toHaveAttribute("data-swipe", "next");
+  });
+
+  it("a palette jump swipes by rail order", async () => {
+    renderDeck();
+    press("k", { metaKey: true });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "CCP-388" } });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    await act(async () => {});
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    press("k", { metaKey: true });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "CCP-412" } });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    await act(async () => {});
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(column()).toHaveAttribute("data-swipe", "prev");
+  });
+
+  it("doesn't swipe when a refresh drops the selected ticket", () => {
+    const { rerender } = renderDeck();
+    fireEvent.click(screen.getByRole("option", { name: /401/ }));
+    expect(column()).toHaveAttribute("data-swipe", "next");
+    rerender({
+      openPRs: deckPRs.filter((p) => p.number !== 1199),
+      allIssues: deckIssues.filter((i) => i.key !== "CCP-401"),
+    });
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(column()).not.toHaveAttribute("data-swipe");
+  });
+
+  it("doesn't swipe when g c narrows the rail away from the selection", () => {
+    renderDeck();
+    press(" "); // 412 current
+    press("ArrowRight"); // 401 (open)
+    expect(card()).toHaveAccessibleName(/^CCP-401/);
+    press("g");
+    press("c");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(column()).not.toHaveAttribute("data-swipe");
   });
 
   it("x swipes forward to the next ticket and a mode switch doesn't replay the swipe", () => {

@@ -63,18 +63,25 @@ const drawerOpen = () => document.querySelector(".offcanvas.show, .modal.show") 
 
 const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 
+/** useDashboard's per-source prefixes. Only the first three feed the deck's tickets. */
+const SOURCE_PREFIX =
+  /(?:^|; )(GitHub PRs|GitHub Reviews|GitHub Mentions|JIRA Issues|JIRA Mentions): /g;
+
 /**
- * The rail banner for a failed source. App joins per-source messages with "; ",
- * each prefixed with its source ("GitHub PRs: …", "JIRA Issues: …").
+ * The rail banner for a failed source. useDashboard joins per-source messages
+ * with "; ", each prefixed with its source ("GitHub PRs: …", "JIRA Issues: …").
+ * GitHub PRs / Reviews and JIRA Issues are deck sources: losing one hides tickets.
+ * GitHub / JIRA Mentions only feed the quotes, so they get their own line.
  */
 export function sourceErrorText(error: string | null): string | null {
   if (!error) return null;
-  const msgs = error.split("; ");
-  const github = msgs.some((m) => /^github/i.test(m));
-  const jira = msgs.some((m) => /^jira/i.test(m));
+  const sources = new Set([...error.matchAll(SOURCE_PREFIX)].map((m) => m[1]));
+  const github = sources.has("GitHub PRs") || sources.has("GitHub Reviews");
+  const jira = sources.has("JIRA Issues");
   if (github && jira) return "GitHub and Jira unavailable";
   if (jira) return "Jira unavailable, showing PRs only";
   if (github) return "GitHub unavailable, showing Jira tickets only";
+  if (sources.has("GitHub Mentions") || sources.has("JIRA Mentions")) return "Mentions unavailable";
   return "Some data failed to load";
 }
 
@@ -270,12 +277,17 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const selectedTicket = rail.find((t) => t.id === state.selected) ?? rail[0] ?? null;
   const selectedId = selectedTicket?.id ?? null;
 
-  // Card swipe (spec §5.4): each selection change records a direction, derived
-  // during render so the new card mounts already animating. ←/→ set `keyNav`
-  // first so a wrap-around still swipes the way the key points; everything
-  // else (n, x, ⌘K, clicks) goes by rail order. A mode switch resets it.
+  // Card swipe (spec §5.4): only explicit navigation swipes: ←/→, n, x, a ⌘K
+  // jump or a rail click record a `navIntent` alongside the selection change.
+  // ←/→ and n carry their own direction, so a wrap-around still swipes the way
+  // the key points; the rest go by rail order. Selection changes without an
+  // intent (a refresh dropping the ticket, `g c` narrowing) and mode switches
+  // don't swipe. The direction is derived during render so the new card mounts
+  // already animating.
   const railIds = useMemo(() => rail.map((t) => t.id), [rail]);
-  const [keyNav, setKeyNav] = useState<{ to: string; dir: SwipeDirection } | null>(null);
+  const [navIntent, setNavIntent] = useState<{ to: string; dir: SwipeDirection | "rail" } | null>(
+    null,
+  );
   const [swipe, setSwipe] = useState<{
     id: string | null;
     mode: Mode;
@@ -284,15 +296,22 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   }>(() => ({ id: selectedId, mode, dir: null, rail: railIds }));
   if (swipe.id !== selectedId || swipe.mode !== mode) {
     let dir: SwipeDirection | null = null;
-    if (swipe.mode === mode && swipe.id && selectedId) {
+    if (swipe.mode === mode && swipe.id && selectedId && navIntent?.to === selectedId) {
       dir =
-        keyNav?.to === selectedId
-          ? keyNav.dir
-          : railDirection(swipe.id, selectedId, railIds, swipe.rail);
+        navIntent.dir === "rail"
+          ? railDirection(swipe.id, selectedId, railIds, swipe.rail)
+          : navIntent.dir;
     }
     setSwipe({ id: selectedId, mode, dir, rail: railIds });
-    if (keyNav) setKeyNav(null);
+    if (navIntent) setNavIntent(null);
   }
+  /** Records an explicit move to `to` so the selection change swipes. */
+  const intendNav = useCallback(
+    (to: string, dir: SwipeDirection | "rail" = "rail") => {
+      if (to !== selectedId) setNavIntent({ to, dir });
+    },
+    [selectedId],
+  );
   // The picked PR is per card; opening a card picks its first current PR, else the top row.
   const [prPick, setPrPick] = useState<{ ticketId: string; url: string } | null>(null);
   const cardPRs = useMemo(() => selectedTicket?.prs ?? [], [selectedTicket]);
@@ -310,14 +329,23 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     },
     [select],
   );
+  // A rail click: an explicit move, swiped by rail order.
+  const clickTicket = useCallback(
+    (id: string) => {
+      intendNav(id);
+      selectTicket(id);
+    },
+    [intendNav, selectTicket],
+  );
   // A reopened tab lands in Open, so `g c` (only current) turns off to show it.
   const reopenTicket = useCallback(
     (id: string) => {
       reopen(id);
       setOnlyCurrent(false);
+      intendNav(id);
       selectTicket(id);
     },
-    [reopen, selectTicket, setOnlyCurrent],
+    [reopen, selectTicket, setOnlyCurrent, intendNav],
   );
   // Opening a PR (⏎ or a click) marks it seen immediately (spec §5.8).
   const openPR = useCallback(
@@ -388,10 +416,12 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       const i = rail.findIndex((t) => t.id === id);
       const rest = rail.filter((t) => t.id !== id);
       const next = rail.slice(i + 1).find((t) => t.id !== id) ?? rest[0];
-      if (next) selectTicket(next.id);
-      else select(null);
+      if (next) {
+        intendNav(next.id, "next");
+        selectTicket(next.id);
+      } else select(null);
     },
-    [close, stamp, selectedId, rail, selectTicket, select],
+    [close, stamp, selectedId, rail, selectTicket, select, intendNav],
   );
 
   // Read through a ref so a new onRefresh identity doesn't re-bind the deck keys.
@@ -412,7 +442,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       if (rail.length === 0) return;
       const i = rail.findIndex((t) => t.id === selectedId);
       const target = rail[(i + delta + rail.length) % rail.length].id;
-      if (target !== selectedId) setKeyNav({ to: target, dir: delta > 0 ? "next" : "prev" });
+      intendNav(target, delta > 0 ? "next" : "prev");
       selectTicket(target);
     };
     const movePr = (delta: number) => {
@@ -443,8 +473,11 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       nextUpdated: guard(() => {
         const after = [...rail.slice(i + 1), ...rail.slice(0, Math.max(i, 0))];
         const next = after.find((t) => t.unseen && t.id !== selectedId);
-        if (next) selectTicket(next.id);
-        else showToast("Nothing new");
+        if (next) {
+          // "Next updated" always swipes forward, even when it wraps.
+          intendNav(next.id, "next");
+          selectTicket(next.id);
+        } else showToast("Nothing new");
       }),
       toggleOnlyCurrent: guard(() => setOnlyCurrent((v) => !v)),
       // .: the inline note composer under the selected PR (or the PR-less ticket).
@@ -477,6 +510,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     setOnlyCurrent,
     refresh,
     togglePalette,
+    intendNav,
   ]);
   useDeckKeys(deckKeys, {
     enabled: configured && mode === "focus",
@@ -505,11 +539,12 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       } else if (onlyCurrent && !deck.current.some((t) => t.id === ticketId)) {
         setOnlyCurrent(false);
       }
+      intendNav(ticketId);
       select(ticketId);
       setPrPick(prUrl ? { ticketId, url: prUrl } : null);
       setMode("focus");
     },
-    [deck, onlyCurrent, reopen, select, setOnlyCurrent, setMode],
+    [deck, onlyCurrent, reopen, select, setOnlyCurrent, setMode, intendNav],
   );
 
   const onPaletteAction = useCallback(
@@ -728,7 +763,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
             <DeckMode
               deck={deck}
               selectedId={selectedId}
-              onSelect={selectTicket}
+              onSelect={clickTicket}
               selectedPrUrl={selectedPrUrl}
               onSelectPr={selectPr}
               onOpen={openPR}
@@ -771,7 +806,11 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
           )}
 
           {mode === "focus" && !hideHints && (
+            // "? all keys" leads: the bar clips on the right, so it must never be the one cut.
             <div className="deck-hints" data-testid="deck-hints">
+              <span>
+                <kbd>?</kbd> all keys
+              </span>
               <span>
                 <kbd>←→</kbd> back/skip
               </span>
@@ -795,9 +834,6 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               </span>
               <span>
                 <kbd>⌘K</kbd> find
-              </span>
-              <span>
-                <kbd>?</kbd> all keys
               </span>
             </div>
           )}
