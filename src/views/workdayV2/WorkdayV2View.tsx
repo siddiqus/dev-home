@@ -20,6 +20,11 @@ import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
 import { prPin, ticketPin } from "../workday/pins";
 import { prNoteKey } from "../../utils/prNotes";
+import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
+import { fetchPR } from "../../services/github";
+import type { MentionItem } from "../workday/types";
+import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
+import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
 import { DeckMode } from "./DeckMode";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
@@ -48,11 +53,14 @@ const FILTER_KEY = "dev-home-workday-v2-filter";
 const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilter[];
 const CLOSED_FOLDED_KEY = "dev-home-workday-v2-closed-folded";
 const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
+const HIDE_HINTS_KEY = "dev-home-workday-v2-hide-hints";
 const NO_MENTIONS: never[] = [];
 const noop = () => {};
 
 /** Deck keys stand down while a drawer (Jira issue) or a modal (note editor) is open. */
 const drawerOpen = () => document.querySelector(".offcanvas.show, .modal.show") !== null;
+
+const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 
 /** Keys v1 flags off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
 function offSprintKeysOf(s: WorkdaySections): Set<string> {
@@ -104,10 +112,14 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const [filter, setFilter] = useStoredState<SprintFilter>(FILTER_KEY, "all", FILTERS);
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  const { onCopyLink, onCopyTicket, toast } = usePRCopyActions();
+  const { onCopyLink, onCopyTicket, onCopyBranch, toast } = usePRCopyActions();
   const showToast = toast.show;
   const [closedFolded, setClosedFolded] = usePersistedState(CLOSED_FOLDED_KEY, true);
   const [onlyCurrent, setOnlyCurrent] = usePersistedState(ONLY_CURRENT_KEY, false);
+  // The key hint bar itself lands with Task 12; ⌘K already toggles the pref.
+  const [hideHints, setHideHints] = usePersistedState(HIDE_HINTS_KEY, false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openIssue = useOptionalJiraDrawer();
   // Track if we've finished at least one load, so the spinner shows on refreshes but not first load.
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   useEffect(() => {
@@ -120,14 +132,14 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || selectedPR) return;
+      if (isTypingTarget(e.target) || selectedPR || paletteOpen) return;
       const key = e.key.toLowerCase();
       if (key === "f") setMode("focus");
       else if (key === "s") setMode("standup");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setMode, selectedPR]);
+  }, [setMode, selectedPR, paletteOpen]);
 
   const weekendKey = weekendDays.join(",");
   const since = useMemo(
@@ -308,7 +320,31 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     [selectedId],
   );
 
-  // Memoised: useDeckKeys re-binds whenever the handlers object changes.
+  // x (or ⌘⌫ in ⌘K): close into Closed; if it was the selected ticket, selection
+  // moves to the next ticket in rail order.
+  const closeTicket = useCallback(
+    (id: string) => {
+      close(id, stamp());
+      if (id !== selectedId) return;
+      const i = rail.findIndex((t) => t.id === id);
+      const rest = rail.filter((t) => t.id !== id);
+      const next = rail.slice(i + 1).find((t) => t.id !== id) ?? rest[0];
+      if (next) selectTicket(next.id);
+      else select(null);
+    },
+    [close, stamp, selectedId, rail, selectTicket, select],
+  );
+
+  // Read through a ref so a new onRefresh identity doesn't re-bind the deck keys.
+  const refreshRef = useRef(onRefresh);
+  refreshRef.current = onRefresh;
+  const refresh = useCallback(() => refreshRef.current(), []);
+
+  // ⌘K: ignored while another modal or drawer is open (two focus traps would fight).
+  const togglePalette = useCallback(() => {
+    if (paletteOpen) setPaletteOpen(false);
+    else if (!drawerOpen() && selectedPR === null) setPaletteOpen(true);
+  }, [paletteOpen, selectedPR]);
   const deckKeys = useMemo<DeckKeyHandlers>(() => {
     const guard = (fn: () => void) => () => {
       if (!drawerOpen()) fn();
@@ -340,14 +376,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
           toggleCurrent(ticketPin(selectedTicket.key), selectedTicket.id);
       }),
       // x: close into Closed; selection moves to the next ticket in rail order.
-      close: guard(() => {
-        if (!selectedTicket) return;
-        close(selectedTicket.id, stamp());
-        const rest = rail.filter((t) => t.id !== selectedTicket.id);
-        const next = rail.slice(i + 1).find((t) => t.id !== selectedTicket.id) ?? rest[0];
-        if (next) selectTicket(next.id);
-        else select(null);
-      }),
+      close: guard(() => selectedTicket && closeTicket(selectedTicket.id)),
       unread: guard(() => pr && markUnread(pr.html_url)),
       // n: the next ticket after the selected one (wrapping) with unseen activity.
       nextUpdated: guard(() => {
@@ -363,9 +392,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
         if (pr) setComposer({ ticketId: selectedTicket.id, url: pr.html_url });
         else if (selectedTicket.key) setComposer({ ticketId: selectedTicket.id, url: null });
       }),
-      // Wired by later tasks (palette, help).
-      refresh: noop,
-      palette: noop,
+      refresh: guard(refresh),
+      palette: togglePalette,
+      // Wired by a later task (help).
       // F / S are handled by the mode effect above.
       focusMode: noop,
       standupMode: noop,
@@ -380,16 +409,180 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     pickedPR,
     selectTicket,
     selectPr,
-    select,
     openPR,
     toggleCurrent,
-    close,
+    closeTicket,
     markUnread,
-    stamp,
     showToast,
     setOnlyCurrent,
+    refresh,
+    togglePalette,
   ]);
   useDeckKeys(deckKeys, { enabled: configured && mode === "focus", blocked: selectedPR !== null });
+
+  // ⌘K in Standup too ("from anywhere on the page"); Focus gets it from useDeckKeys.
+  useEffect(() => {
+    if (!configured || mode !== "standup") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      togglePalette();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [configured, mode, togglePalette]);
+
+  // ⌘K jump: reopens a closed tab, and clears `g c` if the target isn't current.
+  const jumpTo = useCallback(
+    (ticketId: string, prUrl: string | null) => {
+      if (deck.closed.some((t) => t.id === ticketId)) {
+        reopen(ticketId);
+        setOnlyCurrent(false);
+      } else if (onlyCurrent && !deck.current.some((t) => t.id === ticketId)) {
+        setOnlyCurrent(false);
+      }
+      select(ticketId);
+      setPrPick(prUrl ? { ticketId, url: prUrl } : null);
+      setMode("focus");
+    },
+    [deck, onlyCurrent, reopen, select, setOnlyCurrent, setMode],
+  );
+
+  const onPaletteAction = useCallback(
+    (action: PaletteAction, r: SearchResult) => {
+      const ext = r.external;
+      if (ext?.kind === "ticket") {
+        if (openIssue) openIssue(ext.key);
+        else openTab(`${jiraBaseUrl}/browse/${ext.key}`);
+        return;
+      }
+      if (ext?.kind === "pr") {
+        // Not in the deck: the one on-demand fetch the deck makes (spec §5.11).
+        if (action === "jump" || action === "openModal") {
+          const [owner, repo] = ext.repo.split("/");
+          fetchPR(owner, repo, ext.number)
+            .then(setSelectedPR)
+            .catch(() => showToast("Couldn't load that PR"));
+        } else if (action === "openGitHub") openTab(ext.url);
+        else if (action === "copyLink") onCopyLink(ext.url);
+        return;
+      }
+      const id = r.ticketId;
+      if (!id) return;
+      const pr = r.pr;
+      switch (action) {
+        case "jump":
+          jumpTo(id, pr?.html_url ?? null);
+          break;
+        case "toggleCurrent":
+          if (pr) toggleCurrent(prPin(pr), id);
+          else if (r.ticketKey) toggleCurrent(ticketPin(r.ticketKey), id);
+          break;
+        case "openModal":
+          if (!pr) break;
+          jumpTo(id, pr.html_url);
+          openPR(pr);
+          break;
+        case "openGitHub":
+          if (pr) openTab(pr.html_url);
+          break;
+        case "copyBranch":
+          if (pr?.head?.ref) onCopyBranch(pr.head.ref);
+          break;
+        case "copyLink":
+          if (pr) onCopyLink(pr.html_url);
+          break;
+        case "note": {
+          // Jump to the card, then open the composer under that PR (or the PR-less ticket).
+          const t = [...deck.current, ...deck.open, ...deck.closed].find((x) => x.id === id);
+          if (!t) break;
+          const url = pr?.html_url ?? (t.prs.find((p) => p.current) ?? t.prs[0])?.pr.html_url;
+          if (!url && !t.key) break;
+          jumpTo(id, url ?? null);
+          setComposer({ ticketId: id, url: url ?? null });
+          break;
+        }
+        case "closeReopen":
+          if (deck.closed.some((t) => t.id === id)) reopenTicket(id);
+          else closeTicket(id);
+          break;
+        case "unread":
+          if (!pr) break;
+          markUnread(pr.html_url);
+          showToast("Marked unread");
+          break;
+      }
+    },
+    [
+      deck,
+      openIssue,
+      jiraBaseUrl,
+      showToast,
+      onCopyLink,
+      onCopyBranch,
+      jumpTo,
+      toggleCurrent,
+      openPR,
+      reopenTicket,
+      closeTicket,
+      markUnread,
+    ],
+  );
+  const onOpenMention = useCallback((m: MentionItem) => openTab(m.url), []);
+
+  const paletteCommands = useMemo<PaletteCommand[]>(
+    () => [
+      {
+        id: "next",
+        label: "Next updated ticket",
+        keys: "n",
+        run: () => {
+          setMode("focus");
+          deckKeys.nextUpdated();
+        },
+      },
+      {
+        id: "only-current",
+        label: onlyCurrent ? "Show all tickets" : "Show only current",
+        keys: "g c",
+        run: () => {
+          setMode("focus");
+          setOnlyCurrent((v) => !v);
+        },
+      },
+      {
+        id: "closed",
+        label: closedFolded ? "Show closed" : "Hide closed",
+        run: () => {
+          setMode("focus");
+          setClosedFolded((v) => !v);
+        },
+      },
+      { id: "refresh", label: "Refresh", keys: "r", run: refresh },
+      mode === "focus"
+        ? { id: "standup", label: "Switch to Standup", keys: "S", run: () => setMode("standup") }
+        : { id: "focus", label: "Switch to Focus", keys: "F", run: () => setMode("focus") },
+      {
+        id: "hints",
+        label: hideHints ? "Show key hints" : "Hide key hints",
+        run: () => setHideHints((v) => !v),
+      },
+    ],
+    [
+      deckKeys,
+      onlyCurrent,
+      closedFolded,
+      hideHints,
+      mode,
+      refresh,
+      setMode,
+      setOnlyCurrent,
+      setClosedFolded,
+      setHideHints,
+    ],
+  );
+  const hidePalette = useCallback(() => setPaletteOpen(false), []);
 
   // Section toggle stubs for Standup (not implemented yet; Task 8 does state management).
   const sectionToggle = useCallback(() => ({ collapsed: false, onToggle: () => {} }), []);
@@ -425,8 +618,8 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               variant="link"
               size="sm"
               className="workday-v2-cmd-k-hint"
-              title="Find and act"
-              disabled
+              title="Find and act (⌘K)"
+              onClick={() => setPaletteOpen(true)}
             >
               ⌘K find &amp; act
             </Button>
@@ -503,6 +696,15 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
             pr={selectedPR}
             onHide={() => setSelectedPR(null)}
             jiraBaseUrl={jiraBaseUrl}
+          />
+
+          <CommandPalette
+            show={paletteOpen}
+            onHide={hidePalette}
+            deck={deck}
+            commands={paletteCommands}
+            onAction={onPaletteAction}
+            onOpenMention={onOpenMention}
           />
 
           <Toast message={toast.message} visible={toast.visible} />

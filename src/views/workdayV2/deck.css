@@ -455,3 +455,128 @@ button.deck-rail-heading--closed:hover {
 .deck-card-body > .deck-note-composer {
   margin-left: 0;
 }
+
+/* ⌘K palette (spec §5.11). No transitions: it appears instantly, which also
+   keeps it still under prefers-reduced-motion. */
+.deck-palette-dialog {
+  max-width: 600px;
+  margin-top: 12vh;
+}
+
+.deck-palette .modal-content {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.deck-palette-input.form-control {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: 1rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.deck-palette-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.deck-palette-heading {
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.deck-palette-empty {
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.deck-palette-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.deck-palette-option--active {
+  background: var(--color-bg-hover);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.deck-palette-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.deck-palette-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-palette-sub {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-palette-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-4) var(--space-2) var(--space-6);
+  background: var(--color-bg-hover);
+}
+
+.deck-palette-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.deck-palette-action--active {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+.deck-palette kbd {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.deck-palette-footer {
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
