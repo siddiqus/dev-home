@@ -301,10 +301,11 @@
 /* The rail is a column: the source banner (when set) stays put above the
    scroll area (the listbox, then the Closed group), which scrolls on its own. */
 .deck-rail {
+  --deck-rail-w: 380px;
   flex: none;
   display: flex;
   flex-direction: column;
-  width: 268px;
+  width: var(--deck-rail-w);
   min-height: 0;
   border-right: 1px solid var(--color-border);
   background: var(--color-bg-panel);
@@ -404,11 +405,7 @@
 }
 
 .deck-rail-row:hover {
-  background: var(--color-bg-hover);
-}
-
-.deck-rail-row--selected {
-  background: var(--color-bg-elevated);
+  background: var(--color-nav-hover-bg);
   color: var(--color-text-primary);
 }
 
@@ -417,8 +414,22 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-status-warning) 25%, transparent);
 }
 
+/* Selected wins over hover and current: stronger tint plus an accent outline. */
+.deck-rail-row--selected,
+.deck-rail-row--selected:hover {
+  background: var(--color-nav-selected-bg);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.deck-rail-row:hover .deck-rail-status,
+.deck-rail-row--selected .deck-rail-status {
+  /* Muted grey washes out on the blue tint, notably in dark mode. */
+  color: var(--color-text-secondary);
+}
+
 .deck-rail-list:focus-visible .deck-rail-row--selected {
-  outline: 1px solid var(--color-focus-ring);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
 }
 
 .deck-rail-main {
@@ -737,12 +748,12 @@ button.deck-rail-row {
 }
 
 button.deck-rail-row:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-nav-hover-bg);
 }
 
 button.deck-rail-heading--closed:focus-visible,
 button.deck-rail-row:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent);
   outline-offset: -2px;
 }
 
@@ -1269,8 +1280,8 @@ button.deck-rail-row:focus-visible {
 
   .deck-rail:hover,
   .deck-rail:focus-within {
-    width: 268px;
-    margin-right: calc(76px - 268px);
+    width: var(--deck-rail-w);
+    margin-right: calc(76px - var(--deck-rail-w));
     box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
   }
 
