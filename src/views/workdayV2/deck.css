@@ -1,9 +1,5 @@
 /* Workday V2 deck styles */
 
-.workday-v2 {
-  /* Inherits most styles from workday.css; deck-specific styles go here */
-}
-
 .workday-v2-cmd-k-hint {
   color: var(--bs-secondary);
   text-decoration: none;
@@ -19,4 +15,333 @@
 .workday-v2-cmd-k-hint:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Focus mode fills the content area so the rail and card scroll on their own.
+   Viewport minus app header (46px) and .main-content padding, like PRsView. */
+.workday-v2--focus {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 46px - var(--space-3) - var(--space-6));
+  min-height: 0;
+}
+
+.deck-mode {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* ---------- Rail (spec §5.3) ---------- */
+
+.deck-rail {
+  flex: none;
+  width: 268px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
+}
+
+.deck-rail:focus {
+  outline: none;
+}
+
+.deck-rail:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-focus-ring);
+}
+
+.deck-rail-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) 2px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.deck-rail-heading--current {
+  color: var(--color-status-warning);
+}
+
+.deck-rail-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 6px var(--space-2) 6px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.deck-rail-row:hover {
+  background: var(--color-bg-hover);
+}
+
+.deck-rail-row--selected {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+/* Faint amber outline: amber is reserved for current. */
+.deck-rail-row--current {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-status-warning) 25%, transparent);
+}
+
+.deck-rail:focus-visible .deck-rail-row--selected {
+  outline: 1px solid var(--color-focus-ring);
+}
+
+.deck-rail-main {
+  min-width: 0;
+}
+
+.deck-rail-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.deck-rail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-rail-review {
+  flex: none;
+  font-size: 0.625rem !important;
+  padding: 0 5px;
+}
+
+.deck-rail-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.deck-key {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.deck-key--none {
+  color: var(--color-text-muted);
+}
+
+/* State stripe: the worst tone across the ticket's PRs (spec §5.5). */
+.deck-stripe {
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-text-muted);
+}
+
+.deck-stripe--danger {
+  background: var(--color-status-danger);
+}
+.deck-stripe--warning {
+  background: var(--color-status-warning);
+}
+.deck-stripe--info {
+  background: var(--color-status-info);
+}
+.deck-stripe--success {
+  background: var(--color-status-success);
+}
+.deck-stripe--purple {
+  background: var(--color-status-purple);
+}
+
+/* Blue dot: unseen activity. */
+.deck-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-status-info);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-status-info) 25%, transparent);
+}
+
+/* ---------- Stage and card (spec §5.1, §5.4) ---------- */
+
+.deck-stage {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) var(--space-5) var(--space-4);
+}
+
+.deck-column {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  align-self: flex-start;
+}
+
+/* Decorative cards peeking behind the front one. */
+.deck-ghost {
+  position: absolute;
+  left: 50%;
+  height: 40px;
+  transform: translateX(-50%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+}
+
+.deck-ghost--back {
+  top: -8px;
+  width: 90%;
+  opacity: 0.45;
+}
+
+.deck-ghost--mid {
+  top: -4px;
+  width: 95%;
+  opacity: 0.8;
+}
+
+.deck-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.deck-card-header {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.deck-card-titleline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.deck-card-key {
+  flex: none;
+}
+
+.deck-card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.deck-card-pills {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-card-sub {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* The body scrolls once the card would pass ~70vh. */
+.deck-card-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.deck-card-empty {
+  padding: var(--space-2) 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-list:focus {
+  outline: none;
+}
+
+.deck-pr {
+  display: grid;
+  grid-template-columns: 16px 52px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  margin-top: 7px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  cursor: pointer;
+}
+
+.deck-pr:hover {
+  border-color: var(--color-border);
+}
+
+/* Current: amber border and tint. */
+.deck-pr--current {
+  border-color: color-mix(in srgb, var(--color-status-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-warning) 7%, var(--color-bg-panel));
+}
+
+.deck-pr--selected {
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+.deck-pr-marker {
+  font-weight: 700;
+  color: var(--color-status-warning);
+}
+
+.deck-pr-number,
+.deck-pr-age {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-main {
+  min-width: 0;
+}
+
+.deck-pr-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.deck-pr-author {
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type { DeckState, DeckStateUpdates } from "./buildDeck";
 import { EMPTY_DECK_STATE } from "./buildDeck";
 
@@ -60,15 +60,19 @@ export function useDeckState() {
   }, [internalState]);
 
   // Public state without internal fields
-  const state: DeckState = {
-    arrival: internalState.arrival,
-    current: internalState.current,
-    currentTickets: internalState.currentTickets,
-    seen: internalState.seen,
-    closed: internalState.closed,
-    selected: internalState.selected,
-    seeded: internalState.seeded,
-  };
+  // Memoised so consumers (buildDeck's useMemo) only recompute when state changes.
+  const state: DeckState = useMemo(
+    () => ({
+      arrival: internalState.arrival,
+      current: internalState.current,
+      currentTickets: internalState.currentTickets,
+      seen: internalState.seen,
+      closed: internalState.closed,
+      selected: internalState.selected,
+      seeded: internalState.seeded,
+    }),
+    [internalState],
+  );
 
   const toggleCurrent = useCallback((itemId: string, ticketId: string) => {
     setInternalState((prev) => {

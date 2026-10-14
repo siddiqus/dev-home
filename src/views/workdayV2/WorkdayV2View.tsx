@@ -18,6 +18,8 @@ import type { SprintFilter } from "../workday/types";
 import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
 import { buildDeck } from "./buildDeck";
+import { DeckMode } from "./DeckMode";
+import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
 import "./deck.css";
 
@@ -34,6 +36,10 @@ const LOOKBACK_KEY = "dev-home-workday-v2-lookback";
 const FILTER_KEY = "dev-home-workday-v2-filter";
 const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilter[];
 const NO_MENTIONS: never[] = [];
+const noop = () => {};
+
+/** Deck keys stand down while a drawer (the Jira issue drawer) is open. */
+const drawerOpen = () => document.querySelector(".offcanvas.show") !== null;
 
 /**
  * Workday V2: the ticket deck. Focus mode is a deck (rail + card) that stays
@@ -113,7 +119,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   );
 
   // Deck state and composition for Focus mode.
-  const { state } = useDeckState();
+  const { state, select } = useDeckState();
   const deck = useMemo(
     () =>
       buildDeck(
@@ -144,6 +150,74 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     ],
   );
 
+  // Selection: the remembered ticket if it's still in Current/Open, else the first one.
+  const rail = useMemo(() => [...deck.current, ...deck.open], [deck]);
+  const selectedTicket = rail.find((t) => t.id === state.selected) ?? rail[0] ?? null;
+  const selectedId = selectedTicket?.id ?? null;
+  // The picked PR is per card; opening a card picks its first current PR, else the top row.
+  const [prPick, setPrPick] = useState<{ ticketId: string; url: string } | null>(null);
+  const cardPRs = useMemo(() => selectedTicket?.prs ?? [], [selectedTicket]);
+  const pickedPR =
+    (prPick?.ticketId === selectedId && cardPRs.find((p) => p.pr.html_url === prPick.url)) ||
+    cardPRs.find((p) => p.current) ||
+    cardPRs[0] ||
+    null;
+  const selectedPrUrl = pickedPR?.pr.html_url ?? null;
+
+  const selectTicket = useCallback(
+    (id: string) => {
+      select(id);
+      setPrPick(null);
+    },
+    [select],
+  );
+  const selectPr = useCallback(
+    (url: string) => {
+      if (selectedId) setPrPick({ ticketId: selectedId, url });
+    },
+    [selectedId],
+  );
+
+  // Memoised: useDeckKeys re-binds whenever the handlers object changes.
+  const deckKeys = useMemo<DeckKeyHandlers>(() => {
+    const guard = (fn: () => void) => () => {
+      if (!drawerOpen()) fn();
+    };
+    const step = (delta: number) => {
+      if (rail.length === 0) return;
+      const i = rail.findIndex((t) => t.id === selectedId);
+      selectTicket(rail[(i + delta + rail.length) % rail.length].id);
+    };
+    const movePr = (delta: number) => {
+      const i = cardPRs.findIndex((p) => p.pr.html_url === selectedPrUrl);
+      const next = cardPRs[Math.min(Math.max(i + delta, 0), cardPRs.length - 1)];
+      if (next) selectPr(next.pr.html_url);
+    };
+    const pr = pickedPR?.pr ?? null;
+    return {
+      next: guard(() => step(1)),
+      prev: guard(() => step(-1)),
+      down: guard(() => movePr(1)),
+      up: guard(() => movePr(-1)),
+      open: guard(() => pr && setSelectedPR(pr)),
+      openExternal: guard(() => pr && window.open(pr.html_url, "_blank", "noopener,noreferrer")),
+      // Wired by later tasks (current, close, notes, palette, help).
+      toggleCurrent: noop,
+      note: noop,
+      close: noop,
+      unread: noop,
+      nextUpdated: noop,
+      toggleOnlyCurrent: noop,
+      refresh: noop,
+      palette: noop,
+      // F / S are handled by the mode effect above.
+      focusMode: noop,
+      standupMode: noop,
+      help: noop,
+    };
+  }, [rail, selectedId, cardPRs, selectedPrUrl, pickedPR, selectTicket, selectPr]);
+  useDeckKeys(deckKeys, { enabled: configured && mode === "focus", blocked: selectedPR !== null });
+
   // Section toggle stubs for Standup (not implemented yet; Task 8 does state management).
   const sectionToggle = useCallback(() => ({ collapsed: false, onToggle: () => {} }), []);
 
@@ -169,7 +243,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   return (
     <CopyTicketContext.Provider value={onCopyTicket}>
       <CopyPRLinkContext.Provider value={onCopyLink}>
-        <div className="workday-page workday-v2">
+        <div className={`workday-page workday-v2${mode === "focus" ? " workday-v2--focus" : ""}`}>
           <div className="workday-header">
             <h5>Workday V2</h5>
             {mode === "focus" && <span className="workday-date-pill">{summary}</span>}
@@ -214,7 +288,16 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
           </div>
 
           {mode === "focus" ? (
-            <div data-testid="deck-mode">{/* Task 7: DeckMode goes here */}</div>
+            <DeckMode
+              deck={deck}
+              selectedId={selectedId}
+              onSelect={selectTicket}
+              selectedPrUrl={selectedPrUrl}
+              onSelectPr={selectPr}
+              onOpen={setSelectedPR}
+              jiraBaseUrl={jiraBaseUrl}
+              now={now}
+            />
           ) : (
             <StandupMode
               sections={filtered}
