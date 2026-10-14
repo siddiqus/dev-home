@@ -180,7 +180,8 @@ describe("⌘K command palette", () => {
       "Show only currentg c",
       "Show closed",
       "Refreshr",
-      "Switch to StandupS",
+      "Switch to List ViewL",
+      "Switch to Standup SheetS",
       "Hide key hints",
     ]);
   });

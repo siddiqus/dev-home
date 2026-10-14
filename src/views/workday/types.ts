@@ -75,8 +75,6 @@ export interface WorkdaySections {
   offSprintCount: number;
 }
 
-export type SprintFilter = "all" | "sprint" | "off";
-
 /* ---------- Focus mode ---------- */
 
 export type NeedsTier = "self" | "others" | "ship";

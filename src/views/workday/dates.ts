@@ -1,5 +1,6 @@
 /** "Done since" lookback options on the Workday page. */
 export type Lookback = "workday" | "3d" | "7d";
+export const LOOKBACKS = ["workday", "3d", "7d"] as const satisfies readonly Lookback[];
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [

@@ -73,7 +73,9 @@
   border-radius: var(--radius-md);
   padding: 10px var(--space-3);
   cursor: grab;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .kanban-tile:hover {

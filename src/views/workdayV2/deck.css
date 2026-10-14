@@ -1262,3 +1262,10 @@ button.deck-rail-row:focus-visible {
     padding-right: var(--space-4);
   }
 }
+
+/* List View: v1's Focus lists, scrolling inside the page's full-height frame. */
+.workday-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

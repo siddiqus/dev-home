@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isTypingTarget } from "../workday/WorkdayView";
+import { isTypingTarget } from "../../utils/dom";
 
 export interface DeckKeyHandlers {
   next(): void;

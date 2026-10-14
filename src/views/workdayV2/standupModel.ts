@@ -3,7 +3,9 @@ import type { GitHubPR, ReviewState } from "../../types";
 import { compactAge } from "../workday/dates";
 import { repoRef, reviewingState, REVIEWING_LABEL, titleWithoutKey } from "../workday/prState";
 import type { TicketRef, WorkdaySections } from "../workday/types";
-import { noteLines, type StandupTarget } from "../workday/workdayMarkdown";
+
+/** What a standup row points at: a PR (opens it) or a ticket (opens the issue). */
+export type StandupTarget = { kind: "pr"; pr: GitHubPR } | { kind: "ticket"; key: string };
 
 export interface StandupTag {
   text: string;
@@ -244,6 +246,14 @@ export function itemText(it: StandupItem): string {
     Boolean,
   );
   return extras.length > 0 ? `${head} (${extras.join(" · ")})` : head;
+}
+
+/** Note text as bullet lines: one per non-empty line, leading "-", "*" or "•" dropped. */
+export function noteLines(noteContent: string): string[] {
+  return noteContent
+    .split("\n")
+    .map((raw) => raw.trim().replace(/^([-*•])\s+/, ""))
+    .filter(Boolean);
 }
 
 /**

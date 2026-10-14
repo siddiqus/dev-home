@@ -14,7 +14,7 @@ export const SHORTCUTS: readonly { keys: string[]; label: string }[] = [
   { keys: ["g c"], label: "Show only current (toggle)" },
   { keys: ["r"], label: "Refresh" },
   { keys: ["⌘K"], label: "Finder" },
-  { keys: ["F", "S"], label: "Focus / Standup mode" },
+  { keys: ["F", "L", "S"], label: "Focus / List View / Standup Sheet" },
   { keys: ["?"], label: "Show the shortcut sheet" },
 ];
 

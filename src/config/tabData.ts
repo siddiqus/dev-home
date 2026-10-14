@@ -40,14 +40,6 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
   summary: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions", "notes"],
   // Plus its own lazy extras (useWorkdayExtras), refetched on refreshKey. Mentions feed Focus mode.
   workday: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions", "notes"],
-  "workday-v2": [
-    "openPRs",
-    "reviewRequests",
-    "jiraIssues",
-    "jiraComments",
-    "githubMentions",
-    "notes",
-  ],
   board: ["openPRs", "reviewRequests", "notes", "kanban"],
   prs: ["openPRs", "jiraIssues"],
   reviews: ["reviewRequests", "jiraIssues"],
@@ -74,10 +66,6 @@ const TAB_SOURCES: Record<string, DataSource[]> = {
  */
 export const PAGE_REFRESH: Record<string, { sources: DataSource[]; label: string }> = {
   workday: {
-    sources: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions"],
-    label: "Refresh workday",
-  },
-  "workday-v2": {
     sources: ["openPRs", "reviewRequests", "jiraIssues", "jiraComments", "githubMentions"],
     label: "Refresh workday",
   },

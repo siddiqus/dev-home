@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconCopy, IconRefresh, IconSun } from "@tabler/icons-react";
-import type { GitHubPR, Note } from "../../types";
+import { IconCopy, IconFold, IconFoldDown, IconRefresh, IconSun } from "@tabler/icons-react";
+import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
+import { usePersistedSet } from "../../hooks/usePersistedSet";
 import { usePersistedState } from "../../hooks/usePersistedState";
 import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
-import type { WorkdayViewProps } from "../workday/WorkdayView";
-import { useStoredState, isTypingTarget } from "../workday/WorkdayView";
+import { useStoredState } from "../../hooks/useStoredState";
+import { isTypingTarget } from "../../utils/dom";
 import { buildWorkday } from "../workday/buildWorkday";
-import { formatSinceLabel, sinceFor, type Lookback } from "../workday/dates";
+import { buildFocus } from "../workday/buildFocus";
+import { formatSinceLabel, LOOKBACKS, sinceFor, type Lookback } from "../workday/dates";
 import type { TicketRef, WorkdaySections } from "../workday/types";
-import { LOOKBACKS } from "../workday/StandupMode";
-import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
-import { prPin, ticketPin } from "../workday/pins";
+import { CopyPRLinkContext, CopyTicketContext, PinContext } from "../workday/CompactRow";
+import { FocusMode } from "../workday/FocusMode";
+import { PINS_KEY, prPin, ticketPin } from "../workday/pins";
 import { prNoteKey } from "../../utils/prNotes";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
@@ -35,9 +37,32 @@ import { standupGroups, standupGroupsToMarkdown } from "./standupModel";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
 import { useSeenTimer } from "./useSeenTimer";
+import "../workday/workday.css";
 import "./deck.css";
 
-export interface WorkdayV2ViewProps extends WorkdayViewProps {
+export interface WorkdayV2ViewProps {
+  configured: boolean;
+  openPRs: GitHubPR[];
+  reviewRequests: GitHubPR[];
+  reviewingPRs: GitHubPR[];
+  assignedIssues: JiraIssue[];
+  allIssues: JiraIssue[];
+  githubMentions?: GitHubComment[];
+  jiraMentions?: JiraComment[];
+  /** True while the dashboard sources the page reuses are loading. */
+  loading: boolean;
+  mentionsLoading?: boolean;
+  jiraBaseUrl: string;
+  weekendDays: number[];
+  refreshKey: number;
+  onRefresh: () => void;
+  notes: Note[];
+  /** useNotes().loaded — today's standup note is only created once Notes have loaded. */
+  notesLoaded: boolean;
+  addNote: (type: NoteType, content: string, referenceId?: string, title?: string) => Promise<Note>;
+  editNote: (id: number, updates: { content?: string; title?: string }) => Promise<void>;
+  /** Injectable clock for tests. */
+  now?: Date;
   onOpenNote?: (note: Note) => void;
   /**
    * False until every deck source has completed a fetch (cache-seeded data
@@ -48,11 +73,22 @@ export interface WorkdayV2ViewProps extends WorkdayViewProps {
   sourceError?: string | null;
 }
 
-type Mode = "focus" | "standup";
+type Mode = "focus" | "list" | "standup";
 
 const MODE_KEY = "workday-v2.mode";
-const MODES = ["focus", "standup"] as const satisfies readonly Mode[];
-const MODE_LABELS: Record<Mode, string> = { focus: "Focus", standup: "Standup" };
+const MODES = ["focus", "list", "standup"] as const satisfies readonly Mode[];
+const MODE_LABELS: Record<Mode, string> = {
+  focus: "Focus",
+  list: "List View",
+  standup: "Standup Sheet",
+};
+const MODE_KEYS: Record<Mode, string> = { focus: "F", list: "L", standup: "S" };
+/** List View sections open by default; ids here are collapsed. */
+const COLLAPSED_KEY = "dev-home-workday-collapsed";
+/** List View sections collapsed by default; ids here are expanded. */
+const EXPANDED_KEY = "dev-home-workday-expanded";
+const DEFAULT_COLLAPSED = new Set(["waiting"]);
+const LIST_SECTIONS = ["needs", "mentions", "working", "waiting"];
 const LOOKBACK_KEY = "dev-home-workday-v2-lookback";
 const CLOSED_FOLDED_KEY = "dev-home-workday-v2-closed-folded";
 const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
@@ -144,8 +180,10 @@ function offSprintKeysOf(s: WorkdaySections): Set<string> {
 }
 
 /**
- * Workday V2: the ticket deck. Focus mode is a deck (rail + card) that stays
- * stable across refreshes. Standup mode reuses v1's StandupMode as-is.
+ * Workday: three tabs over the same data. Focus is the ticket deck (rail +
+ * card) that stays stable across refreshes; List View is the needs-you /
+ * mentions / working-on / waiting lists; Standup Sheet is the grouped crib
+ * sheet with a Copy button.
  */
 export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const {
@@ -158,6 +196,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     githubMentions = NO_MENTIONS,
     jiraMentions = NO_MENTIONS,
     loading,
+    mentionsLoading = false,
     sourcesLoaded = true,
     sourceError = null,
     jiraBaseUrl,
@@ -197,8 +236,8 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       if (isTypingTarget(e.target) || selectedPR || paletteOpen || helpOpen || drawerOpen()) return;
       const key = e.key.toLowerCase();
-      if (key === "f") setMode("focus");
-      else if (key === "s") setMode("standup");
+      const next = MODES.find((m) => MODE_KEYS[m].toLowerCase() === key);
+      if (next) setMode(next);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -221,6 +260,53 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     [openPRs, reviewRequests, reviewingPRs, assignedIssues, allIssues, extras, now],
   );
   const offSprintKeys = useMemo(() => offSprintKeysOf(sections), [sections]);
+
+  // List View: v1's Focus lists (needs you, mentions, working on, waiting).
+  const [pins, , togglePin] = usePersistedSet(PINS_KEY);
+  const pinContext = useMemo(() => ({ pins, toggle: togglePin }), [pins, togglePin]);
+  const focus = useMemo(
+    () =>
+      buildFocus(
+        {
+          openPRs,
+          reviewRequests,
+          reviewingPRs,
+          workingOn: sections.workingOn.items,
+          githubMentions,
+          jiraMentions,
+        },
+        now,
+        pins,
+      ),
+    [openPRs, reviewRequests, reviewingPRs, sections, githubMentions, jiraMentions, now, pins],
+  );
+  const ticketTitles = useMemo(
+    () => new Map([...allIssues, ...assignedIssues].map((i) => [i.key, i.summary])),
+    [allIssues, assignedIssues],
+  );
+  const [collapsed, setCollapsed, toggleCollapsed] = usePersistedSet(COLLAPSED_KEY);
+  const [expanded, setExpanded, toggleExpanded] = usePersistedSet(EXPANDED_KEY);
+  const isCollapsed = (id: string) =>
+    DEFAULT_COLLAPSED.has(id) ? !expanded.has(id) : collapsed.has(id);
+  const sectionToggle = (id: string) => ({
+    collapsed: isCollapsed(id),
+    onToggle: () => (DEFAULT_COLLAPSED.has(id) ? toggleExpanded(id) : toggleCollapsed(id)),
+  });
+  // Pinned only counts toward "collapse all" while it's on screen.
+  const listSections = focus.pinned.length > 0 ? ["pinned", ...LIST_SECTIONS] : LIST_SECTIONS;
+  const allCollapsed = listSections.every(isCollapsed);
+  const toggleCollapseAll = () => {
+    const nextCollapsed = new Set(collapsed);
+    const nextExpanded = new Set(expanded);
+    for (const id of listSections) {
+      const set = DEFAULT_COLLAPSED.has(id) ? nextExpanded : nextCollapsed;
+      // Default-collapsed ids are stored when expanded; the rest when collapsed.
+      if (allCollapsed === DEFAULT_COLLAPSED.has(id)) set.add(id);
+      else set.delete(id);
+    }
+    setCollapsed(nextCollapsed);
+    setExpanded(nextExpanded);
+  };
 
   // Standup markdown for the Copy button.
   const [noteText, setNoteText] = useState("");
@@ -586,9 +672,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     isBlocked: drawerOpen,
   });
 
-  // ⌘K in Standup too ("from anywhere on the page"); Focus gets it from useDeckKeys.
+  // ⌘K in List View and Standup too ("from anywhere on the page"); Focus gets it from useDeckKeys.
   useEffect(() => {
-    if (!configured || mode !== "standup") return;
+    if (!configured || mode === "focus") return;
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
       if (e.key.toLowerCase() !== "k") return;
@@ -752,9 +838,12 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
         },
       },
       { id: "refresh", label: "Refresh", keys: "r", run: refresh },
-      mode === "focus"
-        ? { id: "standup", label: "Switch to Standup", keys: "S", run: () => setMode("standup") }
-        : { id: "focus", label: "Switch to Focus", keys: "F", run: () => setMode("focus") },
+      ...MODES.filter((m) => m !== mode).map((m) => ({
+        id: m,
+        label: `Switch to ${MODE_LABELS[m]}`,
+        keys: MODE_KEYS[m],
+        run: () => setMode(m),
+      })),
       {
         id: "hints",
         label: hideHints ? "Show key hints" : "Hide key hints",
@@ -827,7 +916,7 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
                 key: m,
                 label: (
                   <>
-                    {MODE_LABELS[m]} <kbd>{MODE_LABELS[m][0]}</kbd>
+                    {MODE_LABELS[m]} <kbd>{MODE_KEYS[m]}</kbd>
                   </>
                 ),
               }))}
@@ -846,6 +935,17 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               ⌘K find &amp; act
             </Button>
             <div className="workday-header-spacer" />
+            {mode === "list" && (
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={toggleCollapseAll}
+                title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
+              >
+                {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
+                {allCollapsed ? "Expand all" : "Collapse all"}
+              </Button>
+            )}
             {mode === "standup" && (
               <>
                 <SegmentedTabs
@@ -903,6 +1003,21 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               onShowClosed={showClosed}
               onSwitchToStandup={toStandup}
             />
+          ) : mode === "list" ? (
+            <div className="workday-list" data-testid="workday-list">
+              <PinContext.Provider value={pinContext}>
+                <FocusMode
+                  focus={focus}
+                  loading={loading}
+                  mentionsLoading={mentionsLoading}
+                  jiraBaseUrl={jiraBaseUrl}
+                  ticketTitles={ticketTitles}
+                  now={now}
+                  sectionToggle={sectionToggle}
+                  onOpen={setSelectedPR}
+                />
+              </PinContext.Provider>
+            </div>
           ) : (
             <StandupSheet
               groups={groups}

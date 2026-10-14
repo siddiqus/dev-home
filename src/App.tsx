@@ -23,7 +23,6 @@ import {
   IconSun,
   IconMoon,
   IconFilePlus,
-  IconCards,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -82,9 +81,6 @@ const TeamDashboardView = lazy(() =>
 const PomodoroView = lazy(() =>
   import("./views/pomodoro/PomodoroView").then((m) => ({ default: m.PomodoroView })),
 );
-const WorkdayView = lazy(() =>
-  import("./views/workday/WorkdayView").then((m) => ({ default: m.WorkdayView })),
-);
 const WorkdayV2View = lazy(() =>
   import("./views/workdayV2/WorkdayV2View").then((m) => ({ default: m.WorkdayV2View })),
 );
@@ -110,7 +106,9 @@ function formatAgo(ts: number, now: number): string {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem("dev-home-active-tab") || "summary";
+    const saved = localStorage.getItem("dev-home-active-tab");
+    // Workday V2 became Workday.
+    return (saved === "workday-v2" ? "workday" : saved) || "summary";
   });
   const prevTabRef = useRef(activeTab !== "settings" ? activeTab : "summary");
   useEffect(() => {
@@ -487,7 +485,6 @@ export default function App() {
               const tabMeta: Record<string, { icon: Icon }> = {
                 summary: { icon: IconLayoutDashboard },
                 workday: { icon: IconSun },
-                "workday-v2": { icon: IconCards },
                 board: { icon: IconColumns3 },
                 notes: { icon: IconNotes },
                 jira: { icon: IconSubtask },
@@ -650,28 +647,6 @@ export default function App() {
                       />
                     )}
                     {effectiveTab === "workday" && (
-                      <WorkdayView
-                        configured={configured}
-                        openPRs={openPRs}
-                        reviewRequests={reviewRequests}
-                        reviewingPRs={reviewingPRs}
-                        assignedIssues={assignedJiraIssues}
-                        allIssues={jiraIssues}
-                        githubMentions={githubMentions}
-                        jiraMentions={jiraComments}
-                        loading={openPRsLoading || reviewRequestsLoading || jiraIssuesLoading}
-                        mentionsLoading={githubMentionsLoading || jiraCommentsLoading}
-                        jiraBaseUrl={jiraBaseUrl}
-                        weekendDays={weekendDays}
-                        refreshKey={refreshKey}
-                        onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
-                        notes={notes}
-                        notesLoaded={notesLoaded}
-                        addNote={addNote}
-                        editNote={editNote}
-                      />
-                    )}
-                    {effectiveTab === "workday-v2" && (
                       <WorkdayV2View
                         configured={configured}
                         openPRs={openPRs}

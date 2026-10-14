@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Card from "react-bootstrap/Card";
 import type { Note, NoteType } from "../../types";
-import { SectionHeader } from "../../components/primitives/SectionHeader";
 import { standupRef, standupTitle } from "./dates";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -149,32 +147,4 @@ export function useStandupNote({
   };
 
   return { text, onChange: handleChange, saveError, title };
-}
-
-/** v1's "Notes for today" card around useStandupNote. */
-export function StandupNotes(props: StandupNoteOptions) {
-  const { text, onChange: handleChange, saveError, title } = useStandupNote(props);
-  return (
-    <Card className="workday-side-card">
-      <Card.Body className="p-0">
-        <SectionHeader className="workday-section-header">Notes for today</SectionHeader>
-        <div className="workday-side-body">
-          <textarea
-            className="form-control"
-            rows={6}
-            placeholder="Anything to raise at standup? Each line becomes a Blockers bullet."
-            value={text}
-            onChange={(e) => handleChange(e.target.value)}
-          />
-          {saveError ? (
-            <div className="workday-hint workday-hint--error">
-              Couldn't save — will retry on next edit
-            </div>
-          ) : (
-            <div className="workday-hint">Saved to Notes as “{title}”</div>
-          )}
-        </div>
-      </Card.Body>
-    </Card>
-  );
 }
