@@ -35,7 +35,7 @@ const newestFirst = <T>(items: T[], at: (item: T) => string | null | undefined) 
   [...items].sort((a, b) => time(at(b)) - time(at(a)));
 
 /** "lint + unit failing", or "CI failing" when the failing checks aren't known. */
-function failingChecks(pr: GitHubPR): string {
+export function failingChecks(pr: GitHubPR): string {
   const names = [
     ...new Set(pr.checks.filter((c) => RED_CHECK_STATUSES.has(c.status)).map((c) => c.name)),
   ];
@@ -44,7 +44,7 @@ function failingChecks(pr: GitHubPR): string {
   return `${shown}${names.length > 2 ? ` +${names.length - 2}` : ""} failing`;
 }
 
-const diffSize = (pr: GitHubPR) =>
+export const diffSize = (pr: GitHubPR) =>
   pr.additions != null && pr.deletions != null ? ` · +${pr.additions} −${pr.deletions}` : "";
 
 const threads = (n: number) => `${n} thread${n === 1 ? "" : "s"}`;
@@ -55,7 +55,7 @@ const threads = (n: number) => `${n} thread${n === 1 ? "" : "s"}`;
  * comment-only review counts only while threads are open, since GitHub keeps
  * "reviewed" after the author has replied.
  */
-function selfNeeds(pr: GitHubPR): NeedsIssue[] {
+export function selfNeeds(pr: GitHubPR): NeedsIssue[] {
   const has = new Set(ACTIONABLE_REASONS.filter((r) => r.matches(pr)).map((r) => r.key));
   const open = pr.unresolved_thread_count ?? 0;
   const out: NeedsIssue[] = [];
