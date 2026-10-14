@@ -21,9 +21,10 @@ export interface DeckPRRowProps {
 }
 
 /**
- * One PR on the card (spec §5.4): current marker, `#number`, title without the
- * key, author when not mine, up to four signal chips with "+N", the newest
- * unseen comment, my newest unresolved note, an unseen dot and age.
+ * One PR on the card (spec §5.4): current marker; a muted meta line with
+ * repo#number · author · updated age and the unseen dot; the title without the
+ * key; up to four signal chips with "+N"; the newest unseen comment and my
+ * newest unresolved note.
  */
 export function DeckPRRow({
   id,
@@ -40,6 +41,7 @@ export function DeckPRRow({
   // v1's repoRef ("dev-home#1203"), split so the repo part can be muted and truncated.
   const ref = repoRef(pr);
   const repo = ref.slice(0, ref.lastIndexOf("#"));
+  const age = compactAge(pr.updated_at, now);
   const onClick = (e: MouseEvent) => {
     blurOnPointer(e);
     onSelect(pr.html_url);
@@ -51,15 +53,24 @@ export function DeckPRRow({
   return (
     <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
       <span className="deck-pr-marker">{item.current ? "▶" : ""}</span>
-      <span className="deck-pr-ref" title={ref}>
-        <span className="deck-pr-repo">{repo}</span>
-        <span className="deck-pr-number">#{pr.number}</span>
-      </span>
       <div className="deck-pr-main">
-        <div className="deck-pr-title">
-          <span>{titleWithoutKey(pr.title, ticketKey)}</span>
-          {!item.mine && <span className="deck-pr-author">{pr.user.login}</span>}
+        <div className="deck-pr-meta">
+          <span className="deck-pr-ref" title={ref}>
+            <span className="deck-pr-repo">{repo}</span>
+            <span className="deck-pr-number">#{pr.number}</span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="deck-pr-author">{pr.user.login}</span>
+          <span aria-hidden="true">·</span>
+          <span
+            className="deck-pr-age"
+            title={`Updated ${new Date(pr.updated_at).toLocaleString()}`}
+          >
+            {age === "now" ? "just now" : `${age} ago`}
+          </span>
+          {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
         </div>
+        <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>
         {item.signals.length > 0 && (
           <div className="deck-pr-signals">
             {shown.map((s) => (
@@ -77,10 +88,6 @@ export function DeckPRRow({
         {item.unseenComment && <DeckQuote item={item.unseenComment} now={now} />}
         {item.note && <DeckNoteLine note={item.note} onOpen={onOpenNote} />}
       </div>
-      <span className="deck-pr-end">
-        {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
-        <span className="deck-pr-age">{compactAge(pr.updated_at, now)}</span>
-      </span>
     </div>
   );
 }

@@ -103,15 +103,6 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
     signals.push({ label: "Draft", tone: "neutral" });
   }
 
-  // CI context (neutral) - never the only chip
-  if (pr.checks_status) {
-    if (pr.checks_status === "SUCCESS") {
-      signals.push({ label: "CI ✓", tone: "neutral" });
-    } else if (pr.checks_status === "PENDING") {
-      signals.push({ label: "CI …", tone: "neutral" });
-    }
-  }
-
   // Sort by priority (worst first)
   return signals.sort((a, b) => PRIORITY[a.tone] - PRIORITY[b.tone]);
 }
@@ -148,14 +139,12 @@ export function reviewSignals(pr: GitHubPR, requested: boolean): Signal[] {
 
 /**
  * Priority of a PR based on its worst signal. Returns neutral priority if no signals.
- * CI context signals (neutral CI ✓ / CI …) are ignored when finding the worst.
  */
 export function prPriority(signals: Signal[]): number {
-  const nonContextSignals = signals.filter((s) => !s.label.startsWith("CI "));
-  if (nonContextSignals.length === 0) {
+  if (signals.length === 0) {
     return PRIORITY.neutral;
   }
-  return Math.min(...nonContextSignals.map((s) => PRIORITY[s.tone]));
+  return Math.min(...signals.map((s) => PRIORITY[s.tone]));
 }
 
 /**
@@ -173,14 +162,10 @@ export function visibleChips(signals: Signal[]): { shown: Signal[]; more: Signal
 }
 
 /**
- * The label of the worst non-context signal, for the rail status line.
- * Returns empty string if no non-context signals.
+ * The label of the worst signal, for the rail status line.
+ * Returns empty string if no signals.
  */
 export function headline(signals: Signal[]): string {
-  const nonContextSignals = signals.filter((s) => !s.label.startsWith("CI "));
-  if (nonContextSignals.length === 0) {
-    return "";
-  }
   // Signals are already sorted worst-first
-  return nonContextSignals[0].label;
+  return signals[0]?.label ?? "";
 }

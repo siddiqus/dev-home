@@ -288,7 +288,7 @@
 .deck-card {
   /* PR row columns, shared with the note composer so it lines up with them. */
   --deck-pr-marker-w: 16px;
-  /* repo#number: fixed so the composer can share it; long repos truncate. */
+  /* The note composer's PR target column; long repos truncate. */
   --deck-pr-ref-w: 128px;
   --deck-pr-pad-x: 10px;
   position: relative;
@@ -356,7 +356,7 @@
 
 .deck-pr {
   display: grid;
-  grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-ref-w) minmax(0, 1fr) auto;
+  grid-template-columns: var(--deck-pr-marker-w) minmax(0, 1fr);
   gap: var(--space-2);
   align-items: start;
   margin-top: 7px;
@@ -386,12 +386,24 @@
   color: var(--color-status-warning);
 }
 
-/* repo#number: the repo is muted body text and gives way (ellipsis, full ref
-   in the title tooltip); the mono #number is unchanged and never truncates. */
+/* Meta line: muted repo#number · author · age. The repo gives way first
+   (ellipsis, full ref in the title tooltip); the rest never truncates. */
+.deck-pr-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-meta > :not(.deck-pr-ref) {
+  flex: none;
+}
+
 .deck-pr-ref {
   display: flex;
   min-width: 0;
-  font-size: 0.75rem;
 }
 
 .deck-pr-repo {
@@ -399,18 +411,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-muted);
 }
 
 .deck-pr-ref .deck-pr-number {
   flex: none;
 }
 
-.deck-pr-number,
-.deck-pr-age {
+.deck-pr-number {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
 }
 
 .deck-pr-main {
@@ -418,17 +426,9 @@
 }
 
 .deck-pr-title {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
+  margin-top: 2px;
   font-size: 0.8125rem;
   color: var(--color-text-primary);
-}
-
-.deck-pr-author {
-  flex: none;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
 }
 
 .deck-pr-signals {
@@ -487,12 +487,6 @@ button.deck-rail-row:focus-visible {
   padding: var(--space-2);
   font-size: 0.75rem;
   color: var(--color-text-muted);
-}
-
-.deck-pr-end {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 /* ---------- Card context (spec §5.4, §5.10) ---------- */
@@ -569,8 +563,8 @@ button.deck-rail-row:focus-visible {
   margin-top: 7px;
 }
 
-/* Under the PR list: a PR row's columns (plus its 1px border), so the icon,
-   the PR number and the input line up with the rows above. */
+/* Under the PR list: the icon sits in the PR rows' marker column (plus their
+   1px border), followed by the target ref and the input. */
 .deck-note-composer--pr {
   display: grid;
   grid-template-columns: var(--deck-pr-marker-w) var(--deck-pr-ref-w) minmax(0, 1fr);

@@ -228,7 +228,7 @@ describe("DeckMode card", () => {
     expect(within(mine).queryByText("tomas")).toBeNull();
 
     expect(within(theirs).getByText("tomas")).toBeTruthy();
-    expect(within(theirs).getByText("1d")).toBeTruthy();
+    expect(within(theirs).getByText("1d ago")).toBeTruthy();
     for (const l of ["A", "B", "C", "D"]) expect(within(theirs).getByText(l)).toBeTruthy();
     expect(within(theirs).queryByText("E")).toBeNull();
     expect(within(theirs).getByText("+2")).toHaveAttribute("title", "E, F");

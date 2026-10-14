@@ -133,20 +133,11 @@ describe("mySignals", () => {
     expect(signals).toContainEqual({ label: "Draft", tone: "neutral" });
   });
 
-  it("returns CI context signals", () => {
-    const successSignals = mySignals(pr({ checks_status: "SUCCESS" }), now);
-    expect(successSignals).toContainEqual({ label: "CI ✓", tone: "neutral" });
-
-    const pendingSignals = mySignals(pr({ checks_status: "PENDING" }), now);
-    expect(pendingSignals).toContainEqual({ label: "CI …", tone: "neutral" });
-  });
-
-  it("does not return CI context as only signal", () => {
-    const signals = mySignals(pr({ checks_status: "SUCCESS", draft: true }), now);
-    // Draft should be present
-    expect(signals.find((s) => s.label === "Draft")).toBeDefined();
-    // CI should also be present as context
-    expect(signals.find((s) => s.label === "CI ✓")).toBeDefined();
+  it("shows no CI chip unless CI is failing", () => {
+    for (const checks_status of ["SUCCESS", "PENDING"] as const) {
+      const signals = mySignals(pr({ checks_status }), now);
+      expect(signals.find((s) => s.label.includes("CI"))).toBeUndefined();
+    }
   });
 
   it("orders signals by priority (danger > warning > info > success > purple > neutral)", () => {
@@ -215,12 +206,6 @@ describe("prPriority", () => {
   it("returns neutral priority when no signals", () => {
     expect(prPriority([])).toBe(PRIORITY.neutral);
   });
-
-  it("ignores neutral CI context signals when finding worst", () => {
-    const successSignal = { label: "Ready", tone: "success" as const };
-    const ciSignal = { label: "CI ✓", tone: "neutral" as const };
-    expect(prPriority([successSignal, ciSignal])).toBe(PRIORITY.success);
-  });
 });
 
 describe("visibleChips", () => {
@@ -256,22 +241,8 @@ describe("headline", () => {
     const signals = [
       { label: "✗ CI failing: lint", tone: "danger" as const },
       { label: "2 open threads", tone: "warning" as const },
-      { label: "CI ✓", tone: "neutral" as const },
     ];
     expect(headline(signals)).toBe("✗ CI failing: lint");
-  });
-
-  it("ignores CI context signals", () => {
-    const signals = [
-      { label: "No reviewer", tone: "warning" as const },
-      { label: "CI ✓", tone: "neutral" as const },
-    ];
-    expect(headline(signals)).toBe("No reviewer");
-  });
-
-  it("returns empty string when no non-context signals", () => {
-    const signals = [{ label: "CI ✓", tone: "neutral" as const }];
-    expect(headline(signals)).toBe("");
   });
 
   it("returns empty string when no signals", () => {
