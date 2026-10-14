@@ -21,6 +21,13 @@ const STATUS_COLORS = {
 
 const STATUS_ORDER = ["new", "indeterminate", "inReview", "done"] as const;
 
+const STATUS_LABELS = {
+  new: "To Do",
+  indeterminate: "In Progress",
+  inReview: "In Review",
+  done: "Done",
+} as const;
+
 // Risk level → Bootstrap semantic color for the risk chip.
 function getRiskBadgeVariant(level: RiskLevel): string {
   switch (level) {
@@ -88,6 +95,28 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
         )}
       </div>
 
+      {/* Legend for the stacked status bars. */}
+      <div
+        className="d-flex flex-wrap gap-3 mb-2 text-muted"
+        style={{ fontSize: "0.75rem" }}
+        aria-label="Bar colors"
+      >
+        {STATUS_ORDER.map((k) => (
+          <span key={k} className="d-inline-flex align-items-center gap-1">
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 2,
+                background: STATUS_COLORS[k],
+                display: "inline-block",
+              }}
+            />
+            {STATUS_LABELS[k]}
+          </span>
+        ))}
+      </div>
+
       <div>
         {sorted.map((w) => (
           <div
@@ -134,7 +163,7 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
                 {STATUS_ORDER.map((k) => (
                   <div
                     key={k}
-                    title={`${k}: ${w.byStatus[k]}`}
+                    title={`${STATUS_LABELS[k]}: ${w.byStatus[k]}`}
                     style={{
                       width: `${(w.byStatus[k] / max) * 100}%`,
                       height: 12,
