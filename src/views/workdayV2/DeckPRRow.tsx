@@ -19,7 +19,8 @@ export interface DeckPRRowProps {
 
 /**
  * One PR on the card (spec §5.4): current marker, `#number`, title without the
- * key, author when not mine, up to four signal chips with "+N", and age.
+ * key, author when not mine, up to four signal chips with "+N", an unseen
+ * dot and age.
  */
 export function DeckPRRow({
   id,
@@ -66,7 +67,10 @@ export function DeckPRRow({
           </div>
         )}
       </div>
-      <span className="deck-pr-age">{compactAge(pr.updated_at, now)}</span>
+      <span className="deck-pr-end">
+        {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
+        <span className="deck-pr-age">{compactAge(pr.updated_at, now)}</span>
+      </span>
     </div>
   );
 }

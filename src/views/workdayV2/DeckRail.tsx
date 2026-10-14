@@ -7,6 +7,13 @@ export interface DeckRailProps {
   deck: DeckData;
   selectedId: string | null;
   onSelect(id: string): void;
+  /** Closed group folded (spec §5.3: folded by default). */
+  closedFolded?: boolean;
+  onToggleClosed?(): void;
+  /** Clicking a Closed row reopens the tab in its arrival slot and selects it. */
+  onReopen?(id: string): void;
+  /** `g c`: show only ▶ Current, hiding Open. */
+  onlyCurrent?: boolean;
 }
 
 /** DOM id of a rail row: index-based, since ticket ids can be URLs. */
@@ -20,13 +27,21 @@ function railLabel(t: DeckTicket, all: DeckTicket[]): string {
 
 /**
  * The rail (spec §5.3, §5.14): a listbox of Current and Open tickets with
- * `aria-activedescendant`, plus a folded Closed group.
+ * `aria-activedescendant`, plus a Closed group that folds and reopens on click.
  */
-export function DeckRail({ deck, selectedId, onSelect }: DeckRailProps) {
+export function DeckRail({
+  deck,
+  selectedId,
+  onSelect,
+  closedFolded = true,
+  onToggleClosed,
+  onReopen,
+  onlyCurrent = false,
+}: DeckRailProps) {
   const all = [...deck.current, ...deck.open, ...deck.closed];
   const groups = [
     { name: "current", label: "Current", heading: "▶ Current", tickets: deck.current },
-    { name: "open", label: "Open", heading: "Open", tickets: deck.open },
+    ...(onlyCurrent ? [] : [{ name: "open", label: "Open", heading: "Open", tickets: deck.open }]),
   ];
   let activeId: string | undefined;
   for (const g of groups) {
@@ -68,13 +83,34 @@ export function DeckRail({ deck, selectedId, onSelect }: DeckRailProps) {
             </div>
           ),
       )}
+      {onlyCurrent && deck.current.length === 0 && (
+        <div className="deck-rail-empty">Nothing current · g c shows all</div>
+      )}
       {deck.closed.length > 0 && (
-        // Folded by default; Task 8 makes it expandable and its rows reopen tickets.
         <div role="group" aria-label="Closed" className="deck-rail-group">
-          <div className="deck-rail-heading deck-rail-heading--closed" aria-hidden="true">
+          <button
+            type="button"
+            className="deck-rail-heading deck-rail-heading--closed"
+            aria-expanded={!closedFolded}
+            onClick={(e) => {
+              if (e.detail > 0) e.currentTarget.blur();
+              onToggleClosed?.();
+            }}
+          >
             <span>Closed · {deck.closed.length}</span>
-            <span>▸</span>
-          </div>
+            <span aria-hidden="true">{closedFolded ? "▸" : "▾"}</span>
+          </button>
+          {!closedFolded &&
+            deck.closed.map((t, i) => (
+              <DeckRailRow
+                key={t.id}
+                id={rowId("closed", i)}
+                ticket={t}
+                label={railLabel(t, all)}
+                selected={false}
+                onSelect={(id) => onReopen?.(id)}
+              />
+            ))}
         </div>
       )}
     </div>

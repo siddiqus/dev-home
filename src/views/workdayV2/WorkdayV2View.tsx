@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { IconRefresh, IconSun } from "@tabler/icons-react";
@@ -7,6 +7,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
+import { usePersistedState } from "../../hooks/usePersistedState";
 import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import type { WorkdayViewProps } from "../workday/WorkdayView";
@@ -17,14 +18,23 @@ import { formatSinceLabel, sinceFor, type Lookback } from "../workday/dates";
 import type { SprintFilter } from "../workday/types";
 import { StandupMode, LOOKBACKS } from "../workday/StandupMode";
 import { CopyPRLinkContext, CopyTicketContext } from "../workday/CompactRow";
+import { prPin, ticketPin } from "../workday/pins";
 import { buildDeck } from "./buildDeck";
 import { DeckMode } from "./DeckMode";
 import { useDeckKeys, type DeckKeyHandlers } from "./useDeckKeys";
 import { useDeckState } from "./useDeckState";
+import { useSeenTimer } from "./useSeenTimer";
 import "./deck.css";
 
 export interface WorkdayV2ViewProps extends WorkdayViewProps {
   onOpenNote?: (note: Note) => void;
+  /**
+   * False until every deck source has completed a fetch (cache-seeded data
+   * doesn't count). Deck state updates wait for it. Defaults to true.
+   */
+  sourcesLoaded?: boolean;
+  /** A dashboard source failed; deck state updates are held back while set. */
+  sourceError?: string | null;
 }
 
 type Mode = "focus" | "standup";
@@ -35,6 +45,8 @@ const MODE_LABELS: Record<Mode, string> = { focus: "Focus", standup: "Standup" }
 const LOOKBACK_KEY = "dev-home-workday-v2-lookback";
 const FILTER_KEY = "dev-home-workday-v2-filter";
 const FILTERS = ["all", "sprint", "off"] as const satisfies readonly SprintFilter[];
+const CLOSED_FOLDED_KEY = "dev-home-workday-v2-closed-folded";
+const ONLY_CURRENT_KEY = "dev-home-workday-v2-only-current";
 const NO_MENTIONS: never[] = [];
 const noop = () => {};
 
@@ -56,6 +68,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     githubMentions = NO_MENTIONS,
     jiraMentions = NO_MENTIONS,
     loading,
+    mentionsLoading = false,
+    sourcesLoaded = true,
+    sourceError = null,
     jiraBaseUrl,
     weekendDays,
     refreshKey,
@@ -72,6 +87,9 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { onCopyLink, onCopyTicket, toast } = usePRCopyActions();
+  const showToast = toast.show;
+  const [closedFolded, setClosedFolded] = usePersistedState(CLOSED_FOLDED_KEY, true);
+  const [onlyCurrent, setOnlyCurrent] = usePersistedState(ONLY_CURRENT_KEY, false);
   // Track if we've finished at least one load, so the spinner shows on refreshes but not first load.
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   useEffect(() => {
@@ -119,7 +137,8 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
   );
 
   // Deck state and composition for Focus mode.
-  const { state, select } = useDeckState();
+  const { state, select, toggleCurrent, markSeen, markUnread, close, reopen, applyUpdates } =
+    useDeckState();
   const deck = useMemo(
     () =>
       buildDeck(
@@ -150,8 +169,36 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     ],
   );
 
-  // Selection: the remembered ticket if it's still in Current/Open, else the first one.
-  const rail = useMemo(() => [...deck.current, ...deck.open], [deck]);
+  // Apply buildDeck's patch (arrivals, reopens, pruning, first-run seeding) only
+  // after a complete, error-free load, so a partial or failed fetch never drops
+  // pins or seeds from incomplete data. Keyed on the patch content, not its
+  // identity: once applied, the next build's patch is empty and the effect settles.
+  const canApply = sourcesLoaded && !loading && !mentionsLoading && !sourceError;
+  const patchKey = useMemo(
+    () =>
+      JSON.stringify({
+        updates: deck.stateUpdates,
+        present: [...deck.current, ...deck.open, ...deck.closed].map((t) => t.id),
+        at: now.toISOString(),
+      }),
+    [deck, now],
+  );
+  useEffect(() => {
+    if (!canApply) return;
+    const { updates, present, at } = JSON.parse(patchKey);
+    applyUpdates(updates, present, new Date(at));
+  }, [canApply, patchKey, applyUpdates]);
+
+  // The time stamped on closes and seen marks: the wall clock, but never before
+  // the view's clock (tests inject a fixed `now`).
+  const stamp = useCallback(() => new Date(Math.max(Date.now(), now.getTime())), [now]);
+
+  // Selection: the remembered ticket if it's still in the rail, else the first one.
+  // `g c` narrows the rail (and ←/→, `n`) to ▶ Current.
+  const rail = useMemo(
+    () => (onlyCurrent ? deck.current : [...deck.current, ...deck.open]),
+    [deck, onlyCurrent],
+  );
   const selectedTicket = rail.find((t) => t.id === state.selected) ?? rail[0] ?? null;
   const selectedId = selectedTicket?.id ?? null;
   // The picked PR is per card; opening a card picks its first current PR, else the top row.
@@ -171,6 +218,37 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
     },
     [select],
   );
+  const reopenTicket = useCallback(
+    (id: string) => {
+      reopen(id);
+      selectTicket(id);
+    },
+    [reopen, selectTicket],
+  );
+  // Opening a PR (⏎ or a click) marks it seen immediately (spec §5.8).
+  const openPR = useCallback(
+    (pr: GitHubPR) => {
+      markSeen({ [pr.html_url]: pr.updated_at });
+      setSelectedPR(pr);
+    },
+    [markSeen],
+  );
+
+  // Dwell: after 1.5s on a card, every PR on it is seen at its updated_at, and a
+  // keyed ticket's `ticket:<KEY>` at now (for Jira mentions and PR-less tickets).
+  // The callback reads the latest card through a ref so it stays stable and a
+  // data refresh doesn't restart the timer.
+  const seenRef = useRef<() => void>(noop);
+  seenRef.current = () => {
+    if (!selectedTicket) return;
+    const entries: Record<string, string> = {};
+    for (const p of selectedTicket.prs) entries[p.pr.html_url] = p.pr.updated_at;
+    if (selectedTicket.key) entries[ticketPin(selectedTicket.key)] = stamp().toISOString();
+    markSeen(entries);
+  };
+  const onDwell = useCallback(() => seenRef.current(), []);
+  useSeenTimer(configured && mode === "focus" && !selectedPR ? selectedId : null, onDwell);
+
   const selectPr = useCallback(
     (url: string) => {
       if (selectedId) setPrPick({ ticketId: selectedId, url });
@@ -194,20 +272,41 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       if (next) selectPr(next.pr.html_url);
     };
     const pr = pickedPR?.pr ?? null;
+    const i = rail.findIndex((t) => t.id === selectedId);
     return {
       next: guard(() => step(1)),
       prev: guard(() => step(-1)),
       down: guard(() => movePr(1)),
       up: guard(() => movePr(-1)),
-      open: guard(() => pr && setSelectedPR(pr)),
+      open: guard(() => pr && openPR(pr)),
       openExternal: guard(() => pr && window.open(pr.html_url, "_blank", "noopener,noreferrer")),
-      // Wired by later tasks (current, close, notes, palette, help).
-      toggleCurrent: noop,
+      // Space: the selected PR, or the ticket itself when it has no PRs.
+      toggleCurrent: guard(() => {
+        if (!selectedTicket) return;
+        if (pr) toggleCurrent(prPin(pr), selectedTicket.id);
+        else if (selectedTicket.key)
+          toggleCurrent(ticketPin(selectedTicket.key), selectedTicket.id);
+      }),
+      // x: close into Closed; selection moves to the next ticket in rail order.
+      close: guard(() => {
+        if (!selectedTicket) return;
+        close(selectedTicket.id, stamp());
+        const rest = rail.filter((t) => t.id !== selectedTicket.id);
+        const next = rail.slice(i + 1).find((t) => t.id !== selectedTicket.id) ?? rest[0];
+        if (next) selectTicket(next.id);
+        else select(null);
+      }),
+      unread: guard(() => pr && markUnread(pr.html_url)),
+      // n: the next ticket after the selected one (wrapping) with unseen activity.
+      nextUpdated: guard(() => {
+        const after = [...rail.slice(i + 1), ...rail.slice(0, Math.max(i, 0))];
+        const next = after.find((t) => t.unseen && t.id !== selectedId);
+        if (next) selectTicket(next.id);
+        else showToast("Nothing new");
+      }),
+      toggleOnlyCurrent: guard(() => setOnlyCurrent((v) => !v)),
+      // Wired by later tasks (notes, palette, help).
       note: noop,
-      close: noop,
-      unread: noop,
-      nextUpdated: noop,
-      toggleOnlyCurrent: noop,
       refresh: noop,
       palette: noop,
       // F / S are handled by the mode effect above.
@@ -215,7 +314,24 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
       standupMode: noop,
       help: noop,
     };
-  }, [rail, selectedId, cardPRs, selectedPrUrl, pickedPR, selectTicket, selectPr]);
+  }, [
+    rail,
+    selectedId,
+    selectedTicket,
+    cardPRs,
+    selectedPrUrl,
+    pickedPR,
+    selectTicket,
+    selectPr,
+    select,
+    openPR,
+    toggleCurrent,
+    close,
+    markUnread,
+    stamp,
+    showToast,
+    setOnlyCurrent,
+  ]);
   useDeckKeys(deckKeys, { enabled: configured && mode === "focus", blocked: selectedPR !== null });
 
   // Section toggle stubs for Standup (not implemented yet; Task 8 does state management).
@@ -294,9 +410,13 @@ export function WorkdayV2View(props: WorkdayV2ViewProps) {
               onSelect={selectTicket}
               selectedPrUrl={selectedPrUrl}
               onSelectPr={selectPr}
-              onOpen={setSelectedPR}
+              onOpen={openPR}
               jiraBaseUrl={jiraBaseUrl}
               now={now}
+              closedFolded={closedFolded}
+              onToggleClosed={() => setClosedFolded((v) => !v)}
+              onReopen={reopenTicket}
+              onlyCurrent={onlyCurrent}
             />
           ) : (
             <StandupMode

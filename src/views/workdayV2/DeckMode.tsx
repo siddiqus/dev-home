@@ -12,6 +12,10 @@ export interface DeckModeProps {
   onOpen(pr: GitHubPR): void;
   jiraBaseUrl: string;
   now: Date;
+  closedFolded?: boolean;
+  onToggleClosed?(): void;
+  onReopen?(id: string): void;
+  onlyCurrent?: boolean;
 }
 
 /**
@@ -27,11 +31,23 @@ export function DeckMode({
   onOpen,
   jiraBaseUrl,
   now,
+  closedFolded,
+  onToggleClosed,
+  onReopen,
+  onlyCurrent,
 }: DeckModeProps) {
   const ticket = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
   return (
     <div className="deck-mode" data-testid="deck-mode">
-      <DeckRail deck={deck} selectedId={selectedId} onSelect={onSelect} />
+      <DeckRail
+        deck={deck}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        closedFolded={closedFolded}
+        onToggleClosed={onToggleClosed}
+        onReopen={onReopen}
+        onlyCurrent={onlyCurrent}
+      />
       <div className="deck-stage">
         {ticket && (
           <div className="deck-column">

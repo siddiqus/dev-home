@@ -345,3 +345,35 @@
   gap: 5px;
   margin-top: 5px;
 }
+
+/* ---------- Personal state (spec §5.3, §5.8) ---------- */
+
+/* Closed group heading: a quiet toggle styled like the other headings. */
+button.deck-rail-heading--closed {
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.deck-rail-heading--closed:hover {
+  color: var(--color-text-secondary);
+}
+
+/* Closed rows: muted until reopened. */
+.deck-rail-heading--closed ~ .deck-rail-row {
+  color: var(--color-text-muted);
+}
+
+.deck-rail-empty {
+  padding: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.deck-pr-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

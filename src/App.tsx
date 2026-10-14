@@ -682,6 +682,13 @@ export default function App() {
                         githubMentions={githubMentions}
                         jiraMentions={jiraComments}
                         loading={openPRsLoading || reviewRequestsLoading || jiraIssuesLoading}
+                        mentionsLoading={githubMentionsLoading || jiraCommentsLoading}
+                        sourcesLoaded={
+                          loadedSources.has("openPRs") &&
+                          loadedSources.has("reviewRequests") &&
+                          loadedSources.has("jiraIssues")
+                        }
+                        sourceError={error}
                         jiraBaseUrl={jiraBaseUrl}
                         weekendDays={weekendDays}
                         refreshKey={refreshKey}

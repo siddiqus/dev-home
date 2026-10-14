@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR, JiraIssue, Note } from "../../types";
 
@@ -350,5 +350,190 @@ describe("WorkdayV2View deck", () => {
     expect(card()).toHaveAccessibleName(/^CCP-412/); // Still on first card
 
     document.body.removeChild(drawer);
+  });
+});
+
+describe("WorkdayV2View personal state", () => {
+  beforeEach(() => localStorage.clear());
+
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayV2View>> = {}) =>
+    renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
+  const rail = () => screen.getByRole("listbox", { name: "Tickets" });
+  const groupRows = (name: string) => {
+    const g = within(rail()).queryByRole("group", { name });
+    return g
+      ? within(g)
+          .queryAllByRole("option")
+          .map((r) => r.textContent ?? "")
+      : [];
+  };
+  const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
+  /** A seeded deck where everything is seen except the given PR numbers. */
+  const seedSeen = (unseen: number[] = [], o: Record<string, unknown> = {}) => {
+    const seen: Record<string, string> = {};
+    for (const p of deckPRs) if (!unseen.includes(p.number)) seen[p.html_url] = p.updated_at;
+    for (const k of ["CCP-412", "CCP-401", "CCP-388"]) seen[`ticket:${k}`] = NOW.toISOString();
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, seeded: true, seen, ...o }));
+  };
+
+  it("Space moves a ticket into Current and back to its arrival slot", () => {
+    renderDeck();
+    press(" ");
+    expect(groupRows("Current")).toEqual([expect.stringContaining("412")]);
+    expect(groupRows("Open")).toEqual([
+      expect.stringContaining("401"),
+      expect.stringContaining("388"),
+    ]);
+    // Space marked the selected PR (the top row), which is now the current one.
+    expect(selectedPRRow()).toHaveClass("deck-pr--current");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(screen.getByText(/tickets · 1 current/)).toBeTruthy();
+
+    press(" ");
+    expect(groupRows("Current")).toEqual([]);
+    expect(groupRows("Open")).toEqual([
+      expect.stringContaining("412"),
+      expect.stringContaining("401"),
+      expect.stringContaining("388"),
+    ]);
+  });
+
+  it("Space marks a PR-less ticket current by its key", () => {
+    renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
+    press(" ");
+    expect(groupRows("Current")).toEqual([expect.stringContaining("Thumbnail backfill")]);
+    expect(stored().current).toEqual(["ticket:CCP-371"]);
+  });
+
+  it("x closes the tab and selects the next; clicking it in Closed reopens it in place", () => {
+    renderDeck();
+    press("x");
+    expect(groupRows("Open")).toEqual([
+      expect.stringContaining("401"),
+      expect.stringContaining("388"),
+    ]);
+    expect(card()).toHaveAccessibleName(/^CCP-401/);
+    const closed = within(rail()).getByRole("group", { name: "Closed" });
+    // Folded by default.
+    expect(within(closed).queryAllByRole("option")).toHaveLength(0);
+    fireEvent.click(within(closed).getByRole("button", { name: /Closed · 1/ }));
+    expect(localStorage.getItem("dev-home-workday-v2-closed-folded")).toBe("false");
+    fireEvent.click(within(closed).getByRole("option", { name: /412/ }));
+    expect(groupRows("Open")).toEqual([
+      expect.stringContaining("412"),
+      expect.stringContaining("401"),
+      expect.stringContaining("388"),
+    ]);
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(within(rail()).queryByRole("group", { name: "Closed" })).toBeNull();
+  });
+
+  it("←/→ skip Closed tabs", () => {
+    renderDeck();
+    press("ArrowRight");
+    press("x"); // close CCP-401, selection moves to CCP-388
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+  });
+
+  it("n with nothing new shows the Nothing new toast", () => {
+    renderDeck();
+    press("n");
+    expect(screen.getByText("Nothing new")).toHaveClass("app-toast", "is-visible");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+  });
+
+  it("n jumps to the next ticket with unseen activity", () => {
+    seedSeen([1150]);
+    renderDeck();
+    expect(
+      within(screen.getByRole("option", { name: /388/ })).getByLabelText("new activity"),
+    ).toBeTruthy();
+    press("n");
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    expect(within(prList()).getByLabelText("new activity")).toBeTruthy();
+  });
+
+  it("marks every PR on the card seen after the dwell", () => {
+    vi.useFakeTimers();
+    try {
+      seedSeen([1203, 1207]);
+      renderDeck();
+      expect(within(prList()).getAllByLabelText("new activity")).toHaveLength(2);
+      act(() => vi.advanceTimersByTime(1500));
+      expect(within(prList()).queryAllByLabelText("new activity")).toHaveLength(0);
+      expect(stored().seen[deckPRs[0].html_url]).toBe(deckPRs[0].updated_at);
+      expect(stored().seen["ticket:CCP-412"]).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("⏎ marks the opened PR seen immediately", async () => {
+    seedSeen([1207]);
+    renderDeck();
+    press("Enter");
+    await screen.findByRole("dialog");
+    expect(stored().seen[deckPRs[1].html_url]).toBe(deckPRs[1].updated_at);
+  });
+
+  it("u marks the selected PR unread", () => {
+    seedSeen();
+    renderDeck();
+    expect(within(prList()).queryAllByLabelText("new activity")).toHaveLength(0);
+    press("u");
+    expect(within(selectedPRRow()!).getByLabelText("new activity")).toBeTruthy();
+    expect(stored().seen[deckPRs[1].html_url]).toBeUndefined();
+  });
+
+  it("g c shows only current tickets and is remembered", () => {
+    renderDeck();
+    press("ArrowRight");
+    press(" "); // CCP-401 into Current
+    press("g");
+    press("c");
+    expect(within(rail()).queryByRole("group", { name: "Open" })).toBeNull();
+    expect(groupRows("Current")).toEqual([expect.stringContaining("401")]);
+    expect(localStorage.getItem("dev-home-workday-v2-only-current")).toBe("true");
+    press("g");
+    press("c");
+    expect(groupRows("Open")).toHaveLength(2);
+  });
+
+  it("falls back to the first ticket when the remembered one is gone", () => {
+    localStorage.setItem("dev-home-workday-v2", JSON.stringify({ v: 1, selected: "CCP-999" }));
+    renderDeck();
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+  });
+
+  it("selection survives a remount", () => {
+    renderDeck();
+    press("ArrowLeft");
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    cleanup();
+    renderDeck();
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+  });
+
+  it("applies state updates only once loading is done and no source failed", () => {
+    const { rerender } = renderDeck({ loading: true });
+    expect(stored().seeded).toBeFalsy();
+    rerender({ loading: false, sourceError: "GitHub PRs: boom" });
+    expect(stored().seeded).toBeFalsy();
+    rerender({ loading: false, sourceError: null });
+    expect(stored().seeded).toBe(true);
+    expect(Object.keys(stored().arrival)).toHaveLength(3);
+  });
+
+  it("does not drop current pins while loading", () => {
+    renderDeck();
+    press(" ");
+    const pins = stored().current;
+    cleanup();
+    renderView({ openPRs: [], allIssues: deckIssues, loading: true });
+    expect(stored().current).toEqual(pins);
   });
 });
