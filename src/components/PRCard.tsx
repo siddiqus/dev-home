@@ -11,6 +11,7 @@ import {
   PRStateIcon,
   ReasonChips,
   StatusPill,
+  deriveStatus,
   renderTitleContent,
 } from "./prIndicators";
 
@@ -39,6 +40,8 @@ interface PRCardProps {
   showReasonChips?: boolean;
   /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon. */
   actionPill?: StateBadge | null;
+  /** Show the "Approved" status pill on approved rows even when `fields.showStatus` is off. */
+  showApproved?: boolean;
   /** Number of unresolved notes on this PR — shows a note-count badge when > 0. */
   noteCount?: number;
   /** Opens the PR description modal. */
@@ -59,6 +62,7 @@ export function PRCard({
   clustered,
   showReasonChips,
   actionPill,
+  showApproved,
   noteCount,
   onOpen,
   onCopyBranch,
@@ -67,7 +71,9 @@ export function PRCard({
 }: PRCardProps) {
   // On needs-action rows the reason chips replace the standalone status pill (the
   // review state becomes a chip). The CI status icon stays on every row.
-  const showStatusPill = fields.showStatus && !showReasonChips;
+  const showStatusPill =
+    (fields.showStatus && !showReasonChips) ||
+    (!!showApproved && deriveStatus(pr).label === "Approved");
   const timeText =
     fields.timestamps === "merged"
       ? pr.merged_at

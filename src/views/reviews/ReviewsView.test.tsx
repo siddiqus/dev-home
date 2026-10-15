@@ -92,6 +92,27 @@ describe("ReviewsView", () => {
     expect(pillIn("Fresh")).toBeUndefined();
   });
 
+  it("shows the Approved pill on approved PRs in Currently reviewing only", () => {
+    render(
+      <ReviewsView
+        loading={false}
+        reviewingPRs={[
+          makePR({ number: 1, title: "Approved one", review_status: "APPROVED" }),
+          makePR({ number: 2, title: "Not yet", review_status: "REVIEWED" }),
+        ]}
+        reviewRequests={[
+          makePR({ number: 3, title: "Requested approved", review_status: "APPROVED" }),
+        ]}
+      />,
+    );
+
+    const statusIn = (title: string) =>
+      screen.getByText(title).closest(".pr-card")!.querySelector(".pr-card-status")?.textContent;
+    expect(statusIn("Approved one")).toBe("Approved");
+    expect(statusIn("Not yet")).toBeUndefined();
+    expect(statusIn("Requested approved")).toBeUndefined();
+  });
+
   it("hides an empty section", () => {
     render(
       <ReviewsView

@@ -64,6 +64,8 @@ interface PRTableProps {
   reasonChips?: boolean;
   /** Derive a per-row action pill (e.g. the Reviews tab's reviewer state). */
   actionPill?: (pr: GitHubPR) => StateBadge | null;
+  /** Show the "Approved" status pill on approved rows even when the variant hides status. */
+  showApproved?: boolean;
 }
 
 /** Which card fields each variant shows. */
@@ -161,6 +163,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     onToggleGroup,
     reasonChips,
     actionPill,
+    showApproved,
   },
   ref,
 ) {
@@ -275,6 +278,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     clustered={isCluster}
                     showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
                     actionPill={actionPill?.(pr)}
+                    showApproved={showApproved}
                     noteCount={noteCount(pr)}
                     onOpen={setSelectedPR}
                     onCopyBranch={onCopyBranch}

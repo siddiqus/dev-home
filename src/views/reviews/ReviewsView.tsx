@@ -145,6 +145,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
                 showGroupToolbar={false}
                 storageKeyScope={section.id}
                 actionPill={actionPill}
+                showApproved={section.id === "reviewing"}
               />
             )}
           </section>
