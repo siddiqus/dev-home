@@ -523,7 +523,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: var(--space-6) var(--space-5) var(--space-4);
 }
 
@@ -531,7 +532,30 @@
   position: relative;
   width: 100%;
   max-width: 680px;
-  align-self: flex-start;
+}
+
+/* ← previous / next →: outside the column so it stays put while the card swipes;
+   at the stage's bottom edge, or just under a card taller than the stage. */
+.deck-nav-hint {
+  margin-top: auto;
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--space-4);
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.deck-nav-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  padding: 1px 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
 /* Decorative cards peeking behind the front one. */
@@ -1115,7 +1139,7 @@ button.deck-rail-row:focus-visible {
 /* ---------- Empty and loading states (spec §5.13) ---------- */
 
 .deck-empty {
-  align-self: center;
+  margin-block: auto;
   text-align: center;
   color: var(--color-text-muted);
   font-size: 0.8125rem;

@@ -1012,6 +1012,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                   notStartedCount={notStartedCount}
                   onShowClosed={showClosed}
                   onSwitchToStandup={toStandup}
+                  navHints={!hideHints}
                 />
               ) : mode === "list" ? (
                 <div className="workday-list" data-testid="workday-list">
@@ -1055,7 +1056,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                     <kbd>?</kbd> all keys
                   </span>
                   <span>
-                    <kbd>←→</kbd> back/skip
+                    <kbd>←→</kbd> previous/next
                   </span>
                   <span>
                     <kbd>↑↓</kbd> pick PR

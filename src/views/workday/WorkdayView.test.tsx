@@ -1009,11 +1009,13 @@ describe("WorkdayView polish", () => {
 
   it("hides the key hint bar from ⌘K and remembers it", async () => {
     renderDeck();
-    expect(screen.getByTestId("deck-hints")).toHaveTextContent("←→ back/skip");
+    expect(screen.getByTestId("deck-hints")).toHaveTextContent("←→ previous/next");
+    expect(screen.getByTestId("deck-nav-hint")).toHaveTextContent("← previousnext →");
     press("k", { metaKey: true });
     fireEvent.click(screen.getByRole("option", { name: /Hide key hints/ }));
     await act(async () => {});
     expect(screen.queryByTestId("deck-hints")).toBeNull();
+    expect(screen.queryByTestId("deck-nav-hint")).toBeNull();
     expect(localStorage.getItem("dev-home-workday-v2-hide-hints")).toBe("true");
     cleanup();
     renderDeck();

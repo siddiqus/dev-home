@@ -37,6 +37,8 @@ export interface DeckModeProps {
   notStartedCount?: number;
   onShowClosed?(): void;
   onSwitchToStandup?(): void;
+  /** The big ← previous / next → hint under the card; follows the key-hint toggle. */
+  navHints?: boolean;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -70,6 +72,7 @@ export function DeckMode({
   notStartedCount = 0,
   onShowClosed,
   onSwitchToStandup,
+  navHints = false,
 }: DeckModeProps) {
   const found = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
   const ticket = found && cardPRs ? { ...found, prs: cardPRs } : found;
@@ -141,6 +144,16 @@ export function DeckMode({
               onSaveNote={onSaveNote}
               onCancelNote={onCancelNote}
             />
+          </div>
+        )}
+        {ticket && navHints && (
+          <div className="deck-nav-hint" data-testid="deck-nav-hint" aria-hidden="true">
+            <span>
+              <kbd>←</kbd> previous
+            </span>
+            <span>
+              next <kbd>→</kbd>
+            </span>
           </div>
         )}
       </div>
