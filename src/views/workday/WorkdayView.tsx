@@ -25,7 +25,7 @@ import {
   ViewerLoginContext,
 } from "./CompactRow";
 import { FocusMode } from "./FocusMode";
-import { PINS_KEY, prPin, ticketPin } from "./pins";
+import { PINS_KEY, notePin, prPin, ticketPin } from "./pins";
 import { prNoteKey } from "../../utils/prNotes";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
@@ -69,6 +69,8 @@ export interface WorkdayViewProps {
   notesLoaded: boolean;
   addNote: (type: NoteType, content: string, referenceId?: string, title?: string) => Promise<Note>;
   editNote: (id: number, updates: { content?: string; title?: string }) => Promise<void>;
+  /** Resolves a note: a #todo note tab's Resolve. */
+  resolveNote?: (id: number) => Promise<void>;
   /** Injectable clock for tests. */
   now?: Date;
   onOpenNote?: (note: Note) => void;
@@ -215,6 +217,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     notesLoaded,
     addNote,
     editNote,
+    resolveNote,
     onOpenNote,
   } = props;
 
@@ -556,15 +559,10 @@ export function WorkdayView(props: WorkdayViewProps) {
     [selectedId],
   );
 
-  // x (or ⌘⌫ in ⌘K): close into Closed; if it was the selected ticket, selection
-  // moves to the next ticket in rail order.
-  const closeTicket = useCallback(
+  // A tab leaving the rail: if it was the selected one, selection moves to the
+  // next ticket in rail order.
+  const leaveTab = useCallback(
     (id: string) => {
-      // Never before the ticket's newest PR update: a PR clock ahead of ours
-      // would otherwise reopen the tab on the next build.
-      const t = [...deck.current, ...deck.open].find((x) => x.id === id);
-      const newest = Math.max(0, ...(t?.prs ?? []).map((p) => Date.parse(p.pr.updated_at) || 0));
-      close(id, new Date(Math.max(stamp().getTime(), newest)));
       if (id !== selectedId) return;
       const i = rail.findIndex((t) => t.id === id);
       const rest = rail.filter((t) => t.id !== id);
@@ -574,7 +572,37 @@ export function WorkdayView(props: WorkdayViewProps) {
         selectTicket(next.id);
       } else select(null);
     },
-    [close, stamp, deck, selectedId, rail, selectTicket, select, intendNav],
+    [selectedId, rail, selectTicket, select, intendNav],
+  );
+
+  // x (or ⌘⌫ in ⌘K): close into Closed; if it was the selected ticket, selection
+  // moves to the next ticket in rail order.
+  const closeTicket = useCallback(
+    (id: string) => {
+      // Never before the ticket's newest PR update: a PR clock ahead of ours
+      // would otherwise reopen the tab on the next build.
+      const t = [...deck.current, ...deck.open].find((x) => x.id === id);
+      const newest = Math.max(0, ...(t?.prs ?? []).map((p) => Date.parse(p.pr.updated_at) || 0));
+      close(id, new Date(Math.max(stamp().getTime(), newest)));
+      leaveTab(id);
+    },
+    [close, stamp, deck, leaveTab],
+  );
+
+  // Resolve on a note tab: the tab leaves the deck, so selection moves on as for x.
+  const resolveNoteTab = useCallback(
+    async (note: Note) => {
+      if (!resolveNote) return;
+      try {
+        await resolveNote(note.id);
+      } catch {
+        showToast("Couldn't resolve the note");
+        return;
+      }
+      leaveTab(notePin(note.id));
+      showToast("Note resolved");
+    },
+    [resolveNote, leaveTab, showToast],
   );
 
   // Read through a ref so a new onRefresh identity doesn't re-bind the deck keys.
@@ -619,14 +647,20 @@ export function WorkdayView(props: WorkdayViewProps) {
       prev: guard(() => step(-1)),
       down: guard(() => movePr(1)),
       up: guard(() => movePr(-1)),
-      open: guard(() => pr && openPR(pr)),
+      // Enter on a note tab opens the note editor.
+      open: guard(() => {
+        if (pr) openPR(pr);
+        else if (selectedTicket?.noteItem) onOpenNote?.(selectedTicket.noteItem);
+      }),
       openExternal: guard(() => pr && window.open(pr.html_url, "_blank", "noopener,noreferrer")),
-      // Space: the selected PR, or the ticket itself when it has no PRs.
+      // Space: the selected PR, or the ticket (or note tab) itself when it has no PRs.
       toggleCurrent: guard(() => {
         if (!selectedTicket) return;
         if (pr) toggleCurrent(prPin(pr), selectedTicket.id);
         else if (selectedTicket.key)
           toggleCurrent(ticketPin(selectedTicket.key), selectedTicket.id);
+        else if (selectedTicket.noteItem)
+          toggleCurrent(notePin(selectedTicket.noteItem.id), selectedTicket.id);
       }),
       // x: close into Closed; selection moves to the next ticket in rail order.
       close: guard(() => selectedTicket && closeTicket(selectedTicket.id)),
@@ -665,6 +699,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     selectTicket,
     selectPr,
     openPR,
+    onOpenNote,
     toggleCurrent,
     closeTicket,
     markUnread,
@@ -748,6 +783,7 @@ export function WorkdayView(props: WorkdayViewProps) {
         case "toggleCurrent":
           if (pr) toggleCurrent(prPin(pr), id);
           else if (r.ticketKey) toggleCurrent(ticketPin(r.ticketKey), id);
+          else if (id.startsWith("note:")) toggleCurrent(id, id);
           break;
         case "openModal":
           if (!pr) break;
@@ -1005,6 +1041,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                   composing={composing}
                   onSaveNote={saveNote}
                   onCancelNote={cancelNote}
+                  onResolveNote={resolveNote ? resolveNoteTab : undefined}
                   swipe={swipe.dir}
                   loading={firstLoad}
                   sourceError={sourceErrorText(sourceError)}

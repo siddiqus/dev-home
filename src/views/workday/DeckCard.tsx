@@ -1,7 +1,10 @@
+import Button from "react-bootstrap/Button";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { OffSprintPill, TicketKey } from "./CompactRow";
 import { compactAge } from "./dates";
+import { noteText } from "../../utils/noteTags";
+import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
 import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
@@ -20,6 +23,8 @@ export interface DeckCardProps {
   composing?: boolean;
   onSaveNote?(text: string): Promise<void>;
   onCancelNote?(): void;
+  /** Resolve on a note tab's card. */
+  onResolveNote?(note: Note): void;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -37,7 +42,19 @@ export function DeckCard({
   composing = false,
   onSaveNote,
   onCancelNote,
+  onResolveNote,
 }: DeckCardProps) {
+  if (ticket.noteItem) {
+    return (
+      <DeckNoteCard
+        ticket={ticket}
+        note={ticket.noteItem}
+        now={now}
+        onOpenNote={onOpenNote}
+        onResolveNote={onResolveNote}
+      />
+    );
+  }
   const { key, prs } = ticket;
   const label = key ? `${key} ${ticket.title}` : ticket.title;
   const newest = prs.reduce<string | null>(
@@ -87,6 +104,23 @@ export function DeckCard({
         )}
       </div>
       <div className="deck-card-body">
+        {ticket.todos.length > 0 && (
+          <div className="deck-todos" role="group" aria-label="#todo notes">
+            <div className="deck-todos-label" aria-hidden="true">
+              #todo
+            </div>
+            {ticket.todos.map((n) => (
+              <DeckNoteLine
+                key={n.id}
+                note={n}
+                onOpen={onOpenNote}
+                detail={[todoPR(n, ticket), compactAge(n.created_at, now)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            ))}
+          </div>
+        )}
         {prs.length === 0 ? (
           <>
             <div className="deck-card-empty">No PR yet</div>
@@ -121,6 +155,59 @@ export function DeckCard({
             {composer}
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/** The PR a #todo note is on, as "repo#12", when the ticket has more than one PR. */
+function todoPR(note: Note, ticket: DeckTicket): string | null {
+  if (ticket.prs.length < 2) return null;
+  const ref = normalizeNoteRef(note.reference_id);
+  const p = ref ? ticket.prs.find((x) => prNoteKey(x.pr) === ref) : undefined;
+  return p ? repoRef(p.pr) : null;
+}
+
+/** A note tab's card: the note's headline, what it points at, its text, and edit / resolve. */
+function DeckNoteCard({
+  ticket,
+  note,
+  now,
+  onOpenNote,
+  onResolveNote,
+}: {
+  ticket: DeckTicket;
+  note: Note;
+  now: Date;
+  onOpenNote?(note: Note): void;
+  onResolveNote?(note: Note): void;
+}) {
+  const body = noteText(note.content).trim();
+  return (
+    <section className="deck-card deck-card--note" role="region" aria-label={ticket.title}>
+      <div className="deck-card-header">
+        <div className="deck-card-titleline">
+          <span className="deck-card-key" aria-hidden="true">
+            📝
+          </span>
+          <h3 className="deck-card-title">{ticket.title}</h3>
+        </div>
+        <div className="deck-card-sub">{`${ticket.status} · #todo · ${compactAge(note.created_at, now)}`}</div>
+      </div>
+      <div className="deck-card-body">
+        {body && <div className="deck-note-body">{body}</div>}
+        <div className="deck-note-actions">
+          {onOpenNote && (
+            <Button variant="outline-primary" size="sm" onClick={() => onOpenNote(note)}>
+              Edit <kbd>⏎</kbd>
+            </Button>
+          )}
+          {onResolveNote && (
+            <Button variant="outline-secondary" size="sm" onClick={() => onResolveNote(note)}>
+              Resolve
+            </Button>
+          )}
+        </div>
       </div>
     </section>
   );

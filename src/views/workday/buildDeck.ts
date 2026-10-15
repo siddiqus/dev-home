@@ -6,7 +6,10 @@ import { projectOfKey } from "../../../shared/tickets";
 import { githubMentionItem, jiraMentionItem } from "./buildFocus";
 import { statusCategoryOf } from "./buildWorkday";
 import { repoRef, reviewingState, titleWithoutKey } from "./prState";
-import { prPin, ticketPin } from "./pins";
+import { notePin, prPin, ticketPin } from "./pins";
+import { parseLink } from "./deckSearch";
+import { hasTag, noteHeadline } from "../../utils/noteTags";
+import { parseTimestamp } from "../../utils/time";
 import type { MentionItem, TicketRef } from "./types";
 import { headline, mySignals, prPriority, reviewSignals, PRIORITY } from "./signals";
 import type { DeckData, DeckInputs, DeckPR, DeckTicket } from "./deckTypes";
@@ -59,7 +62,9 @@ export interface DeckStateUpdates {
   seeded?: true;
 }
 
-const time = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
+// parseTimestamp: notes carry marker-less UTC ("YYYY-MM-DD HH:MM:SS"), which
+// `new Date` would read as local time.
+const time = (iso: string | null | undefined) => (iso ? parseTimestamp(iso).getTime() : 0);
 
 /** A collected PR before signals: mine, or one I review (requested or re-review). */
 interface Collected {
@@ -216,11 +221,48 @@ function deckTicket(
       key && sorted.length === 0
         ? newest(ctx.ticketNotes.get(key) ?? [], (n) => n.created_at)
         : null,
+    todos: [],
+    noteItem: null,
+  };
+}
+
+/** The upper-cased Jira key a `jira_ticket` note points at: a bare key or a browse URL. */
+function noteTicketKey(n: Note): string | null {
+  if (n.type !== "jira_ticket" || !n.reference_id?.trim()) return null;
+  const link = parseLink(n.reference_id);
+  return link?.kind === "ticket" ? link.key : n.reference_id.trim().toUpperCase();
+}
+
+/** What a note points at, for the rail status line: "repo#12", the ticket key, the link, or "Note". */
+export function noteTarget(n: Note): string {
+  const prKey = normalizeNoteRef(n.reference_id);
+  if (prKey) return prKey.slice(prKey.indexOf("/") + 1);
+  return noteTicketKey(n) ?? ((n.type === "link" && n.reference_id?.trim()) || "Note");
+}
+
+/** A #todo note with nothing on the deck to attach to, as a tab of its own. */
+function noteTab(n: Note, ctx: BuildContext): DeckTicket {
+  return {
+    id: notePin(n.id),
+    key: null,
+    title: noteHeadline(n),
+    ticket: null,
+    prs: [],
+    stripe: "neutral",
+    status: noteTarget(n),
+    reviewOnly: false,
+    unseen: false,
+    current: ctx.current.has(notePin(n.id)),
+    jiraMention: null,
+    note: null,
+    todos: [],
+    noteItem: n,
   };
 }
 
 /** When a ticket arrived, for numbering new tabs: its oldest PR, else the Jira ticket's creation. */
 function arrivalTime(t: DeckTicket, issue: JiraIssue | undefined): number {
+  if (t.noteItem) return time(t.noteItem.created_at);
   if (t.prs.length > 0) return Math.min(...t.prs.map((p) => time(p.pr.created_at)));
   return time(issue?.created);
 }
@@ -253,6 +295,8 @@ function newArrivals(
  */
 function reopens(t: DeckTicket, closedAt: string): boolean {
   const at = time(closedAt);
+  // A note tab: editing the note after closing it.
+  if (t.noteItem) return time(t.noteItem.updated_at) > at;
   return t.prs.some((p) => time(p.pr.updated_at) > at || time(p.pr.created_at) > at);
 }
 
@@ -293,12 +337,18 @@ export function buildDeck(
   const prNotes = new Map<string, Note[]>();
   const ticketNotes = new Map<string, Note[]>();
   const push = (m: Map<string, Note[]>, k: string, n: Note) => m.set(k, [...(m.get(k) ?? []), n]);
+  // #todo notes go on the deck themselves (below), so they stay out of the 📝 lines.
+  const todoNotes: Note[] = [];
   for (const n of inp.notes) {
     if (n.resolved !== 0) continue;
+    if (hasTag(n, "todo")) {
+      todoNotes.push(n);
+      continue;
+    }
     const prKey = normalizeNoteRef(n.reference_id);
+    const ticketKey = noteTicketKey(n);
     if (prKey) push(prNotes, prKey, n);
-    else if (n.type === "jira_ticket" && n.reference_id?.trim())
-      push(ticketNotes, n.reference_id.trim().toUpperCase(), n);
+    else if (ticketKey) push(ticketNotes, ticketKey, n);
   }
   const ctx: BuildContext = {
     current: new Set(state.current),
@@ -347,6 +397,26 @@ export function buildDeck(
       tickets.push(deckTicket(key, key, ref(key), [], ctx));
     }
   }
+
+  // #todo notes (option 2 of the design): a note on a PR or ticket that has a
+  // tab (closed ones included) joins that tab's `todos`; any other becomes a
+  // tab of its own.
+  const tabOfPR = new Map<string, DeckTicket>();
+  for (const t of tickets) for (const p of t.prs) tabOfPR.set(prNoteKey(p.pr), t);
+  const byNewest = [...todoNotes].sort(
+    (a, b) => time(b.created_at) - time(a.created_at) || b.id - a.id,
+  );
+  const noteTabs: DeckTicket[] = [];
+  for (const n of byNewest) {
+    const prKey = normalizeNoteRef(n.reference_id);
+    const ticketKey = noteTicketKey(n);
+    const host =
+      (prKey ? tabOfPR.get(prKey) : undefined) ??
+      (ticketKey ? tickets.find((t) => t.key === ticketKey) : undefined);
+    if (host) host.todos.push(n);
+    else noteTabs.push(noteTab(n, ctx));
+  }
+  tickets.push(...noteTabs);
 
   // A `ticket:<KEY>` pin set while the ticket had no PR moves onto its first
   // card-order PR once PRs land, else nothing could ever un-pin it (Space and
@@ -401,7 +471,8 @@ export function buildDeck(
   const dropCurrent = state.current.filter(
     (id) =>
       (id.startsWith("pr:") && !prPins.has(id)) ||
-      (id.startsWith("ticket:") && !ticketIds.has(id.slice("ticket:".length))),
+      (id.startsWith("ticket:") && !ticketIds.has(id.slice("ticket:".length))) ||
+      (id.startsWith("note:") && !ticketIds.has(id)),
   );
 
   // Ticket ids whose every current item is being dropped (spec §5.6).

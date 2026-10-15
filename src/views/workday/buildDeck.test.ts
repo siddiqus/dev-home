@@ -770,6 +770,126 @@ describe("buildDeck notes", () => {
   });
 });
 
+describe("buildDeck #todo notes", () => {
+  const todo = (id: number, o: Partial<Note> = {}) =>
+    note(id, { content: `<p>do thing ${id} #todo</p>`, ...o });
+
+  it("attaches a #todo note to the tab of its PR and keeps it off the PR's 📝 line", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 a" })],
+      notes: [todo(1), note(2, { created_at: "2026-10-09T10:00:00Z" })],
+    });
+    expect(ids(all(deck))).toEqual(["CCP-1"]);
+    expect(deck.open[0].todos.map((n) => n.id)).toEqual([1]);
+    expect(deck.open[0].prs[0].note?.id).toBe(2);
+  });
+
+  it("attaches a ticket note, by bare key or browse URL, even when the ticket has PRs", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 a" })],
+      notes: [
+        todo(1, { type: "jira_ticket", reference_id: "ccp-1", created_at: "2026-10-11T10:00:00Z" }),
+        todo(2, {
+          type: "jira_ticket",
+          reference_id: "https://x.atlassian.net/browse/CCP-1?focusedCommentId=3",
+          created_at: "2026-10-12T10:00:00Z",
+        }),
+      ],
+    });
+    expect(deck.open[0].todos.map((n) => n.id)).toEqual([2, 1]);
+  });
+
+  it("attaches to a closed tab rather than opening a note tab", () => {
+    const deck = build(
+      { openPRs: [pr(1, { title: "CCP-1 a" })], notes: [todo(1)] },
+      { closed: { "CCP-1": "2026-10-13T10:00:00Z" }, arrival: { "CCP-1": 0 } },
+    );
+    expect(ids(deck.closed)).toEqual(["CCP-1"]);
+    expect(deck.closed[0].todos).toHaveLength(1);
+    expect(ids(deck.open)).toEqual([]);
+  });
+
+  it("gives a #todo note with nothing on the deck a tab of its own", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 a" })],
+      notes: [
+        todo(1, { type: "free_text", reference_id: null, title: "Renew staging cert" }),
+        todo(2, { type: "jira_ticket", reference_id: "CCP-999" }),
+        todo(3, { reference_id: "o/other#7" }),
+        todo(4, { type: "link", reference_id: "https://wiki.example.com/runbook" }),
+      ],
+    });
+    const tab = (id: number) => byId(deck.open, `note:${id}`);
+    expect(tab(1)).toMatchObject({
+      key: null,
+      title: "Renew staging cert",
+      status: "Note",
+      prs: [],
+      unseen: false,
+      todos: [],
+    });
+    expect(tab(1).noteItem?.id).toBe(1);
+    expect(tab(2).title).toBe("do thing 2 #todo");
+    expect(tab(2).status).toBe("CCP-999");
+    expect(tab(3).status).toBe("other#7");
+    expect(tab(4).status).toBe("https://wiki.example.com/runbook");
+    expect(deck.open[0].todos).toEqual([]);
+  });
+
+  it("leaves out resolved notes and notes without the tag", () => {
+    const deck = build({
+      notes: [
+        todo(1, { type: "free_text", reference_id: null, resolved: 1 }),
+        note(2, { type: "free_text", reference_id: null, content: "#todos later" }),
+      ],
+    });
+    expect(all(deck)).toEqual([]);
+  });
+
+  it("numbers a note tab's arrival by the note's creation", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 a", created_at: "2026-10-05T10:00:00Z" })],
+      notes: [
+        todo(1, { type: "free_text", reference_id: null, created_at: "2026-10-03T10:00:00Z" }),
+      ],
+    });
+    expect(ids(deck.open)).toEqual(["note:1", "CCP-1"]);
+  });
+
+  it("puts a pinned note tab in Current and drops the pin once the note goes", () => {
+    const free = todo(1, { type: "free_text", reference_id: null });
+    const pinned = build(
+      { notes: [free] },
+      { current: ["note:1"], currentTickets: ["note:1"], seeded: true },
+    );
+    expect(ids(pinned.current)).toEqual(["note:1"]);
+    const gone = build(
+      { notes: [{ ...free, resolved: 1 }] },
+      { current: ["note:1"], currentTickets: ["note:1"], seeded: true },
+    );
+    expect(gone.stateUpdates.dropCurrent).toEqual(["note:1"]);
+    expect(gone.stateUpdates.dropCurrentTickets).toEqual(["note:1"]);
+  });
+
+  it("reads a note's marker-less SQLite time as UTC", () => {
+    const free = todo(1, { type: "free_text", reference_id: null });
+    const state = { closed: { "note:1": "2026-10-12T10:00:00Z" }, arrival: { "note:1": 0 } };
+    const before = build({ notes: [{ ...free, updated_at: "2026-10-12 09:59:00" }] }, state);
+    expect(ids(before.closed)).toEqual(["note:1"]);
+    const after = build({ notes: [{ ...free, updated_at: "2026-10-12 10:01:00" }] }, state);
+    expect(ids(after.open)).toEqual(["note:1"]);
+  });
+
+  it("reopens a closed note tab once the note is edited after the close", () => {
+    const free = todo(1, { type: "free_text", reference_id: null });
+    const state = { closed: { "note:1": "2026-10-12T10:00:00Z" }, arrival: { "note:1": 0 } };
+    expect(ids(build({ notes: [free] }, state).closed)).toEqual(["note:1"]);
+    const edited = build({ notes: [{ ...free, updated_at: "2026-10-13T10:00:00Z" }] }, state);
+    expect(edited.stateUpdates.reopen).toEqual(["note:1"]);
+    expect(ids(edited.open)).toEqual(["note:1"]);
+  });
+});
+
 describe("buildDeck off-sprint", () => {
   it("flags tickets whose key is in offSprintKeys", () => {
     const deck = build({

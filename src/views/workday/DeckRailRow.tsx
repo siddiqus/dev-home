@@ -48,6 +48,14 @@ export function DeckRailRow({
           <span className="deck-rail-title" title={ticket.title}>
             {ticket.title}
           </span>
+          {ticket.todos.length > 0 && (
+            <span
+              className="badge badge-status badge-status--purple deck-rail-review"
+              title={`${ticket.todos.length} #todo note${ticket.todos.length === 1 ? "" : "s"}`}
+            >
+              #todo
+            </span>
+          )}
           {ticket.reviewOnly && (
             // Badge's neutral tone by class: the Badge component pins an inline
             // 12px font size that only !important could shrink.

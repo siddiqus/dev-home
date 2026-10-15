@@ -217,7 +217,8 @@ function actionsFor(r: SearchResult, queryEmpty: boolean): ActionDef[] {
     ];
   }
   if (!r.ticketId) return [];
-  const canPin = !r.closed && (r.pr !== null || r.ticketKey !== null);
+  const canPin =
+    !r.closed && (r.pr !== null || r.ticketKey !== null || r.ticketId.startsWith("note:"));
   const list: (ActionDef | false)[] = [
     { action: "jump", label: "Jump to card", keys: "⏎" },
     canPin && {
@@ -592,6 +593,9 @@ function renderEntry(
         <span className="deck-palette-label">{r.label}</span>
         {r.sub && <span className="deck-palette-sub">{r.sub}</span>}
       </span>
+      {!r.pr && !ticket?.noteItem && (ticket?.todos.length ?? 0) > 0 && (
+        <Badge variant="purple">#todo</Badge>
+      )}
       {current && !closed && <Badge variant="warning">current</Badge>}
       {closed && <Badge variant="neutral">closed</Badge>}
       {r.external && <Badge variant="info">not in deck</Badge>}

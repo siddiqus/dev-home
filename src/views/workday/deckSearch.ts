@@ -1,8 +1,10 @@
 import type { GitHubPR } from "../../types";
-import type { DeckData } from "./deckTypes";
+import type { DeckData, DeckTicket } from "./deckTypes";
 import { normalizeNoteRef } from "../../utils/prNotes";
 import { repoRef } from "./prState";
 import { TICKET_KEY_REGEX } from "../../../shared/tickets";
+import { hasTag, noteText } from "../../utils/noteTags";
+import type { Note } from "../../types";
 
 /** The shared ticket-key pattern (digits allowed in the project, e.g. AB2-12), unanchored. */
 const KEY = TICKET_KEY_REGEX.source.replace(/\\b/g, "");
@@ -84,6 +86,60 @@ export function parseLink(query: string): LinkTarget | null {
   return null;
 }
 
+/** A `#tag` query (a letter after the #, so `#1199` stays a PR number) and any text after it. */
+function parseTagQuery(query: string): { tag: string; rest: string } | null {
+  const m = query.match(/^#([a-z][\w-]*)(?:\s+(.*))?$/i);
+  return m ? { tag: m[1], rest: (m[2] ?? "").trim() } : null;
+}
+
+/** The #todo notes a tab carries: the note itself on a note tab, else its `todos`. */
+const tabNotes = (t: DeckTicket): Note[] => (t.noteItem ? [t.noteItem] : t.todos);
+
+/** 500 when any note's title or text contains the query (no subsequence match: bodies are long). */
+function notesMatch(query: string, notes: Note[]): number {
+  const q = query.toLowerCase();
+  return notes.some((n) => `${n.title}\n${noteText(n.content)}`.toLowerCase().includes(q))
+    ? 500
+    : 0;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** One result for a whole tab: a note tab, or a ticket with no PR picked. */
+function tabResult(t: DeckTicket, closed: boolean, score: number, sub?: string): SearchResult {
+  return {
+    ticketId: t.id,
+    pr: null,
+    ticketKey: t.key,
+    label: t.noteItem ? `📝 ${t.title}` : t.key ? `${t.key} ${t.title}` : t.title,
+    sub: sub ?? (t.noteItem ? t.status : (t.key ?? "")),
+    closed,
+    score,
+  };
+}
+
+/**
+ * `#tag [text]`: tabs carrying a note with that tag (note tabs and tickets
+ * with #todo notes), narrowed by the text when given, in deck order.
+ */
+function searchTag(tag: string, rest: string, deck: DeckData): SearchResult[] {
+  const results: SearchResult[] = [];
+  for (const t of [...deck.current, ...deck.open, ...deck.closed]) {
+    const tagged = tabNotes(t).filter((n) => hasTag(n, tag));
+    if (tagged.length === 0) continue;
+    const score = rest
+      ? Math.max(
+          fuzzyMatch(rest, [t.key ?? "", t.title, ...t.prs.map((p) => p.pr.title)]),
+          notesMatch(rest, tagged),
+        )
+      : 1;
+    if (score === 0) continue;
+    const sub = t.noteItem ? undefined : plural(tagged.length, `#${tag.toLowerCase()} note`);
+    results.push(tabResult(t, deck.closed.includes(t), score, sub));
+  }
+  return results.sort((a, b) => b.score - a.score);
+}
+
 /**
  * Fuzzy search over the deck. Returns results sorted by score (highest first).
  * Exact key or PR number matches rank first. Closed tabs are included with
@@ -93,6 +149,9 @@ export function parseLink(query: string): LinkTarget | null {
 export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
+
+  const tagQuery = parseTagQuery(trimmed);
+  if (tagQuery) return searchTag(tagQuery.tag, tagQuery.rest, deck);
 
   // Check if the query is a link
   const linkTarget = parseLink(trimmed);
@@ -119,9 +178,13 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     // A pasted Jira link or key for this ticket pins it to the top.
     const ticketLinked =
       linkTarget?.kind === "ticket" && ticket.key?.toUpperCase() === linkTarget.key;
+    // A tab's #todo notes match on their text too.
     const ticketScore = ticketLinked
       ? Infinity
-      : fuzzyMatch(trimmed, [ticket.key ?? "", ticket.title]);
+      : Math.max(
+          fuzzyMatch(trimmed, [ticket.key ?? "", ticket.title]),
+          notesMatch(trimmed, tabNotes(ticket)),
+        );
 
     // Check each PR
     for (const deckPR of ticket.prs) {
@@ -171,13 +234,8 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     // If the ticket has no PRs but matches, include it
     if (ticket.prs.length === 0 && ticketScore > 0) {
       results.push({
-        ticketId: ticket.id,
-        pr: null,
-        ticketKey: ticket.key,
-        label: ticket.title,
-        sub: ticket.key || "",
-        closed: isClosed,
-        score: ticketScore,
+        ...tabResult(ticket, isClosed, ticketScore),
+        label: ticket.noteItem ? `📝 ${ticket.title}` : ticket.title,
       });
     }
   }

@@ -674,7 +674,11 @@ export default function App() {
                         notesLoaded={notesLoaded}
                         addNote={addNote}
                         editNote={editNote}
-                        onOpenNote={setOpenNote}
+                        resolveNote={resolveNote}
+                        onOpenNote={(note) => {
+                          setOpenNote(note);
+                          setShowNoteEditor(true);
+                        }}
                       />
                     )}
                     {effectiveTab === "board" && (

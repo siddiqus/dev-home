@@ -1328,3 +1328,107 @@ describe("WorkdayView final review follow-ups", () => {
     expect(screen.queryByTestId("deck-mode")).toBeNull();
   });
 });
+
+describe("WorkdayView #todo notes", () => {
+  beforeEach(() => localStorage.clear());
+
+  const renderDeck = (extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) =>
+    renderView({ openPRs: deckPRs, allIssues: deckIssues, ...extra });
+  const rail = () => screen.getByRole("listbox", { name: "Tickets" });
+  const todo = (o: Partial<Note>): Note => ({
+    id: 1,
+    type: "free_text",
+    title: "Renew staging cert",
+    content: "<p>#todo</p><p>expires Oct 30, ping ops</p>",
+    reference_id: null,
+    resolved: 0,
+    pinned: 0,
+    remind_at: null,
+    created_at: "2026-10-13T10:00:00Z",
+    updated_at: "2026-10-13T10:00:00Z",
+    ...o,
+  });
+  const noteCard = () => screen.getByRole("region", { name: "Renew staging cert" });
+
+  it("puts a free #todo note on the rail as a 📝 item with its own card", () => {
+    const onOpenNote = vi.fn();
+    const n = todo({});
+    renderDeck({ notes: [n], onOpenNote });
+    const row = within(rail()).getByRole("option", { name: /Renew staging cert/ });
+    expect(within(row).getByText("📝")).toBeTruthy();
+    expect(within(row).getByText("Note")).toBeTruthy();
+    fireEvent.click(row);
+    expect(within(noteCard()).getByText(/^Note · #todo · \d+[mhd]$/)).toBeTruthy();
+    expect(within(noteCard()).getByText(/expires Oct 30, ping ops/)).toBeTruthy();
+    fireEvent.click(within(noteCard()).getByRole("button", { name: /Edit/ }));
+    expect(onOpenNote).toHaveBeenCalledWith(n);
+    onOpenNote.mockClear();
+    press("Enter");
+    expect(onOpenNote).toHaveBeenCalledWith(n);
+  });
+
+  it("Space marks a note item current", () => {
+    renderDeck({ notes: [todo({})] });
+    fireEvent.click(within(rail()).getByRole("option", { name: /Renew staging cert/ }));
+    press(" ");
+    const current = within(rail()).getByRole("group", { name: "Current" });
+    expect(within(current).getByRole("option", { name: /Renew staging cert/ })).toBeTruthy();
+  });
+
+  it("Resolve resolves the note and moves on to the next item", async () => {
+    const resolveNote = vi.fn(async () => {});
+    renderDeck({ notes: [todo({ id: 5 })], resolveNote });
+    fireEvent.click(within(rail()).getByRole("option", { name: /Renew staging cert/ }));
+    await act(async () => {
+      fireEvent.click(within(noteCard()).getByRole("button", { name: "Resolve" }));
+    });
+    expect(resolveNote).toHaveBeenCalledWith(5);
+    expect(screen.getByText("Note resolved")).toHaveClass("app-toast", "is-visible");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+  });
+
+  it("shows no Resolve without a resolveNote handler", () => {
+    renderDeck({ notes: [todo({})] });
+    fireEvent.click(within(rail()).getByRole("option", { name: /Renew staging cert/ }));
+    expect(within(noteCard()).queryByRole("button", { name: "Resolve" })).toBeNull();
+  });
+
+  it("folds a note on a deck PR into its ticket: a #todo chip and a #todo block", () => {
+    const onOpenNote = vi.fn();
+    const n = todo({
+      type: "github_pr",
+      title: "",
+      content: "ask tomas about backoff #todo",
+      reference_id: "o/r#1207",
+    });
+    renderDeck({ notes: [n], onOpenNote });
+    expect(within(rail()).queryByRole("option", { name: /backoff/ })).toBeNull();
+    const row = within(rail()).getByRole("option", { name: /412/ });
+    expect(within(row).getByText("#todo")).toHaveAttribute("title", "1 #todo note");
+    const todos = within(card()).getByRole("group", { name: "#todo notes" });
+    const line = within(todos).getByRole("button", { name: /ask tomas about backoff/ });
+    // Two PRs on the ticket: the line names the one it's on.
+    expect(line).toHaveTextContent(/· r#1207 · \d+[mhd]$/);
+    fireEvent.click(line);
+    expect(onOpenNote).toHaveBeenCalledWith(n);
+    // Not repeated as the PR's 📝 line.
+    expect(within(prList()).queryByRole("button", { name: /ask tomas/ })).toBeNull();
+  });
+
+  it("lists #todo items in ⌘K for a #todo query", () => {
+    renderDeck({
+      notes: [
+        todo({}),
+        todo({ id: 2, type: "github_pr", title: "", content: "x #todo", reference_id: "o/r#1207" }),
+      ],
+    });
+    press("k", { metaKey: true });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "#todo" } });
+    const results = within(screen.getByRole("group", { name: "Results" })).getAllByRole("option");
+    expect(results.map((r) => r.textContent)).toEqual([
+      expect.stringContaining("CCP-412"),
+      expect.stringContaining("📝 Renew staging cert"),
+    ]);
+    expect(within(results[0]).getByText("#todo")).toBeTruthy();
+  });
+});

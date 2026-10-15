@@ -1,7 +1,8 @@
 import type { GitHubPR } from "../../types";
 
-/** Focus pins are stored as "pr:<html_url>" or "ticket:<KEY>". */
+/** Focus pins are stored as "pr:<html_url>", "ticket:<KEY>" or "note:<id>". */
 export const PINS_KEY = "dev-home-workday-pins";
 
 export const prPin = (pr: GitHubPR) => `pr:${pr.html_url}`;
 export const ticketPin = (key: string) => `ticket:${key}`;
+export const notePin = (id: number) => `note:${id}`;

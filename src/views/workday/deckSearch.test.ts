@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { GitHubPR } from "../../types";
+import type { GitHubPR, Note } from "../../types";
 import { parseLink, searchDeck } from "./deckSearch";
 import type { DeckData, DeckTicket } from "./deckTypes";
 
@@ -48,6 +48,8 @@ function ticket(id: string, prs: GitHubPR[], o: Partial<DeckTicket> = {}): DeckT
     current: false,
     jiraMention: null,
     note: null,
+    todos: [],
+    noteItem: null,
     ...o,
   };
 }
@@ -498,5 +500,60 @@ describe("searchDeck", () => {
         key: "AB2-12",
       });
     });
+  });
+});
+
+describe("searchDeck #todo notes", () => {
+  const todo = (id: number, content: string, o: Partial<Note> = {}): Note => ({
+    id,
+    type: "free_text",
+    title: "",
+    content,
+    reference_id: null,
+    resolved: 0,
+    pinned: 0,
+    remind_at: null,
+    created_at: "2026-10-10T10:00:00Z",
+    updated_at: "2026-10-10T10:00:00Z",
+    ...o,
+  });
+  const noteTab = (n: Note, status = "Note") =>
+    ticket(`note:${n.id}`, [], { key: null, title: n.title || n.content, status, noteItem: n });
+  const cert = todo(1, "<p>#todo ask ops</p>", { title: "Renew staging cert" });
+  const withTodos = ticket("CCP-412", [pr(1207, { title: "Retry with backoff" })], {
+    todos: [todo(2, "<p>ask tomas about backoff #todo</p>"), todo(3, "<p>add metrics #todo</p>")],
+  });
+  const plain = ticket("CCP-431", [pr(1300, { title: "Audit log export" })]);
+  const d = deck({ open: [noteTab(cert), withTodos, plain] });
+
+  it("#todo lists note tabs and tickets with #todo notes, in deck order", () => {
+    const results = searchDeck("#todo", d);
+    expect(results.map((r) => r.ticketId)).toEqual(["note:1", "CCP-412"]);
+    expect(results[0]).toMatchObject({ label: "📝 Renew staging cert", sub: "Note", pr: null });
+    expect(results[1]).toMatchObject({ label: "CCP-412 Summary CCP-412", sub: "2 #todo notes" });
+  });
+
+  it("is case-insensitive and narrows by the text after the tag", () => {
+    expect(searchDeck("#TODO backoff", d).map((r) => r.ticketId)).toEqual(["CCP-412"]);
+    expect(searchDeck("#todo ops", d).map((r) => r.ticketId)).toEqual(["note:1"]);
+    expect(searchDeck("#todo nothing-here", d)).toEqual([]);
+  });
+
+  it("keeps #123 a PR number search", () => {
+    expect(searchDeck("#1207", d)[0].pr?.number).toBe(1207);
+  });
+
+  it("finds note tabs by title or body in a plain search", () => {
+    expect(searchDeck("staging", d)[0]).toMatchObject({ ticketId: "note:1", pr: null });
+    expect(searchDeck("ask ops", d).map((r) => r.ticketId)).toEqual(["note:1"]);
+  });
+
+  it("finds a ticket by the text of its #todo notes", () => {
+    expect(searchDeck("tomas", d).map((r) => r.ticketId)).toEqual(["CCP-412"]);
+  });
+
+  it("marks a closed note tab closed", () => {
+    const r = searchDeck("#todo", deck({ closed: [noteTab(cert)] }));
+    expect(r[0]).toMatchObject({ ticketId: "note:1", closed: true });
   });
 });

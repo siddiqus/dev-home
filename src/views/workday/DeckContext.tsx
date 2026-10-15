@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import type { Note } from "../../types";
 import { compactAge } from "./dates";
+import { noteHeadline } from "../../utils/noteTags";
 import type { MentionItem } from "./types";
 
 const stop = (e: MouseEvent) => e.stopPropagation();
@@ -59,13 +60,20 @@ export function DeckQuote({
   );
 }
 
-/** First line of a note, for the 📝 line. */
-const noteLine = (note: Note) =>
-  (note.title?.trim() || note.content).split("\n").find((l) => l.trim()) ?? "";
-
-/** My newest unresolved note (📝); clicking opens the note editor (spec §5.10). */
-export function DeckNoteLine({ note, onOpen }: { note: Note; onOpen?(note: Note): void }) {
-  const text = noteLine(note);
+/**
+ * A note as a 📝 line (spec §5.10), with an optional muted detail after it
+ * (e.g. the PR a #todo note is on); clicking opens the note editor.
+ */
+export function DeckNoteLine({
+  note,
+  onOpen,
+  detail,
+}: {
+  note: Note;
+  onOpen?(note: Note): void;
+  detail?: string;
+}) {
+  const text = noteHeadline(note);
   return (
     <button
       type="button"
@@ -77,6 +85,7 @@ export function DeckNoteLine({ note, onOpen }: { note: Note; onOpen?(note: Note)
       }}
     >
       <span aria-hidden="true">📝</span> <span className="deck-note-text">{text}</span>
+      {detail && <span className="deck-note-detail">· {detail}</span>}
     </button>
   );
 }

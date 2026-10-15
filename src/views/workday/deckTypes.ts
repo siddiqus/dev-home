@@ -50,6 +50,10 @@ export interface DeckTicket {
   jiraMention: MentionItem | null;
   /** Newest unresolved `jira_ticket` note on a PR-less ticket. */
   note: Note | null;
+  /** Unresolved #todo notes on the ticket or its PRs, newest first. */
+  todos: Note[];
+  /** A #todo note with nothing on the deck to attach to: the tab is the note itself. */
+  noteItem: Note | null;
 }
 
 /** The composed deck, split into groups. */

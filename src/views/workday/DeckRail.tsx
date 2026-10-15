@@ -31,9 +31,10 @@ const CLOSED_LIST_ID = "deck-rail-closed-list";
 /** DOM id of a rail row: index-based, since ticket ids can be URLs. */
 const rowId = (group: string, index: number) => `deck-rail-${group}-${index}`;
 
-/** The key column: short key, or `#number` for a ticketless PR tab. */
+/** The key column: short key, 📝 for a note tab, or `#number` for a ticketless PR tab. */
 function railLabel(t: DeckTicket, projects: Set<string>): string {
   if (t.key) return shortKey(t.key, projects);
+  if (t.noteItem) return "📝";
   return t.prs[0] ? `#${t.prs[0].pr.number}` : "—";
 }
 

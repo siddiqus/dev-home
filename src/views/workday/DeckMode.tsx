@@ -26,6 +26,7 @@ export interface DeckModeProps {
   composing?: boolean;
   onSaveNote?(text: string): Promise<void>;
   onCancelNote?(): void;
+  onResolveNote?(note: Note): void;
   /** Swipe direction for the selection change that produced this card; null = no motion. */
   swipe?: SwipeDirection | null;
   /** First load with no data yet: rail and card skeletons (spec §5.13). */
@@ -65,6 +66,7 @@ export function DeckMode({
   composing,
   onSaveNote,
   onCancelNote,
+  onResolveNote,
   swipe = null,
   loading = false,
   sourceError = null,
@@ -143,6 +145,7 @@ export function DeckMode({
               composing={composing}
               onSaveNote={onSaveNote}
               onCancelNote={onCancelNote}
+              onResolveNote={onResolveNote}
             />
           </div>
         )}

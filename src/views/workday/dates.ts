@@ -1,3 +1,5 @@
+import { parseTimestamp } from "../../utils/time";
+
 /** "Done since" lookback options on the Workday page. */
 export type Lookback = "workday" | "3d" | "7d";
 export const LOOKBACKS = ["workday", "3d", "7d"] as const satisfies readonly Lookback[];
@@ -70,7 +72,7 @@ export function formatJqlDate(d: Date): string {
 
 /** Compact age of `iso` relative to `now`: "now", "20m", "5h", "3d", "2w". */
 export function compactAge(iso: string, now: Date): string {
-  const mins = Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000);
+  const mins = Math.floor((now.getTime() - parseTimestamp(iso).getTime()) / 60_000);
   if (mins < 1) return "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
