@@ -63,12 +63,13 @@ const CLOSES: ReadonlySet<PaletteAction> = new Set([
 /**
  * Whether closing for this action should restore focus. Opening the PR modal,
  * the note composer, or an outside PR / ticket (modal or Jira drawer) moves
- * focus on its own, so restoring would fight it.
+ * focus on its own, so restoring would fight it. A jump lands on a different
+ * card, so focus from before ⌘K is stale there: if it was a card's GitHub link,
+ * the next Enter would follow the link (a new browser tab) instead of reaching
+ * the deck's keys.
  */
-function restoresFocus(action: PaletteAction, result: SearchResult): boolean {
-  if (action === "openModal" || action === "note") return false;
-  if (action === "jump" && result.external) return false;
-  return true;
+function restoresFocus(action: PaletteAction): boolean {
+  return action !== "openModal" && action !== "note" && action !== "jump";
 }
 
 export interface CommandPaletteProps {
@@ -130,8 +131,7 @@ export function CommandPalette({
         deck={deck}
         commands={commands}
         onAction={(action, result) => {
-          if (CLOSES.has(action))
-            closeThen(() => onAction(action, result), restoresFocus(action, result));
+          if (CLOSES.has(action)) closeThen(() => onAction(action, result), restoresFocus(action));
           else onAction(action, result);
         }}
         onCommand={(command) => closeThen(command.run)}

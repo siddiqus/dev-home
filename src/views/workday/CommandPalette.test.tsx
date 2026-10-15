@@ -457,6 +457,21 @@ describe("⌘K command palette", () => {
     open.mockRestore();
   });
 
+  it("doesn't hand focus back to a card's GitHub link after jumping to a card", async () => {
+    // A focused link swallows the deck's next Enter and opens a browser tab.
+    renderDeck();
+    // Jump within the card on screen, so the link stays mounted.
+    const link = card().querySelector<HTMLAnchorElement>('a.pr-cluster-ext[href*="/pull/"]')!;
+    const number = link.href.split("/pull/")[1];
+    link.focus();
+    openPalette();
+    type(number);
+    key("Enter");
+    await flush();
+    expect(queryInput()).toBeNull();
+    expect(link).not.toHaveFocus();
+  });
+
   it("opens a ticket that isn't in the deck in Jira when there's no drawer", async () => {
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     renderDeck();

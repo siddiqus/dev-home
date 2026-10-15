@@ -11,6 +11,7 @@ import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
 import type { GitHubPR } from "../../types";
+import { blurOnPointer } from "./pointer";
 import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
 import { groupUpdatedAt, type KeyedGroup } from "./buildWorkday";
 import type { TicketRef } from "./types";
@@ -143,6 +144,7 @@ export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
           aria-label={`Copy link to ${ref}`}
           onClick={(e) => {
             e.stopPropagation();
+            blurOnPointer(e);
             onCopy(pr.html_url);
           }}
           onKeyDown={(e) => e.stopPropagation()}
@@ -157,7 +159,11 @@ export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
         rel="noopener noreferrer"
         title="Open on GitHub"
         aria-label={`Open ${ref} on GitHub`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          // A focused link takes the deck's next Enter and opens another tab.
+          blurOnPointer(e);
+        }}
         onKeyDown={(e) => e.stopPropagation()}
       >
         <IconExternalLink size={13} stroke={1.8} />
