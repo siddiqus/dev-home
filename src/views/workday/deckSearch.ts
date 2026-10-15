@@ -190,15 +190,10 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     for (const deckPR of ticket.prs) {
       const pr = deckPR.pr;
 
-      // PR number matches rank highest: exact `1199`, `#1199` or `repo#1199` only,
-      // so a short number never matches inside a longer query.
-      const lowerQuery = trimmed.toLowerCase();
-      const repoName = (pr.repo_full_name.split("/")[1] ?? "").toLowerCase();
-      const prNumberScore = [`#${pr.number}`, `${pr.number}`, `${repoName}#${pr.number}`].includes(
-        lowerQuery,
-      )
-        ? 1000
-        : 0;
+      // PR number matches rank highest: `1199`, `#1199` or `repo#1199`, exact or
+      // as a prefix (`#119` finds 1199), so a short number never matches inside
+      // a longer query.
+      const prNumberScore = numberMatch(trimmed, pr);
 
       // Other PR fields
       const prOtherScore = fuzzyMatch(trimmed, [
@@ -263,6 +258,20 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   }
 
   return results;
+}
+
+/**
+ * 1000 when the query is the PR's number (`1199`, `#1199`, `repo#1199`), 500
+ * when it's a prefix of it (`#119`), else 0.
+ */
+function numberMatch(query: string, pr: GitHubPR): number {
+  const m = query.match(/^(?:([\w.-]+)?#)?(\d+)$/);
+  if (!m) return 0;
+  const [, repo, digits] = m;
+  const repoName = pr.repo_full_name.split("/")[1] ?? "";
+  if (repo && repo.toLowerCase() !== repoName.toLowerCase()) return 0;
+  const num = String(pr.number);
+  return num === digits ? 1000 : num.startsWith(digits) ? 500 : 0;
 }
 
 /**

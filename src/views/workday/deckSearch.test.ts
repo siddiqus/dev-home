@@ -457,7 +457,7 @@ describe("searchDeck", () => {
       expect(results.map((r) => r.ticketKey)).toEqual(["CCP-12"]);
     });
 
-    it("matches PR numbers by exact equality only", () => {
+    it("does not match a PR number inside a longer query", () => {
       const d = deck({
         open: [
           ticket("CCP-1", [pr(1, { title: "fix 12 things" })]),
@@ -468,6 +468,30 @@ describe("searchDeck", () => {
       expect(results.map((r) => r.pr?.number)).toEqual([1]);
       expect(searchDeck("12", d)[0].pr?.number).toBe(12);
       expect(searchDeck("Repo#12", d)[0].pr?.number).toBe(12);
+    });
+
+    it("matches a PR number prefix as 119, #119 or repo#119", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [pr(1199)]),
+          ticket("CCP-2", [pr(2119, { title: "other", head: { ref: "other" } })]),
+        ],
+      });
+      for (const q of ["119", "#119", "repo#119"]) {
+        expect(searchDeck(q, d).map((r) => r.pr?.number)).toEqual([1199]);
+      }
+      expect(searchDeck("other#119", d)).toEqual([]);
+    });
+
+    it("ranks an exact PR number above a prefix match, and a prefix above a title match", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [pr(1, { title: "Mentions 119 in title" })]),
+          ticket("CCP-2", [pr(1199)]),
+          ticket("CCP-3", [pr(119)]),
+        ],
+      });
+      expect(searchDeck("119", d).map((r) => r.pr?.number)).toEqual([119, 1199, 1]);
     });
 
     it("ranks the exact key ticket above a ticket that mentions the key in its title", () => {
