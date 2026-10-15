@@ -34,26 +34,32 @@ function pr(n: number, o: Partial<GitHubPR> = {}): GitHubPR {
 describe("myPRState", () => {
   it("returns each state with its tone", () => {
     expect(myPRState(pr(1, { checks_status: "FAILURE" }))).toEqual({
-      label: "CI failing",
+      label: "Fix CI",
       tone: "danger",
     });
-    expect(myPRState(pr(1, { checks_status: "TIMED_OUT" })).label).toBe("CI failing");
-    expect(myPRState(pr(1, { has_conflict: true }))).toEqual({ label: "Conflict", tone: "danger" });
+    expect(myPRState(pr(1, { checks_status: "TIMED_OUT" })).label).toBe("Fix CI");
+    expect(myPRState(pr(1, { has_conflict: true }))).toEqual({
+      label: "Resolve conflict with main",
+      tone: "danger",
+    });
     expect(myPRState(pr(1, { review_status: "CHANGES_REQUESTED" }))).toEqual({
-      label: "Changes requested",
+      label: "Address requested changes",
       tone: "danger",
     });
-    expect(myPRState(pr(1, { draft: true }))).toEqual({ label: "Draft", tone: "neutral" });
+    expect(myPRState(pr(1, { draft: true }))).toEqual({
+      label: "Draft · mark ready for review",
+      tone: "neutral",
+    });
     expect(myPRState(pr(1, { in_merge_queue: true }))).toEqual({
       label: "In merge queue",
       tone: "purple",
     });
     expect(myPRState(pr(1, { requested_reviewers: [] }))).toEqual({
-      label: "No reviewer",
+      label: "Request a review",
       tone: "warning",
     });
     expect(myPRState(pr(1, { review_status: "APPROVED" }))).toEqual({
-      label: "Approved",
+      label: "Approved · merge when CI passes",
       tone: "success",
     });
     expect(myPRState(pr(1, { requested_reviewers: ["tomas", "cmp-fe"] }))).toEqual({
@@ -61,11 +67,18 @@ describe("myPRState", () => {
       tone: "neutral",
     });
     expect(myPRState(pr(1, { requested_reviewers: [], review_status: "REVIEWED" }))).toEqual({
-      label: "Reviewed",
+      label: "Re-request review",
       tone: "warning",
     });
+    expect(
+      myPRState(pr(1, { requested_reviewers: [], review_status: "REVIEWED", your_turn: true })),
+    ).toEqual({ label: "Respond to feedback", tone: "warning" });
+    expect(myPRState(pr(1, { review_status: "APPROVED", checks_status: "SUCCESS" }))).toEqual({
+      label: "Ready to merge",
+      tone: "success",
+    });
     expect(myPRState(pr(1, { requested_reviewers: undefined }))).toEqual({
-      label: "In review",
+      label: "Waiting for review",
       tone: "neutral",
     });
   });
@@ -78,14 +91,17 @@ describe("myPRState", () => {
       draft: true,
       requested_reviewers: [],
     };
-    expect(myPRState(pr(1, all)).label).toBe("CI failing");
-    expect(myPRState(pr(1, { ...all, checks_status: "SUCCESS" })).label).toBe("Conflict");
+    expect(myPRState(pr(1, all)).label).toBe("Fix CI");
+    expect(myPRState(pr(1, { ...all, checks_status: "SUCCESS" })).label).toBe(
+      "Resolve conflict with main",
+    );
     expect(myPRState(pr(1, { ...all, checks_status: null, has_conflict: false })).label).toBe(
-      "Changes requested",
+      "Address requested changes",
     );
     // Drafts skip the review states.
-    expect(myPRState(pr(1, { draft: true, requested_reviewers: [] })).label).toBe("Draft");
-    expect(myPRState(pr(1, { draft: true, review_status: "APPROVED" })).label).toBe("Draft");
+    const draft = "Draft · mark ready for review";
+    expect(myPRState(pr(1, { draft: true, requested_reviewers: [] })).label).toBe(draft);
+    expect(myPRState(pr(1, { draft: true, review_status: "APPROVED" })).label).toBe(draft);
     // Queued beats approved.
     expect(myPRState(pr(1, { in_merge_queue: true, review_status: "APPROVED" })).label).toBe(
       "In merge queue",
@@ -108,13 +124,13 @@ describe("worstState", () => {
     const conflict = pr(6, { has_conflict: true });
     const red = pr(7, { checks_status: "FAILURE" });
 
-    expect(worstState([draft]).label).toBe("Draft");
+    expect(worstState([draft]).label).toBe("Draft · mark ready for review");
     expect(worstState([draft, waiting]).label).toBe("Waiting on guru");
-    expect(worstState([draft, waiting, approved]).label).toBe("Approved");
-    expect(worstState([approved, lonely, draft]).label).toBe("No reviewer");
-    expect(worstState([lonely, cr]).label).toBe("Changes requested");
-    expect(worstState([cr, conflict]).label).toBe("Conflict");
-    expect(worstState([conflict, red, draft]).label).toBe("CI failing");
+    expect(worstState([draft, waiting, approved]).label).toBe("Approved · merge when CI passes");
+    expect(worstState([approved, lonely, draft]).label).toBe("Request a review");
+    expect(worstState([lonely, cr]).label).toBe("Address requested changes");
+    expect(worstState([cr, conflict]).label).toBe("Resolve conflict with main");
+    expect(worstState([conflict, red, draft]).label).toBe("Fix CI");
     // Order of the input doesn't matter.
     expect(worstState([red, draft, waiting])).toEqual(worstState([waiting, draft, red]));
   });

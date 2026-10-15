@@ -47,12 +47,12 @@ describe("mySignals", () => {
       }),
       now,
     );
-    expect(signals).toContainEqual({ label: "✗ CI failing: lint + unit", tone: "danger" });
+    expect(signals[0]).toEqual({ label: "✗ Fix CI: lint + unit", tone: "danger" });
   });
 
   it("returns conflict signal", () => {
     const signals = mySignals(pr({ has_conflict: true }), now);
-    expect(signals).toContainEqual({ label: "✗ Conflict with main", tone: "danger" });
+    expect(signals[0]).toEqual({ label: "✗ Resolve conflict with main", tone: "danger" });
   });
 
   it("returns changes requested with thread count", () => {
@@ -60,7 +60,9 @@ describe("mySignals", () => {
       pr({ review_status: "CHANGES_REQUESTED", unresolved_thread_count: 3 }),
       now,
     );
-    expect(signals).toContainEqual({ label: "✗ Changes requested · 3 threads", tone: "danger" });
+    expect(signals).toEqual([
+      { label: "✗ Address requested changes · 3 open threads", tone: "danger" },
+    ]);
   });
 
   it("returns open threads warning when not changes requested", () => {
@@ -70,7 +72,7 @@ describe("mySignals", () => {
 
   it("returns no reviewer signal for non-draft PR", () => {
     const signals = mySignals(pr({ requested_reviewers: [], review_status: null }), now);
-    expect(signals).toContainEqual({ label: "No reviewer", tone: "warning" });
+    expect(signals[0]).toEqual({ label: "Request a review", tone: "warning" });
   });
 
   it("does not return no reviewer for draft PR", () => {
@@ -78,7 +80,7 @@ describe("mySignals", () => {
       pr({ draft: true, requested_reviewers: [], review_status: null }),
       now,
     );
-    const noReviewerSignal = signals.find((s) => s.label === "No reviewer");
+    const noReviewerSignal = signals.find((s) => s.label === "Request a review");
     expect(noReviewerSignal).toBeUndefined();
   });
 
@@ -130,7 +132,57 @@ describe("mySignals", () => {
 
   it("returns draft signal", () => {
     const signals = mySignals(pr({ draft: true }), now);
-    expect(signals).toContainEqual({ label: "Draft", tone: "neutral" });
+    expect(signals[0]).toEqual({ label: "Draft · mark ready for review", tone: "neutral" });
+  });
+
+  it("asks for a response to a comment-only review that is my turn", () => {
+    // e.g. a reviewer commented, their request cleared, nobody else is requested.
+    const signals = mySignals(
+      pr({ review_status: "REVIEWED", your_turn: true, unresolved_thread_count: 2 }),
+      now,
+    );
+    expect(signals).toEqual([{ label: "Respond to feedback · 2 open threads", tone: "warning" }]);
+  });
+
+  it("asks for a re-request once I've answered a comment-only review", () => {
+    const signals = mySignals(pr({ review_status: "REVIEWED", your_turn: false }), now);
+    expect(signals[0]).toEqual({ label: "Re-request review", tone: "warning" });
+  });
+
+  it("keeps waiting on reviewers even with open threads", () => {
+    const signals = mySignals(
+      pr({
+        requested_reviewers: ["alice"],
+        unresolved_thread_count: 1,
+        created_at: "2026-10-13T12:00:00Z",
+      }),
+      now,
+    );
+    expect(signals).toEqual([
+      { label: "⏳ Waiting on alice · 1d", tone: "neutral" },
+      { label: "1 open thread", tone: "warning" },
+    ]);
+  });
+
+  it("flags failing non-required checks alongside the action", () => {
+    const signals = mySignals(
+      pr({ checks_status: "SUCCESS", optional_checks_failing: ["integration-test"] }),
+      now,
+    );
+    expect(signals).toEqual([
+      { label: "Request a review", tone: "warning" },
+      {
+        label: "⚠ integration-test failing (not required)",
+        tone: "warning",
+        detail: "integration-test",
+      },
+    ]);
+  });
+
+  it("never returns an empty list", () => {
+    expect(mySignals(pr({ requested_reviewers: undefined }), now)).toEqual([
+      { label: "⏳ Waiting for review · 13d", tone: "neutral" },
+    ]);
   });
 
   it("shows no CI chip unless CI is failing", () => {
@@ -162,7 +214,7 @@ describe("reviewSignals", () => {
       pr({ viewer_engaged: true, user: { login: "alice", avatar_url: "" } }),
       true,
     );
-    expect(signals).toContainEqual({ label: "Re-requested by alice", tone: "warning" });
+    expect(signals).toEqual([{ label: "Re-review requested by alice", tone: "warning" }]);
   });
 
   it("returns new commits signal when non-approving review", () => {
@@ -190,9 +242,18 @@ describe("reviewSignals", () => {
     expect(requestedSignal?.label).toContain("+150 −50");
   });
 
-  it("suppresses review signals for draft PRs", () => {
+  it("says a draft needs no review yet instead of review signals", () => {
     const signals = reviewSignals(pr({ draft: true, viewer_engaged: true }), true);
-    expect(signals).toHaveLength(0);
+    expect(signals).toEqual([{ label: "Draft · no review yet", tone: "neutral" }]);
+  });
+
+  it("is never blank: approved → nothing to do, otherwise waiting on the author", () => {
+    expect(reviewSignals(pr({ viewer_review_state: "APPROVED" }), false)).toEqual([
+      { label: "You approved · nothing to do", tone: "success" },
+    ]);
+    expect(reviewSignals(pr({ viewer_review_state: "COMMENTED" }), false)).toEqual([
+      { label: "Waiting on author", tone: "neutral" },
+    ]);
   });
 });
 

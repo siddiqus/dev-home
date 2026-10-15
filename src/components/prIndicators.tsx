@@ -65,8 +65,10 @@ interface ReasonChip {
  * Only meaningful for needs-action PRs, where at least one reason always applies
  * — an empty result renders nothing.
  */
-function deriveReasonChips(pr: GitHubPR): ReasonChip[] {
-  return ACTIONABLE_REASONS.filter((reason) => reason.matches(pr)).map((reason) => ({
+function deriveReasonChips(pr: GitHubPR, except?: string[]): ReasonChip[] {
+  return ACTIONABLE_REASONS.filter(
+    (reason) => !except?.includes(reason.key) && reason.matches(pr),
+  ).map((reason) => ({
     key: reason.key,
     label:
       reason.key === "unresolved" ? `Unresolved (${pr.unresolved_thread_count})` : reason.label,
@@ -74,9 +76,10 @@ function deriveReasonChips(pr: GitHubPR): ReasonChip[] {
   }));
 }
 
-/** Unified reason-chip row shown on needs-action PRs. */
-export function ReasonChips({ pr }: { pr: GitHubPR }) {
-  const chips = deriveReasonChips(pr);
+/** Unified reason-chip row shown on needs-action PRs. `except` drops the chip
+    the next-action tag already restates (ACTIONABLE_REASONS keys). */
+export function ReasonChips({ pr, except }: { pr: GitHubPR; except?: string[] }) {
+  const chips = deriveReasonChips(pr, except);
   if (chips.length === 0) return null;
   return (
     <div className="pr-card-reasons">

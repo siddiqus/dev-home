@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PRCard, type PRCardFields } from "./PRCard";
 import type { GitHubPR } from "../types";
+import { ViewerLoginContext } from "../context/ViewerLoginContext";
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -351,5 +352,30 @@ describe("PRCard reason chips", () => {
     );
     expect(container.querySelector(".pr-card-reasons")).toBeNull();
     expect(screen.getByText("Changes requested")).toHaveClass("pr-card-status");
+  });
+});
+
+describe("PRCard next-action tag", () => {
+  it("shows what I should do on my own PR, replacing the plain status pill", () => {
+    render(
+      <ViewerLoginContext.Provider value="octocat">
+        <PRCard
+          pr={makePR({ review_status: "REVIEWED", your_turn: true, requested_reviewers: [] })}
+          fields={FIELDS.full}
+          onOpen={noop}
+        />
+      </ViewerLoginContext.Provider>,
+    );
+    expect(screen.getByText("Respond to feedback")).toHaveClass("pr-reason-chip--warning");
+    expect(screen.queryByText("Reviewed")).not.toBeInTheDocument();
+  });
+
+  it("keeps the plain status pill on PRs I'm not involved in", () => {
+    render(
+      <ViewerLoginContext.Provider value="someone-else">
+        <PRCard pr={makePR({ review_status: "REVIEWED" })} fields={FIELDS.full} onOpen={noop} />
+      </ViewerLoginContext.Provider>,
+    );
+    expect(screen.getByText("Reviewed")).toBeInTheDocument();
   });
 });

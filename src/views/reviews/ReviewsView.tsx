@@ -3,7 +3,7 @@ import type { ElementType } from "react";
 import { IconChevronRight, IconChevronDown, IconMessageCircle, IconEye } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../../types";
 import { PRTable } from "../../components/PRTable";
-import { REVIEWING_LABEL, reviewingState } from "../workday/prState";
+import { reviewerAction } from "../../utils/prAction";
 import "../../components/PRSections.css";
 
 interface ReviewsViewProps {
@@ -67,7 +67,7 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
     [reviewRequests, reviewingPRs],
   );
 
-  // Same reviewer state as Workday: re-requested / new commits / requested / waiting on author.
+  // Same reviewer action as Workday: re-requested / new commits / requested / approved / waiting on author.
   const requestedUrls = useMemo(
     () => new Set(reviewRequests.map((pr) => pr.html_url)),
     [reviewRequests],
@@ -75,8 +75,8 @@ export const ReviewsView: React.FC<ReviewsViewProps> = ({
   // "Requested" is skipped: it's exactly what the "Review requested" section already says.
   const actionPill = useCallback(
     (pr: GitHubPR) => {
-      const state = reviewingState(pr, requestedUrls.has(pr.html_url));
-      return state === "requested" ? null : REVIEWING_LABEL[state];
+      const action = reviewerAction(pr, requestedUrls.has(pr.html_url));
+      return action.key === "requested" ? null : { label: action.label, tone: action.tone };
     },
     [requestedUrls],
   );

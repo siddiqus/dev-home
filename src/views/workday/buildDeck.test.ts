@@ -205,7 +205,7 @@ describe("buildDeck ticket fields", () => {
         pr(1207, { title: "CCP-1 b", review_status: "APPROVED", checks_status: "SUCCESS" }),
       ],
     });
-    expect(deck.open[0].status).toBe("#1203 ✗ Conflict with main");
+    expect(deck.open[0].status).toBe("#1203 ✗ Resolve conflict with main");
   });
 
   it("status line ignores current: the needs-me PR is named even when another is current", () => {
@@ -215,7 +215,7 @@ describe("buildDeck ticket fields", () => {
       { current: [`pr:${ready.html_url}`] },
     );
     expect(numbers(deck.current[0])).toEqual([2, 1]);
-    expect(deck.current[0].status).toBe("#1 ✗ Conflict with main");
+    expect(deck.current[0].status).toBe("#1 ✗ Resolve conflict with main");
   });
 
   it("flags current PRs and tickets from state.current and counts current tickets", () => {
@@ -253,7 +253,7 @@ describe("buildDeck PR order on the card", () => {
   it("carries signals and priority on each PR", () => {
     const deck = build({ openPRs: [pr(1, { title: "CCP-1 a", has_conflict: true })] });
     const p = deck.open[0].prs[0];
-    expect(p.signals[0]).toEqual({ label: "✗ Conflict with main", tone: "danger" });
+    expect(p.signals[0]).toEqual({ label: "✗ Resolve conflict with main", tone: "danger" });
     expect(p.priority).toBe(0);
   });
 });

@@ -482,9 +482,9 @@ describe("buildFocus working", () => {
         w.at,
       ]),
     ).toEqual([
-      [null, [3], "CI failing", "2026-10-12T00:00:00Z"],
-      ["CCP-1", [1, 2], "Conflict", "2026-10-11T00:00:00Z"],
-      [null, [4], "Draft", "2026-10-08T00:00:00Z"],
+      [null, [3], "Fix CI", "2026-10-12T00:00:00Z"],
+      ["CCP-1", [1, 2], "Resolve conflict with main", "2026-10-11T00:00:00Z"],
+      [null, [4], "Draft · mark ready for review", "2026-10-08T00:00:00Z"],
       ["CCP-2", [], "No PR yet", "2026-10-09T00:00:00Z"],
     ]);
   });
@@ -595,7 +595,7 @@ describe("buildFocus pinned", () => {
     // Most recently pinned first; reviewed PRs get the reviewer state.
     expect(f.pinned.map((p) => p.kind === "pr" && [p.pr.number, p.badge.label, p.mine])).toEqual([
       [2, "Waiting on author", false],
-      [1, "CI failing", true],
+      [1, "Fix CI", true],
     ]);
     expect(nums(f)).toEqual({ needs: [], working: [], onAuthor: [] });
   });

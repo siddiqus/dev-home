@@ -1,7 +1,10 @@
+import { useContext } from "react";
 import { IconExternalLink, IconCopy, IconNote } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { ViewerLoginContext } from "../context/ViewerLoginContext";
+import { prAction, restatedReasons } from "../utils/prAction";
 import type { StateBadge } from "../views/workday/prState";
 import {
   ActionPill,
@@ -38,7 +41,8 @@ interface PRCardProps {
   /** Render the unified reason-chip row (needs-action rows only), replacing the
       standalone status pill and CI icon with labeled chips. */
   showReasonChips?: boolean;
-  /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon. */
+  /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon.
+      Undefined → derived from the viewer's seat (prAction); null → none. */
   actionPill?: StateBadge | null;
   /** Show the "Approved" status pill on approved rows even when `fields.showStatus` is off. */
   showApproved?: boolean;
@@ -71,8 +75,12 @@ export function PRCard({
 }: PRCardProps) {
   // On needs-action rows the reason chips replace the standalone status pill (the
   // review state becomes a chip). The CI status icon stays on every row.
+  const viewer = useContext(ViewerLoginContext);
+  const derived = actionPill === undefined ? prAction(pr, viewer) : null;
+  const action = actionPill === undefined ? derived : actionPill;
+  // The next-action tag replaces the plain status pill; PRs I'm not involved in keep it.
   const showStatusPill =
-    (fields.showStatus && !showReasonChips) ||
+    (fields.showStatus && !showReasonChips && !action) ||
     (!!showApproved && deriveStatus(pr).label === "Approved");
   const timeText =
     fields.timestamps === "merged"
@@ -197,8 +205,8 @@ export function PRCard({
 
       <div className="pr-card-side">
         <div className="pr-card-side-top">
-          {showReasonChips && <ReasonChips pr={pr} />}
-          {actionPill && <ActionPill label={actionPill.label} tone={actionPill.tone} />}
+          {action && <ActionPill label={action.label} tone={action.tone} />}
+          {showReasonChips && <ReasonChips pr={pr} except={restatedReasons(derived)} />}
           {showStatusPill && <StatusPill pr={pr} />}
           {fields.showChecks && (
             <ChecksStatusIcon

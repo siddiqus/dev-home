@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
+import { ViewerLoginContext } from "../context/ViewerLoginContext";
+import { prAction, restatedReasons } from "../utils/prAction";
 import Modal from "react-bootstrap/Modal";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -17,6 +19,7 @@ import {
   DiffStat,
   PRLabels,
   PRStateIcon,
+  ActionPill,
   ReasonChips,
   StatusPill,
   renderTitleContent,
@@ -117,6 +120,8 @@ function PrModalHeader({
   const ticket = ticketKeyOf(pr);
   const isMerged = !!pr.merged_at;
   const isNeedsAction = !isMerged && categorizeOpenPR(pr) === "needs-action";
+  const viewer = useContext(ViewerLoginContext);
+  const action = isMerged ? null : prAction(pr, viewer);
   const hasDiff = typeof pr.additions === "number" || typeof pr.deletions === "number";
   const hasLabels = !!pr.labels && pr.labels.length > 0;
   const timeText = isMerged
@@ -160,8 +165,9 @@ function PrModalHeader({
 
       {(!isMerged || hasLabels) && (
         <div className="pr-modal-indicators">
-          {!isMerged && !isNeedsAction && <StatusPill pr={pr} />}
-          {!isMerged && <ReasonChips pr={pr} />}
+          {action && <ActionPill label={action.label} tone={action.tone} />}
+          {!isMerged && !isNeedsAction && !action && <StatusPill pr={pr} />}
+          {!isMerged && <ReasonChips pr={pr} except={restatedReasons(action)} />}
           {hasLabels && <PRLabels labels={pr.labels!} />}
         </div>
       )}

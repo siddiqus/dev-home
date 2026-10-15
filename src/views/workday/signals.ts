@@ -2,9 +2,9 @@ import type { GitHubPR } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import type { Signal } from "./deckTypes";
 import { diffSize } from "./buildFocus";
-import { readyToMerge, ciFailing } from "./prState";
+import { authorAction, ciFailing, reviewerAction } from "../../utils/prAction";
 import { compactAge } from "./dates";
-import { RED_CHECK_STATUSES, noReviewer } from "../../utils/prCategories";
+import { RED_CHECK_STATUSES } from "../../utils/prCategories";
 
 /** Get just the check names that are failing, formatted. */
 function failingCheckNames(pr: GitHubPR): string {
@@ -30,111 +30,56 @@ export const PRIORITY: Record<BadgeVariant, number> = {
 };
 
 /**
- * Signals for my own PRs, worst first. Spec §5.5 "My PRs" table.
- * Reuses v1's readyToMerge and ciFailing (prState), noReviewer and RED_CHECK_STATUSES
- * (prCategories) and diffSize so v1 and v2 agree on the underlying facts. It does
- * not call v1's selfNeeds: the chips and their wording are built here.
+ * Signals for my own PRs. The first chip is always the next step (authorAction),
+ * so a card is never blank; the rest are facts that step doesn't already say,
+ * worst first: other blockers, open threads, failing non-required checks.
  */
 export function mySignals(pr: GitHubPR, now: Date): Signal[] {
-  const signals: Signal[] = [];
+  const action = authorAction(pr);
+  let label = action.label;
+  if (action.key === "ci_failed") label = `✗ Fix CI: ${failingCheckNames(pr)}`;
+  else if (action.tone === "danger") label = `✗ ${label}`;
+  else if (action.key === "merge" || action.key === "approved") label = `✓ ${label}`;
+  else if (action.key === "waiting") label = `⏳ ${label} · ${compactAge(pr.created_at, now)}`;
 
-  // CI failing (danger)
-  if (ciFailing(pr)) {
-    signals.push({ label: `✗ CI failing: ${failingCheckNames(pr)}`, tone: "danger" });
+  const facts: Signal[] = [];
+  if (action.key !== "ci_failed" && ciFailing(pr)) {
+    facts.push({ label: `✗ CI failing: ${failingCheckNames(pr)}`, tone: "danger" });
   }
-
-  // Conflict (danger)
-  if (pr.has_conflict) {
-    signals.push({ label: `✗ Conflict with ${pr.base.ref}`, tone: "danger" });
+  if (action.key !== "conflict" && pr.has_conflict) {
+    facts.push({ label: `✗ Conflict with ${pr.base.ref}`, tone: "danger" });
   }
-
-  // Changes requested (danger)
-  if (pr.review_status === "CHANGES_REQUESTED") {
-    const threadCount = pr.unresolved_thread_count ?? 0;
-    const threadPart =
-      threadCount > 0 ? ` · ${threadCount} ${threadCount === 1 ? "thread" : "threads"}` : "";
-    signals.push({ label: `✗ Changes requested${threadPart}`, tone: "danger" });
+  if (action.key !== "changes_requested" && pr.review_status === "CHANGES_REQUESTED") {
+    facts.push({ label: "✗ Changes requested", tone: "danger" });
   }
-  // Open threads (warning) - only when not already in Changes requested
-  else if ((pr.unresolved_thread_count ?? 0) > 0) {
-    const count = pr.unresolved_thread_count!;
-    signals.push({ label: `${count} open ${count === 1 ? "thread" : "threads"}`, tone: "warning" });
+  const threads = pr.unresolved_thread_count ?? 0;
+  if (threads > 0 && !action.label.includes("open thread")) {
+    facts.push({
+      label: `${threads} open ${threads === 1 ? "thread" : "threads"}`,
+      tone: "warning",
+    });
   }
-
-  // No reviewer (warning) - only for non-drafts
-  if (!pr.draft && noReviewer(pr)) {
-    signals.push({ label: "No reviewer", tone: "warning" });
+  const optional = pr.optional_checks_failing ?? [];
+  if (optional.length > 0) {
+    const shown = optional.slice(0, 2).join(" + ");
+    facts.push({
+      label: `⚠ ${optional.length > 2 ? `${shown} +${optional.length - 2}` : shown} failing (not required)`,
+      tone: "warning",
+      detail: optional.join(", "),
+    });
   }
-
-  // Ready to merge (success)
-  if (readyToMerge(pr)) {
-    signals.push({ label: "✓ Ready to merge", tone: "success" });
-  }
-  // Approved but not ready (success)
-  else if (pr.review_status === "APPROVED") {
-    // Find who approved (we don't have that in GitHubPR currently, so just use generic)
-    signals.push({ label: "✓ Approved", tone: "success" });
-  }
-
-  // In merge queue (purple)
-  if (pr.in_merge_queue) {
-    signals.push({ label: "In merge queue", tone: "purple" });
-  }
-
-  // Waiting on reviewers (neutral)
-  const reviewers = pr.requested_reviewers ?? [];
-  if (
-    !pr.draft &&
-    reviewers.length > 0 &&
-    !ciFailing(pr) &&
-    !pr.has_conflict &&
-    pr.review_status !== "CHANGES_REQUESTED" &&
-    pr.review_status !== "APPROVED" &&
-    !pr.in_merge_queue &&
-    (pr.unresolved_thread_count ?? 0) === 0 &&
-    !noReviewer(pr)
-  ) {
-    const age = compactAge(pr.created_at, now);
-    signals.push({ label: `⏳ Waiting on ${reviewers.join(", ")} · ${age}`, tone: "neutral" });
-  }
-
-  // Draft (neutral)
-  if (pr.draft) {
-    signals.push({ label: "Draft", tone: "neutral" });
-  }
-
-  // Sort by priority (worst first)
-  return signals.sort((a, b) => PRIORITY[a.tone] - PRIORITY[b.tone]);
+  facts.sort((a, b) => PRIORITY[a.tone] - PRIORITY[b.tone]);
+  return [{ label, tone: action.tone }, ...facts];
 }
 
 /**
- * Signals for PRs I'm reviewing. Spec §5.5 "PRs I'm reviewing" table.
- * Draft PRs suppress all review signals.
+ * Signals for PRs I'm reviewing: the next step (reviewerAction) as the only
+ * chip, never blank. A fresh request carries the diff size.
  */
 export function reviewSignals(pr: GitHubPR, requested: boolean): Signal[] {
-  // Draft suppresses all review signals
-  if (pr.draft) {
-    return [];
-  }
-
-  const signals: Signal[] = [];
-
-  // Re-requested (warning)
-  if (requested && pr.viewer_engaged) {
-    signals.push({ label: `Re-requested by ${pr.user.login}`, tone: "warning" });
-  }
-
-  // New commits since non-approving review (warning)
-  if (pr.new_commits_since_review && pr.viewer_review_state !== "APPROVED") {
-    signals.push({ label: "New commits since your review", tone: "warning" });
-  }
-
-  // Review requested with diff size (info)
-  if (requested && !pr.viewer_engaged) {
-    signals.push({ label: `Review requested${diffSize(pr)}`, tone: "info" });
-  }
-
-  return signals;
+  const action = reviewerAction(pr, requested);
+  const label = action.key === "requested" ? `${action.label}${diffSize(pr)}` : action.label;
+  return [{ label, tone: action.tone }];
 }
 
 /**

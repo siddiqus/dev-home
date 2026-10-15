@@ -85,9 +85,9 @@ describe("ReviewsView", () => {
 
     const pillIn = (title: string) =>
       screen.getByText(title).closest(".pr-card")!.querySelector(".pr-reason-chip")?.textContent;
-    expect(pillIn("Pushed again")).toBe("New commits");
+    expect(pillIn("Pushed again")).toBe("New commits since your review");
     expect(pillIn("Idle")).toBe("Waiting on author");
-    expect(pillIn("Back to you")).toBe("Re-requested");
+    expect(pillIn("Back to you")).toMatch(/^Re-review requested by /);
     // Redundant with its "Review requested" section, so no pill.
     expect(pillIn("Fresh")).toBeUndefined();
   });

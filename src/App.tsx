@@ -391,7 +391,7 @@ export default function App() {
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   return (
-    <AppProviders notesApi={notesApi} jiraBaseUrl={jiraBaseUrl}>
+    <AppProviders notesApi={notesApi} jiraBaseUrl={jiraBaseUrl} githubUsername={githubUsername}>
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container

@@ -31,8 +31,7 @@ export const CopyPRLinkContext = React.createContext<((url: string) => void) | n
 /** Copies a PR's branch name with a toast; provided by the Workday page. */
 export const CopyBranchContext = React.createContext<((branch: string) => void) | null>(null);
 
-/** The signed-in GitHub login, so rows can skip the author on my own PRs. */
-export const ViewerLoginContext = React.createContext("");
+export { ViewerLoginContext } from "../../context/ViewerLoginContext";
 
 /** Focus pins and their toggle; provided by the Workday List View only. */
 export const PinContext = React.createContext<{
