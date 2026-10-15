@@ -1270,7 +1270,7 @@ button.deck-rail-row:focus-visible {
    every part. */
 
 .deck-mode {
-  --deck-swipe-ms: 500ms;
+  --deck-swipe-ms: 1000ms;
   --deck-swipe-ease: cubic-bezier(0.22, 1, 0.36, 1);
   /* Incoming card: 40% of its width, at least 120px. Ghosts move less, for depth. */
   --deck-swipe-distance: max(40%, 120px);
