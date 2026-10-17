@@ -125,6 +125,36 @@ describe("DeckMode rail", () => {
     expect(within(closed).queryAllByRole("listitem")).toHaveLength(0);
   });
 
+  it("lists open note tabs in their own Notes group, after Open", () => {
+    const n = {
+      id: 1,
+      type: "free_text",
+      title: "renew cert #todo",
+      content: "",
+      reference_id: null,
+      resolved: 0,
+      pinned: 0,
+      remind_at: null,
+      created_at: "2026-10-10T10:00:00Z",
+      updated_at: "2026-10-10T10:00:00Z",
+    } as const;
+    renderDeck({
+      deck: deck({
+        open: [
+          ticket("CCP-2"),
+          ticket("note:1", { key: null, title: "renew cert #todo", noteItem: n }),
+        ],
+      }),
+    });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    const open = within(rail).getByRole("group", { name: "Open" });
+    const notes = within(rail).getByRole("group", { name: "Notes" });
+    expect(within(open).getAllByRole("option")).toHaveLength(1);
+    expect(within(notes).getAllByRole("option")).toHaveLength(1);
+    expect(within(notes).getByText("📝 Notes")).toBeTruthy();
+    expect(open.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("keeps retry outside the banner text, with an icon for the collapsed slim rail", () => {
     const onRetry = vi.fn();
     renderDeck({ deck: deck({ open: [ticket("CCP-2")] }), sourceError: "Jira down", onRetry });

@@ -848,12 +848,22 @@ describe("buildDeck #todo notes", () => {
 
   it("numbers a note tab's arrival by the note's creation", () => {
     const deck = build({
+      notes: [
+        todo(1, { type: "free_text", reference_id: null, created_at: "2026-10-05T10:00:00Z" }),
+        todo(2, { type: "free_text", reference_id: null, created_at: "2026-10-03T10:00:00Z" }),
+      ],
+    });
+    expect(ids(deck.open)).toEqual(["note:2", "note:1"]);
+  });
+
+  it("puts open note tabs after the tickets and PRs, even when older", () => {
+    const deck = build({
       openPRs: [pr(1, { title: "CCP-1 a", created_at: "2026-10-05T10:00:00Z" })],
       notes: [
         todo(1, { type: "free_text", reference_id: null, created_at: "2026-10-03T10:00:00Z" }),
       ],
     });
-    expect(ids(deck.open)).toEqual(["note:1", "CCP-1"]);
+    expect(ids(deck.open)).toEqual(["CCP-1", "note:1"]);
   });
 
   it("puts a pinned note tab in Current and drops the pin once the note goes", () => {

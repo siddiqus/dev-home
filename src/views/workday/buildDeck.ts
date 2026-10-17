@@ -463,7 +463,11 @@ export function buildDeck(
     return i === -1 ? state.currentTickets.length : i;
   };
   const current = live.filter((t) => t.current).sort((a, b) => rank(a.id) - rank(b.id));
-  const open = live.filter((t) => !t.current);
+  // Note tabs after the work, so the rail can show them as their own group.
+  const open = [
+    ...live.filter((t) => !t.current && !t.noteItem),
+    ...live.filter((t) => !t.current && t.noteItem),
+  ];
 
   // Prune current entries whose PR merged/closed or whose ticket left the deck.
   const prPins = new Set(collected.map((c) => prPin(c.pr)));

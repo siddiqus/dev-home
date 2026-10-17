@@ -62,9 +62,26 @@ export function DeckRail({
 }: DeckRailProps) {
   // Built once per render: every row's short key checks against it.
   const projects = deckProjects([...deck.current, ...deck.open, ...deck.closed]);
+  // Open note tabs get their own group under Open (buildDeck already orders them last,
+  // so ←/→ still walks the rail top to bottom).
   const groups = [
     { name: "current", label: "Current", heading: "▶ Current", tickets: deck.current },
-    ...(onlyCurrent ? [] : [{ name: "open", label: "Open", heading: "Open", tickets: deck.open }]),
+    ...(onlyCurrent
+      ? []
+      : [
+          {
+            name: "open",
+            label: "Open",
+            heading: "Open",
+            tickets: deck.open.filter((t) => !t.noteItem),
+          },
+          {
+            name: "notes",
+            label: "Notes",
+            heading: "📝 Notes",
+            tickets: deck.open.filter((t) => t.noteItem),
+          },
+        ]),
   ];
   let activeId: string | undefined;
   for (const g of groups) {
