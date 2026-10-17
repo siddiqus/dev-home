@@ -175,6 +175,19 @@ export interface GitHubPR {
   new_commits_since_review?: boolean;
   /** Pending review requests (user logins / team names). Undefined when the query didn't fetch them. */
   requested_reviewers?: string[];
+  /**
+   * People (not the author, not bots) who reviewed or commented, first-seen
+   * order, each with their standing review state. Undefined when the query
+   * fetched neither reviews nor comments.
+   */
+  participants?: PRParticipant[];
+}
+
+/** Someone who reviewed or commented on a PR. */
+export interface PRParticipant {
+  login: string;
+  /** Their latest APPROVED / CHANGES_REQUESTED stands; otherwise COMMENTED. */
+  state: ReviewState;
 }
 
 /** A review the viewer submitted. */

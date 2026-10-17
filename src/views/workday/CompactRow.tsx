@@ -10,6 +10,7 @@ import {
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
+import { Participants } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
 import { blurOnPointer } from "./pointer";
 import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
@@ -116,7 +117,7 @@ export function TicketKey({
 
 /**
  * Muted "repo#12", then copy-link and open-on-GitHub icons (like TicketKey's),
- * plus any extra bits, after a one-liner's title.
+ * plus any extra bits and the reviewers / commenters, after a one-liner's title.
  */
 export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
   const ref = repoRef(pr);
@@ -126,6 +127,12 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
       <PRLinkIcons pr={pr} />
       <PinButton id={prPin(pr)} name={ref} />
       {after && ` · ${after}`}
+      {pr.participants && pr.participants.length > 0 && (
+        <>
+          {" · "}
+          <Participants pr={pr} max={2} />
+        </>
+      )}
     </span>
   );
 }

@@ -10,6 +10,7 @@ import {
   ActionPill,
   BranchPill,
   DiffStat,
+  Participants,
   PRLabels,
   PRStateIcon,
   ReasonChips,
@@ -179,6 +180,12 @@ export function PRCard({
             <>
               <span className="pr-card-sep">{"·"}</span>
               <DiffStat pr={pr} />
+            </>
+          )}
+          {pr.participants && pr.participants.length > 0 && (
+            <>
+              <span className="pr-card-sep">{"·"}</span>
+              <Participants pr={pr} />
             </>
           )}
           {fields.timestamps === "merged" && pr.merged_by && (

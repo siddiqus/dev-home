@@ -1,4 +1,4 @@
-import type { ReviewState } from "../../types";
+import type { PRParticipant, ReviewState } from "../../types";
 import { computeChecksStatus, findOptionalFailures, latestContexts } from "./checks";
 
 /**
@@ -157,6 +157,41 @@ export function deriveViewerReview(
   };
 }
 
+/**
+ * Who reviewed or commented on a PR, excluding its author and bots, in
+ * first-seen order (reviews, then issue comments, then thread comments). A
+ * reviewer's state follows deriveReviewStatus's rules: the latest APPROVED /
+ * CHANGES_REQUESTED stands, a dismissal drops back to COMMENTED, and anyone
+ * who only commented reads COMMENTED. Undefined when the node carries none of
+ * reviews / comments / reviewThreads (the query didn't fetch them).
+ */
+export function deriveParticipants(node: any): PRParticipant[] | undefined {
+  if (!node.reviews && !node.comments && !node.reviewThreads) return undefined;
+  const author = (node.author?.login || "").toLowerCase();
+  const byLogin = new Map<string, PRParticipant>();
+  const add = (login: string | undefined, state?: string) => {
+    if (!login || isBot(login) || login.toLowerCase() === author) return;
+    const key = login.toLowerCase();
+    let p = byLogin.get(key);
+    if (!p) {
+      p = { login, state: "COMMENTED" };
+      byLogin.set(key, p);
+    }
+    if (state === "APPROVED" || state === "CHANGES_REQUESTED") p.state = state;
+    else if (state === "DISMISSED") p.state = "COMMENTED";
+  };
+  // Reviews come oldest-first, so the last decisive state wins. PENDING
+  // reviews are unsubmitted drafts — invisible to everyone but their author.
+  for (const r of node.reviews?.nodes || []) {
+    if (r.state !== "PENDING") add(r.author?.login, r.state);
+  }
+  for (const c of node.comments?.nodes || []) add(c.author?.login);
+  for (const t of node.reviewThreads?.nodes || []) {
+    for (const c of t.comments?.nodes || []) add(c.author?.login);
+  }
+  return [...byLogin.values()];
+}
+
 /** Count review threads still open (isResolved === false). */
 export function countUnresolvedThreads(node: any): number {
   const threads = node.reviewThreads?.nodes || [];
@@ -231,6 +266,7 @@ export function mapGraphQLPr(
           .map((r: any) => r?.requestedReviewer?.login ?? r?.requestedReviewer?.name)
           .filter((x: unknown): x is string => typeof x === "string" && x.length > 0)
       : undefined,
+    participants: deriveParticipants(node),
   };
 }
 

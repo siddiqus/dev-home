@@ -378,4 +378,19 @@ describe("PRCard next-action tag", () => {
     );
     expect(screen.getByText("Reviewed")).toBeInTheDocument();
   });
+
+  it("lists reviewers / commenters with their state, capped with +N", () => {
+    const participants = [
+      { login: "ann", state: "APPROVED" as const },
+      { login: "bo", state: "CHANGES_REQUESTED" as const },
+      { login: "cy", state: "COMMENTED" as const },
+      { login: "di", state: "COMMENTED" as const },
+    ];
+    render(<PRCard pr={makePR({ participants })} fields={FIELDS.full} onOpen={noop} />);
+    expect(screen.getByText("ann✓,")).toHaveClass("pr-participant--approved");
+    expect(screen.getByText("bo✗,")).toHaveClass("pr-participant--changes_requested");
+    expect(screen.getByText("+1")).toBeInTheDocument();
+    expect(screen.queryByText(/di/)).toBeNull();
+    expect(screen.getByTitle(/di commented/)).toBeInTheDocument();
+  });
 });

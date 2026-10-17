@@ -63,7 +63,8 @@ const PR_STATUS_FIELDS = `mergeable
  * getReviews runs the three as parallel requests rather than aliases of one
  * query: GitHub resolves aliased searches one after another, so a single
  * request costs the sum of the three instead of the slowest. Reviews carry
- * submittedAt + author so deriveViewerReview can find the viewer's latest one.
+ * submittedAt + author so deriveViewerReview can find the viewer's latest one;
+ * comment authors complete the participants list (deriveParticipants).
  */
 export const REVIEW_SEARCH_QUERY = `
   query ReviewPRs($query: String!, $first: Int!) {
@@ -78,6 +79,9 @@ export const REVIEW_SEARCH_QUERY = `
               submittedAt
               author { login }
             }
+          }
+          comments(last: 20) {
+            nodes { author { login } }
           }
         }
       }

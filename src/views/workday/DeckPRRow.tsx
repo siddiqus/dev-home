@@ -2,6 +2,7 @@ import { useContext, type MouseEvent } from "react";
 import { IconCopy, IconGitBranch } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
+import { Participants } from "../../components/prIndicators";
 import { CopyBranchContext, PRLinkIcons, ViewerLoginContext } from "./CompactRow";
 import { compactAge } from "./dates";
 import { repoRef, titleWithoutKey } from "./prState";
@@ -25,7 +26,7 @@ export interface DeckPRRowProps {
 /**
  * One PR on the card (spec §5.4): a muted meta line with repo#number,
  * copy-link / open-on-GitHub icons · branch (truncated, with a copy icon) ·
- * author (unless it's me), and a "current" label, the updated age and the
+ * author (unless it's me) · reviewers / commenters, and a "current" label, the updated age and the
  * unseen dot on the right; the title without the key; up to four signal chips with
  * "+N"; the newest unseen comment and my newest unresolved note.
  */
@@ -98,6 +99,12 @@ export function DeckPRRow({
             <>
               <span aria-hidden="true">·</span>
               <span className="deck-pr-author">{pr.user.login}</span>
+            </>
+          )}
+          {pr.participants && pr.participants.length > 0 && (
+            <>
+              <span aria-hidden="true">·</span>
+              <Participants pr={pr} />
             </>
           )}
           <span className="deck-pr-when">

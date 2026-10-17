@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { deriveReviewStatus, deriveViewerReview, mapGraphQLPr } from "./mapping";
+import {
+  deriveParticipants,
+  deriveReviewStatus,
+  deriveViewerReview,
+  mapGraphQLPr,
+} from "./mapping";
 
 const r = (login: string, state: string) => ({ state, author: { login } });
 
@@ -50,6 +55,47 @@ describe("mapGraphQLPr requested_reviewers", () => {
     };
     expect(mapGraphQLPr(node).requested_reviewers).toEqual(["guru", "cmp-team"]);
     expect(mapGraphQLPr({}).requested_reviewers).toBeUndefined();
+  });
+});
+
+describe("deriveParticipants", () => {
+  const c = (login: string) => ({ author: { login } });
+
+  it("is undefined when neither reviews nor comments were fetched", () => {
+    expect(deriveParticipants({})).toBeUndefined();
+    expect(mapGraphQLPr({}).participants).toBeUndefined();
+  });
+
+  it("lists reviewers and commenters once each, skipping the author and bots", () => {
+    const node = {
+      author: { login: "me" },
+      reviews: { nodes: [r("bob", "COMMENTED"), r("me", "COMMENTED"), r("bob", "APPROVED")] },
+      comments: { nodes: [c("carol"), c("github-actions[bot]"), c("Bob")] },
+      reviewThreads: { nodes: [{ comments: { nodes: [c("dave"), c("me")] } }] },
+    };
+    expect(deriveParticipants(node)).toEqual([
+      { login: "bob", state: "APPROVED" },
+      { login: "carol", state: "COMMENTED" },
+      { login: "dave", state: "COMMENTED" },
+    ]);
+  });
+
+  it("keeps a decision through later comments, drops it on dismissal, ignores pending", () => {
+    const node = {
+      reviews: {
+        nodes: [
+          r("bob", "CHANGES_REQUESTED"),
+          r("bob", "COMMENTED"),
+          r("eve", "APPROVED"),
+          r("eve", "DISMISSED"),
+          r("zed", "PENDING"),
+        ],
+      },
+    };
+    expect(deriveParticipants(node)).toEqual([
+      { login: "bob", state: "CHANGES_REQUESTED" },
+      { login: "eve", state: "COMMENTED" },
+    ]);
   });
 });
 

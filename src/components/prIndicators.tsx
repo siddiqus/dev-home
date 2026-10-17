@@ -4,8 +4,9 @@ import {
   IconGitPullRequestDraft,
   IconGitBranch,
   IconCopy,
+  IconMessageCircle,
 } from "@tabler/icons-react";
-import { GitHubPR, GitHubLabel } from "../types";
+import { GitHubPR, GitHubLabel, type PRParticipant } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
 import type { BadgeVariant } from "./primitives/Badge";
 import "./prIndicators.css";
@@ -272,6 +273,44 @@ export function PRLabels({ labels }: { labels: GitHubLabel[] }) {
           {label.name}
         </span>
       ))}
+    </span>
+  );
+}
+
+const PARTICIPANT_VERB: Record<PRParticipant["state"], string> = {
+  APPROVED: "approved",
+  CHANGES_REQUESTED: "requested changes",
+  COMMENTED: "commented",
+};
+
+const PARTICIPANT_MARK: Record<PRParticipant["state"], string> = {
+  APPROVED: "✓",
+  CHANGES_REQUESTED: "✗",
+  COMMENTED: "",
+};
+
+/**
+ * Who reviewed or commented: a speech-bubble icon then up to `max` logins, each
+ * tinted (and marked ✓ / ✗) by their standing review state, then "+N". The
+ * tooltip lists everyone with what they did. Renders nothing when nobody has.
+ */
+export function Participants({ pr, max = 3 }: { pr: GitHubPR; max?: number }) {
+  const people = pr.participants;
+  if (!people || people.length === 0) return null;
+  const shown = people.slice(0, max);
+  const more = people.length - shown.length;
+  const title = people.map((p) => `${p.login} ${PARTICIPANT_VERB[p.state]}`).join("\n");
+  return (
+    <span className="pr-participants" title={title}>
+      <IconMessageCircle size={12} stroke={1.8} aria-hidden="true" />
+      {shown.map((p, i) => (
+        <span key={p.login} className={`pr-participant pr-participant--${p.state.toLowerCase()}`}>
+          {p.login}
+          {PARTICIPANT_MARK[p.state]}
+          {i < shown.length - 1 ? "," : ""}
+        </span>
+      ))}
+      {more > 0 && <span className="pr-participants-more">+{more}</span>}
     </span>
   );
 }

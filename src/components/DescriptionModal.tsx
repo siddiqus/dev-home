@@ -17,6 +17,7 @@ import { categorizeOpenPR } from "../utils/prCategories";
 import {
   BranchPill,
   DiffStat,
+  Participants,
   PRLabels,
   PRStateIcon,
   ActionPill,
@@ -151,6 +152,12 @@ function PrModalHeader({
           <>
             <span className="pr-modal-sep">{"·"}</span>
             <DiffStat pr={pr} />
+          </>
+        )}
+        {pr.participants && pr.participants.length > 0 && (
+          <>
+            <span className="pr-modal-sep">{"·"}</span>
+            <Participants pr={pr} max={8} />
           </>
         )}
         {isMerged && pr.merged_by && (

@@ -56,6 +56,28 @@ a.pr-card-ticket:hover {
   font-weight: 400;
 }
 
+/* ---- reviewers / commenters ---- */
+.pr-participants {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.pr-participant--approved {
+  color: var(--color-status-success);
+}
+
+.pr-participant--changes_requested {
+  color: var(--color-status-danger);
+}
+
+.pr-participant--commented {
+  color: var(--color-text-secondary);
+}
+
 /* ---- branch pill ---- */
 .pr-card-branch {
   display: inline-flex;
