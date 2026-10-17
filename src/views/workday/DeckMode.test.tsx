@@ -155,6 +155,26 @@ describe("DeckMode rail", () => {
     expect(rail).toHaveFocus();
   });
 
+  it("labels a ticketless PR tab repo#number, in the key colour", () => {
+    const p = deckPR(77, {}, { repo_full_name: "org/widgets" });
+    renderDeck({
+      deck: deck({
+        open: [
+          ticket("https://github.com/org/widgets/pull/77", {
+            key: null,
+            ticket: null,
+            title: "PR 77",
+            prs: [p],
+          }),
+        ],
+      }),
+    });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    const label = within(rail).getByText("widgets#77");
+    expect(label).toHaveClass("deck-key");
+    expect(label).not.toHaveClass("deck-key--none");
+  });
+
   it("shows stripe, review chip, status line and activity dot", () => {
     renderDeck({
       deck: deck({

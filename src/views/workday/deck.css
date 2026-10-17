@@ -301,7 +301,7 @@
 /* The rail is a column: the source banner (when set) stays put above the
    scroll area (the listbox, then the Closed group), which scrolls on its own. */
 .deck-rail {
-  --deck-rail-w: 380px;
+  --deck-rail-w: 420px;
   flex: none;
   display: flex;
   flex-direction: column;

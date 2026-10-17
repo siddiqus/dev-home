@@ -44,7 +44,13 @@ export function DeckRailRow({
       <span className={`deck-stripe deck-stripe--${ticket.stripe}`} aria-hidden="true" />
       <span className="deck-rail-main">
         <span className="deck-rail-line">
-          <span className={`deck-key${ticket.key ? "" : " deck-key--none"}`}>{label}</span>{" "}
+          {/* A ticket-less PR's "#123" is as real an identifier as a Jira key:
+              only an empty row's placeholder is muted. */}
+          <span
+            className={`deck-key${ticket.key || ticket.prs.length > 0 ? "" : " deck-key--none"}`}
+          >
+            {label}
+          </span>{" "}
           <span className="deck-rail-title" title={ticket.title}>
             {ticket.title}
           </span>
