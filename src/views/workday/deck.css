@@ -359,6 +359,7 @@
   background: none;
   color: var(--color-accent);
   font: inherit;
+  text-decoration: none;
   cursor: pointer;
 }
 

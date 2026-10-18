@@ -72,9 +72,12 @@ function PinButton({ id, name }: { id: string; name: string }) {
 export function TicketKey({
   ticketKey,
   jiraBaseUrl,
+  showOpen = true,
 }: {
   ticketKey: string | null;
   jiraBaseUrl: string;
+  /** The open-in-Jira icon; off where the caller shows its own "Open in Jira" link. */
+  showOpen?: boolean;
 }) {
   const onCopy = React.useContext(CopyTicketContext);
   if (!ticketKey) return <span className="workday-key workday-key--none">—</span>;
@@ -96,7 +99,7 @@ export function TicketKey({
           <IconCopy size={13} stroke={1.8} />
         </button>
       )}
-      {jiraBaseUrl && (
+      {showOpen && jiraBaseUrl && (
         <a
           className="pr-cluster-ext"
           href={jiraBrowseUrl(jiraBaseUrl, ticketKey)}

@@ -5,11 +5,13 @@ import { OffSprintPill, TicketKey } from "./CompactRow";
 import { compactAge } from "./dates";
 import { noteText } from "../../utils/noteTags";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
+import { jiraBrowseUrl } from "../../utils/tickets";
 import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
 import type { DeckTicket } from "./deckTypes";
+import { IconExternalLink } from "@tabler/icons-react";
 
 export interface DeckCardProps {
   ticket: DeckTicket;
@@ -61,6 +63,7 @@ export function DeckCard({
     (best, p) => (!best || p.pr.updated_at > best ? p.pr.updated_at : best),
     null,
   );
+  const jiraHref = key && jiraBaseUrl ? jiraBrowseUrl(jiraBaseUrl, key) : null;
   const currentCount = prs.filter((p) => p.current).length;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
   const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
@@ -79,7 +82,7 @@ export function DeckCard({
         <div className="deck-card-titleline">
           {key && (
             <span className="deck-card-key">
-              <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} />
+              <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} showOpen={false} />
             </span>
           )}
           <h3 className="deck-card-title">{ticket.title}</h3>
@@ -90,9 +93,23 @@ export function DeckCard({
             )}
           </span>
         </div>
-        {prs.length > 0 && newest && (
+        {(newest || jiraHref) && (
           <div className="deck-card-sub">
-            {`${plural(prs.length, "PR")} · ${currentCount} current · updated ${compactAge(newest, now)}`}
+            {newest && (
+              <span>{`${plural(prs.length, "PR")} · ${currentCount} current · updated ${compactAge(newest, now)}`}</span>
+            )}
+            {newest && jiraHref && " · "}
+            {jiraHref && (
+              <a
+                className="deck-link"
+                href={jiraHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${key} in Jira`}
+              >
+                Open in Jira <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
+              </a>
+            )}
           </div>
         )}
         {ticket.jiraMention && key && (
