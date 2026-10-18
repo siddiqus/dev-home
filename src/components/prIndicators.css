@@ -238,6 +238,14 @@ a.pr-card-ticket:hover {
   color: var(--color-status-warning);
   background: var(--color-status-warning-bg);
 }
+.pr-reason-chip--success {
+  color: var(--color-status-success);
+  background: var(--color-status-success-bg);
+}
+.pr-reason-chip--purple {
+  color: var(--color-status-purple);
+  background: var(--color-status-purple-bg);
+}
 .pr-reason-chip--info {
   color: var(--color-status-info);
   background: var(--color-status-info-bg);
