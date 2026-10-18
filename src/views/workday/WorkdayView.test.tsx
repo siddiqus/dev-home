@@ -1294,6 +1294,34 @@ describe("WorkdayView final review follow-ups", () => {
     expect(screen.getByText("Nothing open. Nice.")).toBeTruthy();
   });
 
+  it("keeps first-load skeletons over cache-seeded data until every source has loaded", () => {
+    const { rerender } = renderView({
+      openPRs: deckPRs,
+      allIssues: deckIssues,
+      loading: true,
+      sourcesLoaded: false,
+    });
+    expect(screen.getByTestId("deck-rail-skeleton")).toBeTruthy();
+    expect(screen.getByTestId("deck-card-skeleton")).toBeTruthy();
+    expect(screen.queryByText(/Move asset sync to a queue/)).toBeNull();
+
+    rerender({ openPRs: deckPRs, allIssues: deckIssues, loading: false, sourcesLoaded: true });
+    expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
+    expect(screen.getAllByText(/Move asset sync to a queue/).length).toBeGreaterThan(0);
+  });
+
+  it("drops first-load skeletons for cached data when a source fails", () => {
+    renderView({
+      openPRs: deckPRs,
+      allIssues: deckIssues,
+      loading: false,
+      sourcesLoaded: false,
+      sourceError: "Jira request failed",
+    });
+    expect(screen.queryByTestId("deck-rail-skeleton")).toBeNull();
+    expect(screen.getAllByText(/Move asset sync to a queue/).length).toBeGreaterThan(0);
+  });
+
   it("stamps a close no earlier than the ticket's newest PR update", () => {
     const future = new Date(NOW.getTime() + 10 * 60_000).toISOString();
     const skewed = deckPRs.map((p) => (p.number === 1207 ? { ...p, updated_at: future } : p));

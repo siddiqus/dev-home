@@ -44,6 +44,15 @@ export interface DeckModeProps {
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** Stands in for the deck while loading, so no cached tab shows under the skeletons. */
+const LOADING_DECK: DeckData = {
+  current: [],
+  open: [],
+  closed: [],
+  unmatched: [],
+  counts: { tickets: 0, current: 0, unseen: 0 },
+};
+
 /**
  * Focus mode: the rail and one centred card with two ghost cards behind it
  * (spec §5.1). Stateless; WorkdayView owns selection and keys.
@@ -76,6 +85,10 @@ export function DeckMode({
   onSwitchToStandup,
   navHints = false,
 }: DeckModeProps) {
+  if (loading) {
+    deck = LOADING_DECK;
+    selectedId = null;
+  }
   const found = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
   const ticket = found && cardPRs ? { ...found, prs: cardPRs } : found;
   const empty = !loading && deck.current.length === 0 && deck.open.length === 0;

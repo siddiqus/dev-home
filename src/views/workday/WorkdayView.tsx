@@ -938,9 +938,10 @@ export function WorkdayView(props: WorkdayViewProps) {
   }
 
   const sinceLabel = formatSinceLabel(since);
-  // First load with nothing to show yet: skeletons instead of the empty deck.
-  const firstLoad =
-    !sourcesLoaded && deck.current.length + deck.open.length + deck.closed.length === 0;
+  // First load: skeletons until every source has fetched, rather than a
+  // half-built deck from cache-seeded data that reshuffles once fresh data
+  // lands. A failed source shows whatever is cached instead of skeletons forever.
+  const firstLoad = !sourcesLoaded && !sourceError;
   const notStartedCount =
     sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
