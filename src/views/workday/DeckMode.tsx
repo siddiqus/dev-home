@@ -2,6 +2,7 @@ import type { GitHubPR, Note } from "../../types";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
 import type { DeckData, DeckPR } from "./deckTypes";
+import type { MentionItem } from "./types";
 
 /** Which way the card swipes when the selection changes: "next" enters from the right. */
 export type SwipeDirection = "next" | "prev";
@@ -13,6 +14,8 @@ export interface DeckModeProps {
   selectedPrUrl: string | null;
   /** The selected card's PRs in their frozen per-visit order; defaults to the ticket's. */
   cardPRs?: DeckPR[];
+  /** The selected card's Jira mention, held for the visit; defaults to the ticket's. */
+  cardJiraMention?: MentionItem | null;
   onSelectPr(url: string): void;
   onOpen(pr: GitHubPR): void;
   jiraBaseUrl: string;
@@ -47,6 +50,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 /** Stands in for the deck while loading, so no cached tab shows under the skeletons. */
 const LOADING_DECK: DeckData = {
   current: [],
+  merged: [],
   open: [],
   closed: [],
   unmatched: [],
@@ -63,6 +67,7 @@ export function DeckMode({
   onSelect,
   selectedPrUrl,
   cardPRs,
+  cardJiraMention,
   onSelectPr,
   onOpen,
   jiraBaseUrl,
@@ -89,8 +94,13 @@ export function DeckMode({
     deck = LOADING_DECK;
     selectedId = null;
   }
-  const found = [...deck.current, ...deck.open].find((t) => t.id === selectedId) ?? null;
-  const ticket = found && cardPRs ? { ...found, prs: cardPRs } : found;
+  const found =
+    [...deck.current, ...deck.merged, ...deck.open].find((t) => t.id === selectedId) ?? null;
+  const ticket = found && {
+    ...found,
+    prs: cardPRs ?? found.prs,
+    jiraMention: cardJiraMention ?? found.jiraMention,
+  };
   const empty = !loading && deck.current.length === 0 && deck.open.length === 0;
   return (
     <div className="deck-mode" data-testid="deck-mode">

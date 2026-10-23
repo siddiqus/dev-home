@@ -25,7 +25,7 @@ import {
   ViewerLoginContext,
 } from "./CompactRow";
 import { FocusMode } from "./FocusMode";
-import { PINS_KEY, notePin, prPin, ticketPin } from "./pins";
+import { PINS_KEY, isMergedTab, notePin, prPin, ticketPin } from "./pins";
 import { prNoteKey } from "../../utils/prNotes";
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { useOptionalJiraDrawer } from "../../context/JiraDrawerContext";
@@ -173,6 +173,25 @@ function railDirection(
   return "next";
 }
 
+/** The unseen-comment quotes a card visit keeps showing after the dwell marks them seen. */
+interface HeldQuotes {
+  ticketId: string | null;
+  /** Per PR url. */
+  pr: Record<string, MentionItem>;
+  jira: MentionItem | null;
+}
+
+/** The quotes a card shows as it opens. */
+function heldQuotes(
+  ticketId: string | null,
+  prs: DeckPR[] | undefined,
+  jira: MentionItem | null,
+): HeldQuotes {
+  const pr: Record<string, MentionItem> = {};
+  for (const p of prs ?? []) if (p.unseenComment) pr[p.pr.html_url] = p.unseenComment;
+  return { ticketId, pr, jira };
+}
+
 /** Keys flagged off-sprint anywhere on the Workday page, from buildWorkday's TicketRefs. */
 function offSprintKeysOf(s: WorkdaySections): Set<string> {
   const refs: (TicketRef | null)[] = [
@@ -260,6 +279,11 @@ export function WorkdayView(props: WorkdayViewProps) {
     [lookback, now, weekendKey],
   );
   const extras = useWorkdayExtras(configured, since, refreshKey);
+  // The merged list as last loaded: a refresh or lookback change refetches it
+  // from empty, which would otherwise drop the Merged recently group until it lands.
+  const lastMerged = useRef<GitHubPR[] | null>(null);
+  if (extras.merged.data) lastMerged.current = extras.merged.data;
+  const mergedPRs = lastMerged.current;
 
   // Standup sections: built the same way as v1.
   const sections = useMemo(
@@ -340,6 +364,7 @@ export function WorkdayView(props: WorkdayViewProps) {
           jiraMentions,
           notes,
           offSprintKeys,
+          mergedPRs: mergedPRs ?? [],
         },
         state,
         now,
@@ -354,6 +379,7 @@ export function WorkdayView(props: WorkdayViewProps) {
       jiraMentions,
       notes,
       offSprintKeys,
+      mergedPRs,
       state,
       now,
     ],
@@ -388,13 +414,18 @@ export function WorkdayView(props: WorkdayViewProps) {
   // the view's clock (tests inject a fixed `now`).
   const stamp = useCallback(() => new Date(Math.max(Date.now(), now.getTime())), [now]);
 
-  // Selection: the remembered ticket if it's still in the rail, else the first one.
+  // Selection: the remembered ticket if it's still in the rail, else the first open one.
   // `g c` narrows the rail (and ←/→, `n`) to ▶ Current.
   const rail = useMemo(
-    () => (onlyCurrent ? deck.current : [...deck.current, ...deck.open]),
+    () => (onlyCurrent ? deck.current : [...deck.current, ...deck.merged, ...deck.open]),
     [deck, onlyCurrent],
   );
-  const selectedTicket = rail.find((t) => t.id === state.selected) ?? rail[0] ?? null;
+  // The default skips Merged recently: the deck opens on work, not on what's done.
+  const selectedTicket =
+    rail.find((t) => t.id === state.selected) ??
+    rail.find((t) => !isMergedTab(t.id)) ??
+    rail[0] ??
+    null;
   const selectedId = selectedTicket?.id ?? null;
 
   // Card swipe (spec §5.4): only explicit navigation swipes: ←/→, n, x, a ⌘K
@@ -462,11 +493,40 @@ export function WorkdayView(props: WorkdayViewProps) {
     if (first) setPrPick({ ticketId: selectedId, url: first.pr.html_url });
   }
   const orderUrls = order.urls;
+  // Unseen-comment quotes are held for the card visit too: the dwell marks them
+  // seen at 1.5s, which would otherwise pull a quote out from under the reader.
+  // A newer comment arriving mid-visit replaces the held one. Adjusted during
+  // render, like the PR order.
+  const liveJira = selectedTicket?.jiraMention ?? null;
+  const [quotes, setQuotes] = useState<HeldQuotes>(() => heldQuotes(selectedId, livePRs, liveJira));
+  let held = quotes;
+  if (held.ticketId !== selectedId) {
+    held = heldQuotes(selectedId, livePRs, liveJira);
+    setQuotes(held);
+  } else {
+    const fresh = (livePRs ?? []).filter(
+      (p) => p.unseenComment && p.unseenComment.id !== held.pr[p.pr.html_url]?.id,
+    );
+    if (fresh.length > 0 || (liveJira && liveJira.id !== held.jira?.id)) {
+      const pr = { ...held.pr };
+      for (const p of fresh) pr[p.pr.html_url] = p.unseenComment!;
+      held = { ticketId: selectedId, pr, jira: liveJira ?? held.jira };
+      setQuotes(held);
+    }
+  }
+  const heldPR = held.pr;
+  const cardJiraMention = held.jira;
   const cardPRs = useMemo<DeckPR[]>(() => {
     const prs = livePRs ?? [];
     const at = (p: DeckPR) => orderUrls.indexOf(p.pr.html_url);
-    return [...prs].sort((a, b) => at(a) - at(b));
-  }, [livePRs, orderUrls]);
+    return [...prs]
+      .sort((a, b) => at(a) - at(b))
+      .map((p) =>
+        p.unseenComment || !heldPR[p.pr.html_url]
+          ? p
+          : { ...p, unseenComment: heldPR[p.pr.html_url] },
+      );
+  }, [livePRs, orderUrls, heldPR]);
   const pickedPR =
     (prPick?.ticketId === selectedId && cardPRs.find((p) => p.pr.html_url === prPick.url)) ||
     cardPRs.find((p) => p.current) ||
@@ -521,7 +581,11 @@ export function WorkdayView(props: WorkdayViewProps) {
     markSeen(entries);
   };
   const onDwell = useCallback(() => seenRef.current(), []);
-  useSeenTimer(configured && mode === "focus" && !selectedPR ? selectedId : null, onDwell);
+  // Merged tabs aren't seen-tracked (and their key's Jira mentions belong to the open tab).
+  useSeenTimer(
+    configured && mode === "focus" && !selectedPR && !isMergedTab(selectedId) ? selectedId : null,
+    onDwell,
+  );
 
   // The `.` composer: open for one card and PR (null url = a PR-less ticket).
   // It shows only while that card and PR are still the selected ones.
@@ -655,7 +719,8 @@ export function WorkdayView(props: WorkdayViewProps) {
       openExternal: guard(() => pr && window.open(pr.html_url, "_blank", "noopener,noreferrer")),
       // Space: the selected PR, or the ticket (or note tab) itself when it has no PRs.
       toggleCurrent: guard(() => {
-        if (!selectedTicket) return;
+        // Merged tabs are read-only: nothing to work on, nothing to close.
+        if (!selectedTicket || isMergedTab(selectedTicket.id)) return;
         if (pr) toggleCurrent(prPin(pr), selectedTicket.id);
         else if (selectedTicket.key)
           toggleCurrent(ticketPin(selectedTicket.key), selectedTicket.id);
@@ -663,7 +728,9 @@ export function WorkdayView(props: WorkdayViewProps) {
           toggleCurrent(notePin(selectedTicket.noteItem.id), selectedTicket.id);
       }),
       // x: close into Closed; selection moves to the next ticket in rail order.
-      close: guard(() => selectedTicket && closeTicket(selectedTicket.id)),
+      close: guard(
+        () => selectedTicket && !isMergedTab(selectedTicket.id) && closeTicket(selectedTicket.id),
+      ),
       unread: guard(() => pr && markUnread(pr.html_url)),
       // n: the next ticket after the selected one (wrapping) with unseen activity.
       nextUpdated: guard(() => {
@@ -941,7 +1008,10 @@ export function WorkdayView(props: WorkdayViewProps) {
   // First load: skeletons until every source has fetched, rather than a
   // half-built deck from cache-seeded data that reshuffles once fresh data
   // lands. A failed source shows whatever is cached instead of skeletons forever.
-  const firstLoad = !sourcesLoaded && !sourceError;
+  // The merged list counts as a source here: the Merged recently group sits
+  // above Open, so landing late would push every Open row down.
+  const firstLoad =
+    (!sourcesLoaded || (mergedPRs === null && !extras.merged.error)) && !sourceError;
   const notStartedCount =
     sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
@@ -1030,6 +1100,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                   onSelect={clickTicket}
                   selectedPrUrl={selectedPrUrl}
                   cardPRs={cardPRs}
+                  cardJiraMention={cardJiraMention}
                   onSelectPr={selectPr}
                   onOpen={openPR}
                   jiraBaseUrl={jiraBaseUrl}

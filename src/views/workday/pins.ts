@@ -6,3 +6,7 @@ export const PINS_KEY = "dev-home-workday-pins";
 export const prPin = (pr: GitHubPR) => `pr:${pr.html_url}`;
 export const ticketPin = (key: string) => `ticket:${key}`;
 export const notePin = (id: number) => `note:${id}`;
+
+/** A Merged recently tab: "merged:<KEY>", or "merged:<html_url>" for a ticketless PR. */
+export const mergedTabId = (key: string | null, pr: GitHubPR) => `merged:${key ?? pr.html_url}`;
+export const isMergedTab = (id: string | null | undefined) => !!id?.startsWith("merged:");

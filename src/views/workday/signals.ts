@@ -42,6 +42,10 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   else if (action.key === "merge" || action.key === "approved") label = `✓ ${label}`;
   else if (action.key === "waiting") label = `⏳ ${label} · ${compactAge(pr.created_at, now)}`;
 
+  // Review feedback is answered on the PR's conversation, so those chips link there.
+  const onPR = { href: pr.html_url };
+  const feedback = action.key === "your_turn" || action.key === "changes_requested";
+
   const facts: Signal[] = [];
   if (action.key !== "ci_failed" && ciFailing(pr)) {
     facts.push({ label: `✗ CI failing: ${failingCheckNames(pr)}`, tone: "danger" });
@@ -50,13 +54,14 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
     facts.push({ label: `✗ Conflict with ${pr.base.ref}`, tone: "danger" });
   }
   if (action.key !== "changes_requested" && pr.review_status === "CHANGES_REQUESTED") {
-    facts.push({ label: "✗ Changes requested", tone: "danger" });
+    facts.push({ label: "✗ Changes requested", tone: "danger", ...onPR });
   }
   const threads = pr.unresolved_thread_count ?? 0;
   if (threads > 0 && !action.label.includes("open thread")) {
     facts.push({
       label: `${threads} open ${threads === 1 ? "thread" : "threads"}`,
       tone: "warning",
+      ...onPR,
     });
   }
   const optional = pr.optional_checks_failing ?? [];
@@ -69,7 +74,7 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
     });
   }
   facts.sort((a, b) => PRIORITY[a.tone] - PRIORITY[b.tone]);
-  return [{ label, tone: action.tone }, ...facts];
+  return [{ label, tone: action.tone, ...(feedback && onPR) }, ...facts];
 }
 
 /**

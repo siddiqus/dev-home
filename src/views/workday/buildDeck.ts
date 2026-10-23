@@ -6,10 +6,11 @@ import { projectOfKey } from "../../../shared/tickets";
 import { githubMentionItem, jiraMentionItem } from "./buildFocus";
 import { statusCategoryOf } from "./buildWorkday";
 import { repoRef, reviewingState, titleWithoutKey } from "./prState";
-import { notePin, prPin, ticketPin } from "./pins";
+import { mergedTabId, notePin, prPin, ticketPin } from "./pins";
 import { parseLink } from "./deckSearch";
 import { hasTag, noteHeadline } from "../../utils/noteTags";
 import { parseTimestamp } from "../../utils/time";
+import { compactAge } from "./dates";
 import type { MentionItem, TicketRef } from "./types";
 import { headline, mySignals, prPriority, reviewSignals, PRIORITY } from "./signals";
 import type { DeckData, DeckInputs, DeckPR, DeckTicket } from "./deckTypes";
@@ -165,14 +166,20 @@ const toneOf = (priority: number): BadgeVariant =>
 
 /**
  * Rail status line: the PR that needs me most and its headline, plus its unseen
- * GitHub comment count; "No PR yet" for PR-less tickets.
+ * GitHub comment count, toned by that headline; "No PR yet" for PR-less tickets.
  */
-function statusLine(prs: DeckPR[], newComments: Map<string, number>): string {
-  if (prs.length === 0) return "No PR yet";
+function statusLine(
+  prs: DeckPR[],
+  newComments: Map<string, number>,
+): { text: string; tone: BadgeVariant } {
+  if (prs.length === 0) return { text: "No PR yet", tone: "neutral" };
   const top = [...prs].sort(byNeedsMe)[0];
   const line = [`#${top.pr.number}`, headline(top.signals)].filter(Boolean).join(" ");
   const count = newComments.get(top.pr.html_url) ?? 0;
-  return count > 0 ? `${line} · ${count} new comment${count === 1 ? "" : "s"}` : line;
+  return {
+    text: count > 0 ? `${line} · ${count} new comment${count === 1 ? "" : "s"}` : line,
+    tone: top.signals[0]?.tone ?? "neutral",
+  };
 }
 
 /** Ticket-level fields derived from its PRs (spec §6.2 step 4). */
@@ -192,6 +199,7 @@ function deckTicket(
       : first
         ? `${repoRef(first)} ${first.title}`
         : "";
+  const status = statusLine(sorted, ctx.newComments);
   const worst = sorted.length > 0 ? Math.min(...sorted.map((p) => p.priority)) : PRIORITY.neutral;
   // The ticket was last looked at when its most recently seen PR was, or when
   // markSeen wrote `ticket:<KEY>` (the only seen entry a PR-less ticket has).
@@ -211,7 +219,8 @@ function deckTicket(
     ticket,
     prs: sorted,
     stripe: toneOf(worst),
-    status: statusLine(sorted, ctx.newComments),
+    status: status.text,
+    statusTone: status.tone,
     reviewOnly: sorted.length > 0 && sorted.every((p) => !p.mine),
     // An unseen Jira mention counts as activity too, so `n` and the dot find it.
     unseen: sorted.some((p) => p.unseen) || mention !== null,
@@ -250,6 +259,7 @@ function noteTab(n: Note, ctx: BuildContext): DeckTicket {
     prs: [],
     stripe: "neutral",
     status: noteTarget(n),
+    statusTone: "neutral",
     reviewOnly: false,
     unseen: false,
     current: ctx.current.has(notePin(n.id)),
@@ -258,6 +268,54 @@ function noteTab(n: Note, ctx: BuildContext): DeckTicket {
     todos: [],
     noteItem: n,
   };
+}
+
+/** How far back the Merged recently group reaches. */
+export const MERGED_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The Merged recently group: my PRs merged in the last day, grouped by ticket
+ * like the rest of the deck, newest merge first. Read-only tabs: never seen-
+ * tracked, current, closed or numbered, and they carry no mentions.
+ */
+function mergedTabs(
+  prs: GitHubPR[],
+  ctx: BuildContext,
+  ref: (key: string) => TicketRef,
+  now: Date,
+): DeckTicket[] {
+  const mergedAt = (pr: GitHubPR) => time(pr.merged_at);
+  const recent = prs
+    .filter((pr) => pr.merged_at && now.getTime() - mergedAt(pr) <= MERGED_WINDOW_MS)
+    .sort((a, b) => mergedAt(b) - mergedAt(a));
+  const byId = new Map<string, { key: string | null; prs: DeckPR[] }>();
+  for (const pr of recent) {
+    const key = ticketKeyOf(pr)?.toUpperCase() ?? null;
+    const id = mergedTabId(key, pr);
+    const age = compactAge(pr.merged_at!, now);
+    const by = pr.merged_by ? ` by ${pr.merged_by}` : "";
+    const p: DeckPR = {
+      pr,
+      mine: true,
+      // Also the rail's status line, which takes the top PR's first chip.
+      signals: [
+        { label: `✓ Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
+      ],
+      priority: PRIORITY.purple,
+      unseenComment: null,
+      note: newest(ctx.prNotes.get(prNoteKey(pr)) ?? [], (n) => n.created_at),
+      current: false,
+      unseen: false,
+    };
+    const tab = byId.get(id) ?? { key, prs: [] };
+    tab.prs.push(p);
+    byId.set(id, tab);
+  }
+  return [...byId].map(([id, { key, prs: tabPRs }]) => {
+    const t = deckTicket(id, key, key ? ref(key) : null, tabPRs, ctx);
+    // deckTicket's card order is needs-me; here it's newest merge first.
+    return { ...t, prs: tabPRs, unseen: false, current: false, jiraMention: null, note: null };
+  });
 }
 
 /** When a ticket arrived, for numbering new tabs: its oldest PR, else the Jira ticket's creation. */
@@ -507,6 +565,7 @@ export function buildDeck(
 
   return {
     current,
+    merged: mergedTabs(inp.mergedPRs ?? [], ctx, ref, now),
     open,
     closed,
     unmatched: unmatchedMentions(

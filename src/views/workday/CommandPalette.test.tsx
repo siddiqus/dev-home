@@ -522,6 +522,7 @@ describe("CommandPalette", () => {
   const deck = (unmatched: MentionItem[]): DeckData =>
     ({
       current: [],
+      merged: [],
       open: [],
       closed: [],
       unmatched,

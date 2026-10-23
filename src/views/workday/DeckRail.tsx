@@ -41,7 +41,7 @@ function railLabel(t: DeckTicket, projects: Set<string>): string {
 }
 
 /**
- * The rail (spec §5.3, §5.14): a listbox of Current and Open tickets with
+ * The rail (spec §5.3, §5.14): a listbox of Current, Merged recently and Open tickets with
  * `aria-activedescendant`, driven by the deck keys (←/→ tickets, ↑/↓ the PRs on
  * the card). The Closed group sits after the listbox, outside it: a real
  * disclosure button and a list of buttons that reopen a tab, reachable with Tab
@@ -61,7 +61,7 @@ export function DeckRail({
   onRetry,
 }: DeckRailProps) {
   // Built once per render: every row's short key checks against it.
-  const projects = deckProjects([...deck.current, ...deck.open, ...deck.closed]);
+  const projects = deckProjects([...deck.current, ...deck.merged, ...deck.open, ...deck.closed]);
   // Open note tabs get their own group under Open (buildDeck already orders them last,
   // so ←/→ still walks the rail top to bottom).
   const groups = [
@@ -69,6 +69,12 @@ export function DeckRail({
     ...(onlyCurrent
       ? []
       : [
+          {
+            name: "merged",
+            label: "Merged recently",
+            heading: "✓ Merged recently",
+            tickets: deck.merged,
+          },
           {
             name: "open",
             label: "Open",

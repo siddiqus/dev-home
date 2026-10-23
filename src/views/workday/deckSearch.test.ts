@@ -43,6 +43,7 @@ function ticket(id: string, prs: GitHubPR[], o: Partial<DeckTicket> = {}): DeckT
     })),
     stripe: "neutral",
     status: "Open",
+    statusTone: "neutral",
     reviewOnly: false,
     unseen: false,
     current: false,
@@ -57,6 +58,7 @@ function ticket(id: string, prs: GitHubPR[], o: Partial<DeckTicket> = {}): DeckT
 function deck(o: Partial<DeckData> = {}): DeckData {
   return {
     current: [],
+    merged: [],
     open: [],
     closed: [],
     unmatched: [],

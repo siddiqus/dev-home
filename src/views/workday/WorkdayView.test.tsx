@@ -1,13 +1,14 @@
 import { act, render, screen, fireEvent, cleanup, within } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 
+const extrasMock = vi.hoisted(() => ({ merged: [] as GitHubPR[] }));
 vi.mock("../../hooks/useWorkdayExtras", () => ({
   useWorkdayExtras: () => ({
     sprint: { data: [], error: null },
     offSprint: { data: [], error: null },
     doneTickets: { data: [], error: null },
-    merged: { data: [], error: null },
+    merged: { data: extrasMock.merged, error: null },
     reviewed: { data: null, error: null },
   }),
 }));
@@ -674,6 +675,48 @@ describe("WorkdayView personal state", () => {
   });
 });
 
+describe("WorkdayView merged recently", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    extrasMock.merged = [];
+  });
+
+  const rail = () => screen.getByRole("listbox", { name: "Tickets" });
+
+  it("lists PRs merged in the last day between Current and Open, read-only", () => {
+    extrasMock.merged = [
+      deckPR(1100, "CCP-350 Export fix", "2026-10-01T10:00:00Z", {
+        state: "merged",
+        merged_at: new Date(NOW.getTime() - 3 * 3_600_000).toISOString(),
+        merged_by: "sajedul-karim",
+      }),
+    ];
+    renderView({ openPRs: deckPRs, allIssues: deckIssues });
+    const groups = within(rail())
+      .getAllByRole("group")
+      .map((g) => g.getAttribute("aria-label"));
+    expect(groups).toEqual(["Merged recently", "Open"]);
+    const merged = within(within(rail()).getByRole("group", { name: "Merged recently" })).getByRole(
+      "option",
+    );
+    expect(merged).toHaveTextContent("#1100 ✓ Merged 3h ago by sajedul-karim");
+
+    // ←/→ walks it in rail order: left from the first Open ticket lands on it.
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    press("ArrowLeft");
+    expect(card()).toHaveAccessibleName(/^CCP-350/);
+    expect(within(card()).getByText("✓ Merged 3h ago by sajedul-karim")).toBeTruthy();
+    // x and Space leave a merged tab alone.
+    press("x");
+    press(" ");
+    expect(card()).toHaveAccessibleName(/^CCP-350/);
+    expect(JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}").closed ?? {}).toEqual(
+      {},
+    );
+    expect(merged).not.toHaveClass("deck-rail-row--current");
+  });
+});
+
 describe("WorkdayView card context", () => {
   beforeEach(() => localStorage.clear());
 
@@ -748,6 +791,48 @@ describe("WorkdayView card context", () => {
       "href",
       "https://example.atlassian.net/browse/CCP-412?focusedCommentId=9001",
     );
+  });
+
+  it("keeps the quotes through the dwell, until the card is left", () => {
+    vi.useFakeTimers();
+    try {
+      seed([1207]);
+      const comment: GitHubComment = {
+        id: 56,
+        html_url: "https://github.com/o/r/pull/1207#issuecomment-56",
+        body: "one more thing",
+        created_at: new Date(NOW.getTime() - 4 * 60_000).toISOString(),
+        updated_at: new Date(NOW.getTime() - 4 * 60_000).toISOString(),
+        user: { login: "tomas", avatar_url: "" },
+        pr_number: 1207,
+        repo_full_name: "o/r",
+        context_title: "CCP-412 frontend",
+        reason: "comment",
+      };
+      const mention = {
+        id: "9002",
+        author: { displayName: "Abu", avatarUrls: { "48x48": "" } },
+        body: { text: "can you look at the retry?" },
+        created: "2026-10-14T09:58:00Z",
+        updated: "2026-10-14T09:58:00Z",
+        issueKey: "CCP-412",
+        issueSummary: "Move asset sync to a queue",
+      } as JiraComment;
+      renderDeck({ githubMentions: [comment], jiraMentions: [mention] });
+      expect(card()).toHaveTextContent("one more thing");
+      expect(card()).toHaveTextContent("can you look at the retry?");
+      act(() => vi.advanceTimersByTime(1500));
+      expect(stored().seen["ticket:CCP-412"]).toBeTruthy();
+      expect(card()).toHaveTextContent("one more thing");
+      expect(card()).toHaveTextContent("can you look at the retry?");
+      press("ArrowRight");
+      press("ArrowLeft");
+      expect(card()).toHaveAccessibleName(/^CCP-412/);
+      expect(card()).not.toHaveTextContent("one more thing");
+      expect(card()).not.toHaveTextContent("can you look at the retry?");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows my newest unresolved note on the PR and opens it on click", () => {

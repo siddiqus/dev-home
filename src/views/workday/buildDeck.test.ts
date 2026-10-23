@@ -206,6 +206,7 @@ describe("buildDeck ticket fields", () => {
       ],
     });
     expect(deck.open[0].status).toBe("#1203 ✗ Resolve conflict with main");
+    expect(deck.open[0].statusTone).toBe("danger");
   });
 
   it("status line ignores current: the needs-me PR is named even when another is current", () => {
@@ -649,6 +650,7 @@ describe("buildDeck seen state", () => {
     );
     expect(deck.open[0].prs[0].unseenComment).toBeNull();
     expect(deck.open[0].status).toBe("#1 ⏳ Waiting on guru · 13d");
+    expect(deck.open[0].statusTone).toBe("neutral");
   });
 
   it("quotes the newest Jira mention after the ticket's newest seen time", () => {
@@ -938,5 +940,60 @@ describe("shortKey", () => {
     const deck = [t("CCP-412"), t("OPS-7")];
     expect(shortKey("CCP-412", deck)).toBe("CCP-412");
     expect(shortKey("OPS-7", deck)).toBe("OPS-7");
+  });
+});
+
+describe("buildDeck merged recently", () => {
+  const merged = (n: number, mergedAt: string, o: Partial<GitHubPR> = {}) =>
+    pr(n, { state: "merged", merged_at: mergedAt, updated_at: mergedAt, ...o });
+
+  it("groups my PRs merged in the last day by ticket, newest merge first", () => {
+    const deck = build({
+      mergedPRs: [
+        merged(1, "2026-10-14T09:00:00Z", { title: "CCP-1 backend" }),
+        merged(2, "2026-10-14T11:00:00Z", { title: "CCP-2 api" }),
+        merged(3, "2026-10-14T10:00:00Z", { title: "CCP-1 frontend", merged_by: "sajedul-karim" }),
+        merged(4, "2026-10-14T11:30:00Z", { title: "no ticket" }),
+        merged(5, "2026-10-13T11:00:00Z", { title: "CCP-3 too old" }),
+      ],
+      allIssues: [issue("CCP-1")],
+    });
+    expect(ids(deck.merged)).toEqual([
+      "merged:https://github.com/o/repo/pull/4",
+      "merged:CCP-2",
+      "merged:CCP-1",
+    ]);
+    const ccp1 = byId(deck.merged, "merged:CCP-1");
+    expect(ccp1.title).toBe("Summary CCP-1");
+    expect(numbers(ccp1)).toEqual([3, 1]);
+    expect(ccp1.prs[0].signals).toEqual([
+      { label: "✓ Merged 2h ago by sajedul-karim", tone: "purple" },
+    ]);
+    // No merged_by: no "by".
+    expect(ccp1.prs[1].signals[0].label).toBe("✓ Merged 3h ago");
+    expect(ccp1.status).toBe("#3 ✓ Merged 2h ago by sajedul-karim");
+    expect(ccp1.statusTone).toBe("purple");
+    expect(ccp1.stripe).toBe("purple");
+    // A ticket the open deck lacks still gets a title from its PR.
+    expect(byId(deck.merged, "merged:CCP-2").title).toBe("api");
+  });
+
+  it("keeps merged tabs read-only: unseen-free and out of arrival, current and counts", () => {
+    const deck = build(
+      {
+        openPRs: [pr(7, { title: "CCP-1 follow-up" })],
+        mergedPRs: [merged(1, "2026-10-14T09:00:00Z", { title: "CCP-1 backend" })],
+        allIssues: [issue("CCP-1")],
+      },
+      { seeded: true, current: ["ticket:CCP-1"] },
+    );
+    const [tab] = deck.merged;
+    expect(tab.unseen).toBe(false);
+    expect(tab.current).toBe(false);
+    expect(tab.prs[0].unseen).toBe(false);
+    // The ticket's open PR keeps its own tab.
+    expect(ids(all(deck))).toEqual(["CCP-1"]);
+    expect(deck.stateUpdates.arrival).toEqual({ "CCP-1": 0 });
+    expect(deck.counts.tickets).toBe(1);
   });
 });

@@ -121,11 +121,26 @@ export function DeckPRRow({
         <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>
         {item.signals.length > 0 && (
           <div className="deck-pr-signals">
-            {shown.map((s) => (
-              <Badge key={s.label} variant={s.tone} title={s.detail}>
-                {s.label}
-              </Badge>
-            ))}
+            {shown.map((s) =>
+              s.href ? (
+                // Opens GitHub in a new tab, not the PR modal the row opens.
+                <a
+                  key={s.label}
+                  className="deck-chip-link"
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={s.detail ?? "Open on GitHub"}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Badge variant={s.tone}>{s.label}</Badge>
+                </a>
+              ) : (
+                <Badge key={s.label} variant={s.tone} title={s.detail}>
+                  {s.label}
+                </Badge>
+              ),
+            )}
             {more.length > 0 && (
               <Badge variant="neutral" title={more.map((s) => s.label).join(", ")}>
                 +{more.length}

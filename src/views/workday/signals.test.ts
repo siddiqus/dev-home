@@ -10,12 +10,14 @@ import {
   PRIORITY,
 } from "./signals";
 
+const PR_URL = "https://github.com/org/repo/pull/1203";
+
 /** Test PR factory with defaults. */
 const pr = (overrides: Partial<GitHubPR> = {}): GitHubPR => ({
   id: 1,
   number: 1203,
   title: "Test PR",
-  html_url: "https://github.com/org/repo/pull/1203",
+  html_url: PR_URL,
   state: "open",
   draft: false,
   created_at: "2026-10-01T10:00:00Z",
@@ -61,13 +63,13 @@ describe("mySignals", () => {
       now,
     );
     expect(signals).toEqual([
-      { label: "✗ Address requested changes · 3 open threads", tone: "danger" },
+      { label: "✗ Address requested changes · 3 open threads", tone: "danger", href: PR_URL },
     ]);
   });
 
   it("returns open threads warning when not changes requested", () => {
     const signals = mySignals(pr({ review_status: "APPROVED", unresolved_thread_count: 2 }), now);
-    expect(signals).toContainEqual({ label: "2 open threads", tone: "warning" });
+    expect(signals).toContainEqual({ label: "2 open threads", tone: "warning", href: PR_URL });
   });
 
   it("returns no reviewer signal for non-draft PR", () => {
@@ -141,7 +143,14 @@ describe("mySignals", () => {
       pr({ review_status: "REVIEWED", your_turn: true, unresolved_thread_count: 2 }),
       now,
     );
-    expect(signals).toEqual([{ label: "Respond to feedback · 2 open threads", tone: "warning" }]);
+    expect(signals).toEqual([
+      { label: "Respond to feedback · 2 open threads", tone: "warning", href: PR_URL },
+    ]);
+  });
+
+  it("links only review-feedback chips to the PR", () => {
+    const [conflict] = mySignals(pr({ has_conflict: true, checks_status: "SUCCESS" }), now);
+    expect(conflict.href).toBeUndefined();
   });
 
   it("asks for a re-request once I've answered a comment-only review", () => {
@@ -160,7 +169,7 @@ describe("mySignals", () => {
     );
     expect(signals).toEqual([
       { label: "⏳ Waiting on alice · 1d", tone: "neutral" },
-      { label: "1 open thread", tone: "warning" },
+      { label: "1 open thread", tone: "warning", href: PR_URL },
     ]);
   });
 

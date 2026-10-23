@@ -7,6 +7,8 @@ export interface Signal {
   label: string;
   tone: BadgeVariant;
   detail?: string;
+  /** Where the chip's step gets done; the chip renders as a link to it. */
+  href?: string;
 }
 
 /** Inputs to buildDeck, from the same data the Workday page receives. */
@@ -21,6 +23,8 @@ export interface DeckInputs {
   notes: Note[];
   /** Upper-cased keys flagged off-sprint (from buildWorkday's TicketRefs). */
   offSprintKeys?: Set<string>;
+  /** My merged PRs; those merged in the last day make the Merged recently group. */
+  mergedPRs?: GitHubPR[];
 }
 
 /** A PR on the deck with its signals and context. */
@@ -44,6 +48,8 @@ export interface DeckTicket {
   prs: DeckPR[];
   stripe: BadgeVariant;
   status: string;
+  /** Tone of the status line's headline signal, so the rail reads by urgency. */
+  statusTone: BadgeVariant;
   reviewOnly: boolean;
   unseen: boolean;
   current: boolean;
@@ -59,6 +65,8 @@ export interface DeckTicket {
 /** The composed deck, split into groups. */
 export interface DeckData {
   current: DeckTicket[];
+  /** Tickets with a PR of mine merged in the last day, newest first; read-only tabs. */
+  merged: DeckTicket[];
   open: DeckTicket[];
   closed: DeckTicket[];
   unmatched: MentionItem[];

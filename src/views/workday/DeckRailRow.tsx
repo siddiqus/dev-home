@@ -70,7 +70,9 @@ export function DeckRailRow({
             </span>
           )}
         </span>
-        <span className="deck-rail-status">{ticket.status}</span>
+        <span className={`deck-rail-status deck-rail-status--${ticket.statusTone}`}>
+          {ticket.status}
+        </span>
       </span>
       {ticket.unseen ? (
         <span className="deck-dot" role="img" aria-label="new activity" />

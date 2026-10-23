@@ -57,6 +57,7 @@ function ticket(key: string, o: Partial<DeckTicket> = {}): DeckTicket {
     prs: [],
     stripe: "neutral",
     status: "No PR yet",
+    statusTone: "neutral",
     reviewOnly: false,
     unseen: false,
     current: false,
@@ -71,6 +72,7 @@ function ticket(key: string, o: Partial<DeckTicket> = {}): DeckTicket {
 function deck(o: Partial<DeckData> = {}): DeckData {
   return {
     current: [],
+    merged: [],
     open: [],
     closed: [],
     unmatched: [],
@@ -214,6 +216,7 @@ describe("DeckMode rail", () => {
             reviewOnly: true,
             unseen: true,
             status: "#5 Conflict with main",
+            statusTone: "danger",
           }),
           ticket("OTHER-2"),
         ],
@@ -224,7 +227,7 @@ describe("DeckMode rail", () => {
     expect(within(row).getByText("CCP-1")).toBeTruthy();
     expect(row.querySelector(".deck-stripe--danger")).toBeTruthy();
     expect(within(row).getByText("review")).toBeTruthy();
-    expect(within(row).getByText("#5 Conflict with main")).toBeTruthy();
+    expect(within(row).getByText("#5 Conflict with main")).toHaveClass("deck-rail-status--danger");
     expect(within(row).getByLabelText("new activity")).toBeTruthy();
     expect(
       within(screen.getByRole("option", { name: /OTHER-2/ })).queryByLabelText("new activity"),
@@ -284,6 +287,19 @@ describe("DeckMode card", () => {
     for (const l of ["A", "B", "C", "D"]) expect(within(theirs).getByText(l)).toBeTruthy();
     expect(within(theirs).queryByText("E")).toBeNull();
     expect(within(theirs).getByText("+2")).toHaveAttribute("title", "E, F");
+  });
+
+  it("renders a chip with an href as a GitHub link that doesn't open the modal", () => {
+    const href = "https://github.com/o/r/pull/7";
+    const t = ticket("CCP-1", {
+      prs: [deckPR(7, { signals: [{ label: "2 open threads", tone: "warning", href }] })],
+    });
+    const { onOpen } = renderDeck({ deck: deck({ open: [t] }) });
+    const link = screen.getByRole("link", { name: "2 open threads" });
+    expect(link).toHaveAttribute("href", href);
+    expect(link).toHaveAttribute("target", "_blank");
+    fireEvent.click(link);
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it("labels each PR row repo#number with the short repo name", () => {
