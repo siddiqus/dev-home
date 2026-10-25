@@ -6,6 +6,7 @@ import { compactAge } from "./dates";
 import { noteText } from "../../utils/noteTags";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
 import { jiraBrowseUrl } from "../../utils/tickets";
+import { getReferenceUrl } from "../../utils/text";
 import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
@@ -51,6 +52,7 @@ export function DeckCard({
       <DeckNoteCard
         ticket={ticket}
         note={ticket.noteItem}
+        jiraBaseUrl={jiraBaseUrl}
         now={now}
         onOpenNote={onOpenNote}
         onResolveNote={onResolveNote}
@@ -185,21 +187,24 @@ function todoPR(note: Note, ticket: DeckTicket): string | null {
   return p ? repoRef(p.pr) : null;
 }
 
-/** A note tab's card: the note's headline, what it points at, its text, and edit / resolve. */
+/** A note tab's card: the note's headline, what it points at (linked), its text, and edit / resolve. */
 function DeckNoteCard({
   ticket,
   note,
+  jiraBaseUrl,
   now,
   onOpenNote,
   onResolveNote,
 }: {
   ticket: DeckTicket;
   note: Note;
+  jiraBaseUrl: string;
   now: Date;
   onOpenNote?(note: Note): void;
   onResolveNote?(note: Note): void;
 }) {
   const body = noteText(note.content).trim();
+  const href = getReferenceUrl(note, jiraBaseUrl);
   return (
     <section className="deck-card deck-card--note" role="region" aria-label={ticket.title}>
       <div className="deck-card-header">
@@ -209,7 +214,22 @@ function DeckNoteCard({
           </span>
           <h3 className="deck-card-title">{ticket.title}</h3>
         </div>
-        <div className="deck-card-sub">{`${ticket.status} · #todo · ${compactAge(note.created_at, now)}`}</div>
+        <div className="deck-card-sub">
+          {href ? (
+            <a
+              className="deck-link"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open ${href}`}
+            >
+              {ticket.status} <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
+            </a>
+          ) : (
+            ticket.status
+          )}
+          {` · #todo · ${compactAge(note.created_at, now)}`}
+        </div>
       </div>
       <div className="deck-card-body">
         {body && <div className="deck-note-body">{body}</div>}

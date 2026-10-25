@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import type { GitHubPR } from "../../types";
 import { DeckMode, type DeckModeProps } from "./DeckMode";
@@ -155,6 +155,44 @@ describe("DeckMode rail", () => {
     expect(within(notes).getAllByRole("option")).toHaveLength(1);
     expect(within(notes).getByText("📝 Notes")).toBeTruthy();
     expect(open.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("links a note card's target in a new tab, and leaves an unlinked note plain", () => {
+    const n = {
+      id: 2,
+      type: "github_pr",
+      title: "check flags #todo",
+      content: "",
+      reference_id: "o/r#12",
+      resolved: 0,
+      pinned: 0,
+      remind_at: null,
+      created_at: "2026-10-10T10:00:00Z",
+      updated_at: "2026-10-10T10:00:00Z",
+    } as const;
+    const j = { ...n, id: 3, type: "jira_ticket", reference_id: "CCP-9" } as const;
+    const plain = { ...n, id: 4, type: "free_text", reference_id: null } as const;
+    const tab = (note: typeof n | typeof j | typeof plain, status: string) =>
+      ticket(`note:${note.id}`, { key: null, title: note.title, status, noteItem: note });
+    const card = () => screen.getByRole("region", { name: n.title });
+
+    renderDeck({ deck: deck({ open: [tab(n, "r#12")] }) });
+    const pr = within(card()).getByRole("link", { name: /r#12/ });
+    expect(pr).toHaveAttribute("href", "https://github.com/o/r/pull/12");
+    expect(pr).toHaveAttribute("target", "_blank");
+    expect(pr).toHaveAttribute("rel", "noopener noreferrer");
+    cleanup();
+
+    renderDeck({ deck: deck({ open: [tab(j, "CCP-9")] }) });
+    expect(within(card()).getByRole("link", { name: /CCP-9/ })).toHaveAttribute(
+      "href",
+      "https://example.atlassian.net/browse/CCP-9",
+    );
+    cleanup();
+
+    renderDeck({ deck: deck({ open: [tab(plain, "Note")] }) });
+    expect(within(card()).queryByRole("link")).toBeNull();
+    expect(within(card()).getByText(/^Note · #todo/)).toBeTruthy();
   });
 
   it("keeps retry outside the banner text, with an icon for the collapsed slim rail", () => {
