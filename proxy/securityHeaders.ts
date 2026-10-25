@@ -2,11 +2,12 @@
 export const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // Microsoft Clarity (src/lib/analytics.ts): www/scripts/[a-z].clarity.ms + c.bing.com.
+    "script-src 'self' 'unsafe-inline' https://*.clarity.ms https://c.bing.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.github.com",
+    "connect-src 'self' https://api.github.com https://*.clarity.ms https://c.bing.com",
     "media-src 'self'",
     "manifest-src 'self'",
     "worker-src 'self'",

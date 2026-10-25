@@ -34,6 +34,12 @@ describe("security headers", () => {
     expect(csp).toContain("worker-src 'self'");
   });
 
+  it("lets Microsoft Clarity load its script and send data", () => {
+    const csp = SECURITY_HEADERS["Content-Security-Policy"];
+    expect(csp).toMatch(/script-src [^;]*https:\/\/\*\.clarity\.ms/);
+    expect(csp).toMatch(/connect-src [^;]*https:\/\/\*\.clarity\.ms/);
+  });
+
   it("public/_headers makes the service worker and manifest revalidate", () => {
     const blocks = headersFile();
     expect(blocks["/sw.js"]).toEqual({ "Cache-Control": "no-cache" });

@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { trackEvent } from "../lib/analytics";
 import { UpdateToast } from "./UpdateToast";
+
+vi.mock("../lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 const updateServiceWorker = vi.fn(async () => {});
 let initialNeedRefresh = false;
@@ -17,6 +20,7 @@ vi.mock("virtual:pwa-register/react", () => ({
 describe("UpdateToast", () => {
   beforeEach(() => {
     updateServiceWorker.mockClear();
+    vi.mocked(trackEvent).mockClear();
     initialNeedRefresh = false;
   });
 
@@ -36,6 +40,7 @@ describe("UpdateToast", () => {
     render(<UpdateToast />);
     fireEvent.click(screen.getByRole("button", { name: "Reload" }));
     expect(updateServiceWorker).toHaveBeenCalledWith(true);
+    expect(trackEvent).toHaveBeenCalledWith("update_reload");
   });
 
   it("dismiss hides it without updating", () => {
@@ -44,5 +49,6 @@ describe("UpdateToast", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByText("New version available")).not.toBeInTheDocument();
     expect(updateServiceWorker).not.toHaveBeenCalled();
+    expect(trackEvent).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import React from "react";
 import Alert from "react-bootstrap/Alert";
 import Button from "react-bootstrap/Button";
+import { trackEvent } from "../lib/analytics";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -29,6 +30,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+    // Marks the crash in the Clarity recording timeline.
+    trackEvent("error_boundary");
   }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps): void {

@@ -1,0 +1,45 @@
+/* Analytics consent card: fixed bottom-right so it never reflows the page and stays clear
+   of the centred bottom toasts. Mirrors .update-toast. */
+.analytics-consent {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  max-width: 340px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 1080;
+  animation: analytics-consent-in 0.2s ease-out;
+}
+
+.analytics-consent p {
+  margin: 0 0 10px;
+}
+
+.analytics-consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 575.98px) {
+  .analytics-consent {
+    left: var(--space-4);
+    max-width: none;
+  }
+}
+
+@keyframes analytics-consent-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

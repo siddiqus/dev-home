@@ -12,6 +12,8 @@ import { MenuItemsToggle } from "./MenuItemsToggle";
 import { WeekendDays } from "./WeekendDays";
 import { DataBackup } from "./DataBackup";
 import { TokenPermissionsInfo } from "./TokenPermissionsInfo";
+import { UsageAnalytics } from "./UsageAnalytics";
+import { analyticsAvailable } from "../../lib/analytics";
 import "./settings.css";
 import { Toast } from "../../components/Toast";
 
@@ -261,6 +263,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       >
         <DataBackup />
       </SettingsSection>
+
+      {analyticsAvailable() && (
+        <SettingsSection
+          title="Analytics"
+          description="Microsoft Clarity records how you use the app so it can be improved. Anything you type is masked. Changes apply right away."
+        >
+          <UsageAnalytics />
+        </SettingsSection>
+      )}
 
       {/* Saved confirmation — fixed at the bottom so it doesn't shift the layout */}
       <Toast message={successMessage ?? ""} visible={!!successMessage} />

@@ -38,6 +38,9 @@ jobs:
 
       - name: Build
         run: yarn build
+        env:
+          # Repo variable; unset (e.g. on forks) builds without Clarity.
+          VITE_CLARITY_PROJECT_ID: ${{ vars.CLARITY_PROJECT_ID }}
 
       - name: Upload build
         uses: actions/upload-artifact@v4

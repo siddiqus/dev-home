@@ -212,6 +212,7 @@ By default the app calls the proxy on its own origin at `/jira-proxy`. To serve 
 | `JIRA_ALLOWED_HOSTS` | Proxy (Worker or Node) | unset | Comma-separated list of exact Jira hostnames allowed in addition to `*.atlassian.net`, such as `jira.example.com,jira-internal.corp`. |
 | `PORT` | Node server only | `3000` | Port the Node server listens on. |
 | `VITE_JIRA_PROXY_URL` | Build time | `/jira-proxy` | Proxy base URL compiled into the app. Only needed for a separate proxy origin. |
+| `VITE_CLARITY_PROJECT_ID` | Build time | unset (no analytics) | Microsoft Clarity project ID. When set, production builds ask each user for consent and load Clarity only after they allow it (Settings → Analytics changes the answer). The bundled CSP already allows `*.clarity.ms`. |
 
 No credentials are configured on the server. Users enter their Jira and GitHub credentials in the Settings UI.
 

@@ -1,4 +1,5 @@
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { trackEvent } from "../lib/analytics";
 import "./UpdateToast.css";
 
 /**
@@ -19,7 +20,10 @@ export function UpdateToast() {
       <button
         type="button"
         className="btn btn-sm btn-primary"
-        onClick={() => void updateServiceWorker(true)}
+        onClick={() => {
+          trackEvent("update_reload");
+          void updateServiceWorker(true);
+        }}
       >
         Reload
       </button>

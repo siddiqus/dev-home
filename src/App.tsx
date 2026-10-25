@@ -39,6 +39,7 @@ import { PRsView } from "./views/prs/PRsView";
 import { ReviewsView } from "./views/reviews/ReviewsView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
+import { AnalyticsConsent } from "./components/AnalyticsConsent";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useKanban } from "./hooks/useKanban";
 import { usePomodoro } from "./hooks/usePomodoro";
@@ -51,6 +52,7 @@ import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./con
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 import { jiraBrowseUrl } from "./utils/tickets";
 import { prNoteKey } from "./utils/prNotes";
+import { trackEvent } from "./lib/analytics";
 
 // Views off the default (summary) path load on first visit. Heavy deps ride along:
 // tiptap in the note editor, @dnd-kit in the board, the cockpit in team dashboard.
@@ -152,6 +154,13 @@ export default function App() {
       : isTabVisible(activeTab, { hiddenTabs, githubOrg })
         ? activeTab
         : "summary";
+
+  // Tabs don't change the URL, so Clarity sees one page; a per-tab event is what
+  // tells views apart in its filters and recordings. Wait for config so the
+  // pre-load guess doesn't log a tab the user never saw.
+  useEffect(() => {
+    if (!configLoading) trackEvent(`tab_${effectiveTab}`);
+  }, [effectiveTab, configLoading]);
 
   // Data sources the current tab needs (src/config/tabData.ts). Drives lazy
   // loading, per-tab hook gating, sidebar badges, and the scoped Refresh button.
@@ -795,6 +804,9 @@ export default function App() {
 
       {/* Service worker is registered in production builds only. */}
       {import.meta.env.PROD && <UpdateToast />}
+
+      {/* Renders only in builds with Clarity, until the user answers. */}
+      <AnalyticsConsent />
     </AppProviders>
   );
 }
