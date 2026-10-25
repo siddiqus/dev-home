@@ -210,7 +210,9 @@ export const SEARCH_ORG_PRS_QUERY = `
 `;
 
 /**
- * Lightweight GraphQL query for recently merged PRs (no checks/reviews needed).
+ * Lightweight GraphQL query for recently merged PRs (no checks needed). Takes
+ * each reviewer's latest decisive review, not the full history, for "approved
+ * by"; it's aliased off `reviews` so merged rows don't grow a participants list.
  */
 export const SEARCH_MERGED_PRS_QUERY = `
   query SearchMergedPRs($query: String!, $first: Int!) {
@@ -220,6 +222,9 @@ export const SEARCH_MERGED_PRS_QUERY = `
           ${PR_BASE_FIELDS}
           mergedAt
           mergedBy { login }
+          latestOpinionatedReviews(first: 20) {
+            nodes { state author { login } }
+          }
         }
       }
     }

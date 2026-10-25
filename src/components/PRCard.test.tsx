@@ -195,6 +195,33 @@ describe("PRCard", () => {
     expect(screen.getByText(/^merged /)).toBeInTheDocument();
   });
 
+  it("shows approved by and merged by on merged rows only", () => {
+    const pr = makePR({
+      merged_at: "2026-07-05T00:00:00Z",
+      merged_by: "carol",
+      approved_by: ["alice", "bob"],
+    });
+    const { unmount } = render(<PRCard pr={pr} fields={FIELDS.merged} onOpen={noop} />);
+    expect(screen.getByText("approved by alice, bob")).toBeInTheDocument();
+    expect(screen.getByText("merged by carol")).toBeInTheDocument();
+    unmount();
+
+    render(<PRCard pr={pr} fields={FIELDS.full} onOpen={noop} />);
+    expect(screen.queryByText(/approved by/)).not.toBeInTheDocument();
+  });
+
+  it("omits approved by when nobody approved", () => {
+    render(
+      <PRCard
+        pr={makePR({ merged_at: "2026-07-05T00:00:00Z", merged_by: "carol", approved_by: [] })}
+        fields={FIELDS.merged}
+        onOpen={noop}
+      />,
+    );
+    expect(screen.queryByText(/approved by/)).not.toBeInTheDocument();
+    expect(screen.getByText("merged by carol")).toBeInTheDocument();
+  });
+
   it("linkifies the Jira ticket in place when the title already contains it", () => {
     render(
       <PRCard

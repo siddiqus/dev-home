@@ -175,6 +175,7 @@
   flex-shrink: 0;
 }
 
+.pr-card-approvedby,
 .pr-card-mergedby {
   flex-shrink: 0;
 }

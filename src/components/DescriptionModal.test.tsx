@@ -104,7 +104,7 @@ describe("DescriptionModal PR header", () => {
     expect(link).toHaveAttribute("href", "https://jira.example.com/browse/PROJ-7");
   });
 
-  it("hides review indicators on a merged PR but keeps merged-by and labels", () => {
+  it("hides review indicators on a merged PR but keeps approved-by, merged-by and labels", () => {
     render(
       <DescriptionModal
         {...baseProps}
@@ -112,12 +112,14 @@ describe("DescriptionModal PR header", () => {
           review_status: "APPROVED",
           merged_at: "2026-07-11T00:00:00Z",
           merged_by: "alice",
+          approved_by: ["bob"],
           labels: [{ name: "bug", color: "d73a4a" }],
         })}
       />,
     );
 
     expect(document.querySelector(".pr-card-status")).toBeNull();
+    expect(screen.getByText(/approved by bob/)).toBeInTheDocument();
     expect(screen.getByText(/merged by alice/)).toBeInTheDocument();
     expect(document.querySelector(".pr-modal-time")?.textContent).toMatch(/^merged /);
     expect(screen.getByText("bug")).toHaveClass("pr-card-label");

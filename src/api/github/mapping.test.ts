@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  deriveApprovedBy,
   deriveParticipants,
   deriveReviewStatus,
   deriveViewerReview,
@@ -96,6 +97,32 @@ describe("deriveParticipants", () => {
       { login: "bob", state: "CHANGES_REQUESTED" },
       { login: "eve", state: "COMMENTED" },
     ]);
+  });
+});
+
+describe("deriveApprovedBy", () => {
+  it("is undefined when latestOpinionatedReviews wasn't fetched", () => {
+    expect(deriveApprovedBy({})).toBeUndefined();
+    expect(mapGraphQLPr({}).approved_by).toBeUndefined();
+  });
+
+  it("keeps approvers only, skipping the author, bots and missing authors", () => {
+    const node = {
+      author: { login: "me" },
+      latestOpinionatedReviews: {
+        nodes: [
+          r("bob", "APPROVED"),
+          r("carol", "CHANGES_REQUESTED"),
+          r("dave", "DISMISSED"),
+          r("Me", "APPROVED"),
+          r("renovate[bot]", "APPROVED"),
+          { state: "APPROVED", author: null },
+          r("eve", "APPROVED"),
+        ],
+      },
+    };
+    expect(deriveApprovedBy(node)).toEqual(["bob", "eve"]);
+    expect(mapGraphQLPr(node).approved_by).toEqual(["bob", "eve"]);
   });
 });
 

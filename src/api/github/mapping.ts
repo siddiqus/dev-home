@@ -192,6 +192,22 @@ export function deriveParticipants(node: any): PRParticipant[] | undefined {
   return [...byLogin.values()];
 }
 
+/**
+ * Logins whose latest decisive review approved the PR, excluding its author and
+ * bots. Undefined when the query didn't select `latestOpinionatedReviews`.
+ */
+export function deriveApprovedBy(node: any): string[] | undefined {
+  if (!node.latestOpinionatedReviews) return undefined;
+  const author = (node.author?.login || "").toLowerCase();
+  return (node.latestOpinionatedReviews.nodes || [])
+    .filter((r: any) => r?.state === "APPROVED")
+    .map((r: any) => r.author?.login)
+    .filter(
+      (login: unknown): login is string =>
+        typeof login === "string" && !isBot(login) && login.toLowerCase() !== author,
+    );
+}
+
 /** Count review threads still open (isResolved === false). */
 export function countUnresolvedThreads(node: any): number {
   const threads = node.reviewThreads?.nodes || [];
@@ -251,6 +267,7 @@ export function mapGraphQLPr(
     }),
     merged_at: node.mergedAt || null,
     merged_by: node.mergedBy?.login || null,
+    approved_by: deriveApprovedBy(node),
     in_merge_queue: !!node.mergeQueueEntry,
     your_turn: deriveYourTurn(node, viewer),
     unresolved_thread_count: countUnresolvedThreads(node),

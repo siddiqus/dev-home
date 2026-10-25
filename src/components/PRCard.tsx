@@ -188,6 +188,12 @@ export function PRCard({
               <Participants pr={pr} />
             </>
           )}
+          {fields.timestamps === "merged" && pr.approved_by && pr.approved_by.length > 0 && (
+            <>
+              <span className="pr-card-sep">{"·"}</span>
+              <span className="pr-card-approvedby">approved by {pr.approved_by.join(", ")}</span>
+            </>
+          )}
           {fields.timestamps === "merged" && pr.merged_by && (
             <>
               <span className="pr-card-sep">{"·"}</span>

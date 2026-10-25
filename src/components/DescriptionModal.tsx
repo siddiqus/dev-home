@@ -160,6 +160,12 @@ function PrModalHeader({
             <Participants pr={pr} max={8} />
           </>
         )}
+        {isMerged && pr.approved_by && pr.approved_by.length > 0 && (
+          <>
+            <span className="pr-modal-sep">{"·"}</span>
+            <span>approved by {pr.approved_by.join(", ")}</span>
+          </>
+        )}
         {isMerged && pr.merged_by && (
           <>
             <span className="pr-modal-sep">{"·"}</span>

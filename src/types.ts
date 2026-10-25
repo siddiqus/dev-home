@@ -152,6 +152,8 @@ export interface GitHubPR {
   merged_at?: string;
   /** GitHub login of whoever merged the PR. Populated for merged variants only. */
   merged_by?: string | null;
+  /** Logins whose latest decisive review approved the PR. Populated for merged variants only. */
+  approved_by?: string[];
   in_merge_queue?: boolean;
   /** Newest non-bot discussion activity is from someone else — the viewer's turn. */
   your_turn?: boolean;

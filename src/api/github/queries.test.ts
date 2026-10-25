@@ -51,3 +51,12 @@ describe("PR body is lazy", () => {
     expect(query).toMatch(/\bbody\b/);
   });
 });
+
+describe("merged-PR query", () => {
+  // mapGraphQLPr derives approved_by from it; without it "approved by" never renders.
+  it("selects latestOpinionatedReviews, not reviews", () => {
+    expect(SEARCH_MERGED_PRS_QUERY).toMatch(/\blatestOpinionatedReviews\b/);
+    // `reviews` would populate participants and add a second reviewer list to merged rows.
+    expect(SEARCH_MERGED_PRS_QUERY).not.toMatch(/\breviews\(/);
+  });
+});
