@@ -291,7 +291,7 @@ const PARTICIPANT_MARK: Record<PRParticipant["state"], string> = {
 
 /**
  * Who reviewed or commented: a speech-bubble icon then up to `max` logins, each
- * tinted (and marked ✓ / ✗) by their standing review state, then "+N". The
+ * tinted (and prefixed ✓ / ✗) by their standing review state, then "+N". The
  * tooltip lists everyone with what they did. Renders nothing when nobody has.
  */
 export function Participants({ pr, max = 3 }: { pr: GitHubPR; max?: number }) {
@@ -305,8 +305,8 @@ export function Participants({ pr, max = 3 }: { pr: GitHubPR; max?: number }) {
       <IconMessageCircle size={12} stroke={1.8} aria-hidden="true" />
       {shown.map((p, i) => (
         <span key={p.login} className={`pr-participant pr-participant--${p.state.toLowerCase()}`}>
-          {p.login}
           {PARTICIPANT_MARK[p.state]}
+          {p.login}
           {i < shown.length - 1 ? "," : ""}
         </span>
       ))}

@@ -26,9 +26,10 @@ export interface DeckPRRowProps {
 /**
  * One PR on the card (spec §5.4): a muted meta line with repo#number,
  * copy-link / open-on-GitHub icons · branch (truncated, with a copy icon) ·
- * author (unless it's me) · reviewers / commenters, and a "current" label, the updated age and the
- * unseen dot on the right; the title without the key; up to four signal chips with
- * "+N"; the newest unseen comment and my newest unresolved note.
+ * author (unless it's me) · reviewers / commenters (approvers, once merged),
+ * and a "current" label, the updated age and the unseen dot on the right; the
+ * title without the key; up to four signal chips with "+N"; the newest unseen
+ * comment and my newest unresolved note.
  */
 export function DeckPRRow({
   id,
@@ -46,6 +47,9 @@ export function DeckPRRow({
   const me = useContext(ViewerLoginContext);
   const showAuthor = !me || pr.user.login.toLowerCase() !== me.toLowerCase();
   const { shown, more } = visibleChips(item.signals);
+  // Merged PRs carry approvers instead (the merged query skips full reviews).
+  const participants =
+    pr.participants ?? pr.approved_by?.map((login) => ({ login, state: "APPROVED" as const }));
   // v1's repoRef ("dev-home#1203"), split so the repo part can be muted and truncated.
   const ref = repoRef(pr);
   const repo = ref.slice(0, ref.lastIndexOf("#"));
@@ -101,10 +105,10 @@ export function DeckPRRow({
               <span className="deck-pr-author">{pr.user.login}</span>
             </>
           )}
-          {pr.participants && pr.participants.length > 0 && (
+          {participants && participants.length > 0 && (
             <>
               <span aria-hidden="true">·</span>
-              <Participants pr={pr} />
+              <Participants pr={{ ...pr, participants }} />
             </>
           )}
           <span className="deck-pr-when">

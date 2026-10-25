@@ -491,6 +491,11 @@
   color: var(--color-status-purple);
 }
 
+/* Approvers after a merged tab's status: green, like the card's ✓ reviewers. */
+.deck-rail-approvers {
+  color: var(--color-status-success);
+}
+
 .deck-key {
   flex: none;
   font-family: var(--font-mono);

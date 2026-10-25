@@ -72,6 +72,14 @@ export function DeckRailRow({
         </span>
         <span className={`deck-rail-status deck-rail-status--${ticket.statusTone}`}>
           {ticket.status}
+          {ticket.approvers && ticket.approvers.length > 0 && (
+            <>
+              {" · "}
+              <span className="deck-rail-approvers">
+                {ticket.approvers.map((login) => `✓${login}`).join(" ")}
+              </span>
+            </>
+          )}
         </span>
       </span>
       {ticket.unseen ? (

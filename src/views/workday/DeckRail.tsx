@@ -72,7 +72,7 @@ export function DeckRail({
           {
             name: "merged",
             label: "Merged recently",
-            heading: "✓ Merged recently",
+            heading: "Merged recently",
             tickets: deck.merged,
           },
           {

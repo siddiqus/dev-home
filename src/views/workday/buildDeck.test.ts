@@ -967,15 +967,35 @@ describe("buildDeck merged recently", () => {
     expect(ccp1.title).toBe("Summary CCP-1");
     expect(numbers(ccp1)).toEqual([3, 1]);
     expect(ccp1.prs[0].signals).toEqual([
-      { label: "✓ Merged 2h ago by sajedul-karim", tone: "purple" },
+      { label: "Merged 2h ago by sajedul-karim", tone: "purple" },
     ]);
     // No merged_by: no "by".
-    expect(ccp1.prs[1].signals[0].label).toBe("✓ Merged 3h ago");
-    expect(ccp1.status).toBe("#3 ✓ Merged 2h ago by sajedul-karim");
+    expect(ccp1.prs[1].signals[0].label).toBe("Merged 3h ago");
+    expect(ccp1.status).toBe("#3 Merged 2h ago by sajedul-karim");
     expect(ccp1.statusTone).toBe("purple");
     expect(ccp1.stripe).toBe("purple");
     // A ticket the open deck lacks still gets a title from its PR.
     expect(byId(deck.merged, "merged:CCP-2").title).toBe("api");
+  });
+
+  it("carries the newest merge's approvers for the rail, outside the status and chip", () => {
+    const deck = build({
+      mergedPRs: [
+        merged(1, "2026-10-14T09:00:00Z", { title: "CCP-1 backend", approved_by: ["dave"] }),
+        merged(3, "2026-10-14T10:00:00Z", {
+          title: "CCP-1 frontend",
+          merged_by: "carol",
+          approved_by: ["alice", "bob"],
+        }),
+        merged(2, "2026-10-14T11:00:00Z", { title: "CCP-2 api", approved_by: [] }),
+      ],
+      allIssues: [issue("CCP-1")],
+    });
+    const ccp1 = byId(deck.merged, "merged:CCP-1");
+    expect(ccp1.status).toBe("#3 Merged 2h ago by carol");
+    expect(ccp1.approvers).toEqual(["alice", "bob"]);
+    expect(ccp1.prs[0].signals[0].label).toBe("Merged 2h ago by carol");
+    expect(byId(deck.merged, "merged:CCP-2").approvers).toEqual([]);
   });
 
   it("keeps merged tabs read-only: unseen-free and out of arrival, current and counts", () => {

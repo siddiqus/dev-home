@@ -699,13 +699,13 @@ describe("WorkdayView merged recently", () => {
     const merged = within(within(rail()).getByRole("group", { name: "Merged recently" })).getByRole(
       "option",
     );
-    expect(merged).toHaveTextContent("#1100 ✓ Merged 3h ago by sajedul-karim");
+    expect(merged).toHaveTextContent("#1100 Merged 3h ago by sajedul-karim");
 
     // ←/→ walks it in rail order: left from the first Open ticket lands on it.
     expect(card()).toHaveAccessibleName(/^CCP-412/);
     press("ArrowLeft");
     expect(card()).toHaveAccessibleName(/^CCP-350/);
-    expect(within(card()).getByText("✓ Merged 3h ago by sajedul-karim")).toBeTruthy();
+    expect(within(card()).getByText("Merged 3h ago by sajedul-karim")).toBeTruthy();
     // x and Space leave a merged tab alone.
     press("x");
     press(" ");

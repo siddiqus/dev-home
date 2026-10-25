@@ -50,6 +50,8 @@ export interface DeckTicket {
   status: string;
   /** Tone of the status line's headline signal, so the rail reads by urgency. */
   statusTone: BadgeVariant;
+  /** Merged tabs: who approved the newest merge, shown after the status line in green. */
+  approvers?: string[];
   reviewOnly: boolean;
   unseen: boolean;
   current: boolean;

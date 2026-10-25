@@ -297,9 +297,9 @@ function mergedTabs(
     const p: DeckPR = {
       pr,
       mine: true,
-      // Also the rail's status line, which takes the top PR's first chip.
+      // Also the rail's status line, for the newest merge, with its approvers.
       signals: [
-        { label: `✓ Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
+        { label: `Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
       ],
       priority: PRIORITY.purple,
       unseenComment: null,
@@ -313,8 +313,20 @@ function mergedTabs(
   }
   return [...byId].map(([id, { key, prs: tabPRs }]) => {
     const t = deckTicket(id, key, key ? ref(key) : null, tabPRs, ctx);
+    // The rail names the newest merge and who approved it; on the card, the
+    // approvers sit in the PR row's meta line instead of the chip.
+    const [top] = tabPRs;
     // deckTicket's card order is needs-me; here it's newest merge first.
-    return { ...t, prs: tabPRs, unseen: false, current: false, jiraMention: null, note: null };
+    return {
+      ...t,
+      prs: tabPRs,
+      status: `#${top.pr.number} ${top.signals[0].label}`,
+      approvers: top.pr.approved_by ?? [],
+      unseen: false,
+      current: false,
+      jiraMention: null,
+      note: null,
+    };
   });
 }
 

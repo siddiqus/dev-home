@@ -157,6 +157,33 @@ describe("DeckMode rail", () => {
     expect(open.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("ends a merged tab's rail status with its approvers, in their own green span", () => {
+    renderDeck({
+      deck: deck({
+        merged: [ticket("CCP-6", { status: "#6 Merged 2h ago", approvers: ["alice", "bob"] })],
+        open: [ticket("CCP-7", { approvers: [] })],
+      }),
+    });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    const merged = within(within(rail).getByRole("group", { name: "Merged recently" })).getByRole(
+      "option",
+    );
+    const status = merged.querySelector(".deck-rail-status");
+    expect(status?.textContent).toBe("#6 Merged 2h ago · ✓alice ✓bob");
+    expect(status?.querySelector(".deck-rail-approvers")?.textContent).toBe("✓alice ✓bob");
+    const open = within(within(rail).getByRole("group", { name: "Open" })).getByRole("option");
+    expect(open.querySelector(".deck-rail-approvers")).toBeNull();
+  });
+
+  it("lists a merged PR's approvers in its meta line, ticked", () => {
+    const p = deckPR(5, {}, { merged_at: "2026-10-14T10:00:00Z", approved_by: ["alice", "bob"] });
+    renderDeck({ deck: deck({ open: [ticket("CCP-5", { prs: [p] })] }) });
+    const row = screen.getByRole("option", { name: /PR 5/ });
+    const people = row.querySelector(".pr-participants");
+    expect(people?.textContent).toBe("✓alice,✓bob");
+    expect(people).toHaveAttribute("title", "alice approved\nbob approved");
+  });
+
   it("links a note card's target in a new tab, and leaves an unlinked note plain", () => {
     const n = {
       id: 2,

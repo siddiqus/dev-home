@@ -414,8 +414,8 @@ describe("PRCard next-action tag", () => {
       { login: "di", state: "COMMENTED" as const },
     ];
     render(<PRCard pr={makePR({ participants })} fields={FIELDS.full} onOpen={noop} />);
-    expect(screen.getByText("ann✓,")).toHaveClass("pr-participant--approved");
-    expect(screen.getByText("bo✗,")).toHaveClass("pr-participant--changes_requested");
+    expect(screen.getByText("✓ann,")).toHaveClass("pr-participant--approved");
+    expect(screen.getByText("✗bo,")).toHaveClass("pr-participant--changes_requested");
     expect(screen.getByText("+1")).toBeInTheDocument();
     expect(screen.queryByText(/di/)).toBeNull();
     expect(screen.getByTitle(/di commented/)).toBeInTheDocument();
