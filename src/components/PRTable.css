@@ -195,6 +195,14 @@
   flex-shrink: 0;
 }
 
+/* ---- signals line: my PR's signals beyond the next step ---- */
+.pr-card-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
 /* ---- right column ---- */
 .pr-card-side {
   flex-shrink: 0;

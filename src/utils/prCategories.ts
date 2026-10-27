@@ -32,9 +32,9 @@ export type ActionableVariant = "danger" | "warning" | "info";
 
 /**
  * A single "why this PR needs attention" signal. This is the one source of truth
- * for both the reason chips on a PR card (see PRCard's `deriveReasonChips`) and
- * the sidebar's "Actionable" filter — so a new signal added here shows up in both
- * places. Ordered most-blocking first; that order drives the chip display order.
+ * for both the reason chips in the PR detail modal (see prIndicators'
+ * `deriveReasonChips`) and the sidebar's "Actionable" filter — so a new signal
+ * added here shows up in both places. Ordered most-blocking first; that order drives the chip display order.
  */
 export interface ActionableReason {
   /** Stable identifier, used as the filter value and the chip's React key. */

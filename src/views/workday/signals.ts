@@ -2,9 +2,9 @@ import type { GitHubPR } from "../../types";
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import type { Signal } from "./deckTypes";
 import { diffSize } from "./buildFocus";
-import { authorAction, ciFailing, reviewerAction } from "../../utils/prAction";
+import { authorAction, reviewerAction } from "../../utils/prAction";
 import { compactAge } from "./dates";
-import { RED_CHECK_STATUSES } from "../../utils/prCategories";
+import { noReviewer, RED_CHECK_STATUSES } from "../../utils/prCategories";
 
 /** Get just the check names that are failing, formatted. */
 function failingCheckNames(pr: GitHubPR): string {
@@ -32,7 +32,8 @@ export const PRIORITY: Record<BadgeVariant, number> = {
 /**
  * Signals for my own PRs. The first chip is always the next step (authorAction),
  * so a card is never blank; the rest are facts that step doesn't already say,
- * worst first: other blockers, open threads, failing non-required checks.
+ * worst first: other blockers, the review state a blocker hides, open threads,
+ * failing non-required checks.
  */
 export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   const action = authorAction(pr);
@@ -45,16 +46,18 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   // Review feedback is answered on the PR's conversation, so those chips link there.
   const onPR = { href: pr.html_url };
   const feedback = action.key === "your_turn" || action.key === "changes_requested";
+  // Red CI or a conflict takes the step, hiding where review stands.
+  const blocked = action.key === "ci_failed" || action.key === "conflict";
 
   const facts: Signal[] = [];
-  if (action.key !== "ci_failed" && ciFailing(pr)) {
-    facts.push({ label: `✗ CI failing: ${failingCheckNames(pr)}`, tone: "danger" });
-  }
   if (action.key !== "conflict" && pr.has_conflict) {
     facts.push({ label: `✗ Conflict with ${pr.base.ref}`, tone: "danger" });
   }
   if (action.key !== "changes_requested" && pr.review_status === "CHANGES_REQUESTED") {
     facts.push({ label: "✗ Changes requested", tone: "danger", ...onPR });
+  }
+  if (blocked && pr.review_status === "REVIEWED") {
+    facts.push({ label: "Reviewed", tone: "warning", ...onPR });
   }
   const threads = pr.unresolved_thread_count ?? 0;
   if (threads > 0 && !action.label.includes("open thread")) {
@@ -63,6 +66,9 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
       tone: "warning",
       ...onPR,
     });
+  }
+  if (blocked && !pr.draft && noReviewer(pr)) {
+    facts.push({ label: "No reviewer", tone: "warning" });
   }
   const optional = pr.optional_checks_failing ?? [];
   if (optional.length > 0) {

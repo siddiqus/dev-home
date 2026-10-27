@@ -9,6 +9,7 @@ import {
 import { GitHubPR, GitHubLabel, type PRParticipant } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
 import type { BadgeVariant } from "./primitives/Badge";
+import type { Signal } from "../views/workday/deckTypes";
 import "./prIndicators.css";
 import { jiraBrowseUrl } from "../utils/tickets";
 import { ticketClickHandler, useOptionalJiraDrawer } from "../context/JiraDrawerContext";
@@ -77,8 +78,9 @@ function deriveReasonChips(pr: GitHubPR, except?: string[]): ReasonChip[] {
   }));
 }
 
-/** Unified reason-chip row shown on needs-action PRs. `except` drops the chip
-    the next-action tag already restates (ACTIONABLE_REASONS keys). */
+/** Reason-chip row in the PR detail modal (the PR list row shows mySignals
+    instead). `except` drops the chip the next-action tag already restates
+    (ACTIONABLE_REASONS keys). */
 export function ReasonChips({ pr, except }: { pr: GitHubPR; except?: string[] }) {
   const chips = deriveReasonChips(pr, except);
   if (chips.length === 0) return null;
@@ -95,8 +97,39 @@ export function ReasonChips({ pr, except }: { pr: GitHubPR; except?: string[] })
 
 /** A single caller-supplied action pill (e.g. the Reviews tab's "New commits"),
     styled like a reason chip. */
-export function ActionPill({ label, tone }: { label: string; tone: BadgeVariant }) {
-  return <span className={`pr-reason-chip pr-reason-chip--${tone}`}>{label}</span>;
+export function ActionPill({
+  label,
+  tone,
+  title,
+}: {
+  label: string;
+  tone: BadgeVariant;
+  title?: string;
+}) {
+  return (
+    <span className={`pr-reason-chip pr-reason-chip--${tone}`} title={title}>
+      {label}
+    </span>
+  );
+}
+
+/** One of my PR's signals (mySignals) as an action pill. A signal with an href
+    links there in a new tab instead of opening the row's PR modal. */
+export function SignalChip({ signal }: { signal: Signal }) {
+  const { label, tone, detail, href } = signal;
+  if (!href) return <ActionPill label={label} tone={tone} title={detail} />;
+  return (
+    <a
+      className="pr-signal-link"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={detail ?? "Open on GitHub"}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <ActionPill label={label} tone={tone} />
+    </a>
+  );
 }
 
 /** The leading PR icon — draft (muted) vs open. */

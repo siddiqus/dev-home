@@ -470,7 +470,7 @@ export const PRsView: React.FC<PRsViewProps> = ({
               jiraIssues={jiraIssues}
               jiraBaseUrl={jiraBaseUrl}
               showGroupToolbar={false}
-              reasonChips
+              signals
               onCollapseStateChange={handleCollapseStateChange}
             />
           )}

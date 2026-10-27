@@ -188,6 +188,38 @@ describe("mySignals", () => {
     ]);
   });
 
+  it("keeps the review state beside a red-CI or conflict blocker", () => {
+    const failing = {
+      checks_status: "FAILURE",
+      checks: [{ name: "lint", status: "FAILURE", url: null }],
+    };
+    expect(mySignals(pr({ ...failing, review_status: "REVIEWED" }), now)).toEqual([
+      { label: "✗ Fix CI: lint", tone: "danger" },
+      { label: "Reviewed", tone: "warning", href: PR_URL },
+    ]);
+    expect(mySignals(pr({ has_conflict: true }), now)).toEqual([
+      { label: "✗ Resolve conflict with main", tone: "danger" },
+      { label: "No reviewer", tone: "warning" },
+    ]);
+  });
+
+  it("leaves the review state to the step when nothing blocks it", () => {
+    const signals = mySignals(
+      pr({
+        review_status: "REVIEWED",
+        requested_reviewers: ["alice"],
+        created_at: "2026-10-13T12:00:00Z",
+      }),
+      now,
+    );
+    expect(signals).toEqual([{ label: "⏳ Waiting on alice · 1d", tone: "neutral" }]);
+  });
+
+  it("doesn't flag a missing reviewer on a draft", () => {
+    const signals = mySignals(pr({ draft: true, has_conflict: true }), now);
+    expect(signals.find((s) => s.label === "No reviewer")).toBeUndefined();
+  });
+
   it("never returns an empty list", () => {
     expect(mySignals(pr({ requested_reviewers: undefined }), now)).toEqual([
       { label: "⏳ Waiting for review · 13d", tone: "neutral" },

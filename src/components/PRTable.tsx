@@ -17,7 +17,6 @@ import {
 } from "@tabler/icons-react";
 import { GitHubPR, JiraIssue } from "../types";
 import { groupByTicket } from "../utils/tickets";
-import { categorizeOpenPR } from "../utils/prCategories";
 import type { StateBadge } from "../views/workday/prState";
 import { EmptyState } from "./EmptyState";
 import { PRCard, PRCardFields } from "./PRCard";
@@ -58,10 +57,9 @@ interface PRTableProps {
   collapsedGroups?: Set<string>;
   /** Called when a ticket group header is clicked, in controlled mode. */
   onToggleGroup?: (ticket: string) => void;
-  /** Enable the unified reason-chip row; chips render only on rows that
-      categorize as "needs-action", so mixed lists (flat view) decorate the right
-      rows and section tables naturally scope chips to the needs-action section. */
-  reasonChips?: boolean;
+  /** Render each row's signals (mySignals). Every row must be the viewer's own
+      PR, as on the My PRs page. */
+  signals?: boolean;
   /** Derive a per-row action pill (e.g. the Reviews tab's reviewer state). */
   actionPill?: (pr: GitHubPR) => StateBadge | null;
   /** Show the "Approved" status pill on approved rows even when the variant hides status. */
@@ -161,7 +159,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     storageKeyScope,
     collapsedGroups,
     onToggleGroup,
-    reasonChips,
+    signals,
     actionPill,
     showApproved,
   },
@@ -276,7 +274,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
                     fields={fields}
                     jiraBaseUrl={jiraBaseUrl}
                     clustered={isCluster}
-                    showReasonChips={!!reasonChips && categorizeOpenPR(pr) === "needs-action"}
+                    showSignals={signals}
                     actionPill={actionPill?.(pr)}
                     showApproved={showApproved}
                     noteCount={noteCount(pr)}

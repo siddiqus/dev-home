@@ -4,8 +4,9 @@ import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
-import { prAction, restatedReasons } from "../utils/prAction";
+import { prAction } from "../utils/prAction";
 import type { StateBadge } from "../views/workday/prState";
+import { mySignals } from "../views/workday/signals";
 import {
   ActionPill,
   BranchPill,
@@ -13,7 +14,7 @@ import {
   Participants,
   PRLabels,
   PRStateIcon,
-  ReasonChips,
+  SignalChip,
   StatusPill,
   deriveStatus,
   renderTitleContent,
@@ -39,9 +40,9 @@ interface PRCardProps {
   singleTicket?: string | null;
   /** Member of a multi-PR ticket cluster — adds the indent rail. */
   clustered?: boolean;
-  /** Render the unified reason-chip row (needs-action rows only), replacing the
-      standalone status pill and CI icon with labeled chips. */
-  showReasonChips?: boolean;
+  /** Render my PR's signals (mySignals): the next step top-right, the rest on a
+      line under the meta. Only for PRs the viewer authored (the My PRs lists). */
+  showSignals?: boolean;
   /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon.
       Undefined → derived from the viewer's seat (prAction); null → none. */
   actionPill?: StateBadge | null;
@@ -65,7 +66,7 @@ export function PRCard({
   jiraBaseUrl,
   singleTicket,
   clustered,
-  showReasonChips,
+  showSignals,
   actionPill,
   showApproved,
   noteCount,
@@ -74,14 +75,13 @@ export function PRCard({
   onCopyLink,
   onCopyRef,
 }: PRCardProps) {
-  // On needs-action rows the reason chips replace the standalone status pill (the
-  // review state becomes a chip). The CI status icon stays on every row.
+  // My signals' next step, else the next-action tag, replaces the plain status
+  // pill; PRs I'm not involved in keep it. The CI status icon stays on every row.
   const viewer = useContext(ViewerLoginContext);
-  const derived = actionPill === undefined ? prAction(pr, viewer) : null;
-  const action = actionPill === undefined ? derived : actionPill;
-  // The next-action tag replaces the plain status pill; PRs I'm not involved in keep it.
+  const [next, ...facts] = showSignals ? mySignals(pr, new Date()) : [];
+  const action = next ? null : actionPill === undefined ? prAction(pr, viewer) : actionPill;
   const showStatusPill =
-    (fields.showStatus && !showReasonChips && !action) ||
+    (fields.showStatus && !next && !action) ||
     (!!showApproved && deriveStatus(pr).label === "Approved");
   const timeText =
     fields.timestamps === "merged"
@@ -214,12 +214,19 @@ export function PRCard({
           ) : null}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
+        {facts.length > 0 && (
+          <div className="pr-card-signals">
+            {facts.map((signal) => (
+              <SignalChip key={signal.label} signal={signal} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="pr-card-side">
         <div className="pr-card-side-top">
+          {next && <SignalChip signal={next} />}
           {action && <ActionPill label={action.label} tone={action.tone} />}
-          {showReasonChips && <ReasonChips pr={pr} except={restatedReasons(derived)} />}
           {showStatusPill && <StatusPill pr={pr} />}
           {fields.showChecks && (
             <ChecksStatusIcon

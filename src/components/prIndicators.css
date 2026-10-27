@@ -254,3 +254,13 @@ a.pr-card-ticket:hover {
   color: var(--color-text-secondary);
   background: var(--color-status-neutral-bg);
 }
+
+/* A signal chip that links to the PR on GitHub. */
+.pr-signal-link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.pr-signal-link:hover .pr-reason-chip {
+  text-decoration: underline;
+}

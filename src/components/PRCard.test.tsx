@@ -317,59 +317,65 @@ describe("PRCard", () => {
   });
 });
 
-describe("PRCard reason chips", () => {
-  it("renders the applicable chips, most-blocking first", () => {
+describe("PRCard signals", () => {
+  const chipTexts = (container: HTMLElement, selector: string) =>
+    [...container.querySelectorAll(`${selector} .pr-reason-chip`)].map((c) => c.textContent);
+
+  it("puts the next step top-right and the other signals under the meta line", () => {
     const { container } = render(
       <PRCard
         pr={makePR({
           checks_status: "FAILURE",
+          checks: [{ name: "lint", status: "FAILURE", url: null }],
           has_conflict: true,
           review_status: "CHANGES_REQUESTED",
-          your_turn: true,
           unresolved_thread_count: 2,
         })}
         fields={FIELDS.full}
-        showReasonChips
+        showSignals
         onOpen={noop}
       />,
     );
-    const chips = [...container.querySelectorAll(".pr-reason-chip")].map((c) => c.textContent);
-    expect(chips).toEqual([
-      "CI failed",
-      "Merge conflict",
-      "Changes requested",
-      "Your turn",
-      "Unresolved (2)",
+    expect(chipTexts(container, ".pr-card-side-top")).toEqual(["✗ Fix CI: lint"]);
+    expect(chipTexts(container, ".pr-card-signals")).toEqual([
+      "✗ Conflict with main",
+      "✗ Changes requested",
+      "2 open threads",
     ]);
-  });
-
-  it("unifies the review reason into a chip, dropping the standalone status pill", () => {
-    const { container } = render(
-      <PRCard
-        pr={makePR({ review_status: "CHANGES_REQUESTED" })}
-        fields={FIELDS.full}
-        showReasonChips
-        onOpen={noop}
-      />,
-    );
     expect(container.querySelector(".pr-card-status")).toBeNull();
-    expect(screen.getByText("Changes requested")).toHaveClass("pr-reason-chip");
   });
 
-  it("uses warning styling for a plain review and shows the unresolved count", () => {
+  it("links review-feedback chips to the PR on GitHub without opening the row", () => {
+    const onOpen = vi.fn();
     render(
       <PRCard
-        pr={makePR({ review_status: "REVIEWED", unresolved_thread_count: 1 })}
+        pr={makePR({ review_status: "CHANGES_REQUESTED", unresolved_thread_count: 1 })}
         fields={FIELDS.full}
-        showReasonChips
+        showSignals
+        onOpen={onOpen}
+      />,
+    );
+    const link = screen.getByText("✗ Address requested changes · 1 open thread").closest("a")!;
+    expect(link).toHaveAttribute("href", "https://github.com/o/r/pull/42");
+    expect(link).toHaveAttribute("target", "_blank");
+    fireEvent.click(link);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("leaves out the line underneath when the next step is the only signal", () => {
+    const { container } = render(
+      <PRCard
+        pr={makePR({ review_status: "APPROVED", checks_status: "SUCCESS" })}
+        fields={FIELDS.full}
+        showSignals
         onOpen={noop}
       />,
     );
-    expect(screen.getByText("Reviewed")).toHaveClass("pr-reason-chip--warning");
-    expect(screen.getByText("Unresolved (1)")).toHaveClass("pr-reason-chip--warning");
+    expect(screen.getByText("✓ Ready to merge")).toHaveClass("pr-reason-chip--success");
+    expect(container.querySelector(".pr-card-signals")).toBeNull();
   });
 
-  it("falls back to the status pill (no chips) when showReasonChips is unset", () => {
+  it("falls back to the status pill (no signals) when showSignals is unset", () => {
     const { container } = render(
       <PRCard
         pr={makePR({ checks_status: "FAILURE", review_status: "CHANGES_REQUESTED" })}
@@ -377,7 +383,7 @@ describe("PRCard reason chips", () => {
         onOpen={noop}
       />,
     );
-    expect(container.querySelector(".pr-card-reasons")).toBeNull();
+    expect(container.querySelector(".pr-card-signals")).toBeNull();
     expect(screen.getByText("Changes requested")).toHaveClass("pr-card-status");
   });
 });
