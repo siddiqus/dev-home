@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DescriptionModal } from "./DescriptionModal";
 import type { GitHubPR } from "../types";
 
@@ -140,5 +140,77 @@ describe("DescriptionModal PR header", () => {
     expect(document.querySelector(".pr-modal-header")).toBeNull();
     expect(document.querySelector(".pr-card-status")).toBeNull();
     expect(document.querySelector(".pr-card-branch")).toBeNull();
+  });
+});
+
+describe("DescriptionModal on a phone", () => {
+  const desktop = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = desktop;
+  });
+
+  const checks = [
+    { name: "lint", status: "SUCCESS", url: null },
+    { name: "e2e", status: "FAILURE", url: null },
+    { name: "deploy-preview", status: "IN_PROGRESS", url: null },
+    { name: "build", status: "SUCCESS", url: null },
+  ];
+
+  it("moves Close and the GitHub link to a top bar", () => {
+    const onHide = vi.fn();
+    const pr = makePR();
+    render(<DescriptionModal {...baseProps} onHide={onHide} pr={pr} url={pr.html_url} />);
+    // No footer Close button: the ✕ in the top bar replaces it.
+    expect(screen.queryByText("Close")).toBeNull();
+    expect(screen.getByRole("link", { name: "Open on GitHub" })).toHaveAttribute(
+      "href",
+      pr.html_url,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onHide).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies the PR link from the top bar", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const pr = makePR();
+    render(<DescriptionModal {...baseProps} pr={pr} url={pr.html_url} />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith("https://github.com/o/r/pull/42");
+    expect(await screen.findByText("Copied PR link to clipboard")).toBeInTheDocument();
+  });
+
+  it("folds the checks into a summary that opens the list", () => {
+    render(<DescriptionModal {...baseProps} pr={makePR()} checks={checks} />);
+    const summary = screen.getByRole("button", { name: /1 failing · 1 running · 2 passed/ });
+    expect(summary).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("lint")).toBeNull();
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("lint")).toBeInTheDocument();
+    expect(screen.getByText("e2e")).toBeInTheDocument();
+  });
+
+  it("keeps the description and the notes panel in the one scroll", async () => {
+    render(<DescriptionModal {...baseProps} pr={makePR()} checks={checks} />);
+    // The Markdown renderer loads lazily.
+    expect(await screen.findByText("Body text")).toBeInTheDocument();
+    expect(screen.getByTestId("notes-panel")).toBeInTheDocument();
+  });
+});
+
+describe("DescriptionModal on a desktop", () => {
+  it("keeps the footer Close button and has no phone top bar", () => {
+    render(<DescriptionModal {...baseProps} pr={makePR()} />);
+    expect(screen.getByText("Close")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
   });
 });

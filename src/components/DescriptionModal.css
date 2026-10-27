@@ -228,6 +228,114 @@
   flex-shrink: 0;
 }
 
+/* --- Phone: one scroll (checks summary, description, notes) under a slim
+   top bar (PR ref, copy link, GitHub, ✕) that replaces the footer --- */
+.description-modal--phone .modal-tab-content {
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.description-modal--phone .modal-title-section {
+  margin-bottom: 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 0;
+}
+
+/* The title wraps rather than truncating; the icon stays on the first line. */
+.description-modal--phone .pr-modal-title {
+  align-items: flex-start;
+}
+
+.description-modal--phone .pr-modal-title-text {
+  overflow: visible;
+  white-space: normal;
+}
+
+.description-modal--phone .pr-modal-meta {
+  gap: 4px 6px;
+}
+
+.description-modal .modal-phone-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 44px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.description-modal .modal-phone-bar-ref {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.description-modal .modal-phone-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+}
+
+.description-modal .modal-phone-bar-btn:active {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.description-modal .modal-phone-section {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.description-modal .modal-checks-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.description-modal .modal-checks-summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.description-modal .modal-checks-summary-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s;
+}
+
+.description-modal .modal-checks-summary[aria-expanded="true"] .modal-checks-summary-chevron {
+  transform: rotate(90deg);
+}
+
+.description-modal .modal-checks-summary-list {
+  margin-top: var(--space-1);
+}
+
+.description-modal--phone .check-run-row {
+  padding: 6px var(--space-1);
+}
+
 /* --- Markdown body styling --- */
 .markdown-body {
   font-size: 0.875rem;
