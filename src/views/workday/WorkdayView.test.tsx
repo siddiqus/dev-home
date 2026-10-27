@@ -378,7 +378,7 @@ describe("WorkdayView deck", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     renderDeck();
     const c = card();
-    expect(within(c).getByRole("link", { name: "Open in Jira" })).toHaveAttribute(
+    expect(within(c).getByRole("link", { name: "Open CCP-412 in Jira" })).toHaveAttribute(
       "href",
       expect.stringContaining("/browse/CCP-412"),
     );
