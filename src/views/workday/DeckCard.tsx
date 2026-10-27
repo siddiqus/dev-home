@@ -88,13 +88,14 @@ export function DeckCard({
             <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} showOpen={false} />
             {jiraHref && (
               <a
-                className="deck-link font-sm"
+                className="font-sm"
+                style={{ marginBottom: "3px", marginLeft: "-2px" }}
                 href={jiraHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 title={`Open ${key} in Jira`}
               >
-                Open in Jira <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
+                <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
               </a>
             )}
             {ticket.ticket?.statusName && (
