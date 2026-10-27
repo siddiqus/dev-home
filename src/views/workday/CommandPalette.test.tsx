@@ -11,6 +11,7 @@ vi.mock("../../hooks/useWorkdayExtras", () => ({
     doneTickets: { data: [], error: null },
     merged: { data: [], error: null },
     reviewed: { data: null, error: null },
+    ticketMerged: { data: [], error: null },
   }),
 }));
 vi.mock("../../components/PrNotesPanel", () => ({ PrNotesPanel: () => null }));

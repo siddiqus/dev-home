@@ -2,7 +2,7 @@ import { act, render, screen, fireEvent, cleanup, within } from "@testing-librar
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 
-const extrasMock = vi.hoisted(() => ({ merged: [] as GitHubPR[] }));
+const extrasMock = vi.hoisted(() => ({ merged: [] as GitHubPR[], ticketMerged: [] as GitHubPR[] }));
 vi.mock("../../hooks/useWorkdayExtras", () => ({
   useWorkdayExtras: () => ({
     sprint: { data: [], error: null },
@@ -10,6 +10,7 @@ vi.mock("../../hooks/useWorkdayExtras", () => ({
     doneTickets: { data: [], error: null },
     merged: { data: extrasMock.merged, error: null },
     reviewed: { data: null, error: null },
+    ticketMerged: { data: extrasMock.ticketMerged, error: null },
   }),
 }));
 
@@ -726,6 +727,37 @@ describe("WorkdayView merged recently", () => {
       {},
     );
     expect(merged).not.toHaveClass("deck-rail-row--current");
+  });
+});
+
+describe("WorkdayView merged PRs on open tickets", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    extrasMock.ticketMerged = [];
+  });
+
+  const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
+
+  it("lists an open ticket's merged PRs instead of No PR yet; Space on one pins the ticket", () => {
+    extrasMock.ticketMerged = [
+      deckPR(1100, "CCP-371 Backfill job", "2026-10-01T10:00:00Z", {
+        state: "merged",
+        merged_at: new Date(NOW.getTime() - 2 * 86_400_000).toISOString(),
+      }),
+    ];
+    renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(within(rail).getByRole("option", { name: /371/ })).toHaveTextContent(
+      "#1100 Merged 2d ago",
+    );
+    expect(within(card()).queryByText("No PR yet")).toBeNull();
+    expect(within(card()).getByText(/^1 PR · 1 merged · 0 current · updated/)).toBeTruthy();
+    const [row] = within(prList()).getAllByRole("option");
+    expect(within(row).getByText("Backfill job")).toBeTruthy();
+    expect(within(row).getByText("Merged 2d ago")).toBeTruthy();
+    // A merged PR can't be current, so Space marks the ticket instead.
+    press(" ");
+    expect(stored().current).toEqual(["ticket:CCP-371"]);
   });
 });
 

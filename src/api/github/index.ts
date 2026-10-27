@@ -334,10 +334,17 @@ export function buildMergedPrsQuery(args: {
  * Fetch recently merged PRs (last 3 days) in a single search.
  * scope "user" (default) — user's own merged PRs
  * scope "org" — org-wide merged PRs
- * Optional: authors (logins), repos (owner/repo) — any of each
+ * Optional: authors (logins), repos (owner/repo) — any of each; `first` caps
+ * the result count (GitHub allows up to 100).
  */
 export async function getMergedPrs(
-  args: { scope?: "user" | "org"; authors?: string[]; repos?: string[]; since?: Date } = {},
+  args: {
+    scope?: "user" | "org";
+    authors?: string[];
+    repos?: string[];
+    since?: Date;
+    first?: number;
+  } = {},
 ): Promise<{ prs: any[] }> {
   const config = requireSettings();
   const scope = args.scope === "org" ? "org" : "user";
@@ -358,7 +365,7 @@ export async function getMergedPrs(
 
   const result = await githubGraphql<{ search: { nodes: any[] } }>(SEARCH_MERGED_PRS_QUERY, {
     query: q,
-    first: authors.length > 1 || repos.length > 1 ? 50 : 20,
+    first: args.first ?? (authors.length > 1 || repos.length > 1 ? 50 : 20),
   });
 
   const prs = (result.search.nodes || []).map((n: any) => mapGraphQLPr(n));

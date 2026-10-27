@@ -23,6 +23,8 @@ export function useWorkdayExtras(
   useEffect(() => {
     if (!configured) return;
     const ctrl = new AbortController();
+    // `ticketMerged` keeps its last list until the refetch lands, so the deck's
+    // merged rows don't blink out on every refresh.
     setExtras((prev) => ({
       ...prev,
       sprint: EMPTY_EXTRAS.sprint,

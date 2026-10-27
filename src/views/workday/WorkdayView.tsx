@@ -301,6 +301,7 @@ export function WorkdayView(props: WorkdayViewProps) {
   const lastMerged = useRef<GitHubPR[] | null>(null);
   if (extras.merged.data) lastMerged.current = extras.merged.data;
   const mergedPRs = lastMerged.current;
+  const ticketMergedPRs = extras.ticketMerged.data;
 
   // Standup sections: built the same way as v1.
   const sections = useMemo(
@@ -382,6 +383,7 @@ export function WorkdayView(props: WorkdayViewProps) {
           notes,
           offSprintKeys,
           mergedPRs: mergedPRs ?? [],
+          ticketMergedPRs: ticketMergedPRs ?? [],
         },
         state,
         now,
@@ -397,6 +399,7 @@ export function WorkdayView(props: WorkdayViewProps) {
       notes,
       offSprintKeys,
       mergedPRs,
+      ticketMergedPRs,
       state,
       now,
     ],
@@ -734,11 +737,12 @@ export function WorkdayView(props: WorkdayViewProps) {
         else if (selectedTicket?.noteItem) onOpenNote?.(selectedTicket.noteItem);
       }),
       openExternal: guard(() => pr && window.open(pr.html_url, "_blank", "noopener,noreferrer")),
-      // Space: the selected PR, or the ticket (or note tab) itself when it has no PRs.
+      // Space: the selected PR, or the ticket (or note tab) itself when it has no
+      // PRs or the selected one has merged (a merged PR can't be current).
       toggleCurrent: guard(() => {
         // Merged tabs are read-only: nothing to work on, nothing to close.
         if (!selectedTicket || isMergedTab(selectedTicket.id)) return;
-        if (pr) toggleCurrent(prPin(pr), selectedTicket.id);
+        if (pr && !pr.merged_at) toggleCurrent(prPin(pr), selectedTicket.id);
         else if (selectedTicket.key)
           toggleCurrent(ticketPin(selectedTicket.key), selectedTicket.id);
         else if (selectedTicket.noteItem)
@@ -865,7 +869,7 @@ export function WorkdayView(props: WorkdayViewProps) {
           jumpTo(id, pr?.html_url ?? null);
           break;
         case "toggleCurrent":
-          if (pr) toggleCurrent(prPin(pr), id);
+          if (pr && !pr.merged_at) toggleCurrent(prPin(pr), id);
           else if (r.ticketKey) toggleCurrent(ticketPin(r.ticketKey), id);
           else if (id.startsWith("note:")) toggleCurrent(id, id);
           break;

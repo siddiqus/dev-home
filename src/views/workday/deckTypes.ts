@@ -25,6 +25,8 @@ export interface DeckInputs {
   offSprintKeys?: Set<string>;
   /** My merged PRs; those merged in the last day make the Merged recently group. */
   mergedPRs?: GitHubPR[];
+  /** My merged PRs over a longer window, listed under their ticket's open tab. */
+  ticketMergedPRs?: GitHubPR[];
 }
 
 /** A PR on the deck with its signals and context. */
@@ -45,6 +47,7 @@ export interface DeckTicket {
   key: string | null;
   title: string;
   ticket: TicketRef | null;
+  /** Open PRs in card order, then my merged ones (`merged_at` set), newest merge first. */
   prs: DeckPR[];
   stripe: BadgeVariant;
   status: string;
@@ -56,7 +59,7 @@ export interface DeckTicket {
   unseen: boolean;
   current: boolean;
   jiraMention: MentionItem | null;
-  /** Newest unresolved `jira_ticket` note on a PR-less ticket. */
+  /** Newest unresolved `jira_ticket` note on a ticket with no open PR. */
   note: Note | null;
   /** Unresolved #todo notes on the ticket or its PRs, newest first. */
   todos: Note[];

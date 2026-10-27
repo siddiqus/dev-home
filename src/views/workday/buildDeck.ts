@@ -182,16 +182,22 @@ function statusLine(
   };
 }
 
-/** Ticket-level fields derived from its PRs (spec §6.2 step 4). */
+/**
+ * Ticket-level fields derived from its PRs (spec §6.2 step 4). `merged` PRs
+ * (newest merge first) are listed after the open ones and only speak for the
+ * ticket — title, status line, stripe — when it has none open.
+ */
 function deckTicket(
   id: string,
   key: string | null,
   ticket: TicketRef | null,
   prs: DeckPR[],
   ctx: BuildContext,
+  merged: DeckPR[] = [],
 ): DeckTicket {
   const sorted = [...prs].sort(byCardOrder);
-  const first = sorted[0]?.pr;
+  const lead = sorted.length > 0 ? sorted : merged;
+  const first = lead[0]?.pr;
   const title = ticket?.summary
     ? ticket.summary
     : key
@@ -199,8 +205,14 @@ function deckTicket(
       : first
         ? `${repoRef(first)} ${first.title}`
         : "";
-  const status = statusLine(sorted, ctx.newComments);
-  const worst = sorted.length > 0 ? Math.min(...sorted.map((p) => p.priority)) : PRIORITY.neutral;
+  const status =
+    sorted.length === 0 && merged.length > 0
+      ? {
+          text: `#${merged[0].pr.number} ${merged[0].signals[0].label}`,
+          tone: merged[0].signals[0].tone,
+        }
+      : statusLine(sorted, ctx.newComments);
+  const worst = lead.length > 0 ? Math.min(...lead.map((p) => p.priority)) : PRIORITY.neutral;
   // The ticket was last looked at when its most recently seen PR was, or when
   // markSeen wrote `ticket:<KEY>` (the only seen entry a PR-less ticket has).
   const ticketSeenAt = key
@@ -217,7 +229,7 @@ function deckTicket(
     key,
     title,
     ticket,
-    prs: sorted,
+    prs: [...sorted, ...merged],
     stripe: toneOf(worst),
     status: status.text,
     statusTone: status.tone,
@@ -270,6 +282,31 @@ function noteTab(n: Note, ctx: BuildContext): DeckTicket {
   };
 }
 
+/** A merged PR of mine: read-only, never current or unseen, its one chip saying when it merged. */
+function mergedDeckPR(pr: GitHubPR, ctx: BuildContext, now: Date): DeckPR {
+  const age = compactAge(pr.merged_at!, now);
+  const by = pr.merged_by ? ` by ${pr.merged_by}` : "";
+  return {
+    pr,
+    mine: true,
+    // Also the rail's status line, for the newest merge.
+    signals: [
+      { label: `Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
+    ],
+    priority: PRIORITY.purple,
+    unseenComment: null,
+    note: newest(ctx.prNotes.get(prNoteKey(pr)) ?? [], (n) => n.created_at),
+    current: false,
+    unseen: false,
+  };
+}
+
+/** Newest merge first. */
+const byMergedDesc = (a: GitHubPR, b: GitHubPR) => time(b.merged_at) - time(a.merged_at);
+
+/** An open PR on the deck, as opposed to a merged one listed under its ticket. */
+const isOpen = (p: DeckPR) => !p.pr.merged_at;
+
 /** How far back the Merged recently group reaches. */
 export const MERGED_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -287,40 +324,22 @@ function mergedTabs(
   const mergedAt = (pr: GitHubPR) => time(pr.merged_at);
   const recent = prs
     .filter((pr) => pr.merged_at && now.getTime() - mergedAt(pr) <= MERGED_WINDOW_MS)
-    .sort((a, b) => mergedAt(b) - mergedAt(a));
+    .sort(byMergedDesc);
   const byId = new Map<string, { key: string | null; prs: DeckPR[] }>();
   for (const pr of recent) {
     const key = ticketKeyOf(pr)?.toUpperCase() ?? null;
     const id = mergedTabId(key, pr);
-    const age = compactAge(pr.merged_at!, now);
-    const by = pr.merged_by ? ` by ${pr.merged_by}` : "";
-    const p: DeckPR = {
-      pr,
-      mine: true,
-      // Also the rail's status line, for the newest merge, with its approvers.
-      signals: [
-        { label: `Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
-      ],
-      priority: PRIORITY.purple,
-      unseenComment: null,
-      note: newest(ctx.prNotes.get(prNoteKey(pr)) ?? [], (n) => n.created_at),
-      current: false,
-      unseen: false,
-    };
     const tab = byId.get(id) ?? { key, prs: [] };
-    tab.prs.push(p);
+    tab.prs.push(mergedDeckPR(pr, ctx, now));
     byId.set(id, tab);
   }
   return [...byId].map(([id, { key, prs: tabPRs }]) => {
-    const t = deckTicket(id, key, key ? ref(key) : null, tabPRs, ctx);
+    const t = deckTicket(id, key, key ? ref(key) : null, [], ctx, tabPRs);
     // The rail names the newest merge and who approved it; on the card, the
     // approvers sit in the PR row's meta line instead of the chip.
     const [top] = tabPRs;
-    // deckTicket's card order is needs-me; here it's newest merge first.
     return {
       ...t,
-      prs: tabPRs,
-      status: `#${top.pr.number} ${top.signals[0].label}`,
       approvers: top.pr.approved_by ?? [],
       unseen: false,
       current: false,
@@ -367,7 +386,8 @@ function reopens(t: DeckTicket, closedAt: string): boolean {
   const at = time(closedAt);
   // A note tab: editing the note after closing it.
   if (t.noteItem) return time(t.noteItem.updated_at) > at;
-  return t.prs.some((p) => time(p.pr.updated_at) > at || time(p.pr.created_at) > at);
+  // Merged PRs don't count: a merge after closing isn't new work on the ticket.
+  return t.prs.filter(isOpen).some((p) => time(p.pr.updated_at) > at || time(p.pr.created_at) > at);
 }
 
 /** Mentions not attached to any tab (closed tabs count as attached), newest first. */
@@ -448,6 +468,15 @@ export function buildDeck(
   const byKey = new Map<string, DeckPR[]>();
   const tickets: DeckTicket[] = [];
   const collected = collectPRs(inp);
+  // My merged PRs, listed under their ticket's tab so a ticket whose PRs have
+  // all merged doesn't read "No PR yet". They never make a tab of their own.
+  const openUrls = new Set(collected.map((c) => c.pr.html_url));
+  const mergedByKey = new Map<string, DeckPR[]>();
+  for (const pr of [...(inp.ticketMergedPRs ?? [])].sort(byMergedDesc)) {
+    const key = ticketKeyOf(pr)?.toUpperCase();
+    if (!key || !pr.merged_at || openUrls.has(pr.html_url)) continue;
+    mergedByKey.set(key, [...(mergedByKey.get(key) ?? []), mergedDeckPR(pr, ctx, now)]);
+  }
   for (const c of collected) {
     const p = deckPR(c, ctx, now);
     const key = ticketKeyOf(c.pr)?.toUpperCase() ?? null;
@@ -457,14 +486,16 @@ export function buildDeck(
     }
     byKey.set(key, [...(byKey.get(key) ?? []), p]);
   }
-  for (const [key, prs] of byKey) tickets.push(deckTicket(key, key, ref(key), prs, ctx));
+  for (const [key, prs] of byKey) {
+    tickets.push(deckTicket(key, key, ref(key), prs, ctx, mergedByKey.get(key)));
+  }
 
-  // Step 3: in-progress tickets assigned to me with no PR (v1's workingOn rule).
+  // Step 3: in-progress tickets assigned to me with no open PR (v1's workingOn rule).
   for (const issue of inp.assignedIssues) {
     const key = issue.key.toUpperCase();
     if (statusCategoryOf(issue) === "indeterminate" && !byKey.has(key)) {
       byKey.set(key, []);
-      tickets.push(deckTicket(key, key, ref(key), [], ctx));
+      tickets.push(deckTicket(key, key, ref(key), [], ctx, mergedByKey.get(key)));
     }
   }
 
@@ -496,8 +527,10 @@ export function buildDeck(
     if (!id.startsWith("ticket:")) continue;
     const key = id.slice("ticket:".length).toUpperCase();
     const t = tickets.find((x) => x.key === key);
-    if (!t || t.prs.length === 0) continue;
-    const to = t.prs.some((p) => p.current) ? null : prPin(t.prs[0].pr);
+    // Merged PRs can't hold a pin, so a ticket whose PRs have all merged keeps its own.
+    const open = t?.prs.filter(isOpen) ?? [];
+    if (!t || open.length === 0) continue;
+    const to = open.some((p) => p.current) ? null : prPin(open[0].pr);
     migrateCurrent.push({ from: id, to, ticketId: t.id });
   }
   if (migrateCurrent.length > 0) {

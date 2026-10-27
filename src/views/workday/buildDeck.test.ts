@@ -1017,3 +1017,99 @@ describe("buildDeck merged recently", () => {
     expect(deck.counts.tickets).toBe(1);
   });
 });
+
+describe("buildDeck merged PRs on open tickets", () => {
+  const merged = (n: number, mergedAt: string, o: Partial<GitHubPR> = {}) =>
+    pr(n, { state: "merged", merged_at: mergedAt, updated_at: mergedAt, ...o });
+
+  it("lists an in-progress ticket's merged PRs, newest merge first, instead of 'No PR yet'", () => {
+    const deck = build({
+      assignedIssues: [issue("CCP-1")],
+      ticketMergedPRs: [
+        merged(1, "2026-10-11T12:00:00Z", { title: "CCP-1 backend" }),
+        merged(2, "2026-10-12T12:00:00Z", { title: "CCP-1 frontend", merged_by: "carol" }),
+        merged(3, "2026-10-12T12:00:00Z", { title: "CCP-9 elsewhere" }),
+      ],
+    });
+    // Merged PRs only join tabs that exist; they never make one.
+    expect(ids(all(deck))).toEqual(["CCP-1"]);
+    const t = byId(all(deck), "CCP-1");
+    expect(numbers(t)).toEqual([2, 1]);
+    expect(t.prs[0].signals).toEqual([{ label: "Merged 2d ago by carol", tone: "purple" }]);
+    expect(t.prs[0].current).toBe(false);
+    expect(t.prs[0].unseen).toBe(false);
+    expect(t.status).toBe("#2 Merged 2d ago by carol");
+    expect(t.statusTone).toBe("purple");
+    expect(t.stripe).toBe("purple");
+  });
+
+  it("puts merged PRs after the open ones, leaving the status, stripe and unseen to the open PRs", () => {
+    const open = pr(5, { title: "CCP-1 follow-up", updated_at: "2026-10-13T10:00:00Z" });
+    const without = byId(
+      all(build({ openPRs: [open], allIssues: [issue("CCP-1")] }, { seeded: true })),
+      "CCP-1",
+    );
+    const t = byId(
+      all(
+        build(
+          {
+            openPRs: [open],
+            allIssues: [issue("CCP-1")],
+            ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+          },
+          { seeded: true },
+        ),
+      ),
+      "CCP-1",
+    );
+    expect(numbers(t)).toEqual([5, 1]);
+    expect(t.status).toBe(without.status);
+    expect(t.statusTone).toBe(without.statusTone);
+    expect(t.stripe).toBe(without.stripe);
+    expect(t.unseen).toBe(without.unseen);
+    expect(t.reviewOnly).toBe(false);
+  });
+
+  it("skips a merged PR that's still listed as open", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 backend" })],
+      ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+    });
+    expect(numbers(byId(all(deck), "CCP-1"))).toEqual([1]);
+    expect(byId(all(deck), "CCP-1").prs[0].pr.state).toBe("open");
+  });
+
+  it("keeps a ticket pin on a ticket whose PRs have all merged", () => {
+    const deck = build(
+      {
+        assignedIssues: [issue("CCP-1")],
+        ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+      },
+      { seeded: true, current: ["ticket:CCP-1"], currentTickets: ["CCP-1"] },
+    );
+    expect(deck.stateUpdates.migrateCurrent).toBeUndefined();
+    expect(deck.stateUpdates.dropCurrent).toBeUndefined();
+    expect(ids(deck.current)).toEqual(["CCP-1"]);
+  });
+
+  it("doesn't reopen a closed tab for activity on a merged PR", () => {
+    const deck = build(
+      {
+        assignedIssues: [issue("CCP-1")],
+        ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+      },
+      { seeded: true, closed: { "CCP-1": "2026-10-12T00:00:00Z" } },
+    );
+    expect(ids(deck.closed)).toEqual(["CCP-1"]);
+    expect(deck.stateUpdates.reopen).toBeUndefined();
+  });
+
+  it("still gives a ticket with only merged PRs its newest jira_ticket note", () => {
+    const deck = build({
+      assignedIssues: [issue("CCP-1")],
+      ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+      notes: [note(1, { type: "jira_ticket", reference_id: "CCP-1" })],
+    });
+    expect(byId(all(deck), "CCP-1").note?.id).toBe(1);
+  });
+});

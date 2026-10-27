@@ -32,6 +32,7 @@ vi.mock("../../hooks/useWorkdayExtras", () => ({
     },
     merged: { data: [], error: null },
     reviewed: { data: null, error: "GitHub down" },
+    ticketMerged: { data: [], error: null },
   }),
 }));
 

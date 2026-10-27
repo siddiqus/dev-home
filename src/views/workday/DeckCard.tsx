@@ -67,6 +67,7 @@ export function DeckCard({
   );
   const jiraHref = key && jiraBaseUrl ? jiraBrowseUrl(jiraBaseUrl, key) : null;
   const currentCount = prs.filter((p) => p.current).length;
+  const mergedCount = prs.filter((p) => p.pr.merged_at).length;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
   const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
   const composer =
@@ -100,7 +101,16 @@ export function DeckCard({
         {(newest || jiraHref) && (
           <div className="deck-card-sub">
             {newest && (
-              <span>{`${plural(prs.length, "PR")} · ${currentCount} current · updated ${compactAge(newest, now)}`}</span>
+              <span>
+                {[
+                  plural(prs.length, "PR"),
+                  mergedCount > 0 && `${mergedCount} merged`,
+                  `${currentCount} current`,
+                  `updated ${compactAge(newest, now)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
             )}
             {newest && jiraHref && " · "}
             {jiraHref && (
@@ -171,6 +181,8 @@ export function DeckCard({
                 />
               ))}
             </div>
+            {/* A ticket whose PRs have all merged keeps its ticket note. */}
+            {ticket.note && <DeckNoteLine note={ticket.note} onOpen={onOpenNote} />}
             {/* Outside the listbox (only options belong in it), right under the
               list, naming the PR it's for. */}
             {composer}

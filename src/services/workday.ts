@@ -15,6 +15,8 @@ export interface WorkdayExtras {
   doneTickets: Part<DoneTicket[]>;
   merged: Part<GitHubPR[]>;
   reviewed: Part<ReviewedPR[]>;
+  /** My PRs merged in the last TICKET_MERGED_DAYS, listed under their deck tickets. */
+  ticketMerged: Part<GitHubPR[]>;
 }
 
 const LOADING = { data: null, error: null };
@@ -25,7 +27,16 @@ export const EMPTY_EXTRAS: WorkdayExtras = {
   doneTickets: LOADING,
   merged: LOADING,
   reviewed: LOADING,
+  ticketMerged: LOADING,
 };
+
+/**
+ * How far back the deck looks for merged PRs to list under open tickets: long
+ * enough to cover a ticket that stays open well after its PRs merged.
+ */
+export const TICKET_MERGED_DAYS = 60;
+/** GitHub's per-search maximum. */
+const TICKET_MERGED_MAX = 100;
 
 /** Settle one request into a Part so a failure stays local to its section. */
 async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
@@ -36,15 +47,24 @@ async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
   }
 }
 
-/** Sprint membership and off-sprint tickets; independent of the lookback. */
+/**
+ * Sprint membership, off-sprint tickets and my merged PRs for the deck's open
+ * tickets; independent of the lookback.
+ */
 export async function fetchWorkdayStable(
   signal?: AbortSignal,
-): Promise<Pick<WorkdayExtras, "sprint" | "offSprint">> {
-  const [sprint, offSprint] = await Promise.all([
+  now: Date = new Date(),
+): Promise<Pick<WorkdayExtras, "sprint" | "offSprint" | "ticketMerged">> {
+  const since = new Date(now.getTime() - TICKET_MERGED_DAYS * 24 * 60 * 60 * 1000);
+  const [sprint, offSprint, ticketMerged] = await Promise.all([
     part(async () => (await getSprintTickets(signal)).tickets),
     part(async () => (await getOffSprintTickets(signal)).issues),
+    part(
+      async () =>
+        (await getMergedPrs({ scope: "user", since, first: TICKET_MERGED_MAX })).prs as GitHubPR[],
+    ),
   ]);
-  return { sprint, offSprint };
+  return { sprint, offSprint, ticketMerged };
 }
 
 /** "Done since" pieces; refetched when the lookback changes. */
