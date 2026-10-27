@@ -26,6 +26,18 @@ vi.mock("../../context/JiraDrawerContext", async (importOriginal) => ({
 
 import { WorkdayView, sourceErrorText } from "./WorkdayView";
 
+// The phone rail drawer is an Offcanvas, which checks a responsive breakpoint; jsdom has no matchMedia.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false,
+})) as unknown as typeof window.matchMedia;
+
 const NOW = new Date(2026, 9, 14, 10, 0);
 const prs: GitHubPR[] = [
   {
@@ -1543,5 +1555,50 @@ describe("WorkdayView #todo notes", () => {
       expect.stringContaining("📝 Renew staging cert"),
     ]);
     expect(within(results[0]).getByText("#todo")).toBeTruthy();
+  });
+});
+
+describe("WorkdayView on a phone", () => {
+  beforeEach(() => localStorage.clear());
+
+  const second: GitHubPR = {
+    ...prs[0],
+    id: 2,
+    number: 1300,
+    title: "CCP-500 frontend: settings form",
+    html_url: "https://github.com/o/r/pull/1300",
+    head: { ref: "CCP-500-frontend" },
+  };
+
+  it("shows only the Focus deck, without the mode switcher or key hints", () => {
+    localStorage.setItem("workday-v2.mode", "list");
+    renderView({ phone: true });
+    expect(screen.getByTestId("deck-mode")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Standup/ })).toBeNull();
+    expect(screen.queryByTestId("deck-hints")).toBeNull();
+    // The desktop keeps its own mode.
+    expect(localStorage.getItem("workday-v2.mode")).toBe("list");
+  });
+
+  it("puts a tickets button in the top bar that opens the rail drawer", () => {
+    const slot = document.body.appendChild(document.createElement("div"));
+    renderView({ phone: true, topBarStart: slot, openPRs: [prs[0], second] });
+    const button = within(slot).getByRole("button", { name: "Show tickets" });
+    expect(button).toHaveTextContent("2");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(button);
+    const drawer = screen.getByRole("dialog", { name: "Tickets · 2" });
+    expect(within(drawer).getAllByRole("option")).toHaveLength(2);
+    slot.remove();
+  });
+
+  it("steps to the next ticket with the Next button", () => {
+    renderView({ phone: true, openPRs: [prs[0], second] });
+    const first = screen.getByRole("region", { name: /CCP-(412|500)/ }).getAttribute("aria-label");
+    expect(screen.getByText("1 / 2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
+    expect(screen.getByText("2 / 2")).toBeTruthy();
+    const next = screen.getByRole("region", { name: /CCP-(412|500)/ }).getAttribute("aria-label");
+    expect(next).not.toBe(first);
   });
 });

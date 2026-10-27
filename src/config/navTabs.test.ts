@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isTabVisible, NAV_GROUPS } from "./navTabs";
+import { effectiveTabFor, isTabVisible, NAV_GROUPS } from "./navTabs";
 import { sourcesFor, PAGE_REFRESH } from "./tabData";
 
 const ctx = { hiddenTabs: [] as string[], githubOrg: "acme" };
@@ -49,5 +49,29 @@ describe("workday tab", () => {
       "jiraComments",
       "githubMentions",
     ]);
+  });
+});
+
+describe("effectiveTabFor", () => {
+  const ready = { ...ctx, configured: true, configLoading: false, phone: false };
+
+  it("shows Settings until configured, on a phone too", () => {
+    expect(effectiveTabFor("prs", { ...ready, configured: false })).toBe("settings");
+    expect(effectiveTabFor("prs", { ...ready, configured: false, phone: true })).toBe("settings");
+  });
+
+  it("keeps a visible tab and falls back to Summary otherwise", () => {
+    expect(effectiveTabFor("prs", ready)).toBe("prs");
+    expect(effectiveTabFor("jira-tasks", ready)).toBe("summary");
+    expect(effectiveTabFor("board", { ...ready, hiddenTabs: ["board"] })).toBe("summary");
+  });
+
+  it("shows only Workday on a phone, with Settings still reachable", () => {
+    const phone = { ...ready, phone: true };
+    expect(effectiveTabFor("prs", phone)).toBe("workday");
+    expect(effectiveTabFor("summary", phone)).toBe("workday");
+    expect(effectiveTabFor("settings", phone)).toBe("settings");
+    // Hiding Workday from the sidebar doesn't leave a phone with nothing.
+    expect(effectiveTabFor("prs", { ...phone, hiddenTabs: ["workday"] })).toBe("workday");
   });
 });

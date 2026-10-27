@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconCopy, IconFold, IconFoldDown, IconRefresh, IconSun } from "@tabler/icons-react";
+import {
+  IconCopy,
+  IconFold,
+  IconFoldDown,
+  IconMenu2,
+  IconRefresh,
+  IconSun,
+} from "@tabler/icons-react";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
@@ -81,6 +89,10 @@ export interface WorkdayViewProps {
   sourcesLoaded?: boolean;
   /** A dashboard source failed; deck state updates are held back while set. */
   sourceError?: string | null;
+  /** Phone layout: Focus only, full-width card, the rail as a drawer. */
+  phone?: boolean;
+  /** The app top bar's empty left cell: on a phone, the button that opens the rail drawer goes there. */
+  topBarStart?: HTMLElement | null;
 }
 
 type Mode = "focus" | "list" | "standup";
@@ -238,10 +250,15 @@ export function WorkdayView(props: WorkdayViewProps) {
     editNote,
     resolveNote,
     onOpenNote,
+    phone = false,
+    topBarStart = null,
   } = props;
 
   const now = useMemo(() => props.now ?? new Date(), [props.now, refreshKey]);
-  const [mode, setMode] = useStoredState<Mode>(MODE_KEY, "focus", MODES);
+  const [storedMode, setMode] = useStoredState<Mode>(MODE_KEY, "focus", MODES);
+  // A phone only gets Focus; the stored mode is the desktop's.
+  const mode: Mode = phone ? "focus" : storedMode;
+  const [railOpen, setRailOpen] = useState(false);
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { copy, onCopyLink, onCopyTicket, onCopyBranch, toast } = usePRCopyActions();
@@ -976,7 +993,11 @@ export function WorkdayView(props: WorkdayViewProps) {
   );
   const hidePalette = useCallback(() => setPaletteOpen(false), []);
   const hideHelp = useCallback(() => setHelpOpen(false), []);
-  const showClosed = useCallback(() => setClosedFolded(false), [setClosedFolded]);
+  // On a phone the Closed group lives in the rail drawer, so it opens too.
+  const showClosed = useCallback(() => {
+    setClosedFolded(false);
+    if (phone) setRailOpen(true);
+  }, [setClosedFolded, phone]);
   const toStandup = useCallback(() => setMode("standup"), [setMode]);
   const copyStandup = useCallback(
     () => copy(markdown, "Copied standup to clipboard"),
@@ -1025,73 +1046,90 @@ export function WorkdayView(props: WorkdayViewProps) {
       <CopyPRLinkContext.Provider value={onCopyLink}>
         <CopyBranchContext.Provider value={onCopyBranch}>
           <ViewerLoginContext.Provider value={props.githubUsername ?? ""}>
-            <div className="workday-page">
-              <div className="workday-header">
-                <SegmentedTabs
-                  className="inline-control workday-mode-toggle"
-                  tabs={MODES.map((m) => ({
-                    key: m,
-                    label: (
-                      <>
-                        {MODE_LABELS[m]} <kbd>{MODE_KEYS[m]}</kbd>
-                      </>
-                    ),
-                  }))}
-                  activeKey={mode}
-                  onChange={(k) => setMode(k as Mode)}
-                />
-                <span className="workday-date-pill">{formatSinceLabel(now)}</span>
-                <span className="workday-summary">{summary}</span>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="workday-cmd-k-hint"
-                  title="Find and act (⌘K)"
-                  onClick={openPalette}
-                >
-                  ⌘K find &amp; act
-                </Button>
-                <div className="workday-header-spacer" />
-                {mode === "list" && (
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={toggleCollapseAll}
-                    title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
+            <div className={`workday-page${phone ? " workday-page--phone" : ""}`}>
+              {phone &&
+                topBarStart &&
+                createPortal(
+                  <button
+                    type="button"
+                    className="top-bar-icon-btn deck-rail-trigger"
+                    aria-label="Show tickets"
+                    aria-expanded={railOpen}
+                    onClick={() => setRailOpen(true)}
                   >
-                    {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
-                    {allCollapsed ? "Expand all" : "Collapse all"}
+                    <IconMenu2 size={16} aria-hidden="true" />
+                    {rail.length}
+                  </button>,
+                  topBarStart,
+                )}
+              {!phone && (
+                <div className="workday-header">
+                  <SegmentedTabs
+                    className="inline-control workday-mode-toggle"
+                    tabs={MODES.map((m) => ({
+                      key: m,
+                      label: (
+                        <>
+                          {MODE_LABELS[m]} <kbd>{MODE_KEYS[m]}</kbd>
+                        </>
+                      ),
+                    }))}
+                    activeKey={mode}
+                    onChange={(k) => setMode(k as Mode)}
+                  />
+                  <span className="workday-date-pill">{formatSinceLabel(now)}</span>
+                  <span className="workday-summary">{summary}</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="workday-cmd-k-hint"
+                    title="Find and act (⌘K)"
+                    onClick={openPalette}
+                  >
+                    ⌘K find &amp; act
                   </Button>
-                )}
-                {mode === "standup" && (
-                  <>
-                    <SegmentedTabs
-                      className="inline-control"
-                      tabs={LOOKBACKS.map((l) => ({ key: l, label: LOOKBACK_LABELS[l] }))}
-                      activeKey={lookback}
-                      onChange={(k) => setLookback(k as Lookback)}
-                    />
-                    <Button variant="primary" size="sm" onClick={copyStandup}>
-                      <IconCopy size={14} /> Copy
-                    </Button>
-                  </>
-                )}
-                {/* The spinner takes the icon's place, so nothing in the row moves. */}
-                <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
-                  {loading && hasLoadedOnce ? (
-                    <Spinner
-                      animation="border"
+                  <div className="workday-header-spacer" />
+                  {mode === "list" && (
+                    <Button
+                      variant="outline-secondary"
                       size="sm"
-                      role="status"
-                      aria-label="Refreshing"
-                      className="workday-refresh-spinner"
-                    />
-                  ) : (
-                    <IconRefresh size={14} />
-                  )}{" "}
-                  Refresh
-                </Button>
-              </div>
+                      onClick={toggleCollapseAll}
+                      title={allCollapsed ? "Expand all sections" : "Collapse all sections"}
+                    >
+                      {allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}{" "}
+                      {allCollapsed ? "Expand all" : "Collapse all"}
+                    </Button>
+                  )}
+                  {mode === "standup" && (
+                    <>
+                      <SegmentedTabs
+                        className="inline-control"
+                        tabs={LOOKBACKS.map((l) => ({ key: l, label: LOOKBACK_LABELS[l] }))}
+                        activeKey={lookback}
+                        onChange={(k) => setLookback(k as Lookback)}
+                      />
+                      <Button variant="primary" size="sm" onClick={copyStandup}>
+                        <IconCopy size={14} /> Copy
+                      </Button>
+                    </>
+                  )}
+                  {/* The spinner takes the icon's place, so nothing in the row moves. */}
+                  <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
+                    {loading && hasLoadedOnce ? (
+                      <Spinner
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-label="Refreshing"
+                        className="workday-refresh-spinner"
+                      />
+                    ) : (
+                      <IconRefresh size={14} />
+                    )}{" "}
+                    Refresh
+                  </Button>
+                </div>
+              )}
 
               {mode === "focus" ? (
                 <DeckMode
@@ -1120,8 +1158,20 @@ export function WorkdayView(props: WorkdayViewProps) {
                   onRetry={refresh}
                   notStartedCount={notStartedCount}
                   onShowClosed={showClosed}
-                  onSwitchToStandup={toStandup}
+                  onSwitchToStandup={phone ? undefined : toStandup}
                   navHints={!hideHints}
+                  phone={
+                    phone
+                      ? {
+                          railOpen,
+                          onRailOpenChange: setRailOpen,
+                          onPrev: deckKeys.prev,
+                          onNext: deckKeys.next,
+                          position: rail.findIndex((t) => t.id === selectedId) + 1,
+                          total: rail.length,
+                        }
+                      : undefined
+                  }
                 />
               ) : mode === "list" ? (
                 <div className="workday-list" data-testid="workday-list">
@@ -1158,7 +1208,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                 />
               )}
 
-              {mode === "focus" && !hideHints && (
+              {mode === "focus" && !hideHints && !phone && (
                 // "? all keys" leads: the bar clips on the right, so it must never be the one cut.
                 <div className="deck-hints" data-testid="deck-hints">
                   <span>

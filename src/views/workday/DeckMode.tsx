@@ -1,4 +1,9 @@
+import { createPortal } from "react-dom";
+import Button from "react-bootstrap/Button";
+import Offcanvas from "react-bootstrap/Offcanvas";
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
+import { useSwipe } from "../../hooks/useSwipe";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
 import type { DeckData, DeckPR } from "./deckTypes";
@@ -43,6 +48,21 @@ export interface DeckModeProps {
   onSwitchToStandup?(): void;
   /** The big ← previous / next → hint under the card; follows the key-hint toggle. */
   navHints?: boolean;
+  /**
+   * Phone layout: the card takes the full width and the rail opens as a drawer
+   * from the left. Swipes and a Prev / Next bar step through the cards.
+   */
+  phone?: PhoneDeck;
+}
+
+export interface PhoneDeck {
+  railOpen: boolean;
+  onRailOpenChange(open: boolean): void;
+  onPrev(): void;
+  onNext(): void;
+  /** The card's 1-based place in the rail, and the rail's length. */
+  position: number;
+  total: number;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -89,7 +109,16 @@ export function DeckMode({
   onShowClosed,
   onSwitchToStandup,
   navHints = false,
+  phone,
 }: DeckModeProps) {
+  // Phone: swiping the card steps through the rail; swiping the drawer left closes it.
+  const swipeCard = useSwipe((s) => {
+    if (s === "left") phone?.onNext();
+    else phone?.onPrev();
+  });
+  const swipeDrawer = useSwipe((s) => {
+    if (s === "left") phone?.onRailOpenChange(false);
+  });
   if (loading) {
     deck = LOADING_DECK;
     selectedId = null;
@@ -102,21 +131,46 @@ export function DeckMode({
     jiraMention: cardJiraMention ?? found.jiraMention,
   };
   const empty = !loading && deck.current.length === 0 && deck.open.length === 0;
+  const rail = (select: (id: string) => void, reopen?: (id: string) => void) => (
+    <DeckRail
+      deck={deck}
+      selectedId={selectedId}
+      onSelect={select}
+      closedFolded={closedFolded}
+      onToggleClosed={onToggleClosed}
+      onReopen={reopen}
+      onlyCurrent={onlyCurrent}
+      loading={loading}
+      sourceError={sourceError}
+      onRetry={onRetry}
+    />
+  );
+  // In the drawer, a pick (or a reopen) is a jump: the drawer closes on it.
+  const closeAfter = (fn: (id: string) => void) => (id: string) => {
+    fn(id);
+    phone?.onRailOpenChange(false);
+  };
   return (
-    <div className="deck-mode" data-testid="deck-mode">
-      <DeckRail
-        deck={deck}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        closedFolded={closedFolded}
-        onToggleClosed={onToggleClosed}
-        onReopen={onReopen}
-        onlyCurrent={onlyCurrent}
-        loading={loading}
-        sourceError={sourceError}
-        onRetry={onRetry}
-      />
-      <div className="deck-stage">
+    <div className={`deck-mode${phone ? " deck-mode--phone" : ""}`} data-testid="deck-mode">
+      {phone ? (
+        <Offcanvas
+          show={phone.railOpen}
+          onHide={() => phone.onRailOpenChange(false)}
+          placement="start"
+          className="deck-rail-drawer"
+          aria-labelledby="deck-rail-drawer-title"
+        >
+          <Offcanvas.Header closeButton>
+            <Offcanvas.Title id="deck-rail-drawer-title">Tickets · {phone.total}</Offcanvas.Title>
+          </Offcanvas.Header>
+          <Offcanvas.Body {...swipeDrawer}>
+            {rail(closeAfter(onSelect), onReopen && closeAfter(onReopen))}
+          </Offcanvas.Body>
+        </Offcanvas>
+      ) : (
+        rail(onSelect, onReopen)
+      )}
+      <div className="deck-stage" {...(phone ? swipeCard : {})}>
         {loading && (
           <div className="deck-column" data-testid="deck-card-skeleton" aria-hidden="true">
             <div className="deck-card deck-card--skeleton">
@@ -172,7 +226,7 @@ export function DeckMode({
             />
           </div>
         )}
-        {ticket && navHints && (
+        {ticket && navHints && !phone && (
           <div className="deck-nav-hint" data-testid="deck-nav-hint" aria-hidden="true">
             <span>
               <kbd>←</kbd> previous
@@ -183,6 +237,24 @@ export function DeckMode({
           </div>
         )}
       </div>
+      {phone &&
+        ticket &&
+        // Fixed to the viewport from <body>: inside the page, the tab's fade-in
+        // transform would anchor it to the page instead.
+        createPortal(
+          <div className="deck-phone-nav">
+            <Button variant="outline-secondary" aria-label="Previous ticket" onClick={phone.onPrev}>
+              <IconChevronLeft size={14} aria-hidden="true" /> Prev
+            </Button>
+            <span className="deck-phone-position">
+              {phone.position} / {phone.total}
+            </span>
+            <Button variant="outline-secondary" aria-label="Next ticket" onClick={phone.onNext}>
+              Next <IconChevronRight size={14} aria-hidden="true" />
+            </Button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

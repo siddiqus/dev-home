@@ -27,6 +27,7 @@ import {
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
 import { useTheme } from "./hooks/useTheme";
+import { useIsPhone } from "./hooks/useIsPhone";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useReminderScheduler } from "./hooks/useReminderScheduler";
@@ -47,7 +48,7 @@ import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
 import type { FocusableItem } from "./types";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { noteBadge } from "./utils/noteBadge";
-import { NAV_GROUPS, isTabVisible } from "./config/navTabs";
+import { NAV_GROUPS, effectiveTabFor, isTabVisible } from "./config/navTabs";
 import { sourcesFor, isRemoteSource, PAGE_REFRESH, type DataSource } from "./config/tabData";
 import { useKeyboardShortcuts, getShortcutTitle, isMac } from "./hooks/useKeyboardShortcuts";
 import { jiraBrowseUrl } from "./utils/tickets";
@@ -145,15 +146,21 @@ export default function App() {
     saveSettings,
   } = useConfig();
 
-  // If config isn't loaded yet, show settings first. If the active tab is
-  // unknown (e.g. a stale saved key), hidden, or missing its prerequisites,
-  // fall back to summary.
-  const effectiveTab =
-    !configured && !configLoading
-      ? "settings"
-      : isTabVisible(activeTab, { hiddenTabs, githubOrg })
-        ? activeTab
-        : "summary";
+  // A phone gets Workday Focus alone: no sidebar, a trimmed top bar.
+  const phone = useIsPhone();
+  // The top bar's empty left cell; Workday puts its rail button there on a phone.
+  const [topBarStart, setTopBarStart] = useState<HTMLDivElement | null>(null);
+
+  // Settings until configured; then the saved tab, or summary if it's unknown
+  // (e.g. a stale saved key), hidden, or missing its prerequisites. A phone
+  // shows Workday whatever the saved tab.
+  const effectiveTab = effectiveTabFor(activeTab, {
+    configured,
+    configLoading,
+    phone,
+    hiddenTabs,
+    githubOrg,
+  });
 
   // Tabs don't change the URL, so Clarity sees one page; a per-tab event is what
   // tells views apart in its filters and recordings. Wait for config so the
@@ -408,7 +415,7 @@ export default function App() {
           className="px-3"
           style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center" }}
         >
-          <div />
+          <div ref={setTopBarStart} />
           <Navbar.Brand
             className="d-flex align-items-center gap-2 mx-auto mb-0"
             style={{ fontSize: "0.8125rem", fontWeight: 600 }}
@@ -417,7 +424,7 @@ export default function App() {
             Dev Home
           </Navbar.Brand>
           <div className="d-flex align-items-center gap-2 justify-content-end">
-            {pomodoro.phase !== "idle" && (
+            {pomodoro.phase !== "idle" && !phone && (
               <PomodoroBadge
                 phase={pomodoro.phase}
                 remainingMs={pomodoro.remainingMs}
@@ -445,15 +452,17 @@ export default function App() {
               loading && <Spinner animation="border" size="sm" variant="secondary" />
             )}
             {/* Quick actions -- kept rightmost so the transient badge/spinner don't shift them */}
-            <button
-              type="button"
-              className="top-bar-icon-btn"
-              onClick={handleNewNote}
-              title={`New note (${isMac ? "⌘⇧" : "Ctrl+Shift+"}N)`}
-              aria-label="New note"
-            >
-              <IconFilePlus size={16} />
-            </button>
+            {!phone && (
+              <button
+                type="button"
+                className="top-bar-icon-btn"
+                onClick={handleNewNote}
+                title={`New note (${isMac ? "⌘⇧" : "Ctrl+Shift+"}N)`}
+                aria-label="New note"
+              >
+                <IconFilePlus size={16} />
+              </button>
+            )}
             <button
               type="button"
               className="top-bar-icon-btn"
@@ -472,132 +481,136 @@ export default function App() {
             >
               <IconSettings size={16} />
             </button>
-            <a
-              className="top-bar-icon-btn"
-              href="https://github.com/siddiqus/dev-home"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Dev Home on GitHub"
-              aria-label="Dev Home on GitHub"
-            >
-              <IconBrandGithub size={16} />
-            </a>
+            {!phone && (
+              <a
+                className="top-bar-icon-btn"
+                href="https://github.com/siddiqus/dev-home"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Dev Home on GitHub"
+                aria-label="Dev Home on GitHub"
+              >
+                <IconBrandGithub size={16} />
+              </a>
+            )}
           </div>
         </Container>
       </Navbar>
 
       <ErrorBoundary>
-        <div className="app-body">
+        <div className={`app-body${phone ? " app-body--phone" : ""}`}>
           {/* Sidebar navigation */}
-          <nav className="sidebar">
-            {(() => {
-              // Runtime per-tab metadata (icons + live counts) keyed by tab key.
-              const tabMeta: Record<string, { icon: Icon }> = {
-                summary: { icon: IconLayoutDashboard },
-                workday: { icon: IconSun },
-                board: { icon: IconColumns3 },
-                notes: { icon: IconNotes },
-                jira: { icon: IconSubtask },
-                "jira-search": { icon: IconSearch },
-                "jira-mentions": { icon: IconAt },
-                prs: { icon: IconGitPullRequest },
-                reviews: { icon: IconEye },
-                "github-mentions": { icon: IconAt },
-                "org-prs": { icon: IconBuilding },
-                teams: { icon: IconUsersGroup },
-                "team-dashboard": { icon: IconChartBar },
-                pomodoro: { icon: IconClock },
-              };
+          {!phone && (
+            <nav className="sidebar">
+              {(() => {
+                // Runtime per-tab metadata (icons + live counts) keyed by tab key.
+                const tabMeta: Record<string, { icon: Icon }> = {
+                  summary: { icon: IconLayoutDashboard },
+                  workday: { icon: IconSun },
+                  board: { icon: IconColumns3 },
+                  notes: { icon: IconNotes },
+                  jira: { icon: IconSubtask },
+                  "jira-search": { icon: IconSearch },
+                  "jira-mentions": { icon: IconAt },
+                  prs: { icon: IconGitPullRequest },
+                  reviews: { icon: IconEye },
+                  "github-mentions": { icon: IconAt },
+                  "org-prs": { icon: IconBuilding },
+                  teams: { icon: IconUsersGroup },
+                  "team-dashboard": { icon: IconChartBar },
+                  pomodoro: { icon: IconClock },
+                };
 
-              return NAV_GROUPS.map((group) => {
-                const visibleTabs = group.tabs.filter((t) =>
-                  isTabVisible(t.key, { hiddenTabs, githubOrg }),
-                );
-                if (visibleTabs.length === 0) return null;
+                return NAV_GROUPS.map((group) => {
+                  const visibleTabs = group.tabs.filter((t) =>
+                    isTabVisible(t.key, { hiddenTabs, githubOrg }),
+                  );
+                  if (visibleTabs.length === 0) return null;
 
-                return (
-                  <div className="sidebar-group" key={group.key}>
-                    {group.label && (
-                      <>
-                        <div className="sidebar-group-divider" />
-                        <div className="sidebar-group-label">{group.label}</div>
-                      </>
-                    )}
-                    {visibleTabs.map((tab) => {
-                      const meta = tabMeta[tab.key];
-                      const Icon = meta.icon;
-                      return (
-                        <button
-                          key={tab.key}
-                          className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
-                          onClick={() => setActiveTab(tab.key)}
-                          title={getShortcutTitle(tab.key, tab.label)}
-                        >
-                          <Icon size={18} />
-                          <span className="sidebar-tab-label">{tab.label}</span>
-                          {tab.key === "notes" && dueReminderCount > 0 && (
-                            <span
-                              title={`${dueReminderCount} reminder${dueReminderCount === 1 ? "" : "s"} due`}
-                              style={{
-                                marginLeft: "auto",
-                                background: "var(--bs-danger, #dc3545)",
-                                color: "#fff",
-                                borderRadius: "10px",
-                                padding: "0 6px",
-                                fontSize: "0.6875rem",
-                                fontWeight: 600,
-                                lineHeight: "1.4",
-                              }}
-                            >
-                              {dueReminderCount}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              });
-            })()}
+                  return (
+                    <div className="sidebar-group" key={group.key}>
+                      {group.label && (
+                        <>
+                          <div className="sidebar-group-divider" />
+                          <div className="sidebar-group-label">{group.label}</div>
+                        </>
+                      )}
+                      {visibleTabs.map((tab) => {
+                        const meta = tabMeta[tab.key];
+                        const Icon = meta.icon;
+                        return (
+                          <button
+                            key={tab.key}
+                            className={`sidebar-tab${effectiveTab === tab.key ? " active" : ""}`}
+                            onClick={() => setActiveTab(tab.key)}
+                            title={getShortcutTitle(tab.key, tab.label)}
+                          >
+                            <Icon size={18} />
+                            <span className="sidebar-tab-label">{tab.label}</span>
+                            {tab.key === "notes" && dueReminderCount > 0 && (
+                              <span
+                                title={`${dueReminderCount} reminder${dueReminderCount === 1 ? "" : "s"} due`}
+                                style={{
+                                  marginLeft: "auto",
+                                  background: "var(--bs-danger, #dc3545)",
+                                  color: "#fff",
+                                  borderRadius: "10px",
+                                  padding: "0 6px",
+                                  fontSize: "0.6875rem",
+                                  fontWeight: 600,
+                                  lineHeight: "1.4",
+                                }}
+                              >
+                                {dueReminderCount}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
 
-            {/* Footer actions -- equally spaced icon-only buttons pinned to bottom */}
-            <div className="sidebar-footer">
-              <button
-                type="button"
-                className="sidebar-footer-btn"
-                onClick={handleRefresh}
-                disabled={loading}
-                title="Refresh"
-              >
-                <IconRefresh
-                  size={18}
-                  className={
-                    loading || notesLoading || kanbanLoading
-                      ? "sidebar-refresh-icon spinning"
-                      : "sidebar-refresh-icon"
-                  }
-                />
-                <span className="sidebar-footer-label">Refresh</span>
-                {lastRefreshed != null && (
-                  <span
-                    className="sidebar-refresh-ago"
-                    title={`Last refreshed at ${new Date(lastRefreshed).toLocaleTimeString()}`}
-                  >
-                    ({formatAgo(lastRefreshed, nowTs)})
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`sidebar-footer-btn${effectiveTab === "settings" ? " active" : ""}`}
-                onClick={() => setActiveTab("settings")}
-                title="Settings"
-              >
-                <IconSettings size={18} />
-                <span className="sidebar-footer-label">Settings</span>
-              </button>
-            </div>
-          </nav>
+              {/* Footer actions -- equally spaced icon-only buttons pinned to bottom */}
+              <div className="sidebar-footer">
+                <button
+                  type="button"
+                  className="sidebar-footer-btn"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  title="Refresh"
+                >
+                  <IconRefresh
+                    size={18}
+                    className={
+                      loading || notesLoading || kanbanLoading
+                        ? "sidebar-refresh-icon spinning"
+                        : "sidebar-refresh-icon"
+                    }
+                  />
+                  <span className="sidebar-footer-label">Refresh</span>
+                  {lastRefreshed != null && (
+                    <span
+                      className="sidebar-refresh-ago"
+                      title={`Last refreshed at ${new Date(lastRefreshed).toLocaleTimeString()}`}
+                    >
+                      ({formatAgo(lastRefreshed, nowTs)})
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={`sidebar-footer-btn${effectiveTab === "settings" ? " active" : ""}`}
+                  onClick={() => setActiveTab("settings")}
+                  title="Settings"
+                >
+                  <IconSettings size={18} />
+                  <span className="sidebar-footer-label">Settings</span>
+                </button>
+              </div>
+            </nav>
+          )}
 
           {/* Main content panel */}
           <main className="main-content">
@@ -659,6 +672,8 @@ export default function App() {
                     {effectiveTab === "workday" && (
                       <WorkdayView
                         configured={configured}
+                        phone={phone}
+                        topBarStart={topBarStart}
                         openPRs={openPRs}
                         reviewRequests={reviewRequests}
                         reviewingPRs={reviewingPRs}

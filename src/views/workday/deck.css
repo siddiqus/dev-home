@@ -1414,50 +1414,51 @@ button.deck-rail-row:focus-visible {
 
 /* ---------- Slim rail (spec §5.1: < 900px) ----------
    Keys, stripes and dots only. Hover or focus-within widens it to full size as
-   an overlay: the negative margin keeps its layout width, so the stage doesn't move. */
+   an overlay: the negative margin keeps its layout width, so the stage doesn't move.
+   Only the inline rail: the phone's rail drawer always shows it in full. */
 @media (max-width: 899.98px) {
   .deck-mode {
     position: relative;
   }
 
-  .deck-rail {
+  .deck-mode .deck-rail {
     position: relative;
     z-index: 5;
     width: 76px;
   }
 
-  .deck-rail:hover,
-  .deck-rail:focus-within {
+  .deck-mode .deck-rail:hover,
+  .deck-mode .deck-rail:focus-within {
     width: var(--deck-rail-w);
     margin-right: calc(76px - var(--deck-rail-w));
     box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
   }
 
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-title,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-review,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-status,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading > span:first-child,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-text,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-label,
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-empty,
-  .deck-rail:not(:hover):not(:focus-within) .deck-skeleton--line {
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-title,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-review,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-status,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading > span:first-child,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-text,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-label,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-empty,
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-skeleton--line {
     display: none;
   }
 
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner {
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner {
     justify-content: center;
   }
 
   /* The collapsed rail keeps retry reachable as an icon button. */
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-icon {
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-banner-retry-icon {
     display: inline;
   }
 
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading {
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-heading {
     justify-content: flex-end;
   }
 
-  .deck-rail:not(:hover):not(:focus-within) .deck-rail-row {
+  .deck-mode .deck-rail:not(:hover):not(:focus-within) .deck-rail-row {
     grid-template-columns: 3px minmax(0, 1fr) auto;
     gap: 6px;
   }
@@ -1473,4 +1474,128 @@ button.deck-rail-row:focus-visible {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* ---------- Phone ----------
+   Focus alone under the app's top bar: the card takes the full width, the rail
+   opens as a drawer from the left (☰ in the top bar), and a slim Prev / Next
+   bar is fixed to the bottom of the viewport. */
+:root {
+  /* The Prev / Next bar's height, before the home-indicator inset. */
+  --deck-phone-nav-h: 36px;
+}
+
+/* Fills the tab (a column on phones), so the stage, and its swipe area, reach
+   the bottom of the screen rather than stopping under the card. */
+.workday-page--phone {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+.deck-mode--phone {
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+}
+
+/* The page padding gives the sides; the top leaves room for the ghost cards,
+   the bottom lets the card's end scroll clear of the fixed bar. */
+.deck-mode--phone .deck-stage {
+  padding: var(--space-3) 0 var(--deck-phone-nav-h);
+}
+
+/* The stage scrolls a long card as a whole, not a box inside the card. */
+.deck-mode--phone .deck-card-body {
+  max-height: none;
+}
+
+/* Above the page, under the drawer's backdrop (1040) and modals. */
+.deck-phone-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1030;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: calc(var(--deck-phone-nav-h) + env(safe-area-inset-bottom));
+  padding: 0 var(--space-2) env(safe-area-inset-bottom);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-app);
+}
+
+.deck-phone-nav .btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 0;
+  font-size: 0.75rem;
+}
+
+.deck-phone-position {
+  flex: none;
+  min-width: 48px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+/* Toasts (Note saved…) clear the bar. */
+.workday-page--phone .app-toast {
+  bottom: calc(var(--deck-phone-nav-h) + var(--space-2) + env(safe-area-inset-bottom));
+}
+
+/* ☰ and the ticket count, in the top bar's left cell. */
+.deck-rail-trigger {
+  gap: 6px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Bootstrap's own variables, set on the same element so load order can't undo them. */
+.deck-rail-drawer.offcanvas {
+  --bs-offcanvas-width: min(84vw, 420px);
+  --bs-offcanvas-bg: var(--color-bg-panel);
+  --bs-offcanvas-color: var(--color-text-primary);
+  --bs-offcanvas-border-color: var(--color-border);
+}
+
+.deck-rail-drawer .offcanvas-header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.deck-rail-drawer .offcanvas-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.deck-rail-drawer .btn-close {
+  filter: var(--btn-close-filter);
+}
+
+.deck-rail-drawer .offcanvas-body {
+  display: flex;
+  min-height: 0;
+  padding: 0;
+}
+
+.deck-rail-drawer .deck-rail {
+  flex: 1;
+  width: auto;
+  border-right: 0;
+}
+
+/* Taller rows: thumb-sized targets. */
+.deck-rail-drawer .deck-rail-row {
+  padding-top: 9px;
+  padding-bottom: 9px;
 }

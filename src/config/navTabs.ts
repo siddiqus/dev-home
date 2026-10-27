@@ -98,3 +98,23 @@ export function isTabVisible(
   if (ORG_TABS.has(key)) return !!ctx.githubOrg;
   return true;
 }
+
+/**
+ * The tab to show for the saved `activeTab`. Settings comes first until the app
+ * is configured. A phone only gets Workday (Focus), plus Settings. Elsewhere an
+ * unknown, hidden or unavailable tab falls back to summary.
+ */
+export function effectiveTabFor(
+  activeTab: string,
+  ctx: {
+    configured: boolean;
+    configLoading: boolean;
+    phone: boolean;
+    hiddenTabs: readonly string[];
+    githubOrg: string;
+  },
+): string {
+  if (!ctx.configured && !ctx.configLoading) return "settings";
+  if (ctx.phone) return activeTab === "settings" ? "settings" : "workday";
+  return isTabVisible(activeTab, ctx) ? activeTab : "summary";
+}

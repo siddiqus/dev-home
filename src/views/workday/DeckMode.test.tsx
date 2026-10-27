@@ -6,6 +6,18 @@ import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
 
+// The phone rail drawer is an Offcanvas, which checks a responsive breakpoint; jsdom has no matchMedia.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false,
+})) as unknown as typeof window.matchMedia;
+
 function pr(n: number, o: Partial<GitHubPR> = {}): GitHubPR {
   return {
     id: n,
@@ -416,5 +428,86 @@ describe("DeckMode states and motion", () => {
     renderDeck({ deck: deck({ open: [ticket("CCP-1")] }) });
     expect(document.querySelector(".deck-column")).not.toHaveAttribute("data-swipe");
     expect(document.querySelector(".deck-swipe-out")).toBeNull();
+  });
+});
+
+describe("DeckMode on a phone", () => {
+  const three = () =>
+    deck({
+      current: [ticket("CCP-1", { current: true })],
+      open: [ticket("CCP-2"), ticket("CCP-3")],
+    });
+  const phone = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
+    railOpen: false,
+    onRailOpenChange: vi.fn(),
+    onPrev: vi.fn(),
+    onNext: vi.fn(),
+    position: 1,
+    total: 3,
+    ...o,
+  });
+  /** A one-finger drag across `el` by (dx, dy). */
+  const drag = (el: Element, dx: number, dy: number) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });
+    fireEvent.touchEnd(el, { changedTouches: [{ clientX: 200 + dx, clientY: 300 + dy }] });
+  };
+
+  it("drops the inline rail and steps through cards with Prev / Next and a position", () => {
+    const p = phone();
+    renderDeck({ deck: three(), phone: p });
+    expect(screen.queryByRole("listbox", { name: "Tickets" })).toBeNull();
+    expect(screen.getByText("1 / 3")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
+    expect(p.onNext).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Previous ticket" }));
+    expect(p.onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the Prev / Next bar outside the deck, so the page's fade-in can't move it", () => {
+    renderDeck({ deck: three(), phone: phone() });
+    const bar = screen.getByRole("button", { name: "Next ticket" }).parentElement!;
+    expect(screen.getByTestId("deck-mode")).not.toContainElement(bar);
+    expect(bar.parentElement).toBe(document.body);
+  });
+
+  it("swipes the card left for next and right for previous, but not on a scroll", () => {
+    const p = phone();
+    renderDeck({ deck: three(), phone: p });
+    const card = screen.getByRole("region", { name: /CCP-1/ });
+    drag(card, -120, 10);
+    expect(p.onNext).toHaveBeenCalledTimes(1);
+    drag(card, 120, -10);
+    expect(p.onPrev).toHaveBeenCalledTimes(1);
+    drag(card, -40, 260);
+    expect(p.onNext).toHaveBeenCalledTimes(1);
+    expect(p.onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the rail in a drawer, where picking a ticket jumps to it and closes the drawer", () => {
+    const p = phone({ railOpen: true });
+    const { onSelect } = renderDeck({ deck: three(), phone: p });
+    const drawer = screen.getByRole("dialog");
+    fireEvent.click(within(drawer).getByRole("option", { name: /CCP-3/ }));
+    expect(onSelect).toHaveBeenCalledWith("CCP-3");
+    expect(p.onRailOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("closes the drawer after reopening a closed tab from it", () => {
+    const p = phone({ railOpen: true });
+    const { onReopen } = renderDeck({
+      deck: deck({ open: [ticket("CCP-1")], closed: [ticket("CCP-9")] }),
+      closedFolded: false,
+      phone: p,
+    });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /CCP-9/ }));
+    expect(onReopen).toHaveBeenCalledWith("CCP-9");
+    expect(p.onRailOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("closes the drawer on a left swipe", () => {
+    const p = phone({ railOpen: true });
+    renderDeck({ deck: three(), phone: p });
+    drag(within(screen.getByRole("dialog")).getByRole("listbox", { name: "Tickets" }), -120, 0);
+    expect(p.onRailOpenChange).toHaveBeenCalledWith(false);
   });
 });

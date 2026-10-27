@@ -14,6 +14,7 @@ import { DataBackup } from "./DataBackup";
 import { TokenPermissionsInfo } from "./TokenPermissionsInfo";
 import { UsageAnalytics } from "./UsageAnalytics";
 import { analyticsAvailable } from "../../lib/analytics";
+import { useIsPhone } from "../../hooks/useIsPhone";
 import "./settings.css";
 import { Toast } from "../../components/Toast";
 
@@ -86,6 +87,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const phone = useIsPhone();
 
   useEffect(() => {
     const stored = loadSettings();
@@ -243,12 +245,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <ThemePicker theme={theme} onSelectTheme={onSelectTheme} />
       </SettingsSection>
 
-      <SettingsSection
-        title="Sidebar"
-        description="Choose which items appear in the sidebar. Summary is always shown."
-      >
-        <MenuItemsToggle formState={formState} setFormState={setFormState} />
-      </SettingsSection>
+      {/* A phone shows Workday alone, with no sidebar to configure. */}
+      {!phone && (
+        <SettingsSection
+          title="Sidebar"
+          description="Choose which items appear in the sidebar. Summary is always shown."
+        >
+          <MenuItemsToggle formState={formState} setFormState={setFormState} />
+        </SettingsSection>
+      )}
 
       <SettingsSection
         title="Weekend"

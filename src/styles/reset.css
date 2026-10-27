@@ -115,6 +115,27 @@ a {
   min-width: 0;
 }
 
+/* Phone: no sidebar, and the dynamic viewport height so the browser's own
+   bars never cover the bottom of the page. */
+.app-body--phone {
+  height: calc(100dvh - 46px);
+}
+
+/* Every page keeps a margin off the screen edges, and clear of the home indicator.
+   A column, so the tab below any error alert can fill the rest of the screen. */
+.app-body--phone .main-content {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-2) calc(var(--space-3) + env(safe-area-inset-bottom));
+}
+
+.app-body--phone .tab-content-area {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .tab-content-area {
   animation: fadeIn 200ms ease;
 }
