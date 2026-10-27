@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useToast } from "../components/Toast";
+import { copyText } from "../utils/clipboard";
 
 /**
  * Clipboard actions for PR rows, confirmed with a toast. Render
@@ -12,7 +13,7 @@ export function usePRCopyActions() {
   const copy = useCallback(
     async (text: string, confirmation: string) => {
       try {
-        await navigator.clipboard.writeText(text);
+        await copyText(text);
         showToast(confirmation);
       } catch {
         showToast("Couldn't copy to clipboard");
