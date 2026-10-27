@@ -396,16 +396,11 @@ describe("WorkdayView deck", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("card shows each PR's branch in the meta line with a copy icon, without opening the PR", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
+  it("card leaves the PR's branch out of the meta line", () => {
     renderDeck();
     const c = card();
-    expect(within(c).getByTitle("branch-1203")).toHaveTextContent("branch-1203");
-    fireEvent.click(within(c).getByRole("button", { name: "Copy branch branch-1207" }));
-    await act(async () => {});
-    expect(writeText).toHaveBeenCalledWith("branch-1207");
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(c).queryByText("branch-1203")).toBeNull();
+    expect(within(c).queryByRole("button", { name: /Copy branch/ })).toBeNull();
   });
 
   it("hides the author on my own PRs and shows it on others'", () => {

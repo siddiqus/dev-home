@@ -725,7 +725,7 @@
   color: var(--color-text-muted);
 }
 
-.deck-pr-meta > :not(.deck-pr-ref, .deck-pr-branch) {
+.deck-pr-meta > :not(.deck-pr-ref) {
   flex: none;
 }
 
@@ -773,29 +773,6 @@
   margin-top: 2px;
   font-size: 0.8125rem;
   color: var(--color-text-primary);
-}
-
-/* Long branch names give way first; full name on hover. */
-.deck-pr-branch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 100 auto;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-}
-
-.deck-pr-branch svg,
-.deck-pr-branch button {
-  flex: none;
-}
-
-.deck-pr-branch-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .deck-pr-signals {

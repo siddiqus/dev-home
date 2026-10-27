@@ -1,9 +1,8 @@
 import { useContext, type MouseEvent } from "react";
-import { IconCopy, IconGitBranch } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
 import { Participants } from "../../components/prIndicators";
-import { CopyBranchContext, PRLinkIcons, ViewerLoginContext } from "./CompactRow";
+import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
 import { compactAge } from "./dates";
 import { repoRef, titleWithoutKey } from "./prState";
 import { DeckNoteLine, DeckQuote } from "./DeckContext";
@@ -25,11 +24,11 @@ export interface DeckPRRowProps {
 
 /**
  * One PR on the card (spec §5.4): a muted meta line with repo#number,
- * copy-link / open-on-GitHub icons · branch (truncated, with a copy icon) ·
- * author (unless it's me) · reviewers / commenters (approvers, once merged),
- * and a "current" label, the updated age and the unseen dot on the right; the
- * title without the key; up to four signal chips with "+N"; the newest unseen
- * comment and my newest unresolved note.
+ * copy-link / open-on-GitHub icons · author (unless it's me) · reviewers /
+ * commenters (approvers, once merged), and a "current" label, the updated age
+ * and the unseen dot on the right; the title without the key; up to four
+ * signal chips with "+N"; the newest unseen comment and my newest unresolved
+ * note.
  */
 export function DeckPRRow({
   id,
@@ -42,8 +41,6 @@ export function DeckPRRow({
   onOpenNote,
 }: DeckPRRowProps) {
   const { pr } = item;
-  const onCopyBranch = useContext(CopyBranchContext);
-  const branch = pr.head?.ref;
   const me = useContext(ViewerLoginContext);
   const showAuthor = !me || pr.user.login.toLowerCase() !== me.toLowerCase();
   const { shown, more } = visibleChips(item.signals);
@@ -73,32 +70,6 @@ export function DeckPRRow({
           <span className="deck-pr-links">
             <PRLinkIcons pr={pr} />
           </span>
-          {branch && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="deck-pr-branch">
-                <IconGitBranch size={12} stroke={1.8} aria-hidden="true" />
-                <span className="deck-pr-branch-name" title={branch}>
-                  {branch}
-                </span>
-                {onCopyBranch && (
-                  <button
-                    type="button"
-                    className="pr-cluster-icon-btn"
-                    title="Copy branch name"
-                    aria-label={`Copy branch ${branch}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCopyBranch(branch);
-                    }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <IconCopy size={13} stroke={1.8} />
-                  </button>
-                )}
-              </span>
-            </>
-          )}
           {showAuthor && (
             <>
               <span aria-hidden="true">·</span>
