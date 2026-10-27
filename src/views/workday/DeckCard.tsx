@@ -82,40 +82,13 @@ export function DeckCard({
   return (
     <section className="deck-card" role="region" aria-label={label}>
       <div className="deck-card-header">
-        <div className="deck-card-titleline">
-          {key && (
-            <span className="deck-card-key">
-              <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} showOpen={false} />
-            </span>
-          )}
-          <h3 className="deck-card-title">
-            {ticket.title}
-            <span className="deck-card-pills" style={{ marginLeft: "0.5em" }}>
-              {ticket.ticket?.offSprint && <OffSprintPill />}
-              {ticket.ticket?.statusName && (
-                <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
-              )}
-            </span>
-          </h3>
-        </div>
-        {(newest || jiraHref) && (
-          <div className="deck-card-sub">
-            {newest && (
-              <span>
-                {[
-                  plural(prs.length, "PR"),
-                  mergedCount > 0 && `${mergedCount} merged`,
-                  `${currentCount} current`,
-                  `updated ${compactAge(newest, now)}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            )}
-            {newest && jiraHref && " · "}
+        {/* Key line above the title, so every header row starts at one left edge. */}
+        {key && (
+          <div className="deck-card-keyline">
+            <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} showOpen={false} />
             {jiraHref && (
               <a
-                className="deck-link"
+                className="deck-link font-sm"
                 href={jiraHref}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -123,6 +96,27 @@ export function DeckCard({
               >
                 Open in Jira <IconExternalLink size={13} stroke={1.8} aria-hidden="true" />
               </a>
+            )}
+            {ticket.ticket?.statusName && (
+              <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
+            )}
+            {ticket.ticket?.offSprint && <OffSprintPill />}
+          </div>
+        )}
+        <h3 className="deck-card-title">{ticket.title}</h3>
+        {(newest || jiraHref) && (
+          <div className="deck-card-sub">
+            {newest && (
+              <span>
+                {[
+                  plural(prs.length, "PR"),
+                  mergedCount > 0 && `${mergedCount} merged`,
+                  currentCount > 0 && `${currentCount} current`,
+                  `updated ${compactAge(newest, now)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
             )}
           </div>
         )}

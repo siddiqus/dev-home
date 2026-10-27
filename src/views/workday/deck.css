@@ -639,20 +639,26 @@
   flex: none;
 }
 
+/* Ticket card: key, copy and status pills on one line above the title. */
+.deck-card-keyline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.deck-card-keyline .workday-key {
+  margin-right: var(--space-1);
+}
+
 .deck-card-title {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.deck-card-pills {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 .deck-card-sub {

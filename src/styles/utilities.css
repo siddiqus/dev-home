@@ -17,3 +17,7 @@
   height: 16px;
   display: block;
 }
+
+.font-sm {
+  font-size: 12px !important;
+}
