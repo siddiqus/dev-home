@@ -87,13 +87,15 @@ export function DeckCard({
               <TicketKey ticketKey={key} jiraBaseUrl={jiraBaseUrl} showOpen={false} />
             </span>
           )}
-          <h3 className="deck-card-title">{ticket.title}</h3>
-          <span className="deck-card-pills">
-            {ticket.ticket?.offSprint && <OffSprintPill />}
-            {ticket.ticket?.statusName && (
-              <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
-            )}
-          </span>
+          <h3 className="deck-card-title">
+            {ticket.title}
+            <span className="deck-card-pills" style={{ marginLeft: "0.5em" }}>
+              {ticket.ticket?.offSprint && <OffSprintPill />}
+              {ticket.ticket?.statusName && (
+                <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
+              )}
+            </span>
+          </h3>
         </div>
         {(newest || jiraHref) && (
           <div className="deck-card-sub">
