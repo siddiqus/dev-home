@@ -5,6 +5,7 @@ import { IconExternalLink, IconGitPullRequest, IconRefresh } from "@tabler/icons
 import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
 import { useIssueDescription } from "../hooks/useIssueDescription";
+import { useIsPhone } from "../hooks/useIsPhone";
 import { Avatar } from "./primitives/Avatar";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import { Markdown } from "./Markdown";
@@ -25,6 +26,8 @@ interface JiraIssueDrawerProps {
   reloading?: boolean;
   /** Key of an issue still being fetched: the drawer opens on it with a spinner. */
   loadingKey?: string | null;
+  /** An issue that failed to load: the drawer stays open on it with the reason. */
+  error?: { key: string; message: string } | null;
 }
 
 export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
@@ -37,26 +40,29 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
   onReload,
   reloading,
   loadingKey,
+  error = null,
 }) => {
   // Still fetching: the header shows the key with placeholders for the rest.
   const loading = !issue && !!loadingKey;
-  const issueKey = issue?.key ?? loadingKey;
+  const issueKey = issue?.key ?? loadingKey ?? error?.key;
   const url = issueKey ? jiraBrowseUrl(baseUrl, issueKey) : undefined;
 
   // Lists omit the description; lazy-load it (cached) when the drawer opens.
   const { description, loading: isDescLoading } = useIssueDescription(issue, show);
+  // On a phone the drawer takes the whole width: a 40vw panel would be unreadable.
+  const phone = useIsPhone();
 
   // The backdrop swallows outside clicks so they never reach the page (a stray
   // click can't open another modal); clicking it closes the drawer, as do the
   // close button and Escape.
   return (
     <Offcanvas
-      show={show || !!loadingKey}
+      show={show || !!loadingKey || !!error}
       onHide={onHide}
       placement="end"
       backdrop
       keyboard
-      className="jira-issue-drawer"
+      className={`jira-issue-drawer${phone ? " jira-issue-drawer--phone" : ""}`}
     >
       <Offcanvas.Header closeButton>
         <div className="jira-drawer-header">
@@ -80,7 +86,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
             )
           )}
           <div className="jira-drawer-title">
-            {issue ? `${issue.key}: ${issue.summary}` : (loadingKey ?? "")}
+            {issue ? `${issue.key}: ${issue.summary}` : (issueKey ?? "")}
           </div>
           {loading ? (
             <div className="jira-drawer-subtitle" aria-hidden="true">
@@ -125,8 +131,14 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
             linkedPRs={linkedPRs}
             staleDays={staleDays}
           />
+        ) : loading ? (
+          <LoadingRow />
         ) : (
-          loading && <LoadingRow />
+          error && (
+            <p className="jira-drawer-error" role="alert">
+              Couldn't load this issue: {error.message}
+            </p>
+          )
         )}
       </Offcanvas.Body>
     </Offcanvas>

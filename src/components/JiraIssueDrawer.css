@@ -1,9 +1,25 @@
 .jira-issue-drawer.offcanvas-end {
-  width: 40vw;
+  /* Half the screen on a laptop. Bootstrap sizes the panel from this variable;
+     setting it here beats its 400px default whichever stylesheet loads last,
+     where a plain width would tie with Bootstrap's rule and could lose. */
+  --bs-offcanvas-width: 50vw;
   /* Give the panel its own edge — a themed border + shadow — to separate it
      from the page. */
   border-left: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
+}
+
+/* The whole screen on a phone. */
+.jira-issue-drawer--phone.offcanvas-end {
+  --bs-offcanvas-width: 100vw;
+  border-left: 0;
+}
+
+.jira-issue-drawer .jira-drawer-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-status-danger);
+  overflow-wrap: anywhere;
 }
 
 .jira-issue-drawer .jira-drawer-header {

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../hooks/useIssueDescription", () => ({
@@ -28,6 +28,26 @@ describe("JiraIssueDrawer", () => {
     expect(backdrop).toBeTruthy();
     fireEvent.click(backdrop as Element);
     expect(onHide).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the full screen width on a phone, and its side-panel width elsewhere", async () => {
+    const desktop = window.matchMedia;
+    render(<JiraIssueDrawer issue={null} show={false} loadingKey="CCP-1" onHide={() => {}} />);
+    await screen.findByText("CCP-1");
+    expect(document.querySelector(".offcanvas")).not.toHaveClass("jira-issue-drawer--phone");
+    cleanup();
+
+    window.matchMedia = ((query: string) => ({
+      ...desktop(query),
+      matches: true,
+    })) as typeof window.matchMedia;
+    try {
+      render(<JiraIssueDrawer issue={null} show={false} loadingKey="CCP-1" onHide={() => {}} />);
+      await screen.findByText("CCP-1");
+      expect(document.querySelector(".offcanvas")).toHaveClass("jira-issue-drawer--phone");
+    } finally {
+      window.matchMedia = desktop;
+    }
   });
 
   it("stays open on clicks inside the drawer", async () => {

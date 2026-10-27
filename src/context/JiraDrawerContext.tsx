@@ -24,6 +24,8 @@ export function JiraDrawerProvider({
   // Key being fetched; the drawer opens on it right away with a spinner.
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
+  // The last open that failed: the drawer stays on it with the reason, not closing on its own.
+  const [error, setError] = useState<{ key: string; message: string } | null>(null);
   // Only the latest click wins if several fetches overlap.
   const requestId = useRef(0);
 
@@ -31,13 +33,18 @@ export function JiraDrawerProvider({
     const id = ++requestId.current;
     setIssue(null);
     setReloading(false);
+    setError(null);
     setLoadingKey(key);
     fetchIssueDetail(key)
       .then((fetched) => {
-        if (id === requestId.current && fetched) setIssue(fetched);
+        if (id !== requestId.current) return;
+        if (fetched) setIssue(fetched);
+        else setError({ key, message: `${key} wasn't found in Jira.` });
       })
-      .catch(() => {
-        if (id === requestId.current) setIssue(null);
+      .catch((err: unknown) => {
+        if (id !== requestId.current) return;
+        setIssue(null);
+        setError({ key, message: err instanceof Error ? err.message : String(err) });
       })
       .finally(() => {
         if (id === requestId.current) setLoadingKey(null);
@@ -45,8 +52,12 @@ export function JiraDrawerProvider({
   }, []);
 
   // Refetch in place: the drawer stays open on the cached issue until fresh data lands.
+  // After a failed open, Reload tries that open again.
   const reload = useCallback(() => {
-    if (!issue) return;
+    if (!issue) {
+      if (error) openIssue(error.key);
+      return;
+    }
     const id = ++requestId.current;
     setReloading(true);
     fetchIssueDetail(issue.key, { force: true })
@@ -57,13 +68,14 @@ export function JiraDrawerProvider({
       .finally(() => {
         if (id === requestId.current) setReloading(false);
       });
-  }, [issue]);
+  }, [issue, error, openIssue]);
 
   const hide = useCallback(() => {
     requestId.current++;
     setIssue(null);
     setLoadingKey(null);
     setReloading(false);
+    setError(null);
   }, []);
 
   return (
@@ -77,6 +89,7 @@ export function JiraDrawerProvider({
         onReload={reload}
         reloading={reloading}
         loadingKey={loadingKey}
+        error={error}
       />
     </JiraDrawerContext.Provider>
   );
