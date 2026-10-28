@@ -1287,6 +1287,21 @@ button.deck-rail-row:focus-visible {
   height: 52px;
 }
 
+/* A PR-less rail row's status line while its merged PRs load. Inline, so the
+   line keeps the height its text would have. */
+.deck-skeleton--status {
+  display: inline-block;
+  width: 5rem;
+  height: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Stands in for a PR-less card's merged rows while they load, placed like a PR row. */
+.deck-skeleton--merged {
+  margin-top: 7px;
+  border-radius: var(--radius-md);
+}
+
 /* ---------- Card swipe (spec §5.4) ----------
    The column is re-keyed on every selection, so each change mounts fresh
    elements and the animation restarts; nothing waits on animationend, and rapid

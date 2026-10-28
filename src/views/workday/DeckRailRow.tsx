@@ -71,7 +71,14 @@ export function DeckRailRow({
           )}
         </span>
         <span className={`deck-rail-status deck-rail-status--${ticket.statusTone}`}>
-          {ticket.status}
+          {ticket.mergedLoading ? (
+            <>
+              <span className="deck-skeleton deck-skeleton--status" aria-hidden="true" />
+              <span className="visually-hidden">Loading merged PRs</span>
+            </>
+          ) : (
+            ticket.status
+          )}
           {ticket.approvers && ticket.approvers.length > 0 && (
             <>
               {" · "}

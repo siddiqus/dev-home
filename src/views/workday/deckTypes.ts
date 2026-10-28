@@ -27,6 +27,8 @@ export interface DeckInputs {
   mergedPRs?: GitHubPR[];
   /** My merged PRs over a longer window, listed under their ticket's open tab. */
   ticketMergedPRs?: GitHubPR[];
+  /** `ticketMergedPRs` hasn't loaded yet, so a PR-less tab may still have merged PRs. */
+  ticketMergedLoading?: boolean;
 }
 
 /** A PR on the deck with its signals and context. */
@@ -65,6 +67,8 @@ export interface DeckTicket {
   todos: Note[];
   /** A #todo note with nothing on the deck to attach to: the tab is the note itself. */
   noteItem: Note | null;
+  /** No PRs yet, but my merged ones are still loading: shown as loading, not "No PR yet". */
+  mergedLoading?: boolean;
 }
 
 /** The composed deck, split into groups. */

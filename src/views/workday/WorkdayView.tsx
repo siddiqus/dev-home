@@ -296,6 +296,8 @@ export function WorkdayView(props: WorkdayViewProps) {
   if (extras.merged.data) lastMerged.current = extras.merged.data;
   const mergedPRs = lastMerged.current;
   const ticketMergedPRs = extras.ticketMerged.data;
+  // Kept across refreshes, so only the first fetch counts as loading.
+  const ticketMergedLoading = ticketMergedPRs === null && !extras.ticketMerged.error;
 
   // Standup sections: built the same way as v1.
   const sections = useMemo(
@@ -378,6 +380,7 @@ export function WorkdayView(props: WorkdayViewProps) {
           offSprintKeys,
           mergedPRs: mergedPRs ?? [],
           ticketMergedPRs: ticketMergedPRs ?? [],
+          ticketMergedLoading,
         },
         state,
         now,
@@ -394,6 +397,7 @@ export function WorkdayView(props: WorkdayViewProps) {
       offSprintKeys,
       mergedPRs,
       ticketMergedPRs,
+      ticketMergedLoading,
       state,
       now,
     ],

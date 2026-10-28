@@ -495,7 +495,10 @@ export function buildDeck(
     const key = issue.key.toUpperCase();
     if (statusCategoryOf(issue) === "indeterminate" && !byKey.has(key)) {
       byKey.set(key, []);
-      tickets.push(deckTicket(key, key, ref(key), [], ctx, mergedByKey.get(key)));
+      const t = deckTicket(key, key, ref(key), [], ctx, mergedByKey.get(key));
+      tickets.push(
+        inp.ticketMergedLoading && t.prs.length === 0 ? { ...t, mergedLoading: true } : t,
+      );
     }
   }
 

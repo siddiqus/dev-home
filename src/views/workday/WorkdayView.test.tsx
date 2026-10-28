@@ -2,7 +2,11 @@ import { act, render, screen, fireEvent, cleanup, within } from "@testing-librar
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
 
-const extrasMock = vi.hoisted(() => ({ merged: [] as GitHubPR[], ticketMerged: [] as GitHubPR[] }));
+const extrasMock = vi.hoisted(() => ({
+  merged: [] as GitHubPR[],
+  ticketMerged: [] as GitHubPR[] | null,
+  ticketMergedError: null as string | null,
+}));
 vi.mock("../../hooks/useWorkdayExtras", () => ({
   useWorkdayExtras: () => ({
     sprint: { data: [], error: null },
@@ -10,7 +14,7 @@ vi.mock("../../hooks/useWorkdayExtras", () => ({
     doneTickets: { data: [], error: null },
     merged: { data: extrasMock.merged, error: null },
     reviewed: { data: null, error: null },
-    ticketMerged: { data: extrasMock.ticketMerged, error: null },
+    ticketMerged: { data: extrasMock.ticketMerged, error: extrasMock.ticketMergedError },
   }),
 }));
 
@@ -729,6 +733,7 @@ describe("WorkdayView merged PRs on open tickets", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => {
     extrasMock.ticketMerged = [];
+    extrasMock.ticketMergedError = null;
   });
 
   const stored = () => JSON.parse(localStorage.getItem("dev-home-workday-v2") ?? "{}");
@@ -753,6 +758,35 @@ describe("WorkdayView merged PRs on open tickets", () => {
     // A merged PR can't be current, so Space marks the ticket instead.
     press(" ");
     expect(stored().current).toEqual(["ticket:CCP-371"]);
+  });
+
+  it("shows loading instead of No PR yet on the card and rail while merged PRs load", () => {
+    extrasMock.ticketMerged = null;
+    renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
+    expect(within(card()).queryByText("No PR yet")).toBeNull();
+    expect(within(card()).getByRole("status", { name: "Loading merged PRs" })).toBeTruthy();
+    const row = within(screen.getByRole("listbox", { name: "Tickets" })).getByRole("option", {
+      name: /371/,
+    });
+    expect(row).not.toHaveTextContent("No PR yet");
+    expect(row).toHaveTextContent("Loading merged PRs");
+  });
+
+  it("keeps a card with open PRs as is while merged PRs load", () => {
+    extrasMock.ticketMerged = null;
+    renderView();
+    expect(within(card()).queryByRole("status")).toBeNull();
+    expect(within(prList()).getAllByRole("option")).toHaveLength(1);
+  });
+
+  it("falls back to No PR yet when merged PRs fail to load", () => {
+    extrasMock.ticketMerged = null;
+    extrasMock.ticketMergedError = "GitHub: 500";
+    renderView({ openPRs: [], assignedIssues: [issue("CCP-371", "Thumbnail backfill")] });
+    expect(within(card()).getByText("No PR yet")).toBeTruthy();
+    expect(within(card()).queryByRole("status")).toBeNull();
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(within(rail).getByRole("option", { name: /371/ })).toHaveTextContent("No PR yet");
   });
 });
 

@@ -149,7 +149,15 @@ export function DeckCard({
         )}
         {prs.length === 0 ? (
           <>
-            <div className="deck-card-empty">No PR yet</div>
+            {ticket.mergedLoading ? (
+              <span
+                className="deck-skeleton deck-skeleton--pr deck-skeleton--merged"
+                role="status"
+                aria-label="Loading merged PRs"
+              />
+            ) : (
+              <div className="deck-card-empty">No PR yet</div>
+            )}
             {ticket.note && <DeckNoteLine note={ticket.note} onOpen={onOpenNote} />}
             {composer}
           </>

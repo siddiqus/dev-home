@@ -1043,6 +1043,19 @@ describe("buildDeck merged PRs on open tickets", () => {
     expect(t.stripe).toBe("purple");
   });
 
+  it("marks a PR-less tab as loading while merged PRs load; tabs with open PRs aren't", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 work" })],
+      assignedIssues: [issue("CCP-1"), issue("CCP-2")],
+      ticketMergedLoading: true,
+    });
+    expect(byId(deck.open, "CCP-2").mergedLoading).toBe(true);
+    expect(byId(deck.open, "CCP-1").mergedLoading).toBeFalsy();
+    expect(
+      byId(build({ assignedIssues: [issue("CCP-2")] }).open, "CCP-2").mergedLoading,
+    ).toBeFalsy();
+  });
+
   it("puts merged PRs after the open ones, leaving the status, stripe and unseen to the open PRs", () => {
     const open = pr(5, { title: "CCP-1 follow-up", updated_at: "2026-10-13T10:00:00Z" });
     const without = byId(
