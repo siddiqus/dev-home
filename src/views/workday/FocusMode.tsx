@@ -89,6 +89,7 @@ export function FocusMode({
       title={titleWithoutKey(pr.title, ticketKey)}
       extra={<LineSub pr={pr} after={author} />}
       badge={badge}
+      pr={pr}
       time={compactAge(pr.updated_at, now)}
       onClick={() => onOpen(pr)}
     />

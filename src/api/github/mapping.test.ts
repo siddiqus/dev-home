@@ -59,6 +59,16 @@ describe("mapGraphQLPr requested_reviewers", () => {
   });
 });
 
+describe("mapGraphQLPr head", () => {
+  it("carries the head commit's sha, and leaves it out when not fetched", () => {
+    expect(mapGraphQLPr({ headRefName: "feat", headRefOid: "abc123" }).head).toEqual({
+      ref: "feat",
+      sha: "abc123",
+    });
+    expect(mapGraphQLPr({ headRefName: "feat" }).head).toEqual({ ref: "feat" });
+  });
+});
+
 describe("deriveParticipants", () => {
   const c = (login: string) => ({ author: { login } });
 

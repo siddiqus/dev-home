@@ -3,6 +3,7 @@ import { IconExternalLink, IconCopy, IconNote } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { MergeButton } from "./MergeButton";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { prAction } from "../utils/prAction";
 import type { StateBadge } from "../views/workday/prState";
@@ -40,8 +41,9 @@ interface PRCardProps {
   singleTicket?: string | null;
   /** Member of a multi-PR ticket cluster — adds the indent rail. */
   clustered?: boolean;
-  /** Render my PR's signals (mySignals): the next step top-right, the rest on a
-      line under the meta. Only for PRs the viewer authored (the My PRs lists). */
+  /** Render my PR's signals (mySignals): the next step top-right (the Merge
+      button once it's "Ready to merge"), the rest on a line under the meta.
+      Only for PRs the viewer authored (the My PRs lists). */
   showSignals?: boolean;
   /** A caller-derived "what should I do" pill (Reviews tab), shown before the CI icon.
       Undefined → derived from the viewer's seat (prAction); null → none. */
@@ -225,7 +227,7 @@ export function PRCard({
 
       <div className="pr-card-side">
         <div className="pr-card-side-top">
-          {next && <SignalChip signal={next} />}
+          {next && <MergeButton pr={pr} fallback={<SignalChip signal={next} />} />}
           {action && <ActionPill label={action.label} tone={action.tone} />}
           {showStatusPill && <StatusPill pr={pr} />}
           {fields.showChecks && (

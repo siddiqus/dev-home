@@ -1,6 +1,7 @@
-import { useContext, type MouseEvent } from "react";
+import { Fragment, useContext, type MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
+import { MergeButton } from "../../components/MergeButton";
 import { Participants } from "../../components/prIndicators";
 import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
 import { compactAge } from "./dates";
@@ -96,11 +97,10 @@ export function DeckPRRow({
         <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>
         {item.signals.length > 0 && (
           <div className="deck-pr-signals">
-            {shown.map((s) =>
-              s.href ? (
+            {shown.map((s, i) => {
+              const chip = s.href ? (
                 // Opens GitHub in a new tab, not the PR modal the row opens.
                 <a
-                  key={s.label}
                   className="deck-chip-link"
                   href={s.href}
                   target="_blank"
@@ -111,11 +111,17 @@ export function DeckPRRow({
                   <Badge variant={s.tone}>{s.label}</Badge>
                 </a>
               ) : (
-                <Badge key={s.label} variant={s.tone} title={s.detail}>
+                <Badge variant={s.tone} title={s.detail}>
                   {s.label}
                 </Badge>
-              ),
-            )}
+              );
+              // My PR's first chip is its next step; "Ready to merge" becomes the Merge button.
+              return i === 0 ? (
+                <MergeButton key={s.label} pr={pr} fallback={chip} />
+              ) : (
+                <Fragment key={s.label}>{chip}</Fragment>
+              );
+            })}
             {more.length > 0 && (
               <Badge variant="neutral" title={more.map((s) => s.label).join(", ")}>
                 +{more.length}

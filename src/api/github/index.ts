@@ -31,6 +31,8 @@ import { getRequiredContexts, mapOpenPrsWithChecks } from "./requiredContexts";
 
 export { clearRequiredContextsCache } from "./requiredContexts";
 export { resetMentionsCache } from "./notifications";
+export { enqueuePr, getMergeOptions, mergePr } from "./merge";
+export type { MergeMethod, MergeOptions } from "./merge";
 
 /** Search query for the configured user's open PRs (shared by getPrs and mentions). */
 function myOpenPrsQuery(username: string): string {

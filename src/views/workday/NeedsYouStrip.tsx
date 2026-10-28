@@ -1,5 +1,6 @@
 import { IconBolt } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
+import { MergeButton } from "../../components/MergeButton";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { usePersistedState } from "../../hooks/usePersistedState";
@@ -213,6 +214,8 @@ export function NeedsYouStrip({
                   }
                   meta={
                     <>
+                      {/* The "Merge" verb leads the row; the button does it. */}
+                      {tier === "ship" && <MergeButton pr={item.pr} fallback={null} />}
                       {item.reason} · <HeatAge iso={item.at} now={now} />
                     </>
                   }

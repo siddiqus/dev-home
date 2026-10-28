@@ -244,6 +244,8 @@ export function mapGraphQLPr(
     },
     head: {
       ref: node.headRefName || "",
+      // Open-PR queries only (PR_STATUS_FIELDS): pins a merge to the head the list showed.
+      ...(node.headRefOid ? { sha: node.headRefOid } : {}),
     },
     base: {
       ref: node.baseRefName || "",

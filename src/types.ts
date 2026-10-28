@@ -127,6 +127,8 @@ export interface GitHubPR {
   };
   head: {
     ref: string;
+    /** Head commit when the list loaded (open-PR queries only); merges pin to it. */
+    sha?: string;
   };
   base: {
     ref: string;

@@ -44,9 +44,11 @@ const PR_BASE_FIELDS = `databaseId
  * Merge-readiness fields for open-PR queries (conflicts, queue, review, CI).
  * Deliberately omits `mergeStateStatus`: GitHub evaluates it per PR on read,
  * adding ~2s to a search, and nothing renders it. The head commit's
- * `committedDate` lets deriveViewerReview flag new commits since a review.
+ * `committedDate` lets deriveViewerReview flag new commits since a review;
+ * `headRefOid` (stored, so free) pins the Merge button to the head shown.
  */
 const PR_STATUS_FIELDS = `mergeable
+  headRefOid
   mergeQueueEntry { id }
   reviewDecision
   commits(last: 1) {
@@ -276,6 +278,45 @@ export const REVIEWED_SINCE_QUERY = `
           }
         }
       }
+    }
+  }
+`;
+
+/**
+ * What the Merge button needs, fetched on its first click: the PR's node id
+ * (the mutations take it), whether its base branch merges through a queue, and
+ * the merge methods the repo allows plus the one github.com preselects for the
+ * viewer (their last used, else the repo default).
+ */
+export const MERGE_OPTIONS_QUERY = `
+  query MergeOptions($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      viewerDefaultMergeMethod
+      squashMergeAllowed
+      rebaseMergeAllowed
+      mergeCommitAllowed
+      pullRequest(number: $number) {
+        id
+        isMergeQueueEnabled
+      }
+    }
+  }
+`;
+
+/** Merge a PR; GitHub refuses when the head moved past `expectedHeadOid`. */
+export const MERGE_PR_MUTATION = `
+  mutation MergePR($pullRequestId: ID!, $method: PullRequestMergeMethod!, $expectedHeadOid: GitObjectID) {
+    mergePullRequest(input: { pullRequestId: $pullRequestId, mergeMethod: $method, expectedHeadOid: $expectedHeadOid }) {
+      pullRequest { id }
+    }
+  }
+`;
+
+/** Add a PR to its base branch's merge queue, which picks the merge method. */
+export const ENQUEUE_PR_MUTATION = `
+  mutation EnqueuePR($pullRequestId: ID!, $expectedHeadOid: GitObjectID) {
+    enqueuePullRequest(input: { pullRequestId: $pullRequestId, expectedHeadOid: $expectedHeadOid }) {
+      mergeQueueEntry { id }
     }
   }
 `;

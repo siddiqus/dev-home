@@ -258,6 +258,10 @@ export default function App() {
     if (sources.includes("kanban")) refreshKanban();
   }, [effectiveTab, boardEnabled, refresh, refreshNotes, refreshKanban]);
 
+  // A Merge button merged or queued a PR: refetch the open PRs so its row drops
+  // out (refreshKey also reloads Workday's and My PRs' merged lists).
+  const refreshOpenPRs = useCallback(() => refresh(["openPRs"]), [refresh]);
+
   // Top-bar refresh for pages whose data can be fetched on its own: refetches
   // only that page's primary source(s), skipping enrichment deps (e.g. Jira for
   // My PRs). refresh() also bumps refreshKey, so PRsView's recently-merged list
@@ -407,7 +411,12 @@ export default function App() {
   useKeyboardShortcuts(setActiveTab, handleNewNote);
 
   return (
-    <AppProviders notesApi={notesApi} jiraBaseUrl={jiraBaseUrl} githubUsername={githubUsername}>
+    <AppProviders
+      notesApi={notesApi}
+      jiraBaseUrl={jiraBaseUrl}
+      githubUsername={githubUsername}
+      onMerged={refreshOpenPRs}
+    >
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
         <Container

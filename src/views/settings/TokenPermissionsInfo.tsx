@@ -27,13 +27,13 @@ const INFO: Record<"github" | "jira", ProviderInfo> = {
     rows: [
       {
         name: "repo",
-        why: "Read PRs, commits, checks and review threads, including private repos",
+        why: "Read PRs, commits, checks and review threads (private repos too), and merge your PRs",
       },
       { name: "read:org", why: "List org members and repos (teams and org PRs)" },
       { name: "notifications", why: "Read mentions and review requests for the Comments tab" },
     ],
     footnote:
-      "Fine-grained tokens also work with read access to Pull requests, Checks, Commit statuses, Contents and Metadata, plus org Members. GitHub's notifications API doesn't accept them, so the Comments tab stays empty.",
+      "Fine-grained tokens also work with read access to Pull requests, Checks, Commit statuses, Contents and Metadata, plus org Members. The Merge button needs write access to Contents and Pull requests. GitHub's notifications API doesn't accept fine-grained tokens, so the Comments tab stays empty.",
   },
   jira: {
     createUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
@@ -44,7 +44,7 @@ const INFO: Record<"github" | "jira", ProviderInfo> = {
       { name: "Browse issues", why: "Read issue details such as status and priority" },
       { name: "Read comments", why: "Find comments that mention you" },
     ],
-    footnote: "Nothing is written back. Dev Home only reads from Jira and GitHub.",
+    footnote: "Nothing is written back to Jira. Dev Home only reads from it.",
   },
 };
 

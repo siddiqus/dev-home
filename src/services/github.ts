@@ -1,7 +1,9 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
 import { SETTINGS_EVENT } from "./config";
 import {
+  enqueuePr,
   getGithubMentions,
+  getMergeOptions,
   getMergedPrs,
   getOrgMembers,
   getOrgPrs,
@@ -10,6 +12,9 @@ import {
   getPrDetail,
   getPrs,
   getReviews,
+  mergePr,
+  type MergeMethod,
+  type MergeOptions,
 } from "../api/github";
 
 /**
@@ -160,4 +165,38 @@ export function fetchPRBody(pr: GitHubPR): Promise<string> {
     prBodyCache.set(key, pending);
   }
   return pending;
+}
+
+// Merge options per PR for the session: a repo's merge methods and queue rarely
+// change. Failures are evicted so the next click retries.
+const mergeOptionsCache = new Map<string, Promise<MergeOptions>>();
+if (typeof window !== "undefined") {
+  window.addEventListener(SETTINGS_EVENT, () => mergeOptionsCache.clear());
+}
+
+/** Lazily fetch (and cache) what the Merge button needs for a PR. */
+export function fetchMergeOptions(pr: GitHubPR): Promise<MergeOptions> {
+  let pending = mergeOptionsCache.get(pr.html_url);
+  if (!pending) {
+    const [owner, repo] = pr.repo_full_name.split("/");
+    pending = getMergeOptions({ owner, repo, number: pr.number });
+    pending.catch(() => mergeOptionsCache.delete(pr.html_url));
+    mergeOptionsCache.set(pr.html_url, pending);
+  }
+  return pending;
+}
+
+/**
+ * Merge a PR with `method`, or add it to its merge queue (which picks the
+ * method). Pinned to the head commit the list loaded, so GitHub refuses if
+ * commits landed since.
+ */
+export async function mergePR(
+  pr: GitHubPR,
+  options: MergeOptions,
+  method: MergeMethod,
+): Promise<void> {
+  const args = { pullRequestId: options.pullRequestId, expectedHeadOid: pr.head.sha };
+  if (options.queue) await enqueuePr(args);
+  else await mergePr({ ...args, method });
 }

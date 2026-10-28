@@ -27,7 +27,7 @@ Your data stays in your browser's localStorage. GitHub is called directly from t
 
 **GitHub**
 
-- **My PRs**: your open PRs, grouped under their Jira ticket, with CI checks and review state
+- **My PRs**: your open PRs, grouped under their Jira ticket, with CI checks and review state. PRs that are ready to merge get a **Merge** button (here and in Workday)
 - **Reviews**: PRs waiting on your review, with your review state and a flag for new commits since you last reviewed
 - **Comments**: GitHub mentions and review requests from your notifications
 - **All PRs**: every open PR across your GitHub org (needs **GitHub Org** in Settings)
@@ -89,7 +89,7 @@ Create a token at https://github.com/settings/tokens. A **classic** token is rec
 
 | Scope (classic token) | Why it's needed |
 |---|---|
-| `repo` | Read PRs, commits, check statuses and review threads across public and private repos |
+| `repo` | Read PRs, commits, check statuses and review threads across public and private repos, and merge your PRs from the **Merge** button |
 | `read:org` | List organization members and repositories (Teams and All PRs) |
 | `notifications` | Read your GitHub notifications (mentions and review requests) for the Comments tab |
 
@@ -104,6 +104,8 @@ A **fine-grained** token also works, with these permissions:
 | Metadata | Read | Required for all fine-grained tokens |
 | Members | Read (organization) | List organization members |
 
+To use the **Merge** button with a fine-grained token, give **Contents** and **Pull requests** read and write access. Everything else works with read access alone.
+
 GitHub's notifications API doesn't accept fine-grained tokens, so the **Comments** tab stays empty with one. Use a classic token if you need it.
 
 ### Jira API Token
@@ -116,7 +118,7 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 | Browse issues | Read issue details (summary, status, priority and so on) |
 | Read comments | Fetch comments on issues to find mentions of you |
 
-No write permissions are needed. The app only reads data from GitHub and Jira, and the Jira proxy only forwards read-only endpoints.
+No write permissions are needed. The app only reads data from Jira, and the Jira proxy only forwards read-only endpoints. On GitHub, the only write is the **Merge** button on your own ready PRs.
 
 #### Jira Host Restriction
 

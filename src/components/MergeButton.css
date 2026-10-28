@@ -1,0 +1,118 @@
+/* ============================================
+   Merge split button: takes the "Ready to merge" chip's place, at the
+   chip's height (12px text, 18px tall). GitHub's merge green reads on both
+   themes with white text.
+   ============================================ */
+
+.merge-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  border: 1px solid #2ea043;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #238636;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.merge-btn button {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.merge-btn button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.merge-btn button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.merge-btn-main {
+  padding: 2px 8px;
+}
+
+.merge-btn .merge-btn-caret {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* "Squash & merge?": amber, so the second click reads as the committing one. */
+.merge-btn--confirm {
+  border-color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+}
+
+.merge-btn--confirm button {
+  color: var(--color-status-warning);
+}
+
+.merge-btn--confirm .merge-btn-caret {
+  border-left-color: color-mix(in srgb, var(--color-status-warning) 50%, transparent);
+}
+
+.merge-btn--busy {
+  opacity: 0.7;
+}
+
+.merge-btn--busy button {
+  cursor: progress;
+}
+
+/* Caret menu, portalled to <body> and fixed under the caret. */
+.merge-menu {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.merge-menu-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 24px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.merge-menu-item:hover,
+.merge-menu-item:focus-visible {
+  outline: none;
+  background: var(--color-bg-hover);
+}
+
+.merge-menu-item[aria-checked="true"] {
+  position: relative;
+}
+
+.merge-menu-item[aria-checked="true"]::before {
+  content: "✓";
+  position: absolute;
+  left: 9px;
+  color: var(--color-status-success);
+}

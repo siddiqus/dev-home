@@ -10,6 +10,7 @@ import {
 import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
+import { MergeButton } from "../../components/MergeButton";
 import { Participants } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
 import { blurOnPointer } from "./pointer";
@@ -318,6 +319,8 @@ interface WorkdayItemRowProps {
   badge?: StateBadge | null;
   /** Badge tooltip. */
   badgeTitle?: string;
+  /** The row's PR: once it's mine and ready to merge, the badge becomes the Merge button. */
+  pr?: GitHubPR;
   time?: string | null;
   child?: boolean;
   onClick?: () => void;
@@ -325,7 +328,8 @@ interface WorkdayItemRowProps {
 
 /**
  * A PR / ticket row on the shared row grid: key (empty when nested or
- * ticketless) · icon · title + inline extras (repo#N, status) · badge · time.
+ * ticketless) · icon · title + inline extras (repo#N, status) · badge (or the
+ * Merge button) · time.
  */
 export function WorkdayItemRow({
   kind,
@@ -336,10 +340,16 @@ export function WorkdayItemRow({
   extra,
   badge,
   badgeTitle,
+  pr,
   time,
   child,
   onClick,
 }: WorkdayItemRowProps) {
+  const badgeEl = badge && (
+    <Badge variant={badge.tone} title={badgeTitle}>
+      {badge.label}
+    </Badge>
+  );
   return (
     <div
       className={`workday-item${child ? " workday-item--child" : ""}${kind ? "" : " workday-item--ticket"}`}
@@ -358,11 +368,7 @@ export function WorkdayItemRow({
         </div>
       </div>
       <div className="workday-item-side">
-        {badge && (
-          <Badge variant={badge.tone} title={badgeTitle}>
-            {badge.label}
-          </Badge>
-        )}
+        {badgeEl && (pr ? <MergeButton pr={pr} fallback={badgeEl} /> : badgeEl)}
         <span className="workday-item-time">{time}</span>
       </div>
     </div>

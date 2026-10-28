@@ -43,6 +43,7 @@ vi.mock("../../hooks/usePRBody", () => ({
 }));
 
 import { WorkdayView } from "./WorkdayView";
+import { MergeProvider } from "../../context/MergeContext";
 import { WorkdaySection } from "./WorkdaySection";
 const NOW = new Date(2026, 9, 11, 10, 0);
 const prs: GitHubPR[] = [
@@ -66,7 +67,10 @@ const prs: GitHubPR[] = [
   },
 ];
 
-function renderView(extra: Partial<React.ComponentProps<typeof WorkdayView>> = {}) {
+function renderView(
+  extra: Partial<React.ComponentProps<typeof WorkdayView>> = {},
+  wrapper?: React.JSXElementConstructor<{ children: React.ReactNode }>,
+) {
   const addNote = vi.fn(
     async (type, content, reference_id, title) =>
       ({ id: 7, type, content, reference_id, title }) as Note,
@@ -94,7 +98,7 @@ function renderView(extra: Partial<React.ComponentProps<typeof WorkdayView>> = {
       {...more}
     />
   );
-  const { rerender } = render(view({}));
+  const { rerender } = render(view({}), { wrapper });
   return {
     addNote,
     editNote,
@@ -517,5 +521,33 @@ describe("WorkdaySection", () => {
     );
     expect(screen.getByText("Jira down")).toBeTruthy();
     expect(screen.queryByText("Nothing here")).toBeNull();
+  });
+});
+
+describe("Workday List View merge button", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    listView();
+  });
+
+  const ready: GitHubPR = {
+    ...prs[0],
+    review_status: "APPROVED",
+    checks_status: "SUCCESS",
+    requested_reviewers: [],
+  };
+
+  it("gives my ready PR the Merge button in Needs you and Working on", () => {
+    renderView({ openPRs: [ready], githubUsername: "me" }, MergeProvider);
+    const shipRow = within(sectionOf("Lock in")).getByText("delete").closest(".workday-line")!;
+    expect(within(shipRow as HTMLElement).getByRole("button", { name: "Merge" })).toBeTruthy();
+    const working = sectionOf("Working on");
+    expect(within(working).getByRole("button", { name: "Merge" })).toBeTruthy();
+    expect(within(working).queryByText("Ready to merge")).toBeNull();
+  });
+
+  it("keeps the badge when the PR isn't ready", () => {
+    renderView({ openPRs: prs, githubUsername: "me" }, MergeProvider);
+    expect(screen.queryByRole("button", { name: "Merge" })).toBeNull();
   });
 });

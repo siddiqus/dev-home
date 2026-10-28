@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { PRCard, type PRCardFields } from "./PRCard";
 import type { GitHubPR } from "../types";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
+import { MergeProvider } from "../context/MergeContext";
 
 function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -425,5 +426,30 @@ describe("PRCard next-action tag", () => {
     expect(screen.getByText("+1")).toBeInTheDocument();
     expect(screen.queryByText(/di/)).toBeNull();
     expect(screen.getByTitle(/di commented/)).toBeInTheDocument();
+  });
+});
+
+describe("PRCard merge button", () => {
+  const renderMine = (pr: GitHubPR, onOpen = noop) =>
+    render(
+      <ViewerLoginContext.Provider value="octocat">
+        <MergeProvider>
+          <PRCard pr={pr} fields={FIELDS.full} showSignals onOpen={onOpen} />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+
+  it("turns my ready PR's Ready to merge chip into the Merge button", () => {
+    const onOpen = vi.fn();
+    renderMine(makePR({ review_status: "APPROVED", checks_status: "SUCCESS" }), onOpen);
+    expect(screen.queryByText("✓ Ready to merge")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Merge" }));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("keeps the next-step chip on a PR that isn't ready", () => {
+    renderMine(makePR({ review_status: "APPROVED", checks_status: "PENDING" }));
+    expect(screen.getByText("✓ Approved · merge when CI passes")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
   });
 });

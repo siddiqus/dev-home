@@ -662,3 +662,9 @@
 .workday-mode-toggle {
   align-self: center;
 }
+
+/* Needs you's Merge button, before the "approved · CI green" reason. */
+.workday-line-meta .merge-btn {
+  margin-right: 8px;
+  vertical-align: middle;
+}
