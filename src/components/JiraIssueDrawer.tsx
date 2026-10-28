@@ -1,5 +1,6 @@
 import React from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
+import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { IconExternalLink, IconGitPullRequest, IconRefresh } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
@@ -144,6 +145,15 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
           )
         )}
       </Offcanvas.Body>
+
+      {/* The × is a stretch for a thumb: a Close button at the bottom too. */}
+      {phone && (
+        <div className="jira-drawer-footer">
+          <Button variant="outline-secondary" size="sm" onClick={onHide}>
+            Close
+          </Button>
+        </div>
+      )}
     </Offcanvas>
   );
 };

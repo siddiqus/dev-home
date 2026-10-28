@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../hooks/useIssueDescription", () => ({
@@ -45,6 +45,29 @@ describe("JiraIssueDrawer", () => {
       render(<JiraIssueDrawer issue={null} show={false} loadingKey="CCP-1" onHide={() => {}} />);
       await screen.findByText("CCP-1");
       expect(document.querySelector(".offcanvas")).toHaveClass("jira-issue-drawer--phone");
+    } finally {
+      window.matchMedia = desktop;
+    }
+  });
+
+  it("adds a Close button at the bottom on a phone only", async () => {
+    const desktop = window.matchMedia;
+    render(<JiraIssueDrawer issue={null} show={false} loadingKey="CCP-1" onHide={() => {}} />);
+    await screen.findByText("CCP-1");
+    expect(document.querySelector(".jira-drawer-footer")).toBeNull();
+    cleanup();
+
+    window.matchMedia = ((query: string) => ({
+      ...desktop(query),
+      matches: true,
+    })) as typeof window.matchMedia;
+    try {
+      const onHide = vi.fn();
+      render(<JiraIssueDrawer issue={null} show={false} loadingKey="CCP-1" onHide={onHide} />);
+      await screen.findByText("CCP-1");
+      const footer = document.querySelector(".jira-drawer-footer") as HTMLElement;
+      fireEvent.click(within(footer).getByRole("button", { name: "Close" }));
+      expect(onHide).toHaveBeenCalledTimes(1);
     } finally {
       window.matchMedia = desktop;
     }

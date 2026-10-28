@@ -22,6 +22,11 @@
   overflow-wrap: anywhere;
 }
 
+/* The × keeps to the top right corner, however tall the title runs. */
+.jira-issue-drawer .offcanvas-header {
+  align-items: flex-start;
+}
+
 .jira-issue-drawer .jira-drawer-header {
   min-width: 0;
 }
@@ -123,6 +128,16 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--color-border);
+}
+
+/* Phone only: under the scrolling body, clear of the home indicator. */
+.jira-issue-drawer .jira-drawer-footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--bs-offcanvas-padding-x)
+    calc(var(--space-2) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .jira-issue-drawer .modal-body-section-header {
