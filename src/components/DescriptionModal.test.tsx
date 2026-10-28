@@ -1,6 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DescriptionModal } from "./DescriptionModal";
+import { ViewerLoginContext } from "../context/ViewerLoginContext";
+import { MergeProvider } from "../context/MergeContext";
 import type { GitHubPR } from "../types";
 
 // The notes column needs the Notes context; it's irrelevant to the header
@@ -62,6 +64,26 @@ describe("DescriptionModal PR header", () => {
     expect(screen.getByText("enhancement")).toHaveClass("pr-card-label");
     expect(screen.getByText("o/r#42")).toBeInTheDocument();
     expect(screen.getByText("octocat")).toBeInTheDocument();
+  });
+
+  it("turns Ready to merge into the Merge button on my own ready PR", () => {
+    render(
+      <ViewerLoginContext.Provider value="octocat">
+        <MergeProvider>
+          <DescriptionModal
+            {...baseProps}
+            pr={makePR({
+              review_status: "APPROVED",
+              checks_status: "SUCCESS",
+              head: { ref: "feature", sha: "abc123" },
+            })}
+          />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Merge" })).toBeInTheDocument();
+    expect(screen.queryByText("Ready to merge")).not.toBeInTheDocument();
   });
 
   it("shows needs-action reason chips instead of the status pill", () => {

@@ -57,8 +57,11 @@ function MergeControl({ pr }: { pr: GitHubPR }) {
   const [options, setOptions] = useState<MergeOptions | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [method, setMethod] = useState<MergeMethod | null>(null);
-  /** Open caret menu's fixed position (it's portalled out of clipping rows). */
-  const [menu, setMenu] = useState<{ top: number; right: number } | null>(null);
+  /**
+   * Open caret menu's fixed position and portal host: portalled out of clipping
+   * rows, into the enclosing modal if any so its stacking and focus trap allow it.
+   */
+  const [menu, setMenu] = useState<{ top: number; right: number; host: HTMLElement } | null>(null);
   const caretRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -152,8 +155,14 @@ function MergeControl({ pr }: { pr: GitHubPR }) {
       confirm(loaded.methods[0] ?? "MERGE");
       return;
     }
-    const rect = caretRef.current?.getBoundingClientRect();
-    if (rect) setMenu({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    const caret = caretRef.current;
+    if (!caret) return;
+    const rect = caret.getBoundingClientRect();
+    setMenu({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+      host: caret.closest<HTMLElement>(".modal") ?? document.body,
+    });
   };
 
   const onMenuKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -244,7 +253,7 @@ function MergeControl({ pr }: { pr: GitHubPR }) {
               </button>
             ))}
           </div>,
-          document.body,
+          menu.host,
         )}
     </span>
   );

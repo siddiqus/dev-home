@@ -10,6 +10,7 @@ import { IconChevronRight, IconCopy, IconExternalLink, IconX } from "@tabler/ico
 import { CheckRunInfo } from "../types";
 import type { GitHubPR } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
+import { MergeButton } from "./MergeButton";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { Toast } from "./Toast";
 import { useIsPhone } from "../hooks/useIsPhone";
@@ -281,7 +282,13 @@ function PrModalHeader({
 
       {(!isMerged || hasLabels) && (
         <div className="pr-modal-indicators">
-          {action && <ActionPill label={action.label} tone={action.tone} />}
+          {/* On my own ready PR, "Ready to merge" becomes the Merge button. */}
+          {action && (
+            <MergeButton
+              pr={pr}
+              fallback={<ActionPill label={action.label} tone={action.tone} />}
+            />
+          )}
           {!isMerged && !isNeedsAction && !action && <StatusPill pr={pr} />}
           {!isMerged && <ReasonChips pr={pr} except={restatedReasons(action)} />}
           {hasLabels && <PRLabels labels={pr.labels!} />}

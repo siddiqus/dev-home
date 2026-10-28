@@ -160,6 +160,21 @@ describe("MergeButton", () => {
     expect(mergePR).toHaveBeenCalledWith(pr, OPTIONS, "MERGE");
   });
 
+  it("opens the menu inside an enclosing modal, so the modal's stacking and focus trap don't hide it", async () => {
+    render(
+      <ViewerLoginContext.Provider value="me">
+        <MergeProvider>
+          <div className="modal" data-testid="modal">
+            <MergeButton pr={readyPR()} fallback={<span>chip</span>} />
+          </div>
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Merge methods" }));
+    await settle();
+    expect(within(screen.getByTestId("modal")).getByRole("menu")).toBeInTheDocument();
+  });
+
   it("closes the menu on Escape", async () => {
     renderButton();
     fireEvent.click(screen.getByRole("button", { name: "Merge methods" }));
