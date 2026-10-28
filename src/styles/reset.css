@@ -116,8 +116,10 @@ a {
 }
 
 /* Phone: no sidebar, and the dynamic viewport height so the browser's own
-   bars never cover the bottom of the page. */
+   bars never cover the bottom of the page. Positioned for the pull-to-refresh
+   circle, which hides above it until pulled. */
 .app-body--phone {
+  position: relative;
   height: calc(100dvh - 46px);
 }
 

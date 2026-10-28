@@ -28,6 +28,7 @@ import {
 import { useConfig } from "./hooks/useConfig";
 import { useTheme } from "./hooks/useTheme";
 import { useIsPhone } from "./hooks/useIsPhone";
+import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useReminderScheduler } from "./hooks/useReminderScheduler";
@@ -44,6 +45,7 @@ import { Toast, useToast } from "./components/Toast";
 import { useBackExitPrompt } from "./hooks/useBackClose";
 import { AnalyticsConsent } from "./components/AnalyticsConsent";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { PullIndicator } from "./components/PullIndicator";
 import { useKanban } from "./hooks/useKanban";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
@@ -146,6 +148,7 @@ export default function App() {
     hiddenTabs,
     weekendDays,
     saveSettings,
+    refreshConfig,
   } = useConfig();
 
   // A phone gets Workday Focus alone: no sidebar, a trimmed top bar.
@@ -287,6 +290,15 @@ export default function App() {
     if (remote.length > 0) refresh(remote);
     if (pageRefresh.sources.includes("notes")) refreshNotes();
   }, [pageRefresh, refresh, refreshNotes]);
+
+  // Pull to refresh on a phone: the page refetches like its top-bar Refresh,
+  // and Settings, which has none, re-checks the backend.
+  const [mainEl, setMainEl] = useState<HTMLElement | null>(null);
+  const { pull, phase: pullPhase } = usePullToRefresh(mainEl, {
+    enabled: phone,
+    refreshing: pageRefreshing,
+    onRefresh: pageRefresh ? handlePageRefresh : refreshConfig,
+  });
 
   // Track when the last refresh finished, and re-render every 30s so the
   // "(x mins ago)" label next to the Refresh button stays current.
@@ -626,8 +638,10 @@ export default function App() {
             </nav>
           )}
 
+          {phone && <PullIndicator pull={pull} phase={pullPhase} />}
+
           {/* Main content panel */}
-          <main className="main-content">
+          <main className="main-content" ref={setMainEl}>
             {/* Error alert */}
             {error && (
               <Alert variant="danger" className="small" dismissible>

@@ -1,0 +1,43 @@
+/* Pull to refresh (phone): parked just above the page, under the top bar, and
+   moved down by an inline transform as the finger pulls. */
+.pull-indicator {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  z-index: 1020;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease,
+    color 150ms ease;
+}
+
+/* Under the finger: no easing, or the circle lags behind it. */
+.pull-indicator--dragging {
+  transition: color 150ms ease;
+}
+
+/* Far enough: letting go refreshes. */
+.pull-indicator--armed {
+  color: var(--color-accent);
+}
+
+.pull-indicator-icon.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pull-indicator-icon.spinning {
+    animation: none;
+  }
+}

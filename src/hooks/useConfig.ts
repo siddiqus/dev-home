@@ -29,8 +29,9 @@ export function useConfig(): UseConfigReturn {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [backendVersion, setBackendVersion] = useState<string>("");
 
+  // Only the first run counts as loading: a re-check (pull to refresh on
+  // Settings) leaves the page as it is while it runs.
   const init = useCallback(async () => {
-    setLoading(true);
     setSettings(loadSettings());
     const health = await checkBackendHealth();
     setBackendOnline(health.online);
