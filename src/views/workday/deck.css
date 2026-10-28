@@ -1044,7 +1044,6 @@ button.deck-rail-row:focus-visible {
 .deck-palette-option--active,
 .deck-palette-option--active:hover {
   background: var(--color-accent-bg-subtle);
-  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 .deck-palette-text {

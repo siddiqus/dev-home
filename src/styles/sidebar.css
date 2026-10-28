@@ -32,28 +32,22 @@
   width: 100%;
 }
 
+/* Neutral hover, so it never reads as a second selection. */
 .sidebar-tab:hover {
   color: var(--color-text-primary);
-  background-color: var(--color-nav-hover-bg);
+  background-color: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
 }
 
-/* Selected: stronger tint plus an accent bar on the left edge. */
+/* Selected: same as an active segmented tab, a faint accent tint with accent text. */
 .sidebar-tab.active {
   color: var(--color-accent);
-  background-color: var(--color-nav-selected-bg);
-  box-shadow: inset 3px 0 0 var(--color-accent);
+  background-color: var(--color-accent-bg-subtle);
   font-weight: 600;
 }
 
 .sidebar-tab:focus-visible {
   box-shadow: 0 0 0 2px var(--color-accent);
   outline: none;
-}
-
-.sidebar-tab.active:focus-visible {
-  box-shadow:
-    inset 3px 0 0 var(--color-accent),
-    0 0 0 2px var(--color-accent);
 }
 
 .sidebar-tab-label {
@@ -145,12 +139,12 @@
 
 .sidebar-footer-btn:hover:not(:disabled) {
   color: var(--color-text-primary);
-  background-color: var(--color-nav-hover-bg);
+  background-color: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
 }
 
 .sidebar-footer-btn.active {
   color: var(--color-accent);
-  background-color: var(--color-nav-selected-bg);
+  background-color: var(--color-accent-bg-subtle);
 }
 
 .sidebar-footer-btn:focus-visible {

@@ -4,18 +4,14 @@
   gap: var(--space-4);
 }
 
-/* Each section is a self-contained card with a status-colored left rail.
-   The rail is a real left border (not an inset shadow) so it runs unbroken down
-   the full edge — child row backgrounds (sticky column header, ticket-cluster
-   header, hover) can't paint over it. The color is muted toward the neutral
-   border so it stays easy on the eyes. */
+/* Each section is a self-contained card; only its header icon carries the
+   status color (see .pr-section-icon), no rail or tint. */
 .pr-section {
-  --section-rail: color-mix(in srgb, var(--section-accent, var(--color-border-strong)) 55%, var(--color-border));
+  --section-color: var(--section-accent, var(--color-text-secondary));
   display: flex;
   flex-direction: column;
   background: var(--color-bg-panel);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--section-rail);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   /* Clip the embedded PR rows (and their hover backgrounds) to the rounded
@@ -60,8 +56,7 @@
 
 .pr-section-icon {
   flex-shrink: 0;
-  /* Match the muted rail tone so the header reads calmly. */
-  color: var(--section-rail);
+  color: var(--section-color);
 }
 
 .pr-section-label {
@@ -82,4 +77,3 @@
   min-width: 22px;
   text-align: center;
 }
-

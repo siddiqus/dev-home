@@ -32,7 +32,7 @@
   --color-accent-hover: #1f6feb;
   --color-accent-link-hover: #79b8ff;
   --color-accent-bg-subtle: rgba(88, 166, 255, 0.08);
-  /* Navigation lists (sidebar, deck rail): hovered and selected rows. */
+  /* Deck rail: hovered and selected rows. */
   --color-nav-hover-bg: rgba(88, 166, 255, 0.1);
   --color-nav-selected-bg: rgba(88, 166, 255, 0.2);
   --color-focus-ring: rgba(88, 166, 255, 0.4);
