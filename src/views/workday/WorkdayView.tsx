@@ -445,6 +445,13 @@ export function WorkdayView(props: WorkdayViewProps) {
     rail[0] ??
     null;
   const selectedId = selectedTicket?.id ?? null;
+  // ←/→ (and the phone's swipe and Prev / Next) skip Merged recently: those
+  // tabs are visited by a click. A selected one stays a stop, so stepping off
+  // it goes by rail order.
+  const stops = useMemo(
+    () => rail.filter((t) => t.id === selectedId || !isMergedTab(t.id)),
+    [rail, selectedId],
+  );
 
   // Card swipe (spec §5.4): only explicit navigation swipes: ←/→, n, x, a ⌘K
   // jump or a rail click record a `navIntent` alongside the selection change.
@@ -642,19 +649,19 @@ export function WorkdayView(props: WorkdayViewProps) {
   );
 
   // A tab leaving the rail: if it was the selected one, selection moves to the
-  // next ticket in rail order.
+  // next ticket in rail order, skipping Merged recently as ←/→ do.
   const leaveTab = useCallback(
     (id: string) => {
       if (id !== selectedId) return;
-      const i = rail.findIndex((t) => t.id === id);
-      const rest = rail.filter((t) => t.id !== id);
-      const next = rail.slice(i + 1).find((t) => t.id !== id) ?? rest[0];
+      const i = stops.findIndex((t) => t.id === id);
+      const rest = stops.filter((t) => t.id !== id);
+      const next = stops.slice(i + 1).find((t) => t.id !== id) ?? rest[0];
       if (next) {
         intendNav(next.id, "next");
         selectTicket(next.id);
       } else select(null);
     },
-    [selectedId, rail, selectTicket, select, intendNav],
+    [selectedId, stops, selectTicket, select, intendNav],
   );
 
   // x (or ⌘⌫ in ⌘K): close into Closed; if it was the selected ticket, selection
@@ -711,9 +718,9 @@ export function WorkdayView(props: WorkdayViewProps) {
       if (!drawerOpen()) fn();
     };
     const step = (delta: number) => {
-      if (rail.length === 0) return;
-      const i = rail.findIndex((t) => t.id === selectedId);
-      const target = rail[(i + delta + rail.length) % rail.length].id;
+      if (stops.length === 0) return;
+      const i = stops.findIndex((t) => t.id === selectedId);
+      const target = stops[(i + delta + stops.length) % stops.length].id;
       intendNav(target, delta > 0 ? "next" : "prev");
       selectTicket(target);
     };
@@ -777,6 +784,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     };
   }, [
     rail,
+    stops,
     selectedId,
     selectedTicket,
     cardPRs,
@@ -1168,8 +1176,9 @@ export function WorkdayView(props: WorkdayViewProps) {
                         onRailOpenChange: setRailOpen,
                         onPrev: deckKeys.prev,
                         onNext: deckKeys.next,
-                        position: rail.findIndex((t) => t.id === selectedId) + 1,
-                        total: rail.length,
+                        position: stops.findIndex((t) => t.id === selectedId) + 1,
+                        total: stops.length,
+                        tickets: rail.length,
                       }
                     : undefined
                 }

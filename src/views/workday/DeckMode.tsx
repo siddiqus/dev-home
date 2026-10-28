@@ -60,9 +60,11 @@ export interface PhoneDeck {
   onRailOpenChange(open: boolean): void;
   onPrev(): void;
   onNext(): void;
-  /** The card's 1-based place in the rail, and the rail's length. */
+  /** The card's 1-based place among the Prev / Next stops, and how many there are. */
   position: number;
   total: number;
+  /** The rail's length, for the drawer title. */
+  tickets: number;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -161,7 +163,7 @@ export function DeckMode({
           aria-labelledby="deck-rail-drawer-title"
         >
           <Offcanvas.Header closeButton>
-            <Offcanvas.Title id="deck-rail-drawer-title">Tickets · {phone.total}</Offcanvas.Title>
+            <Offcanvas.Title id="deck-rail-drawer-title">Tickets · {phone.tickets}</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body {...swipeDrawer}>
             {rail(closeAfter(onSelect), onReopen && closeAfter(onReopen))}

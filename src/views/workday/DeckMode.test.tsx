@@ -444,6 +444,7 @@ describe("DeckMode on a phone", () => {
     onNext: vi.fn(),
     position: 1,
     total: 3,
+    tickets: 3,
     ...o,
   });
   /** A one-finger drag across `el` by (dx, dy). */

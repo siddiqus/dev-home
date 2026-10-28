@@ -713,9 +713,12 @@ describe("WorkdayView merged recently", () => {
     );
     expect(merged).toHaveTextContent("#1100 Merged 3h ago by sajedul-karim");
 
-    // ←/→ walks it in rail order: left from the first Open ticket lands on it.
+    // ←/→ skip it: left from the first Open ticket wraps to the last one.
     expect(card()).toHaveAccessibleName(/^CCP-412/);
     press("ArrowLeft");
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
+    // A click visits it.
+    fireEvent.click(merged);
     expect(card()).toHaveAccessibleName(/^CCP-350/);
     expect(within(card()).getByText("Merged 3h ago by sajedul-karim")).toBeTruthy();
     // x and Space leave a merged tab alone.
@@ -726,6 +729,12 @@ describe("WorkdayView merged recently", () => {
       {},
     );
     expect(merged).not.toHaveClass("deck-rail-row--current");
+    // ←/→ step off it in rail order: right to the first Open ticket, left wraps to the last.
+    press("ArrowRight");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    fireEvent.click(merged);
+    press("ArrowLeft");
+    expect(card()).toHaveAccessibleName(/^CCP-388/);
   });
 });
 
@@ -1661,5 +1670,30 @@ describe("WorkdayView on a phone", () => {
     expect(screen.getByText("2 / 2")).toBeTruthy();
     const next = screen.getByRole("region", { name: /CCP-(412|500)/ }).getAttribute("aria-label");
     expect(next).not.toBe(first);
+  });
+
+  it("leaves Merged recently out of Prev / Next and the position, not the drawer", () => {
+    extrasMock.merged = [
+      deckPR(1100, "CCP-350 Export fix", "2026-10-01T10:00:00Z", {
+        state: "merged",
+        merged_at: new Date(NOW.getTime() - 3 * 3_600_000).toISOString(),
+      }),
+    ];
+    try {
+      const slot = document.body.appendChild(document.createElement("div"));
+      renderView({ phone: true, topBarStart: slot, openPRs: [prs[0], second] });
+      expect(screen.getByText("1 / 2")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
+      expect(screen.getByText("2 / 2")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
+      expect(screen.getByText("1 / 2")).toBeTruthy();
+      expect(screen.getByRole("region", { name: /^CCP-/ })).not.toHaveAccessibleName(/^CCP-350/);
+      fireEvent.click(within(slot).getByRole("button", { name: "Show tickets" }));
+      const drawer = screen.getByRole("dialog", { name: "Tickets · 3" });
+      expect(within(drawer).getAllByRole("option")).toHaveLength(3);
+      slot.remove();
+    } finally {
+      extrasMock.merged = [];
+    }
   });
 });
