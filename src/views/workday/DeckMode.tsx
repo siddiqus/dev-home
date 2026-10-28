@@ -4,6 +4,7 @@ import Offcanvas from "react-bootstrap/Offcanvas";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { useSwipe } from "../../hooks/useSwipe";
+import { useBackClose } from "../../hooks/useBackClose";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
 import type { DeckData, DeckPR } from "./deckTypes";
@@ -121,6 +122,7 @@ export function DeckMode({
   const swipeDrawer = useSwipe((s) => {
     if (s === "left") phone?.onRailOpenChange(false);
   });
+  useBackClose(!!phone?.railOpen, () => phone?.onRailOpenChange(false));
   if (loading) {
     deck = LOADING_DECK;
     selectedId = null;

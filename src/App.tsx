@@ -40,6 +40,8 @@ import { PRsView } from "./views/prs/PRsView";
 import { ReviewsView } from "./views/reviews/ReviewsView";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UpdateToast } from "./components/UpdateToast";
+import { Toast, useToast } from "./components/Toast";
+import { useBackExitPrompt } from "./hooks/useBackClose";
 import { AnalyticsConsent } from "./components/AnalyticsConsent";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useKanban } from "./hooks/useKanban";
@@ -148,6 +150,9 @@ export default function App() {
 
   // A phone gets Workday Focus alone: no sidebar, a trimmed top bar.
   const phone = useIsPhone();
+  // The installed app on a phone: a Back with nothing open asks before leaving.
+  const exitToast = useToast(2500);
+  useBackExitPrompt(() => exitToast.show("Swipe back again to exit", { tone: "neutral" }));
   // The top bar's empty left cell; Workday puts its rail button there on a phone.
   const [topBarStart, setTopBarStart] = useState<HTMLDivElement | null>(null);
 
@@ -828,6 +833,8 @@ export default function App() {
 
       {/* Service worker is registered in production builds only. */}
       {import.meta.env.PROD && <UpdateToast />}
+
+      <Toast message={exitToast.message} visible={exitToast.visible} tone={exitToast.tone} />
 
       {/* Renders only in builds with Clarity, until the user answers. */}
       <AnalyticsConsent />

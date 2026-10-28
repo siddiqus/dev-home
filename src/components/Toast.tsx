@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./Toast.css";
 
-export type ToastTone = "success" | "danger";
+/** `neutral` is for hints that report nothing done ("back again to exit"). */
+export type ToastTone = "success" | "danger" | "neutral";
 
 /** Bottom toast; the message stays set while it fades out. */
 export function Toast({
@@ -15,7 +16,7 @@ export function Toast({
 }) {
   return (
     <div
-      className={`app-toast${tone === "danger" ? " app-toast--danger" : ""} ${visible ? "is-visible" : ""}`}
+      className={`app-toast${tone === "success" ? "" : ` app-toast--${tone}`} ${visible ? "is-visible" : ""}`}
       role={tone === "danger" ? "alert" : "status"}
     >
       {message}

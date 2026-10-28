@@ -15,6 +15,7 @@ import { ReminderControl } from "../../components/ReminderControl";
 import "./notes.css";
 import "./tiptap.css";
 import { isMac } from "../../hooks/useKeyboardShortcuts";
+import { useBackClose } from "../../hooks/useBackClose";
 
 // tiptap-markdown doesn't ship type declarations for its storage
 function getMarkdown(editor: Editor): string {
@@ -155,6 +156,10 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     }
     handleClose();
   }, [isDirty, handleClose]);
+
+  // Back on a phone: as ×, so unsaved changes ask first; Back on that question cancels it.
+  useBackClose(show, handleDismiss);
+  useBackClose(showDismissConfirm, () => setShowDismissConfirm(false));
 
   // ESC key handler
   useEffect(() => {

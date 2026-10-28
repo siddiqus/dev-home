@@ -6,6 +6,7 @@ import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
 import { useIssueDescription } from "../hooks/useIssueDescription";
 import { useIsPhone } from "../hooks/useIsPhone";
+import { useBackClose } from "../hooks/useBackClose";
 import { Avatar } from "./primitives/Avatar";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import { Markdown } from "./Markdown";
@@ -51,13 +52,15 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
   const { description, loading: isDescLoading } = useIssueDescription(issue, show);
   // On a phone the drawer takes the whole width: a 40vw panel would be unreadable.
   const phone = useIsPhone();
+  const open = show || !!loadingKey || !!error;
+  useBackClose(open, onHide);
 
   // The backdrop swallows outside clicks so they never reach the page (a stray
   // click can't open another modal); clicking it closes the drawer, as do the
   // close button and Escape.
   return (
     <Offcanvas
-      show={show || !!loadingKey || !!error}
+      show={open}
       onHide={onHide}
       placement="end"
       backdrop

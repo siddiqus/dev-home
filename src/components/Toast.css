@@ -27,3 +27,9 @@
 .app-toast--danger {
   background: var(--color-status-danger);
 }
+
+/* Inverted text colours: a hint, neither good nor bad news. */
+.app-toast--neutral {
+  background: var(--color-text-primary);
+  color: var(--color-bg-app);
+}

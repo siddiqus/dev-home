@@ -14,6 +14,7 @@ import { MergeButton } from "./MergeButton";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { Toast } from "./Toast";
 import { useIsPhone } from "../hooks/useIsPhone";
+import { useBackClose } from "../hooks/useBackClose";
 import { usePRCopyActions } from "../hooks/usePRCopyActions";
 import { checkRunDuration, formatRelativeTime } from "../utils/time";
 import { ticketKeyOf } from "../utils/tickets";
@@ -337,6 +338,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   const widths = columnWidths(hasChecks, hasNotes);
   // Phone: one scroll (checks summary, description, notes) under a slim top bar.
   const phone = useIsPhone();
+  useBackClose(show, onHide);
 
   const descriptionBody =
     loading && !description ? (
