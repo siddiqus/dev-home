@@ -766,5 +766,54 @@ describe("Jira API", () => {
       await getBoardSprints({ id: 7, force: true });
       expect(adapter).toHaveBeenCalledTimes(4);
     });
+
+    // Board 5868 (Origami) also lists NP's active sprint from board 5902, because
+    // some of its tickets match Origami's filter. NP's ends a day later, so it
+    // used to sort first and become the dashboard's default sprint.
+    it("keeps only the board's own sprints, plus any without an origin board", async () => {
+      httpMock.adapter = vi.fn(async (config) => ({
+        data: {
+          values: [
+            {
+              id: 33502,
+              name: "Origami - 26Q4 Sprint02",
+              state: "active",
+              endDate: "2026-11-02T09:47:38.000Z",
+              originBoardId: 5868,
+            },
+            {
+              id: 33487,
+              name: "NP-26Q4-S3 Xôi",
+              state: "active",
+              endDate: "2026-11-03T15:21:05.000Z",
+              originBoardId: 5902,
+            },
+            {
+              id: 33100,
+              name: "NP-26Q4-S2",
+              state: "closed",
+              endDate: "2026-10-20T00:00:00.000Z",
+              originBoardId: 5902,
+            },
+            {
+              id: 33001,
+              name: "Origami - 26Q4 Sprint01",
+              state: "closed",
+              endDate: "2026-10-19T00:00:00.000Z",
+              originBoardId: 5868,
+            },
+            { id: 32000, name: "Legacy", state: "closed", endDate: "2026-09-01T00:00:00.000Z" },
+          ],
+          isLast: true,
+        },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      }));
+
+      const { sprints } = await getBoardSprints({ id: 5868 });
+      expect(sprints.map((s: any) => s.id)).toEqual([33502, 33001, 32000]);
+    });
   });
 });

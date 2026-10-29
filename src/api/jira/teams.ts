@@ -84,7 +84,7 @@ const sprintCache = new Map<string, { at: number; value: Promise<{ sprints: any[
 
 /**
  * GET /api/teams-jira/boards/:id/sprints → getBoardSprints({ id })
- * The board's active sprints plus its most recent closed ones: active first,
+ * The board's own active sprints plus its most recent closed ones: active first,
  * then closed by most recent end date. The Agile API lists sprints oldest-first,
  * so every page is read to reach the newest. Cached per board for 30 minutes
  * (closed sprints rarely change); pass `force` to bypass.
@@ -123,6 +123,10 @@ async function loadBoardSprints(boardId: number): Promise<{ sprints: any[] }> {
     });
     const values = data.values || [];
     for (const s of values) {
+      // A board also lists other boards' sprints when some of their tickets
+      // match its filter; those belong to another team. Keep sprints without
+      // an origin board, in case Jira leaves the field off.
+      if (s.originBoardId != null && s.originBoardId !== boardId) continue;
       all.push({
         id: s.id,
         name: s.name,
