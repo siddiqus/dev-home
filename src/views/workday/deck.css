@@ -1516,10 +1516,18 @@ button.deck-rail-row:focus-visible {
   border-radius: 0;
 }
 
-/* The page padding gives the sides; the top leaves room for the ghost cards,
-   the bottom lets the card's end scroll clear of the fixed bar. */
+/* The page padding gives the sides; the top leaves room for the ghost cards. */
 .deck-mode--phone .deck-stage {
-  padding: var(--space-3) 0 var(--deck-phone-nav-h);
+  padding: var(--space-3) 0 0;
+}
+
+/* A real spacer, not bottom padding, lets the card's end scroll clear of the
+   fixed bar: mobile browsers can leave a scroller's end padding out of its
+   scroll height, so the last PR stayed under the bar. */
+.deck-mode--phone .deck-stage::after {
+  content: "";
+  flex: none;
+  height: calc(var(--deck-phone-nav-h) + var(--space-4));
 }
 
 /* The stage scrolls a long card as a whole, not a box inside the card. */
