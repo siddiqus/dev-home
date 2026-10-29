@@ -1,6 +1,8 @@
 import { createCollection, sqliteNow } from "../lib/localStore";
 import { searchUsers, searchBoards } from "../api/jira";
 import { postTeamDashboard } from "../api/teams/dashboard";
+import { loadSettings } from "./config";
+import { readDashboardCache, writeDashboardCache } from "./teamDashboardCache";
 import type {
   Team,
   TeamMember,
@@ -308,4 +310,40 @@ export async function fetchTeamDashboard(
     sprintId: sprintId ?? null,
     ...(opts.force ? { force: true } : {}),
   }) as Promise<TeamDashboard>;
+}
+
+/**
+ * What a team's dashboard depends on besides the sprint: its board and roster,
+ * and the Jira site / GitHub org. Null when the team no longer exists.
+ */
+function dashboardSignature(teamId: number): string | null {
+  const team = teamsCollection.get(teamId);
+  if (!team) return null;
+  const roster = teamMembersCollection
+    .all()
+    .filter((m) => m.team_id === teamId)
+    .map((m) => `${m.jira_account_id}|${m.github_username}`)
+    .sort();
+  const { jiraBaseUrl, githubOrg } = loadSettings();
+  return JSON.stringify([team.jira_board_id, roster, jiraBaseUrl, githubOrg]);
+}
+
+/** The dashboard last loaded for this team + sprint, unless the team or settings changed since. */
+export function readCachedTeamDashboard(
+  teamId: number,
+  sprintId: number | null,
+): TeamDashboard | null {
+  const signature = dashboardSignature(teamId);
+  return signature ? readDashboardCache(teamId, sprintId, signature) : null;
+}
+
+/** Keep a loaded dashboard until the next manual refresh. Partial failures aren't kept. */
+export function cacheTeamDashboard(
+  teamId: number,
+  sprintId: number | null,
+  dashboard: TeamDashboard,
+): void {
+  if (dashboard.errors.length > 0) return;
+  const signature = dashboardSignature(teamId);
+  if (signature) writeDashboardCache(teamId, sprintId, signature, dashboard);
 }

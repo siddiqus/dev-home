@@ -21,7 +21,7 @@ import { fetchIssueDetail } from "../../services/jira";
 import { fetchPR } from "../../services/github";
 import { formatRelativeTime } from "../../utils/time";
 import type { JiraIssue, GitHubPR } from "../../types";
-import type { LinkedPR, Ref } from "../../types/teams";
+import type { LinkedPR, Ref, SprintResult } from "../../types/teams";
 import { TeamPRsTab, type TeamPRsTabHandle } from "./TeamPRsTab";
 import "./TeamDashboardView.css";
 // --- Sprint cockpit ---
@@ -29,10 +29,11 @@ import { SprintMetaBar } from "./cockpit/SprintMetaBar";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
 import { LoadDistribution } from "./cockpit/LoadDistribution";
 import { EpicCards } from "./cockpit/EpicCards";
-import { PrFlowSection } from "./cockpit/PrFlowSection";
 import { DeliveryHygiene } from "./cockpit/DeliveryHygiene";
 import { ReviewQueuePanel } from "./cockpit/ReviewQueuePanel";
-import { useStoredState } from "../../hooks/useStoredState";
+import { buildRefLookup } from "./cockpit/refLookup";
+import { TeamDashboardSkeleton } from "./cockpit/TeamDashboardSkeleton";
+import { useStoredId, useStoredState } from "../../hooks/useStoredState";
 
 const TEAM_TABS = ["sprint", "prs"] as const;
 
@@ -48,8 +49,9 @@ interface Props {
 
 export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jiraIssues }: Props) {
   const { teams } = useTeams(configured);
-  const [teamId, setTeamId] = useState<number | null>(initialTeamId ?? null);
-  const [sprintId, setSprintId] = useState<number | null>(null);
+  // Team and sprint survive a page reload, like the tab.
+  const [teamId, setTeamId] = useStoredId("dev-home-team-id");
+  const [sprintId, setSprintId] = useStoredId("dev-home-team-sprint");
   // Top-level view: the Jira sprint cockpit, or the team's PRs.
   const [tab, setTab] = useStoredState("dev-home-team-tab", "sprint", TEAM_TABS);
   // Mount the PRs tab lazily on first open, then keep it alive so switching back
@@ -73,8 +75,8 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
 
   const { dashboard, loading, error, refresh } = useTeamDashboard(teamId, sprintId);
 
-  // One refresh icon next to the team picker serves both tabs; it reloads and
-  // spins for whichever tab is showing.
+  // One refresh icon, right of the tabs, serves both: it reloads and spins for
+  // whichever tab is showing.
   const prsTabRef = useRef<TeamPRsTabHandle>(null);
   const [prsLoading, setPrsLoading] = useState(false);
   const activeLoading = tab === "sprint" ? loading : prsLoading;
@@ -90,17 +92,36 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     [teams, teamId, dashboard?.team.name],
   );
 
+  // The dashboard is cleared while a sprint or refresh loads; remember the
+  // team's sprint list (and which one was showing) so the picker stays put.
+  const [lastSprints, setLastSprints] = useState<{
+    teamId: number;
+    sprints: SprintResult[];
+    shownId: number | null;
+  } | null>(null);
+  useEffect(() => {
+    if (dashboard) {
+      setLastSprints({
+        teamId: dashboard.team.id,
+        sprints: dashboard.sprints,
+        shownId: dashboard.sprint?.id ?? null,
+      });
+    }
+  }, [dashboard]);
+  const known = lastSprints?.teamId === teamId ? lastSprints : null;
+  const sprints = dashboard?.sprints ?? known?.sprints ?? [];
+
   const sprintItems: DropdownItem[] = useMemo(
     () =>
-      (dashboard?.sprints || []).map((s) => ({
+      sprints.map((s) => ({
         value: String(s.id),
         label: `${s.name} (${s.state})`,
       })),
-    [dashboard?.sprints],
+    [sprints],
   );
 
   // The active/default sprint, shown when the user hasn't picked one explicitly.
-  const selectedSprintId = sprintId ?? dashboard?.sprint?.id ?? null;
+  const selectedSprintId = sprintId ?? dashboard?.sprint?.id ?? known?.shownId ?? null;
 
   // The sprint object currently on screen — used by the meta bar.
   const selectedSprint =
@@ -122,15 +143,10 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     return map;
   }, [dashboard]);
 
-  const prAuthors = useMemo(
-    () =>
-      new Map(
-        (dashboard?.offBoardPRs ?? []).map((pr) => [
-          `${pr.repo_full_name}#${pr.number}`,
-          pr.author,
-        ]),
-      ),
-    [dashboard?.offBoardPRs],
+  // Resolves the panels' bare refs to titles, assignees and PR authors.
+  const refLookup = useMemo(
+    () => buildRefLookup(dashboard?.issues ?? [], dashboard?.offBoardPRs ?? []),
+    [dashboard?.issues, dashboard?.offBoardPRs],
   );
 
   // --- Detail modals (Jira drawer + PR description modal) ---
@@ -217,19 +233,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
         />
 
         {teamId != null && (
-          <button
-            type="button"
-            className="pr-table-collapse-btn pr-toolbar-btn"
-            onClick={refreshActive}
-            disabled={activeLoading}
-            title={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
-            aria-label={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
-          >
-            <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
-          </button>
-        )}
-
-        {teamId != null && (
           <SegmentedTabs
             className="inline-control"
             activeKey={tab}
@@ -255,7 +258,20 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           />
         )}
 
-        {teamId != null && tab === "sprint" && dashboard && dashboard.sprints.length > 0 && (
+        {teamId != null && (
+          <button
+            type="button"
+            className="pr-table-collapse-btn pr-toolbar-btn"
+            onClick={refreshActive}
+            disabled={activeLoading}
+            title={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
+            aria-label={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
+          >
+            <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
+          </button>
+        )}
+
+        {teamId != null && tab === "sprint" && sprints.length > 0 && (
           <SearchableDropdown
             items={sprintItems}
             value={selectedSprintId != null ? String(selectedSprintId) : ""}
@@ -281,6 +297,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
       {/* ---- Sprint tab: the Jira cockpit ---- */}
       {teamId != null && (
         <div className={tab === "sprint" ? "" : "d-none"}>
+          {!dashboard && loading && <TeamDashboardSkeleton />}
           {dashboard && (
             <>
               {otherErrors.length > 0 && (
@@ -329,51 +346,42 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                     <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
                   </div>
 
-                  {/* Row 2 — Completion over time + Needs Attention */}
+                  {/* Three independent columns, so expanding a hygiene row
+                      only grows its own column. */}
                   <div className="row g-3 mb-3">
-                    <div className="col-lg-7">
+                    <div className="col-lg-6">
                       <LoadDistribution
                         workload={dashboard.workload}
                         loadBalance={dashboard.loadBalance}
                         onOpenRef={openRef}
                         staleDays={staleDaysMap}
                       />
+                      <div className="mt-3"></div>
+                      <DeliveryHygiene
+                        hygiene={dashboard.hygiene}
+                        lookup={refLookup}
+                        onOpenRef={openRef}
+                      />
                     </div>
-                    <div className="col-lg-5">
+                    <div className="col-lg-6">
                       <NeedsAttentionPanel
                         needsAttention={dashboard.needsAttention}
+                        lookup={refLookup}
                         onOpenRef={openRef}
-                        staleDays={staleDaysMap}
-                        prAuthors={prAuthors}
+                      />
+                      <div className="mt-3"></div>
+                      <ReviewQueuePanel
+                        entries={dashboard.reviewQueue}
+                        members={dashboard.workload.map((w) => ({
+                          login: w.githubUsername,
+                          name: w.displayName,
+                        }))}
+                        onOpenPR={openPR}
                       />
                     </div>
                   </div>
                 </>
               )}
-
-              <div className="row g-3 mb-3">
-                <div className={jiraError ? "col-12" : "col-lg-7"}>
-                  <div className="border rounded p-2 h-100">
-                    <PrFlowSection prFlow={dashboard.prFlow} />
-                  </div>
-                </div>
-                {!jiraError && (
-                  <div className="col-lg-5">
-                    <DeliveryHygiene hygiene={dashboard.hygiene} onOpenRef={openRef} />
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-3">
-                <ReviewQueuePanel
-                  entries={dashboard.reviewQueue}
-                  members={dashboard.workload.map((w) => ({
-                    login: w.githubUsername,
-                    name: w.displayName,
-                  }))}
-                  onOpenPR={openPR}
-                />
-              </div>
 
               {/* Off-board PRs — full list */}
               <div className="border rounded p-2" style={{ background: "rgba(255,170,60,.06)" }}>

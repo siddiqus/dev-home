@@ -54,29 +54,40 @@ function toEntry(pr: RawPR): ReviewQueueEntry {
   );
   const approved = pr.reviewDecision === "APPROVED";
 
+  // waitingSince: when the ball moved to whoever holds it now. A first review
+  // (or a missing reviewer) has waited since the PR opened; a re-review since
+  // the author's last push; the author since the last review.
   let state: ReviewQueueEntry["state"];
   let reason: string;
+  let waitingSinceMs: number;
   if (pr.isDraft) {
-    state = "author";
+    state = "draft";
     reason = "draft";
+    waitingSinceMs = authorLastActedAt;
   } else if (!hasReviewer) {
-    state = "none";
+    state = "needsReviewer";
     reason = "no reviewer assigned";
+    waitingSinceMs = authorCreated;
   } else if (pr.reviewDecision === "CHANGES_REQUESTED") {
-    state = "author";
+    state = "withAuthor";
     reason = "changes requested";
+    waitingSinceMs = reviewerLastActedAt;
   } else if (engaged && reviewerLastActedAt > authorLastActedAt) {
-    state = "author";
+    state = approved ? "readyToMerge" : "withAuthor";
     reason = approved ? "approved — ready to merge" : "reviewer reviewed, awaiting author";
+    waitingSinceMs = reviewerLastActedAt;
   } else if (approved) {
-    state = "author";
+    state = "readyToMerge";
     reason = "approved — ready to merge";
+    waitingSinceMs = authorLastActedAt;
   } else if (engaged) {
-    state = "reviewer";
+    state = "waitingReview";
     reason = "author responded, awaiting re-review";
+    waitingSinceMs = authorLastActedAt;
   } else {
-    state = "reviewer";
+    state = "waitingReview";
     reason = "awaiting first review";
+    waitingSinceMs = authorCreated;
   }
 
   return {
@@ -91,12 +102,27 @@ function toEntry(pr: RawPR): ReviewQueueEntry {
     checks_status: pr.checks_status,
     createdAt: pr.created_at ?? null,
     updatedAt: pr.updatedAt ?? null,
+    waitingSince: Number.isFinite(waitingSinceMs) ? new Date(waitingSinceMs).toISOString() : null,
   };
 }
+
+/** Most urgent first: PRs stuck on reviewers, then ready to merge, then with the author. */
+const STATE_ORDER: ReviewQueueEntry["state"][] = [
+  "needsReviewer",
+  "waitingReview",
+  "readyToMerge",
+  "withAuthor",
+  "draft",
+];
 
 export function computeReviewQueue(prs: RawPR[]): ReviewQueueEntry[] {
   return prs
     .filter((p) => p.state === "open")
     .map(toEntry)
-    .sort((a, b) => (ms(a.updatedAt) || 0) - (ms(b.updatedAt) || 0));
+    .sort(
+      (a, b) =>
+        STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) ||
+        // Longest wait first; entries without a timestamp go last.
+        (ms(a.waitingSince) || Infinity) - (ms(b.waitingSince) || Infinity),
+    );
 }

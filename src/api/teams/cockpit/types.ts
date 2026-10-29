@@ -82,12 +82,6 @@ export interface SprintPace {
 export interface NeedsAttention {
   stale: Ref[];
   waitingReview: Ref[];
-  failingCI: Ref[];
-  noLinkedPR: Ref[];
-  offBoard: Ref[];
-  scopeCreep: Ref[];
-  unassigned: Ref[];
-  noEpic: Ref[];
 }
 
 export interface LoadBalance {
@@ -124,25 +118,28 @@ export interface WorkloadEntry {
   atRiskIssues: AtRiskIssue[];
 }
 
-export interface PrFlow {
-  open: number;
-  merged: number;
-  /** Median hours from ready-for-review to the first human review. */
-  medianFirstReviewH: number | null;
-  /** How many PRs the median is based on. */
-  firstReviewSample: number;
-  avgAgeDays: number;
-  failingChecks: number;
-  noJira: number;
-  jiraNoPR: number;
-}
-
 export interface Hygiene {
-  prNoJira: Ref[];
+  failingCI: Ref[];
+  unassigned: Ref[];
   jiraNoPR: Ref[];
+  prNoJira: Ref[];
   mergedNotDone: Ref[];
   doneNoMerged: Ref[];
+  noEpic: Ref[];
+  addedMidSprint: Ref[];
 }
+
+/**
+ * needsReviewer: nobody asked to review · waitingReview: reviewers' move
+ * (first review or re-review) · readyToMerge: approved, author to merge ·
+ * withAuthor: changes requested or reviewed, author's move · draft.
+ */
+export type ReviewQueueState =
+  | "needsReviewer"
+  | "waitingReview"
+  | "readyToMerge"
+  | "withAuthor"
+  | "draft";
 
 /** One row of the Review Queue: an open PR and whose court the ball is in. */
 export interface ReviewQueueEntry {
@@ -151,12 +148,14 @@ export interface ReviewQueueEntry {
   title: string;
   html_url: string;
   author: string;
-  /** author = 🔵 waiting on author, reviewer = 🟡 waiting on reviewer, none = 🔴 no reviewer. */
-  state: "author" | "reviewer" | "none";
+  /** Whose move it is, and what for. */
+  state: ReviewQueueState;
   reason: string;
   /** Persons who reviewed (most recent first), then persons with an open request. */
   reviewers: string[];
   checks_status: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** When the ball moved to whoever holds it now. */
+  waitingSince: string | null;
 }

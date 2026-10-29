@@ -46,8 +46,6 @@ export interface RawPR {
   merged_at?: string | null;
   /** ISO timestamp of the first review by a person other than the author, if any. */
   first_review_at?: string | null;
-  /** ISO timestamp the PR became ready for review; null if it's never left draft. */
-  ready_at?: string | null;
   /** Rollup: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | COMMENTED | null */
   review_state?: string | null;
   /** True when the PR has requested reviewers (review has been asked for). */

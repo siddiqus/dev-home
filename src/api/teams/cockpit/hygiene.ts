@@ -1,12 +1,14 @@
 /**
- * Delivery hygiene: PR<->Jira linkage problems.
- *  - prNoJira:     PRs with no parseable Jira key
- *  - jiraNoPR:     in-progress issues with no linked PR
+ * Delivery hygiene: the lesser signals worth a periodic sweep.
+ *  - failingCI:     linked PRs whose checks fail
+ *  - unassigned:    open issues nobody has picked up
+ *  - jiraNoPR:      in-progress issues with no linked PR
+ *  - prNoJira:      PRs with no parseable Jira key
  *  - mergedNotDone: issues with a merged PR but not in a done status
- *  - doneNoMerged: done issues that have linked PRs but none merged
+ *  - doneNoMerged:  done issues that have linked PRs but none merged
+ *  - noEpic:        open issues outside any epic
+ *  - addedMidSprint: issues created after the sprint started
  * Pure.
- *
- * STUB: implement with TDD per spec §5/§6.
  */
 import { extractTicketKey, prSource } from "../aggregation";
 import type { RawPR } from "../aggregation";
@@ -47,10 +49,30 @@ export function computeHygiene(
     })
     .map(issueRef);
 
+  // failingCI: a PR can reference several sprint tickets; list it once.
+  const seenFailing = new Set<string>();
+  const failingCI: Ref[] = [];
+  for (const issue of issues) {
+    for (const pr of issue.linkedPRs) {
+      const prKey = `${pr.repo_full_name}:${pr.number}`;
+      if (pr.checks_status !== "FAILURE" || seenFailing.has(prKey)) continue;
+      seenFailing.add(prKey);
+      failingCI.push({ kind: "pr", repo: pr.repo_full_name, number: pr.number });
+    }
+  }
+
+  const unassigned = issues.filter((i) => i.flags.unassigned).map(issueRef);
+  const noEpic = issues.filter((i) => i.flags.noEpic).map(issueRef);
+  const addedMidSprint = issues.filter((i) => i.flags.addedAfterStart).map(issueRef);
+
   return {
-    prNoJira,
+    failingCI,
+    unassigned,
     jiraNoPR,
+    prNoJira,
     mergedNotDone,
     doneNoMerged,
+    noEpic,
+    addedMidSprint,
   };
 }

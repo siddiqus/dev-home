@@ -17,7 +17,7 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
 
   const author = n.author?.login || fallbackLogin;
 
-  // Legacy scalars — risk.ts / prFlow.ts still read these. The first review is
+  // Legacy scalars — risk.ts still reads these. The first review is
   // the first by a person other than the author: bots answer within minutes
   // and an author replying in a thread files a review of their own.
   const first_review_at =
@@ -54,9 +54,6 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
     reviewDecision: n.reviewDecision || null,
     lastCommitAt: n.commits?.nodes?.[0]?.commit?.committedDate || null,
     first_review_at,
-    // When review could start: the first time a draft was marked ready, else
-    // creation for PRs opened ready. Null while it has never left draft.
-    ready_at: n.timelineItems?.nodes?.[0]?.createdAt || (n.isDraft ? null : n.createdAt),
     review_state,
     review_requested: (n.reviewRequests?.totalCount || 0) > 0,
     reviews,

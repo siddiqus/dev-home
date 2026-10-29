@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
-import { IconChevronRight, IconChevronDown, IconUser } from "@tabler/icons-react";
-import { SearchableDropdown, type DropdownItem } from "../../../components/SearchableDropdown";
-import { formatRelativeTime } from "../../../utils/time";
+import { Fragment, useMemo, useState } from "react";
 import type { ReviewQueueEntry } from "../../../types/teams";
+import { ReviewQueueModal } from "./ReviewQueueModal";
+import { groupByState, prLabel, waitedFor } from "./reviewQueueModel";
 
 export interface ReviewQueueMember {
   login: string;
@@ -11,140 +10,88 @@ export interface ReviewQueueMember {
 
 interface Props {
   entries: ReviewQueueEntry[];
-  /** Team roster, used to populate the member filter. Omit to hide the filter. */
+  /** Team roster; tells the team's own PRs apart from reviews asked of it. */
   members?: ReviewQueueMember[];
   onOpenPR?: (repoFullName: string, number: number) => void;
 }
 
-// Solid, flat colors for the state dot — no emoji, no gradient. Blue/orange
-// match the LoadDistribution palette; red is Bootstrap's danger.
-const STATE_META: Record<ReviewQueueEntry["state"], { color: string; label: string }> = {
-  author: { color: "#4c8dff", label: "Author" },
-  reviewer: { color: "#e0a458", label: "Reviewer" },
-  none: { color: "#dc3545", label: "No reviewer" },
-};
+/** PRs shown per group on the card; the rest are a click away in See all. */
+const PER_GROUP = 2;
 
-function StateCell({ state }: { state: ReviewQueueEntry["state"] }) {
-  const meta = STATE_META[state];
-  return (
-    <span className="d-inline-flex align-items-center gap-1 text-nowrap">
-      <span
-        aria-hidden
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: "50%",
-          backgroundColor: meta.color,
-          display: "inline-block",
-          flexShrink: 0,
-        }}
-      />
-      {/* Label stays default text color (black) — only the dot carries the state color. */}
-      <span className="small text-body">{meta.label}</span>
-    </span>
-  );
+/** Who has to act: the reviewers when it's their move, the author otherwise. */
+function whoActs(e: ReviewQueueEntry): string {
+  if (e.state === "waitingReview" && e.reviewers.length > 0) {
+    const [first, ...rest] = e.reviewers;
+    return `on @${first}${rest.length > 0 ? ` +${rest.length}` : ""}`;
+  }
+  return `@${e.author}`;
 }
 
 export function ReviewQueuePanel({ entries, members, onOpenPR }: Props) {
-  // Collapsed by default — the queue is a drill-in, not the cockpit's headline.
-  const [collapsed, setCollapsed] = useState(true);
-  const [memberFilter, setMemberFilter] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
-  const memberItems: DropdownItem[] = useMemo(
-    () => (members ?? []).map((m) => ({ value: m.login, label: m.name || m.login })),
+  const teamLogins = useMemo(
+    () => new Set((members ?? []).map((m) => m.login.toLowerCase())),
     [members],
   );
-
-  const filtered = useMemo(() => {
-    if (!memberFilter) return entries;
-    return entries.filter((e) => e.author === memberFilter || e.reviewers.includes(memberFilter));
-  }, [entries, memberFilter]);
+  // Drafts aren't waiting on anyone yet; they only show in See all.
+  const groups = useMemo(() => groupByState(entries.filter((e) => e.state !== "draft")), [entries]);
 
   return (
-    <div className="border rounded p-2">
-      <div className="d-flex align-items-center gap-2">
-        <div
-          className="small text-muted d-flex align-items-center gap-1"
-          style={{ cursor: "pointer" }}
-          role="button"
-          onClick={() => setCollapsed((c) => !c)}
-        >
-          {collapsed ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
-          REVIEW QUEUE · {filtered.length}
-        </div>
-        {!collapsed && memberItems.length > 0 && (
-          <div className="ms-auto">
-            <SearchableDropdown
-              items={memberItems}
-              value={memberFilter}
-              onChange={setMemberFilter}
-              placeholder="Search members…"
-              allLabel="All members"
-              triggerIcon={<IconUser size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-              width={180}
-            />
-          </div>
-        )}
+    <div className="border rounded p-3">
+      <div className="h6 mb-3 d-flex align-items-center gap-2">
+        Review Queue
+        <span className="text-muted fw-normal small">{entries.length}</span>
       </div>
 
-      {!collapsed &&
-        (filtered.length === 0 ? (
-          <div className="text-muted small mt-2">No open PRs.</div>
-        ) : (
-          <table className="table table-sm table-hover mb-0 mt-2">
-            <thead>
-              <tr className="small text-muted">
-                <th>State</th>
-                <th>PR</th>
-                <th>Author</th>
-                <th>Reviewers</th>
-                <th>Checks</th>
-                <th className="text-nowrap">Age / Activity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((e) => (
-                <tr
-                  key={`${e.repo_full_name}#${e.number}`}
-                  onClick={onOpenPR ? () => onOpenPR(e.repo_full_name, e.number) : undefined}
-                  style={onOpenPR ? { cursor: "pointer" } : undefined}
-                >
-                  <td>
-                    <StateCell state={e.state} />
-                  </td>
-                  <td>
-                    <a
-                      href={e.html_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(ev) => ev.stopPropagation()}
+      {entries.length === 0 ? (
+        <div className="text-muted small">No open PRs.</div>
+      ) : (
+        <>
+          {groups.length === 0 ? (
+            <div className="text-muted small">Only drafts are open.</div>
+          ) : (
+            <div className="review-grid review-grid--card">
+              {groups.map((g) => (
+                <Fragment key={g.state}>
+                  <div className="review-group" data-testid="review-group">
+                    <span className="cockpit-dot" style={{ background: g.color }} />
+                    {g.label}
+                    <span className="text-muted fw-normal">{g.entries.length}</span>
+                  </div>
+                  {g.entries.slice(0, PER_GROUP).map((e) => (
+                    <button
+                      key={`${e.repo_full_name}#${e.number}`}
+                      type="button"
+                      className="review-row"
+                      title={e.reason}
+                      onClick={() => onOpenPR?.(e.repo_full_name, e.number)}
                     >
-                      #{e.number} {e.title}
-                    </a>
-                    <div className="small text-muted">{e.reason}</div>
-                  </td>
-                  <td className="small text-muted text-nowrap">{e.author}</td>
-                  <td className="small text-muted">
-                    {e.reviewers.length > 0 ? e.reviewers.join(", ") : "—"}
-                  </td>
-                  <td className="small text-nowrap">
-                    {e.checks_status === "FAILURE" ? (
-                      <span className="text-danger">✗</span>
-                    ) : e.checks_status === "SUCCESS" ? (
-                      <span className="text-success">✓</span>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="small text-muted text-nowrap">
-                    {e.createdAt ? formatRelativeTime(e.createdAt) : "—"} /{" "}
-                    {e.updatedAt ? formatRelativeTime(e.updatedAt) : "—"}
-                  </td>
-                </tr>
+                      <span className="review-row__key">{prLabel(e)}</span>
+                      <span className="review-row__title">{e.title}</span>
+                      <span className="review-row__muted">{whoActs(e)}</span>
+                      <span className="review-row__muted text-end">
+                        {waitedFor(e.waitingSince)}
+                      </span>
+                    </button>
+                  ))}
+                </Fragment>
               ))}
-            </tbody>
-          </table>
-        ))}
+            </div>
+          )}
+          <button type="button" className="cockpit-more mt-2" onClick={() => setShowAll(true)}>
+            See all {entries.length} →
+          </button>
+        </>
+      )}
+
+      <ReviewQueueModal
+        show={showAll}
+        onHide={() => setShowAll(false)}
+        entries={entries}
+        teamLogins={teamLogins}
+        onOpenPR={onOpenPR}
+      />
     </div>
   );
 }

@@ -1,103 +1,115 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
 import { ReviewQueuePanel } from "./ReviewQueuePanel";
 import type { ReviewQueueEntry } from "../../../types/teams";
 
-const entries: ReviewQueueEntry[] = [
-  {
-    number: 12,
+let n = 0;
+function entry(overrides: Partial<ReviewQueueEntry>): ReviewQueueEntry {
+  n += 1;
+  return {
+    number: n,
     repo_full_name: "acme/web",
-    title: "PLAT-101 health strip",
-    html_url: "https://github.com/acme/web/pull/12",
+    title: `PR ${n}`,
+    html_url: `https://github.com/acme/web/pull/${n}`,
     author: "tashfia",
-    state: "none",
-    reason: "no reviewer assigned",
+    state: "waitingReview",
+    reason: "awaiting first review",
     reviewers: [],
-    checks_status: "FAILURE",
-    createdAt: "2026-06-30T00:00:00.000Z",
-    updatedAt: "2026-06-30T00:00:00.000Z",
-  },
-  {
-    number: 20,
-    repo_full_name: "acme/web",
-    title: "PLAT-102 token refresh",
-    html_url: "https://github.com/acme/web/pull/20",
-    author: "nadman",
-    state: "author",
-    reason: "changes requested",
-    reviewers: ["carol"],
-    checks_status: "SUCCESS",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    updatedAt: "2026-07-02T00:00:00.000Z",
-  },
-];
-
-/** The panel is collapsed by default; expand it to reveal the table/filter. */
-function expand() {
-  fireEvent.click(screen.getByText(/REVIEW QUEUE/));
+    checks_status: null,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+    waitingSince: "2026-10-01T00:00:00.000Z",
+    ...overrides,
+  };
 }
 
+const members = [
+  { login: "tashfia", name: "Tashfia" },
+  { login: "nadman", name: "Nadman" },
+];
+
 describe("ReviewQueuePanel", () => {
-  it("is collapsed by default and expands on header click", () => {
-    render(<ReviewQueuePanel entries={entries} />);
-    // Header (with count) is visible, but the table is hidden until expanded.
-    expect(screen.getByText(/REVIEW QUEUE · 2/)).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-
-    expand();
-    expect(screen.getByRole("table")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText(/REVIEW QUEUE/));
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  it("groups PRs under the state names, most urgent group first", () => {
+    render(
+      <ReviewQueuePanel
+        entries={[
+          entry({ state: "withAuthor", title: "Fix typo" }),
+          entry({ state: "readyToMerge", title: "Bump deps" }),
+          entry({ state: "needsReviewer", title: "Calendar lazy-load" }),
+          entry({ state: "waitingReview", title: "Drop serializer" }),
+        ]}
+      />,
+    );
+    const headings = screen
+      .getAllByTestId("review-group")
+      .map((el) => el.textContent?.replace(/\d+$/, ""));
+    expect(headings).toEqual([
+      "Needs a reviewer",
+      "Waiting for review",
+      "Ready to merge",
+      "Back with author",
+    ]);
   });
 
-  it("renders a row per entry with title link, reason, author, reviewers, and state label", () => {
-    render(<ReviewQueuePanel entries={entries} />);
-    expand();
+  it("shows at most two PRs per group and never drafts", () => {
+    render(
+      <ReviewQueuePanel
+        entries={[
+          entry({ title: "First" }),
+          entry({ title: "Second" }),
+          entry({ title: "Third" }),
+          entry({ state: "draft", title: "WIP thing" }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
+    expect(screen.queryByText("Third")).not.toBeInTheDocument();
+    expect(screen.queryByText("WIP thing")).not.toBeInTheDocument();
+    // The group header still counts every PR in it.
+    expect(screen.getByTestId("review-group")).toHaveTextContent("Waiting for review3");
+  });
 
-    const link = screen.getByRole("link", { name: /PLAT-101 health strip/ });
-    expect(link).toHaveAttribute("href", "https://github.com/acme/web/pull/12");
+  it("names the reviewers when it's their move, the author otherwise", () => {
+    render(
+      <ReviewQueuePanel
+        entries={[
+          entry({ title: "Waiting", reviewers: ["carol", "dave"] }),
+          entry({ state: "withAuthor", title: "Changes", author: "nadman", reviewers: ["carol"] }),
+        ]}
+      />,
+    );
+    const waiting = screen.getByText("Waiting").closest("button")!;
+    expect(within(waiting).getByText(/on @carol \+1/)).toBeInTheDocument();
+    const changes = screen.getByText("Changes").closest("button")!;
+    expect(within(changes).getByText("@nadman")).toBeInTheDocument();
+  });
 
-    expect(screen.getByText("no reviewer assigned")).toBeInTheDocument();
-    expect(screen.getByText("changes requested")).toBeInTheDocument();
-    expect(screen.getByText("tashfia")).toBeInTheDocument();
-    expect(screen.getByText("carol")).toBeInTheDocument();
-    expect(screen.getByText("No reviewer")).toBeInTheDocument();
-    // "Author" also appears as a column header; scope to the state-label <span>.
-    expect(screen.getByText("Author", { selector: "span" })).toBeInTheDocument();
+  it("opens the PR when a row is clicked", () => {
+    const onOpenPR = vi.fn();
+    render(
+      <ReviewQueuePanel entries={[entry({ title: "Open me", number: 77 })]} onOpenPR={onOpenPR} />,
+    );
+    fireEvent.click(screen.getByText("Open me"));
+    expect(onOpenPR).toHaveBeenCalledWith("acme/web", 77);
+  });
+
+  it("opens the full list in a modal from See all", () => {
+    render(
+      <ReviewQueuePanel
+        entries={[entry({ title: "Visible" }), entry({ state: "draft", title: "Hidden draft" })]}
+        members={members}
+      />,
+    );
+    fireEvent.click(screen.getByText("See all 2 →"));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Hidden draft")).toBeInTheDocument();
+    expect(within(dialog).getByPlaceholderText("Search PRs, people…")).toBeInTheDocument();
   });
 
   it("renders an empty state when there are no entries", () => {
     render(<ReviewQueuePanel entries={[]} />);
-    expand();
     expect(screen.getByText("No open PRs.")).toBeInTheDocument();
-  });
-
-  it("does not render the member filter when no members are provided", () => {
-    render(<ReviewQueuePanel entries={entries} />);
-    expand();
-    expect(screen.queryByText("All members")).not.toBeInTheDocument();
-  });
-
-  it("filters the queue to the selected team member (author or reviewer)", () => {
-    const members = [
-      { login: "tashfia", name: "Tashfia" },
-      { login: "nadman", name: "Nadman" },
-    ];
-    render(<ReviewQueuePanel entries={entries} members={members} />);
-    expand();
-
-    // Both PRs visible before filtering.
-    expect(screen.getByText(/PLAT-101 health strip/)).toBeInTheDocument();
-    expect(screen.getByText(/PLAT-102 token refresh/)).toBeInTheDocument();
-
-    // Open the member dropdown and pick Nadman.
-    fireEvent.click(screen.getByText("All members"));
-    fireEvent.mouseDown(screen.getByText("Nadman"));
-
-    // Only Nadman's PR remains; the count reflects the filter.
-    expect(screen.queryByText(/PLAT-101 health strip/)).not.toBeInTheDocument();
-    expect(screen.getByText(/PLAT-102 token refresh/)).toBeInTheDocument();
-    expect(screen.getByText(/REVIEW QUEUE · 1/)).toBeInTheDocument();
+    expect(screen.queryByText(/See all/)).not.toBeInTheDocument();
   });
 });

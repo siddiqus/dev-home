@@ -66,7 +66,7 @@ describe("buildNeedsAttention", () => {
       makeIssue("ABC-124", { stale: false }),
       makeIssue("ABC-125", { stale: true }),
     ];
-    const result = buildNeedsAttention(issues, []);
+    const result = buildNeedsAttention(issues);
     expect(result.stale).toEqual([
       { kind: "issue", key: "ABC-123" },
       { kind: "issue", key: "ABC-125" },
@@ -82,7 +82,7 @@ describe("buildNeedsAttention", () => {
         makePR(4, "org/other", { waitingReview: true }),
       ]),
     ];
-    const result = buildNeedsAttention(issues, []);
+    const result = buildNeedsAttention(issues);
     expect(result.waitingReview).toEqual([
       { kind: "pr", repo: "org/repo", number: 1 },
       { kind: "pr", repo: "org/other", number: 3 },
@@ -96,150 +96,43 @@ describe("buildNeedsAttention", () => {
       makeIssue("ABC-124", {}, [makePR(1, "org/repo", { waitingReview: true })]), // duplicate
       makeIssue("ABC-125", {}, [makePR(2, "org/repo", { waitingReview: true })]),
     ];
-    const result = buildNeedsAttention(issues, []);
+    const result = buildNeedsAttention(issues);
     expect(result.waitingReview).toEqual([
       { kind: "pr", repo: "org/repo", number: 1 },
       { kind: "pr", repo: "org/repo", number: 2 },
     ]);
   });
 
-  it("populates failingCI bucket from PRs with checks_status=FAILURE", () => {
+  it("leaves the lesser signals to Delivery Hygiene", () => {
     const issues = [
-      makeIssue("ABC-123", {}, [makePR(1, "org/repo", { checks_status: "FAILURE" })]),
-      makeIssue("ABC-124", {}, [makePR(2, "org/repo", { checks_status: "SUCCESS" })]),
-      makeIssue("ABC-125", {}, [makePR(3, "org/other", { checks_status: "FAILURE" })]),
+      makeIssue(
+        "ABC-123",
+        { noEpic: true, addedAfterStart: true, inProgressNoPR: true, unassigned: true },
+        [makePR(1, "org/repo", { checks_status: "FAILURE" })],
+      ),
     ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.failingCI).toEqual([
-      { kind: "pr", repo: "org/repo", number: 1 },
-      { kind: "pr", repo: "org/other", number: 3 },
-    ]);
-  });
-
-  it("deduplicates PRs in failingCI bucket by repo+number", () => {
-    const issues = [
-      makeIssue("ABC-123", {}, [
-        makePR(1, "org/repo", { checks_status: "FAILURE" }),
-        makePR(2, "org/repo", { checks_status: "FAILURE" }),
-      ]),
-      makeIssue("ABC-124", {}, [makePR(1, "org/repo", { checks_status: "FAILURE" })]), // duplicate
-    ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.failingCI).toEqual([
-      { kind: "pr", repo: "org/repo", number: 1 },
-      { kind: "pr", repo: "org/repo", number: 2 },
-    ]);
-  });
-
-  it("populates noLinkedPR bucket from issues with flags.inProgressNoPR", () => {
-    const issues = [
-      makeIssue("ABC-123", { inProgressNoPR: true }),
-      makeIssue("ABC-124", { inProgressNoPR: false }),
-      makeIssue("ABC-125", { inProgressNoPR: true }),
-    ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.noLinkedPR).toEqual([
-      { kind: "issue", key: "ABC-123" },
-      { kind: "issue", key: "ABC-125" },
-    ]);
-  });
-
-  it("populates offBoard bucket from offBoardPRs argument", () => {
-    const offBoardPRs = [
-      { repo_full_name: "org/repo", number: 1 },
-      { repo_full_name: "org/other", number: 2 },
-    ];
-    const result = buildNeedsAttention([], offBoardPRs);
-    expect(result.offBoard).toEqual([
-      { kind: "pr", repo: "org/repo", number: 1 },
-      { kind: "pr", repo: "org/other", number: 2 },
-    ]);
-  });
-
-  it("populates scopeCreep bucket from issues with flags.addedAfterStart", () => {
-    const issues = [
-      makeIssue("ABC-123", { addedAfterStart: true }),
-      makeIssue("ABC-124", { addedAfterStart: false }),
-      makeIssue("ABC-125", { addedAfterStart: true }),
-    ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.scopeCreep).toEqual([
-      { kind: "issue", key: "ABC-123" },
-      { kind: "issue", key: "ABC-125" },
-    ]);
-  });
-
-  it("populates unassigned bucket from issues with flags.unassigned", () => {
-    const issues = [
-      makeIssue("ABC-123", { unassigned: true }),
-      makeIssue("ABC-124", { unassigned: false }),
-      makeIssue("ABC-125", { unassigned: true }),
-    ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.unassigned).toEqual([
-      { kind: "issue", key: "ABC-123" },
-      { kind: "issue", key: "ABC-125" },
-    ]);
-  });
-
-  it("populates noEpic bucket from issues with flags.noEpic", () => {
-    const issues = [
-      makeIssue("ABC-123", { noEpic: true }),
-      makeIssue("ABC-124", { noEpic: false }),
-      makeIssue("ABC-125", { noEpic: true }),
-    ];
-    const result = buildNeedsAttention(issues, []);
-    expect(result.noEpic).toEqual([
-      { kind: "issue", key: "ABC-123" },
-      { kind: "issue", key: "ABC-125" },
-    ]);
+    expect(Object.keys(buildNeedsAttention(issues)).sort()).toEqual(["stale", "waitingReview"]);
   });
 
   it("handles multiple buckets simultaneously", () => {
     const issues = [
       makeIssue("ABC-123", { stale: true, unassigned: true }, [
-        makePR(1, "org/repo", { waitingReview: true, checks_status: "FAILURE" }),
+        makePR(1, "org/repo", { waitingReview: true }),
       ]),
-      makeIssue("ABC-124", { noEpic: true, addedAfterStart: true }),
-      makeIssue("ABC-125", { inProgressNoPR: true }),
+      makeIssue("ABC-124", { unassigned: true }),
     ];
-    const offBoardPRs = [{ repo_full_name: "org/other", number: 99 }];
-    const result = buildNeedsAttention(issues, offBoardPRs);
+    const result = buildNeedsAttention(issues);
 
     expect(result.stale).toEqual([{ kind: "issue", key: "ABC-123" }]);
     expect(result.waitingReview).toEqual([{ kind: "pr", repo: "org/repo", number: 1 }]);
-    expect(result.failingCI).toEqual([{ kind: "pr", repo: "org/repo", number: 1 }]);
-    expect(result.noLinkedPR).toEqual([{ kind: "issue", key: "ABC-125" }]);
-    expect(result.offBoard).toEqual([{ kind: "pr", repo: "org/other", number: 99 }]);
-    expect(result.scopeCreep).toEqual([{ kind: "issue", key: "ABC-124" }]);
-    expect(result.unassigned).toEqual([{ kind: "issue", key: "ABC-123" }]);
-    expect(result.noEpic).toEqual([{ kind: "issue", key: "ABC-124" }]);
   });
 
   it("returns empty buckets when no issues match", () => {
-    const issues = [makeIssue("ABC-123", {})];
-    const result = buildNeedsAttention(issues, []);
-
-    expect(result.stale).toEqual([]);
-    expect(result.waitingReview).toEqual([]);
-    expect(result.failingCI).toEqual([]);
-    expect(result.noLinkedPR).toEqual([]);
-    expect(result.offBoard).toEqual([]);
-    expect(result.scopeCreep).toEqual([]);
-    expect(result.unassigned).toEqual([]);
-    expect(result.noEpic).toEqual([]);
+    const result = buildNeedsAttention([makeIssue("ABC-123", {})]);
+    expect(result).toEqual({ stale: [], waitingReview: [] });
   });
 
   it("handles empty inputs gracefully", () => {
-    const result = buildNeedsAttention([], []);
-
-    expect(result.stale).toEqual([]);
-    expect(result.waitingReview).toEqual([]);
-    expect(result.failingCI).toEqual([]);
-    expect(result.noLinkedPR).toEqual([]);
-    expect(result.offBoard).toEqual([]);
-    expect(result.scopeCreep).toEqual([]);
-    expect(result.unassigned).toEqual([]);
-    expect(result.noEpic).toEqual([]);
+    expect(buildNeedsAttention([])).toEqual({ stale: [], waitingReview: [] });
   });
 });

@@ -1,43 +1,53 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchTeamDashboard } from "../services/teams";
+import { cacheTeamDashboard, fetchTeamDashboard, readCachedTeamDashboard } from "../services/teams";
 import type { TeamDashboard } from "../types/teams";
 
+/**
+ * The sprint cockpit's data for a team + sprint. A dashboard loaded before is
+ * served from the browser cache with no request (it survives page reloads);
+ * only `refresh` goes back to the network. While a load is in flight the
+ * dashboard is null, so the view shows its placeholder instead of stale cards.
+ */
 export function useTeamDashboard(teamId: number | null, sprintId: number | null) {
-  const [dashboard, setDashboard] = useState<TeamDashboard | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [dashboard, setDashboard] = useState<TeamDashboard | null>(() =>
+    teamId != null ? readCachedTeamDashboard(teamId, sprintId) : null,
+  );
+  // Start out loading when there's nothing cached, so the first paint is the
+  // placeholder rather than an empty page.
+  const [loading, setLoading] = useState(() => teamId != null && dashboard == null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Tracks the team the current `dashboard` belongs to, so we can distinguish a
-  // team switch (drop the stale data) from a sprint switch (keep the panels).
-  const loadedTeamId = useRef<number | null>(null);
 
   const seenRefreshKey = useRef(refreshKey);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
+    setError(null);
     if (teamId == null) {
       setDashboard(null);
-      loadedTeamId.current = null;
+      setLoading(false);
       return;
     }
-    let cancelled = false;
-    // On a team switch, clear the previous team's data immediately so the view
-    // doesn't render stale panels behind the loading overlay. A sprint switch
-    // within the same team keeps the panels and just refetches in place.
-    if (teamId !== loadedTeamId.current) {
-      setDashboard(null);
-    }
-    // An explicit refresh also reloads the board's (cached) sprint list.
+    // An explicit refresh skips the cache and also reloads the board's sprint list.
     const force = refreshKey !== seenRefreshKey.current;
     seenRefreshKey.current = refreshKey;
+    if (!force) {
+      const cached = readCachedTeamDashboard(teamId, sprintId);
+      if (cached) {
+        setDashboard(cached);
+        setLoading(false);
+        return;
+      }
+    }
+
+    let cancelled = false;
+    setDashboard(null);
     setLoading(true);
-    setError(null);
     fetchTeamDashboard(teamId, sprintId, { force })
       .then((d) => {
-        if (!cancelled) {
-          setDashboard(d);
-          loadedTeamId.current = teamId;
-        }
+        // Worth keeping even if the user has moved on; they may come back.
+        cacheTeamDashboard(teamId, sprintId, d);
+        if (!cancelled) setDashboard(d);
       })
       .catch((e) => {
         if (!cancelled) setError(e.message || "Failed to load dashboard");

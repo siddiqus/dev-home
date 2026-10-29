@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { computeHygiene } from "./hygiene";
 import type { RawPR } from "../aggregation";
-import type { EnrichedIssue } from "./types";
+import type { EnrichedIssue, LinkedPR } from "./types";
 
 describe("computeHygiene", () => {
   const sprintKeys = new Set(["PROJ-1", "PROJ-2", "PROJ-3", "PROJ-4", "PROJ-5"]);
@@ -628,5 +628,85 @@ describe("computeHygiene", () => {
     expect(result.jiraNoPR).toEqual([{ kind: "issue", key: "PROJ-1" }]);
     expect(result.mergedNotDone).toEqual([{ kind: "issue", key: "PROJ-2" }]);
     expect(result.doneNoMerged).toEqual([{ kind: "issue", key: "PROJ-3" }]);
+  });
+  describe("signals moved over from Needs Attention", () => {
+    const issue = (
+      key: string,
+      flags: Partial<EnrichedIssue["flags"]> = {},
+      linkedPRs: LinkedPR[] = [],
+    ): EnrichedIssue => ({
+      key,
+      summary: "s",
+      status: "In Progress",
+      statusCategory: "indeterminate",
+      assigneeAccountId: "123",
+      assigneeName: "Alice",
+      epicKey: "PROJ-100",
+      epicName: "Epic",
+      linkedPRs,
+      createdAt: null,
+      updatedAt: null,
+      dueDate: null,
+      storyPoints: null,
+      ageDays: 0,
+      daysSinceUpdate: 0,
+      flags: {
+        unassigned: false,
+        noEpic: false,
+        stale: false,
+        addedAfterStart: false,
+        dueSoon: false,
+        prFailingCI: false,
+        prWaitingReview: false,
+        inProgressNoPR: false,
+        ...flags,
+      },
+      risk: { score: 0, level: "normal", reasons: [] },
+    });
+    const linked = (number: number, repo: string, checks: string | null): LinkedPR => ({
+      number,
+      title: "t",
+      repo_full_name: repo,
+      html_url: "",
+      state: "open",
+      checks_status: checks,
+      author: "alice",
+      createdAt: null,
+      mergedAt: null,
+      reviewState: null,
+      waitingReview: false,
+    });
+
+    it("returns failingCI refs for linked PRs whose checks fail, once per PR", () => {
+      const issues = [
+        issue("PROJ-1", {}, [linked(1, "org/a", "FAILURE"), linked(2, "org/a", "SUCCESS")]),
+        issue("PROJ-2", {}, [linked(1, "org/a", "FAILURE"), linked(3, "org/b", "FAILURE")]),
+      ];
+      expect(computeHygiene(issues, [], sprintKeys).failingCI).toEqual([
+        { kind: "pr", repo: "org/a", number: 1 },
+        { kind: "pr", repo: "org/b", number: 3 },
+      ]);
+    });
+
+    it("returns noEpic refs from flags.noEpic", () => {
+      const issues = [issue("PROJ-1", { noEpic: true }), issue("PROJ-2")];
+      expect(computeHygiene(issues, [], sprintKeys).noEpic).toEqual([
+        { kind: "issue", key: "PROJ-1" },
+      ]);
+    });
+
+    it("returns unassigned refs from flags.unassigned", () => {
+      const issues = [issue("PROJ-1", { unassigned: true }), issue("PROJ-2")];
+      expect(computeHygiene(issues, [], sprintKeys).unassigned).toEqual([
+        { kind: "issue", key: "PROJ-1" },
+      ]);
+    });
+
+    it("returns addedMidSprint refs from flags.addedAfterStart", () => {
+      const issues = [issue("PROJ-1"), issue("PROJ-2", { addedAfterStart: true })];
+      expect(computeHygiene(issues, [], sprintKeys).addedMidSprint).toEqual([
+        { kind: "issue", key: "PROJ-2" },
+      ]);
+    });
   });
 });

@@ -139,7 +139,7 @@ describe("postTeamDashboard — fetching", () => {
     expect(queries).toHaveLength(4);
     expect(queries.every((q) => q.endsWith(" org:acme"))).toBe(true);
     // Review requests reach the queue but don't count as the team's PRs.
-    expect(result.prFlow.open).toBe(1);
+    expect(result.offBoardPRs.map((p: any) => p.number)).toEqual([1]);
     expect(result.reviewQueue.map((e: any) => e.number).sort()).toEqual([1, 2]);
   });
 

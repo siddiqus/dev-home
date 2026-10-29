@@ -18,3 +18,225 @@
   display: flex;
   flex-direction: column;
 }
+
+/* --- Sprint cockpit: Needs Attention + Delivery Hygiene items --- */
+
+/* One item per line: key · title · meta. The title is the part that gives
+   way on narrow columns. */
+.cockpit-ref-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.cockpit-ref-row:hover {
+  background: var(--color-bg-hover);
+}
+.cockpit-ref-row__key {
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+.cockpit-ref-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cockpit-ref-row__meta {
+  display: flex;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+/* Meta parts read "who · age"; the separator lives here, not in the markup. */
+.cockpit-ref-row__meta > * + *::before {
+  content: "· ";
+  color: var(--color-text-secondary);
+}
+.cockpit-ref-row__who {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-primary);
+}
+
+.cockpit-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.cockpit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cockpit-more {
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+}
+
+.cockpit-hygiene-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(125, 125, 125, 0.05);
+  color: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+}
+.cockpit-hygiene-toggle:hover {
+  background: var(--color-bg-hover);
+}
+.cockpit-hygiene-toggle[aria-expanded="true"] {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent);
+}
+.cockpit-hygiene-items {
+  padding: 4px 0 0 14px;
+}
+
+/* --- Review Queue: card + See-all modal ---
+   Each list is one grid and every row is a subgrid row, so the PR, title,
+   people and waiting columns line up across rows and groups. */
+.review-grid {
+  display: grid;
+  column-gap: var(--space-3);
+  align-items: baseline;
+}
+.review-grid--card {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+.review-grid--modal {
+  grid-template-columns: auto minmax(0, 1fr) auto 18px 3rem;
+}
+.review-grid__head {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  padding: 0 6px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.review-group {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.review-grid > .review-group:first-child,
+.review-grid__head + .review-group {
+  padding-top: 0;
+}
+.review-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.review-row:hover {
+  background: var(--color-bg-hover);
+}
+.review-row__key {
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+.review-row__title-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.review-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-row__muted {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.review-row__muted b {
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+/* Long reviewer lists give way before the title does. */
+.review-row__people {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.review-row__ci {
+  display: flex;
+  align-self: center;
+}
+.review-tag {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+}
+
+/* --- Sprint cockpit loading placeholder --- */
+.cockpit-skeleton {
+  border-radius: var(--radius-sm);
+  background: var(--color-skeleton);
+  animation: cockpit-skeleton-pulse 1.2s ease-in-out infinite;
+}
+@keyframes cockpit-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+.cockpit-skeleton--title {
+  width: 35%;
+  height: 16px;
+  margin-bottom: var(--space-3);
+}
+.cockpit-skeleton--line {
+  height: 12px;
+  margin-top: var(--space-3);
+}
+.cockpit-skeleton--epic {
+  flex: 1 1 180px;
+  max-width: 240px;
+  height: 72px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cockpit-skeleton {
+    animation: none;
+  }
+}

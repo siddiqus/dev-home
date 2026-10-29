@@ -12,7 +12,6 @@ import { enrichIssue, groupPRsByTicket } from "./cockpit/risk";
 import { buildNeedsAttention } from "./cockpit/attention";
 import { computePace } from "./cockpit/pace";
 import { computeLoadDistribution, computeLoadBalance } from "./cockpit/load";
-import { computePrFlow } from "./cockpit/prFlow";
 import { computeHygiene } from "./cockpit/hygiene";
 import { mapPullRequestNode, dedupePRs } from "./cockpit/prFetch";
 import { computeReviewQueue } from "./cockpit/reviewQueue";
@@ -27,9 +26,6 @@ const PR_NODE_FRAGMENT = `
     repository { nameWithOwner }
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(first: 20) { nodes { author { login __typename } state submittedAt } }
-    timelineItems(itemTypes: [READY_FOR_REVIEW_EVENT], first: 1) {
-      nodes { ... on ReadyForReviewEvent { createdAt } }
-    }
     reviewRequests(first: 20) {
       totalCount
       nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } } }
@@ -324,11 +320,7 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
   const workload = computeLoadDistribution(roster, enrichedIssues, prs, now);
   const loadBalance = computeLoadBalance(workload);
   const pace = computePace(enrichedIssues, sprintInfo, now, config);
-  const needsAttention = buildNeedsAttention(
-    enrichedIssues,
-    offBoardPRs.map((p) => ({ repo_full_name: p.repo_full_name, number: p.number })),
-  );
-  const prFlow = computePrFlow(prs, enrichedIssues, now);
+  const needsAttention = buildNeedsAttention(enrichedIssues);
   const hygiene = computeHygiene(enrichedIssues, prs, sprintKeys);
 
   return {
@@ -346,7 +338,6 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
     pace,
     needsAttention,
     loadBalance,
-    prFlow,
     hygiene,
     reviewQueue: computeReviewQueue(allPRs),
     syncedAt: now.toISOString(),

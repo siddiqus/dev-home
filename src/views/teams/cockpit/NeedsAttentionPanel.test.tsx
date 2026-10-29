@@ -1,134 +1,68 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { NeedsAttentionPanel } from "./NeedsAttentionPanel";
+import { buildRefLookup } from "./refLookup";
 import dashboardFixture from "../__fixtures__/dashboardFixture";
-import type { NeedsAttention } from "../../../types/teams";
+import type { NeedsAttention, Ref } from "../../../types/teams";
+
+const lookup = buildRefLookup(dashboardFixture.issues, dashboardFixture.offBoardPRs);
+
+function renderPanel(needsAttention: NeedsAttention = dashboardFixture.needsAttention) {
+  const onOpenRef = vi.fn();
+  render(
+    <NeedsAttentionPanel needsAttention={needsAttention} lookup={lookup} onOpenRef={onOpenRef} />,
+  );
+  return onOpenRef;
+}
 
 describe("NeedsAttentionPanel", () => {
-  it("renders signal rows with correct counts", () => {
-    const onOpenRef = vi.fn();
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        onOpenRef={onOpenRef}
-      />,
-    );
+  it("lists the items of each group without expanding anything", () => {
+    renderPanel();
 
-    expect(screen.getByText("Needs Attention")).toBeInTheDocument();
     expect(screen.getByText("Stale")).toBeInTheDocument();
     expect(screen.getByText("Waiting review > 24h")).toBeInTheDocument();
-    expect(screen.getByText("Failing CI")).toBeInTheDocument();
-
-    // Verify counts via badges
-    const staleRow = screen.getByText("Stale").closest("div");
-    expect(staleRow?.textContent).toContain("1");
-  });
-
-  it("expands a row to reveal refs when clicked", () => {
-    const onOpenRef = vi.fn();
-
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        onOpenRef={onOpenRef}
-      />,
-    );
-
-    const staleRow = screen.getByText("Stale").closest("div");
-    expect(staleRow).toBeInTheDocument();
-
-    fireEvent.click(staleRow!);
-
     expect(screen.getByText("PLAT-101")).toBeInTheDocument();
+    expect(screen.getByText("Sprint health strip")).toBeInTheDocument();
+    expect(screen.getByText("web#12")).toBeInTheDocument();
   });
 
-  it("calls onOpenRef with the correct ref when a ref is clicked", () => {
-    const onOpenRef = vi.fn();
-
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        onOpenRef={onOpenRef}
-      />,
-    );
-
-    const staleRow = screen.getByText("Stale").closest("div");
-    fireEvent.click(staleRow!);
-
-    const refButton = screen.getByText("PLAT-101");
-    fireEvent.click(refButton);
-
-    expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
+  it("shows the author next to a PR waiting for review", () => {
+    renderPanel();
+    const row = screen.getByText("web#12").closest("button")!;
+    expect(within(row).getByText("PLAT-101 health strip")).toBeInTheDocument();
+    expect(within(row).getByText("@tashfia")).toBeInTheDocument();
   });
 
-  it("shows all-clear state when all signals are empty", () => {
-    const emptyNeedsAttention: NeedsAttention = {
-      stale: [],
-      waitingReview: [],
-      failingCI: [],
-      noLinkedPR: [],
-      offBoard: [],
-      scopeCreep: [],
-      unassigned: [],
-      noEpic: [],
-    };
+  it("shows the assignee and days without an update on a stale ticket", () => {
+    renderPanel();
+    const row = screen.getByText("PLAT-101").closest("button")!;
+    expect(within(row).getByText("Tashfia")).toBeInTheDocument();
+    expect(within(row).getByText("4d")).toBeInTheDocument();
+  });
 
-    render(<NeedsAttentionPanel needsAttention={emptyNeedsAttention} />);
+  it("opens the item that was clicked", () => {
+    const onOpenRef = renderPanel();
+    fireEvent.click(screen.getByText("web#12"));
+    expect(onOpenRef).toHaveBeenCalledWith({ kind: "pr", repo: "acme/web", number: 12 });
+  });
 
+  it("lists every item in a group", () => {
+    const stale: Ref[] = Array.from({ length: 7 }, (_, i) => ({
+      kind: "issue",
+      key: `PLAT-9${i}`,
+    }));
+    renderPanel({ stale, waitingReview: [] });
+    expect(screen.getByText("PLAT-90")).toBeInTheDocument();
+    expect(screen.getByText("PLAT-96")).toBeInTheDocument();
+  });
+
+  it("hides empty groups", () => {
+    renderPanel({ ...dashboardFixture.needsAttention, waitingReview: [] });
+    expect(screen.queryByText("Waiting review > 24h")).not.toBeInTheDocument();
+  });
+
+  it("shows an all-clear state when nothing needs attention", () => {
+    renderPanel({ stale: [], waitingReview: [] });
     expect(screen.getByText("All clear — nothing needs attention")).toBeInTheDocument();
-  });
-
-  it("formats PR refs correctly", () => {
-    const onOpenRef = vi.fn();
-
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        onOpenRef={onOpenRef}
-      />,
-    );
-
-    const waitingReviewRow = screen.getByText("Waiting review > 24h").closest("div");
-    fireEvent.click(waitingReviewRow!);
-
-    expect(screen.getByText("acme/web#12")).toBeInTheDocument();
-  });
-
-  it("hides rows with count 0", () => {
-    const onOpenRef = vi.fn();
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        onOpenRef={onOpenRef}
-      />,
-    );
-
-    expect(screen.queryByText("No linked PR")).not.toBeInTheDocument();
-  });
-
-  it("shows staleness detail on stale chips when staleDays map is provided", () => {
-    const staleDaysMap = new Map([["PLAT-101", 4]]);
-    render(
-      <NeedsAttentionPanel
-        needsAttention={dashboardFixture.needsAttention}
-        staleDays={staleDaysMap}
-      />,
-    );
-
-    const staleRow = screen.getByText("Stale").closest("div");
-    fireEvent.click(staleRow!);
-
-    expect(screen.getByText(/No update/)).toBeInTheDocument();
-    expect(screen.getByText(/4d/)).toBeInTheDocument();
-  });
-
-  it("renders stale chips without staleness detail when staleDays map is absent", () => {
-    render(<NeedsAttentionPanel needsAttention={dashboardFixture.needsAttention} />);
-
-    const staleRow = screen.getByText("Stale").closest("div");
-    fireEvent.click(staleRow!);
-
-    expect(screen.getByText("PLAT-101")).toBeInTheDocument();
-    expect(screen.queryByText(/No update/)).not.toBeInTheDocument();
   });
 });

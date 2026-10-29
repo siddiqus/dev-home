@@ -1,94 +1,85 @@
 import { useState } from "react";
+import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import type { Hygiene, Ref } from "../../../types/teams";
+import { RefRow, Who } from "./RefRow";
+import { refKey, type RefLookup } from "./refLookup";
 
 interface Props {
   hygiene: Hygiene;
+  lookup: RefLookup;
   onOpenRef?: (ref: Ref) => void;
 }
 
-interface HygieneRow {
-  label: string;
-  refs: Ref[];
-}
+const ROWS: { key: keyof Hygiene; label: string }[] = [
+  { key: "failingCI", label: "Failing CI" },
+  { key: "unassigned", label: "Unassigned" },
+  { key: "jiraNoPR", label: "In progress without a PR" },
+  { key: "prNoJira", label: "PRs without Jira" },
+  { key: "mergedNotDone", label: "Merged but not done" },
+  { key: "doneNoMerged", label: "Done without merged PR" },
+  { key: "noEpic", label: "No epic" },
+  { key: "addedMidSprint", label: "Added mid-sprint" },
+];
 
-function formatRef(ref: Ref): string {
-  if (ref.kind === "issue") return ref.key;
-  return `${ref.repo}#${ref.number}`;
-}
+export function DeliveryHygiene({ hygiene, lookup, onOpenRef }: Props) {
+  const [expanded, setExpanded] = useState<Set<keyof Hygiene>>(new Set());
 
-export function DeliveryHygiene({ hygiene, onOpenRef }: Props) {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const rows = ROWS.filter((r) => hygiene[r.key].length > 0);
 
-  const rows: HygieneRow[] = [
-    { label: "PRs without Jira", refs: hygiene.prNoJira },
-    { label: "Jira without PR", refs: hygiene.jiraNoPR },
-    { label: "Merged but not done", refs: hygiene.mergedNotDone },
-    { label: "Done without merged PR", refs: hygiene.doneNoMerged },
-  ];
+  const toggle = (key: keyof Hygiene) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
-  const activeRows = rows.filter((r) => r.refs.length > 0);
-  const allClear = activeRows.length === 0;
-
-  const handleRowClick = (label: string) => {
-    setExpanded((prev) => (prev === label ? null : label));
-  };
-
-  const handleRefClick = (ref: Ref, e: React.MouseEvent) => {
-    e.stopPropagation();
-    onOpenRef?.(ref);
+  // Issues show their assignee (or status when nobody has it), PRs their author.
+  const describe = (ref: Ref) => {
+    if (ref.kind === "pr") {
+      const pr = lookup.pr(ref.repo, ref.number);
+      return pr ? { title: pr.title, meta: <Who name={`@${pr.author}`} /> } : {};
+    }
+    const issue = lookup.issue(ref.key);
+    if (!issue) return {};
+    return {
+      title: issue.summary,
+      meta: issue.assigneeName ? <Who name={issue.assigneeName} /> : issue.status,
+    };
   };
 
   return (
-    <div className="border rounded p-2">
-      <div className="small text-muted mb-2">DELIVERY HYGIENE</div>
-      {allClear ? (
+    <div className="border rounded p-3">
+      <div className="h6 mb-3">Delivery Hygiene</div>
+      {rows.length === 0 ? (
         <div className="text-muted small">All linked up — no hygiene issues.</div>
       ) : (
         <div className="d-flex flex-column gap-2">
-          {rows
-            .filter((row) => row.refs.length > 0)
-            .map((row) => {
-              const count = row.refs.length;
-              const isExpanded = expanded === row.label;
-
-              return (
-                <div key={row.label}>
-                  <div
-                    className="d-flex align-items-center gap-2 p-2 rounded"
-                    style={{
-                      cursor: "pointer",
-                      background: isExpanded ? "rgba(125,125,125,.1)" : undefined,
-                    }}
-                    onClick={() => handleRowClick(row.label)}
-                  >
-                    <span className="small flex-fill">{row.label}</span>
-                    <span
-                      className="badge bg-secondary"
-                      style={{
-                        fontSize: "0.75rem",
-                        minWidth: "24px",
-                      }}
-                    >
-                      {count}
-                    </span>
+          {rows.map((row) => {
+            const refs = hygiene[row.key];
+            const isOpen = expanded.has(row.key);
+            return (
+              <div key={row.key}>
+                <button
+                  type="button"
+                  className="cockpit-hygiene-toggle"
+                  aria-expanded={isOpen}
+                  onClick={() => toggle(row.key)}
+                >
+                  {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                  <span className="flex-fill">{row.label}</span>
+                  <span className="badge rounded-pill bg-secondary">{refs.length}</span>
+                </button>
+                {isOpen && (
+                  <div className="cockpit-hygiene-items">
+                    {refs.map((ref) => (
+                      <RefRow key={refKey(ref)} item={ref} {...describe(ref)} onOpen={onOpenRef} />
+                    ))}
                   </div>
-                  {isExpanded && (
-                    <div className="ps-3 pt-2 d-flex flex-wrap gap-2">
-                      {row.refs.map((ref, i) => (
-                        <button
-                          key={i}
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={(e) => handleRefClick(ref, e)}
-                          style={{ fontSize: "0.75rem" }}
-                        >
-                          {formatRef(ref)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

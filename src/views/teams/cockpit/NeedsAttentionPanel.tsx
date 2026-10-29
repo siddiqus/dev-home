@@ -1,26 +1,26 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
 import type { NeedsAttention, Ref } from "../../../types/teams";
+import { RefRow, Who } from "./RefRow";
+import { refKey, type RefLookup } from "./refLookup";
 import { staleTone } from "./staleTone";
 
 interface Props {
   needsAttention: NeedsAttention;
+  lookup: RefLookup;
   onOpenRef?: (ref: Ref) => void;
-  staleDays?: Map<string, number>;
-  /** PR author by "owner/repo#number", appended to PR refs when known. */
-  prAuthors?: Map<string, string>;
 }
 
-interface SignalRow {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface Group {
   key: keyof NeedsAttention;
   label: string;
   severity: "danger" | "warning" | "secondary";
   refs: Ref[];
 }
 
-export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays, prAuthors }: Props) {
-  const [expandedRow, setExpandedRow] = useState<keyof NeedsAttention | null>(null);
-
-  const rows: SignalRow[] = [
+export function NeedsAttentionPanel({ needsAttention, lookup, onOpenRef }: Props) {
+  const groups: Group[] = [
     { key: "stale", label: "Stale", severity: "danger", refs: needsAttention.stale },
     {
       key: "waitingReview",
@@ -28,117 +28,71 @@ export function NeedsAttentionPanel({ needsAttention, onOpenRef, staleDays, prAu
       severity: "warning",
       refs: needsAttention.waitingReview,
     },
-    { key: "failingCI", label: "Failing CI", severity: "danger", refs: needsAttention.failingCI },
-    {
-      key: "noLinkedPR",
-      label: "No linked PR",
-      severity: "secondary",
-      refs: needsAttention.noLinkedPR,
-    },
-    {
-      key: "unassigned",
-      label: "Unassigned",
-      severity: "secondary",
-      refs: needsAttention.unassigned,
-    },
-    { key: "noEpic", label: "No epic", severity: "secondary", refs: needsAttention.noEpic },
-    {
-      key: "scopeCreep",
-      label: "Scope creep",
-      severity: "warning",
-      refs: needsAttention.scopeCreep,
-    },
-    {
-      key: "offBoard",
-      label: "Off-board PRs",
-      severity: "secondary",
-      refs: needsAttention.offBoard,
-    },
-  ];
+  ].filter((g): g is Group => g.refs.length > 0);
 
-  const visibleRows = rows.filter((row) => row.refs.length > 0);
-  const allClear = visibleRows.length === 0;
-
-  const toggleRow = (key: keyof NeedsAttention) => {
-    setExpandedRow(expandedRow === key ? null : key);
-  };
-
-  const handleRefClick = (ref: Ref) => {
-    onOpenRef?.(ref);
-  };
-
-  const formatRef = (ref: Ref): string => {
-    if (ref.kind === "issue") {
-      return ref.key;
+  // Stale → who and days since the last update; waiting review → the PR
+  // author and its age.
+  const describe = (group: Group["key"], ref: Ref): { title?: string; meta?: ReactNode } => {
+    if (ref.kind === "pr") {
+      const pr = lookup.pr(ref.repo, ref.number);
+      if (!pr) return {};
+      const created = pr.createdAt ? new Date(pr.createdAt).getTime() : NaN;
+      const days = isNaN(created) ? null : Math.max(1, Math.floor((Date.now() - created) / DAY_MS));
+      return {
+        title: pr.title,
+        meta: (
+          <>
+            <Who name={`@${pr.author}`} />
+            {days != null && <span>{days}d</span>}
+          </>
+        ),
+      };
     }
-    const label = `${ref.repo}#${ref.number}`;
-    const author = prAuthors?.get(label);
-    return author ? `${label} (${author})` : label;
-  };
-
-  const getBadgeClass = (severity: "danger" | "warning" | "secondary"): string => {
-    const baseClasses = "badge rounded-pill";
-    switch (severity) {
-      case "danger":
-        return `${baseClasses} bg-danger`;
-      case "warning":
-        return `${baseClasses} bg-warning text-dark`;
-      case "secondary":
-        return `${baseClasses} bg-secondary`;
+    const issue = lookup.issue(ref.key);
+    if (!issue) return {};
+    if (group === "stale") {
+      return {
+        title: issue.summary,
+        meta: (
+          <>
+            {issue.assigneeName && <Who name={issue.assigneeName} />}
+            <span style={{ color: staleTone(issue.daysSinceUpdate) }}>
+              {issue.daysSinceUpdate}d
+            </span>
+          </>
+        ),
+      };
     }
+    return { title: issue.summary, meta: issue.status };
   };
 
   return (
     <div className="border rounded p-3">
       <div className="h6 mb-3">Needs Attention</div>
 
-      {allClear ? (
+      {groups.length === 0 ? (
         <div className="text-muted small">All clear — nothing needs attention</div>
       ) : (
-        <div className="d-flex flex-column gap-2">
-          {visibleRows.map((row) => (
-            <div key={row.key}>
-              <div
-                className="d-flex justify-content-between align-items-center p-2 rounded"
-                style={{ cursor: "pointer", background: "rgba(125, 125, 125, 0.05)" }}
-                onClick={() => toggleRow(row.key)}
-              >
-                <span className="small">{row.label}</span>
-                <span className={getBadgeClass(row.severity)}>{row.refs.length}</span>
-              </div>
-
-              {expandedRow === row.key && (
-                <div className="mt-2 ms-3 d-flex flex-wrap gap-2">
-                  {row.refs.map((ref, idx) => {
-                    const days =
-                      row.key === "stale" && ref.kind === "issue"
-                        ? staleDays?.get(ref.key)
-                        : undefined;
-                    return (
-                      <button
-                        key={idx}
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRefClick(ref);
-                        }}
-                      >
-                        {formatRef(ref)}
-                        {days != null && (
-                          <span
-                            className="ms-1"
-                            style={{ color: staleTone(days), fontSize: "0.75rem" }}
-                          >
-                            · No update {days}d
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+        <div className="d-flex flex-column gap-3">
+          {groups.map((group) => {
+            return (
+              <div key={group.key}>
+                <div className="cockpit-group-head">
+                  <span className={`cockpit-dot bg-${group.severity}`} />
+                  {group.label}
+                  <span className="text-muted fw-normal">{group.refs.length}</span>
                 </div>
-              )}
-            </div>
-          ))}
+                {group.refs.map((ref) => (
+                  <RefRow
+                    key={refKey(ref)}
+                    item={ref}
+                    {...describe(group.key, ref)}
+                    onOpen={onOpenRef}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -15,3 +15,21 @@ export function useStoredState<T extends string>(key: string, initial: T, allowe
   );
   return [value, set] as const;
 }
+
+/** A localStorage-backed numeric id (e.g. a selected team), or null when unset. */
+export function useStoredId(key: string) {
+  const [value, setValue] = useState<number | null>(() => {
+    const raw = localStorage.getItem(key);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isInteger(n) ? n : null;
+  });
+  const set = useCallback(
+    (v: number | null) => {
+      if (v == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, String(v));
+      setValue(v);
+    },
+    [key],
+  );
+  return [value, set] as const;
+}
