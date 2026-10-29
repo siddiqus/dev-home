@@ -316,16 +316,17 @@ const PARTICIPANT_VERB: Record<PRParticipant["state"], string> = {
   COMMENTED: "commented",
 };
 
-const PARTICIPANT_MARK: Record<PRParticipant["state"], string> = {
+const PARTICIPANT_MARK: Record<PRParticipant["state"], React.ReactNode> = {
   APPROVED: "✓",
   CHANGES_REQUESTED: "✗",
-  COMMENTED: "",
+  COMMENTED: <IconMessageCircle size={12} stroke={1.8} aria-hidden="true" />,
 };
 
 /**
- * Who reviewed or commented: a speech-bubble icon then up to `max` logins, each
- * tinted (and prefixed ✓ / ✗) by their standing review state, then "+N". The
- * tooltip lists everyone with what they did. Renders nothing when nobody has.
+ * Who reviewed or commented: up to `max` logins, each tinted and prefixed by
+ * their standing review state (✓ approved, ✗ changes requested, a speech bubble
+ * for comment-only), then "+N". The tooltip lists everyone with what they did.
+ * Renders nothing when nobody has.
  */
 export function Participants({ pr, max = 3 }: { pr: GitHubPR; max?: number }) {
   const people = pr.participants;
@@ -335,7 +336,6 @@ export function Participants({ pr, max = 3 }: { pr: GitHubPR; max?: number }) {
   const title = people.map((p) => `${p.login} ${PARTICIPANT_VERB[p.state]}`).join("\n");
   return (
     <span className="pr-participants" title={title}>
-      <IconMessageCircle size={12} stroke={1.8} aria-hidden="true" />
       {shown.map((p, i) => (
         <span key={p.login} className={`pr-participant pr-participant--${p.state.toLowerCase()}`}>
           {PARTICIPANT_MARK[p.state]}

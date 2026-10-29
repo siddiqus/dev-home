@@ -427,6 +427,32 @@ describe("PRCard next-action tag", () => {
     expect(screen.queryByText(/di/)).toBeNull();
     expect(screen.getByTitle(/di commented/)).toBeInTheDocument();
   });
+
+  it("marks only commenters with a speech bubble, not approvers", () => {
+    const bubble = ".tabler-icon-message-circle";
+    const { container, rerender } = render(
+      <PRCard
+        pr={makePR({ participants: [{ login: "ann", state: "APPROVED" }] })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    expect(container.querySelector(`.pr-participants ${bubble}`)).toBeNull();
+    rerender(
+      <PRCard
+        pr={makePR({
+          participants: [
+            { login: "ann", state: "APPROVED" },
+            { login: "cy", state: "COMMENTED" },
+          ],
+        })}
+        fields={FIELDS.full}
+        onOpen={noop}
+      />,
+    );
+    expect(screen.getByText("cy").querySelector(bubble)).not.toBeNull();
+    expect(screen.getByText("✓ann,").querySelector(bubble)).toBeNull();
+  });
 });
 
 describe("PRCard merge button", () => {

@@ -66,6 +66,12 @@ a.pr-card-ticket:hover {
   color: var(--color-text-muted);
 }
 
+.pr-participant {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .pr-participant--approved {
   color: var(--color-status-success);
 }
