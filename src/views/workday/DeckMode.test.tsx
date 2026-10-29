@@ -93,6 +93,16 @@ function deck(o: Partial<DeckData> = {}): DeckData {
   };
 }
 
+/** DeckMode's phone props: drawer closed, card 1 of 3. */
+const phoneDeck = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
+  railOpen: false,
+  onRailOpenChange: vi.fn(),
+  position: 1,
+  total: 3,
+  tickets: 3,
+  ...o,
+});
+
 function renderDeck(props: Partial<DeckModeProps> = {}) {
   const handlers = {
     onSelect: vi.fn(),
@@ -406,6 +416,96 @@ describe("DeckMode card", () => {
     expect(ghosts).toHaveLength(2);
     ghosts.forEach((g) => expect(g).toHaveAttribute("aria-hidden", "true"));
   });
+
+  it("shows only the selected card on desktop: the carousel is the phone's", () => {
+    const stops = ["CCP-1", "CCP-2", "CCP-3"].map((k) => ticket(k));
+    renderDeck({ deck: deck({ open: stops }), stops });
+    expect(screen.queryByTestId("deck-track")).toBeNull();
+    const titles = [...document.querySelectorAll(".deck-card-title")].map((t) => t.textContent);
+    expect(titles).toEqual(["Title CCP-1"]);
+  });
+});
+
+describe("DeckMode carousel on a phone", () => {
+  const five = () => ["CCP-1", "CCP-2", "CCP-3", "CCP-4", "CCP-5"].map((k) => ticket(k));
+  const slide = (offset: number) =>
+    screen.getByTestId("deck-track").querySelector<HTMLElement>(`[data-offset="${offset}"]`)!;
+
+  it("shows the stops before and after the card, wrapping, as inert pictures", () => {
+    const stops = five();
+    renderDeck({
+      phone: phoneDeck(),
+      deck: deck({ open: stops }),
+      stops,
+    });
+    const offsets = [...screen.getByTestId("deck-track").children].map((c) =>
+      c.getAttribute("data-offset"),
+    );
+    expect(offsets).toEqual(["-2", "-1", "0", "1", "2"]);
+    expect(slide(-1)).toHaveTextContent("Title CCP-5");
+    expect(slide(2)).toHaveTextContent("Title CCP-3");
+    for (const o of [-2, -1, 1, 2]) {
+      const picture = slide(o).firstElementChild!;
+      expect(picture).toHaveAttribute("aria-hidden", "true");
+      expect(picture).toHaveAttribute("inert");
+    }
+    // Only the current card is a card to assistive tech.
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+    expect(screen.getByRole("region")).toHaveAccessibleName(/^CCP-1/);
+  });
+
+  it("steps to a neighbour on a tap: Prev / Next beside it, a jump further out", () => {
+    const stops = five();
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
+    const { onSelect } = renderDeck({
+      phone: phoneDeck(),
+      deck: deck({ open: stops }),
+      stops,
+      onPrev,
+      onNext,
+    });
+    fireEvent.click(slide(1));
+    expect(onNext).toHaveBeenCalledTimes(1);
+    fireEvent.click(slide(-1));
+    expect(onPrev).toHaveBeenCalledTimes(1);
+    fireEvent.click(slide(-2));
+    expect(onSelect).toHaveBeenCalledWith("CCP-4");
+  });
+
+  it("has no neighbours without other stops", () => {
+    renderDeck({
+      phone: phoneDeck(),
+      deck: deck({ open: [ticket("CCP-1")] }),
+    });
+    expect(screen.getByTestId("deck-track").children).toHaveLength(1);
+  });
+
+  it("points the current card's PR list at its own rows, not a neighbour's", () => {
+    const stops = ["CCP-1", "CCP-2", "CCP-3"].map((k, i) =>
+      ticket(k, { prs: [deckPR(10 + i), deckPR(20 + i)] }),
+    );
+    renderDeck({
+      phone: phoneDeck(),
+      deck: deck({ open: stops }),
+      stops,
+      selectedId: "CCP-2",
+    });
+    const list = screen.getByRole("listbox", { name: "Pull requests" });
+    const active = document.getElementById(list.getAttribute("aria-activedescendant")!);
+    expect(list).toContainElement(active);
+  });
+
+  it("locks sideways swiping while the note composer is open", () => {
+    renderDeck({
+      phone: phoneDeck(),
+      deck: deck({ open: five() }),
+      stops: five(),
+      composing: true,
+      onSaveNote: vi.fn(),
+    });
+    expect(screen.getByTestId("deck-track")).toHaveClass("deck-track--locked");
+  });
 });
 
 describe("DeckMode states and motion", () => {
@@ -429,6 +529,18 @@ describe("DeckMode states and motion", () => {
     expect(document.querySelector(".deck-column")).not.toHaveAttribute("data-swipe");
     expect(document.querySelector(".deck-swipe-out")).toBeNull();
   });
+
+  it("marks a phone's track with the move's direction, without the desktop's swipe", () => {
+    renderDeck({ deck: deck({ open: [ticket("CCP-1")] }), swipe: "prev", phone: phoneDeck() });
+    expect(screen.getByTestId("deck-track")).toHaveAttribute("data-swipe", "prev");
+    expect(document.querySelector(".deck-swipe-out")).toBeNull();
+    expect(document.querySelector(".deck-ghost")).toBeNull();
+  });
+
+  it("has no direction on a phone's track without a move", () => {
+    renderDeck({ deck: deck({ open: [ticket("CCP-1")] }), phone: phoneDeck() });
+    expect(screen.getByTestId("deck-track")).not.toHaveAttribute("data-swipe");
+  });
 });
 
 describe("DeckMode on a phone", () => {
@@ -437,16 +549,7 @@ describe("DeckMode on a phone", () => {
       current: [ticket("CCP-1", { current: true })],
       open: [ticket("CCP-2"), ticket("CCP-3")],
     });
-  const phone = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
-    railOpen: false,
-    onRailOpenChange: vi.fn(),
-    onPrev: vi.fn(),
-    onNext: vi.fn(),
-    position: 1,
-    total: 3,
-    tickets: 3,
-    ...o,
-  });
+  const phone = phoneDeck;
   /** A one-finger drag across `el` by (dx, dy). */
   const drag = (el: Element, dx: number, dy: number) => {
     fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });
@@ -454,14 +557,15 @@ describe("DeckMode on a phone", () => {
   };
 
   it("drops the inline rail and steps through cards with Prev / Next and a position", () => {
-    const p = phone();
-    renderDeck({ deck: three(), phone: p });
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
+    renderDeck({ deck: three(), phone: phone(), onPrev, onNext });
     expect(screen.queryByRole("listbox", { name: "Tickets" })).toBeNull();
     expect(screen.getByText("1 / 3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
-    expect(p.onNext).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Previous ticket" }));
-    expect(p.onPrev).toHaveBeenCalledTimes(1);
+    expect(onPrev).toHaveBeenCalledTimes(1);
   });
 
   it("renders the Prev / Next bar outside the deck, so the page's fade-in can't move it", () => {
@@ -469,19 +573,6 @@ describe("DeckMode on a phone", () => {
     const bar = screen.getByRole("button", { name: "Next ticket" }).parentElement!;
     expect(screen.getByTestId("deck-mode")).not.toContainElement(bar);
     expect(bar.parentElement).toBe(document.body);
-  });
-
-  it("swipes the card left for next and right for previous, but not on a scroll", () => {
-    const p = phone();
-    renderDeck({ deck: three(), phone: p });
-    const card = screen.getByRole("region", { name: /CCP-1/ });
-    drag(card, -120, 10);
-    expect(p.onNext).toHaveBeenCalledTimes(1);
-    drag(card, 120, -10);
-    expect(p.onPrev).toHaveBeenCalledTimes(1);
-    drag(card, -40, 260);
-    expect(p.onNext).toHaveBeenCalledTimes(1);
-    expect(p.onPrev).toHaveBeenCalledTimes(1);
   });
 
   it("opens the rail in a drawer, where picking a ticket jumps to it and closes the drawer", () => {

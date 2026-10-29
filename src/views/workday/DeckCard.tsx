@@ -1,3 +1,4 @@
+import { useId } from "react";
 import Button from "react-bootstrap/Button";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
@@ -31,7 +32,6 @@ export interface DeckCardProps {
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-const prRowId = (index: number) => `deck-pr-${index}`;
 
 /** The ticket card (spec §5.4): header, sub-line and PR rows as a listbox. */
 export function DeckCard({
@@ -47,6 +47,9 @@ export function DeckCard({
   onCancelNote,
   onResolveNote,
 }: DeckCardProps) {
+  // Row ids per card: the carousel shows its neighbours' cards too.
+  const rowIds = useId();
+  const prRowId = (index: number) => `${rowIds}pr-${index}`;
   if (ticket.noteItem) {
     return (
       <DeckNoteCard

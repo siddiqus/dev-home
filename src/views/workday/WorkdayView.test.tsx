@@ -1672,6 +1672,14 @@ describe("WorkdayView on a phone", () => {
     expect(next).not.toBe(first);
   });
 
+  it("glides the carousel, not the desktop's card swipe, the way Next moves", () => {
+    renderView({ phone: true, openPRs: [prs[0], second] });
+    expect(screen.getByTestId("deck-track")).not.toHaveAttribute("data-swipe");
+    fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
+    expect(screen.getByTestId("deck-track")).toHaveAttribute("data-swipe", "next");
+    expect(document.querySelector(".deck-ghost")).toBeNull();
+  });
+
   it("leaves Merged recently out of Prev / Next and the position, not the drawer", () => {
     extrasMock.merged = [
       deckPR(1100, "CCP-350 Export fix", "2026-10-01T10:00:00Z", {

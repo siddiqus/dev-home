@@ -445,21 +445,21 @@ export function WorkdayView(props: WorkdayViewProps) {
     rail[0] ??
     null;
   const selectedId = selectedTicket?.id ?? null;
-  // ←/→ (and the phone's swipe and Prev / Next) skip Merged recently: those
-  // tabs are visited by a click. A selected one stays a stop, so stepping off
-  // it goes by rail order.
+  // ←/→ (and the carousel's swipes and the phone's Prev / Next) skip Merged
+  // recently: those tabs are visited by a click. A selected one stays a stop,
+  // so stepping off it goes by rail order.
   const stops = useMemo(
     () => rail.filter((t) => t.id === selectedId || !isMergedTab(t.id)),
     [rail, selectedId],
   );
 
-  // Card swipe (spec §5.4): only explicit navigation swipes: ←/→, n, x, a ⌘K
-  // jump or a rail click record a `navIntent` alongside the selection change.
-  // ←/→ and n carry their own direction, so a wrap-around still swipes the way
-  // the key points; the rest go by rail order. Selection changes without an
-  // intent (a refresh dropping the ticket, `g c` narrowing) and mode switches
-  // don't swipe. The direction is derived during render so the new card mounts
-  // already animating.
+  // Carousel glide (spec §5.4): only explicit navigation glides: ←/→, n, x, a
+  // ⌘K jump, a rail click or a swipe record a `navIntent` alongside the
+  // selection change. ←/→ and n carry their own direction, so a wrap-around
+  // still glides the way the key points; the rest go by rail order. Selection
+  // changes without an intent (a refresh dropping the ticket, `g c` narrowing)
+  // and mode switches don't glide. The direction is derived during render so
+  // the carousel knows where to glide from as the new card renders.
   const railIds = useMemo(() => rail.map((t) => t.id), [rail]);
   const [navIntent, setNavIntent] = useState<{ to: string; dir: SwipeDirection | "rail" } | null>(
     null,
@@ -1162,6 +1162,9 @@ export function WorkdayView(props: WorkdayViewProps) {
                 onCancelNote={cancelNote}
                 onResolveNote={resolveNote ? resolveNoteTab : undefined}
                 swipe={swipe.dir}
+                stops={stops}
+                onPrev={deckKeys.prev}
+                onNext={deckKeys.next}
                 loading={firstLoad}
                 sourceError={sourceErrorText(sourceError)}
                 onRetry={refresh}
@@ -1174,8 +1177,6 @@ export function WorkdayView(props: WorkdayViewProps) {
                     ? {
                         railOpen,
                         onRailOpenChange: setRailOpen,
-                        onPrev: deckKeys.prev,
-                        onNext: deckKeys.next,
                         position: stops.findIndex((t) => t.id === selectedId) + 1,
                         total: stops.length,
                         tickets: rail.length,

@@ -609,6 +609,70 @@
   opacity: 0.8;
 }
 
+/* ---------- Phone carousel (spec §5.4) ----------
+   The selected card and two neighbours each side on a horizontal scroll-snap
+   track, so a swipe is the browser's own scrolling: the card follows the
+   finger, a flick carries, and the snap lands on exactly one card.
+   useDeckCarousel re-centres the track after each move (that's the loop),
+   glides it for Prev / Next and jumps, and sizes and fades each card by its
+   distance from the centre. Desktop keeps the single card and its swipe. */
+.deck-track {
+  /* The card takes the width, less 28px each side where the neighbours show. */
+  --deck-slide-w: calc(100% - 56px);
+  flex: 1;
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  /* The carousel places the view itself as cards come and go at the ends. */
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.deck-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Lead-ins so the outermost cards can centre too. */
+.deck-track::before,
+.deck-track::after {
+  content: "";
+  flex: none;
+  width: calc((100% - var(--deck-slide-w)) / 2);
+}
+
+/* While the note composer is open, swiping can't move the track. */
+.deck-track--locked {
+  overflow-x: hidden;
+}
+
+/* Each card scrolls up and down on its own. */
+.deck-slide {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--deck-slide-w);
+  overflow-y: auto;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  padding: var(--space-2) 0 0;
+}
+
+/* A neighbour doesn't scroll under a thumb on its edge. */
+.deck-slide--peek {
+  overflow-y: hidden;
+  cursor: pointer;
+}
+
+/* Shrinks toward its top edge, so neighbours line up with the current card's top. */
+.deck-slide-card {
+  flex: none;
+  transform-origin: 50% 0;
+}
+
 .deck-card {
   /* PR row columns, shared with the note composer so it lines up with them. */
   --deck-note-icon-w: 16px;
@@ -1322,6 +1386,7 @@ button.deck-rail-row:focus-visible {
 }
 
 /* ---------- Card swipe (spec §5.4) ----------
+   Desktop; the phone's carousel moves its own cards.
    The column is re-keyed on every selection, so each change mounts fresh
    elements and the animation restarts; nothing waits on animationend, and rapid
    presses simply start over. "next" (→, n, or later in rail order): a blank
@@ -1494,9 +1559,9 @@ button.deck-rail-row:focus-visible {
 }
 
 /* ---------- Phone ----------
-   Focus alone under the app's top bar: the card takes the full width, the rail
-   opens as a drawer from the left (☰ in the top bar), and a slim Prev / Next
-   bar is fixed to the bottom of the viewport. */
+   Focus alone under the app's top bar: the carousel takes the full width, the
+   rail opens as a drawer from the left (☰ in the top bar), and a slim Prev /
+   Next bar is fixed to the bottom of the viewport. */
 :root {
   /* The Prev / Next bar's height, before the home-indicator inset. */
   --deck-phone-nav-h: 36px;
@@ -1510,27 +1575,37 @@ button.deck-rail-row:focus-visible {
   height: auto;
 }
 
+/* Out past the page padding to the screen edges, so the neighbours peek in
+   from the edges and a dragged card travels off the screen, not off a margin. */
 .deck-mode--phone {
   flex-direction: column;
+  margin: 0 calc(-1 * var(--space-2));
   border: 0;
   border-radius: 0;
 }
 
-/* The page padding gives the sides; the top leaves room for the ghost cards. */
+/* The track fills the stage; each slide scrolls its own card. */
 .deck-mode--phone .deck-stage {
-  padding: var(--space-3) 0 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.deck-mode--phone .deck-column {
+  width: calc(100% - 2 * var(--space-2));
+  margin-top: var(--space-2);
 }
 
 /* A real spacer, not bottom padding, lets the card's end scroll clear of the
    fixed bar: mobile browsers can leave a scroller's end padding out of its
    scroll height, so the last PR stayed under the bar. */
-.deck-mode--phone .deck-stage::after {
+.deck-mode--phone .deck-slide::after {
   content: "";
   flex: none;
   height: calc(var(--deck-phone-nav-h) + var(--space-4));
 }
 
-/* The stage scrolls a long card as a whole, not a box inside the card. */
+/* The slide scrolls a long card as a whole, not a box inside the card. */
 .deck-mode--phone .deck-card-body {
   max-height: none;
 }

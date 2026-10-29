@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import Button from "react-bootstrap/Button";
 import Offcanvas from "react-bootstrap/Offcanvas";
@@ -7,11 +8,12 @@ import { useSwipe } from "../../hooks/useSwipe";
 import { useBackClose } from "../../hooks/useBackClose";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
-import type { DeckData, DeckPR } from "./deckTypes";
+import { loopWindow, outgoingOffset, type SwipeDirection } from "./deckCarousel";
+import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 import type { MentionItem } from "./types";
+import { useDeckCarousel } from "./useDeckCarousel";
 
-/** Which way the card swipes when the selection changes: "next" enters from the right. */
-export type SwipeDirection = "next" | "prev";
+export type { SwipeDirection };
 
 export interface DeckModeProps {
   deck: DeckData;
@@ -36,8 +38,16 @@ export interface DeckModeProps {
   onSaveNote?(text: string): Promise<void>;
   onCancelNote?(): void;
   onResolveNote?(note: Note): void;
-  /** Swipe direction for the selection change that produced this card; null = no motion. */
+  /** Direction of the selection change that produced this card; null = no motion. */
   swipe?: SwipeDirection | null;
+  /**
+   * The Prev / Next order the phone's carousel loops through (the rail, less
+   * Merged recently); defaults to the selected card alone, with no neighbours.
+   */
+  stops?: DeckTicket[];
+  /** Step to the previous / next stop, wrapping: the phone's bar, swipes and neighbour taps. */
+  onPrev?(): void;
+  onNext?(): void;
   /** First load with no data yet: rail and card skeletons (spec §5.13). */
   loading?: boolean;
   /** Source error banner text for the top of the rail. */
@@ -50,8 +60,8 @@ export interface DeckModeProps {
   /** The big ← previous / next → hint under the card; follows the key-hint toggle. */
   navHints?: boolean;
   /**
-   * Phone layout: the card takes the full width and the rail opens as a drawer
-   * from the left. Swipes and a Prev / Next bar step through the cards.
+   * Phone layout: the carousel takes the full width and the rail opens as a
+   * drawer from the left. A Prev / Next bar steps through the cards too.
    */
   phone?: PhoneDeck;
 }
@@ -59,8 +69,6 @@ export interface DeckModeProps {
 export interface PhoneDeck {
   railOpen: boolean;
   onRailOpenChange(open: boolean): void;
-  onPrev(): void;
-  onNext(): void;
   /** The card's 1-based place among the Prev / Next stops, and how many there are. */
   position: number;
   total: number;
@@ -80,9 +88,22 @@ const LOADING_DECK: DeckData = {
   counts: { tickets: 0, current: 0, unseen: 0 },
 };
 
+const noop = () => {};
+
+/** The card on show, and a card that left the loop, kept beside it until the glide ends. */
+interface Shown {
+  id: string | null;
+  ticket: DeckTicket | null;
+  outgoing: { ticket: DeckTicket; offset: number } | null;
+  /** Where the previous card sits on this card's track: the glide starts there. */
+  from: number | null;
+}
+
 /**
  * Focus mode: the rail and one centred card with two ghost cards behind it
- * (spec §5.1). Stateless; WorkdayView owns selection and keys.
+ * (spec §5.1). On a phone, the card is the centre of a looping carousel, its
+ * neighbours shrunk and faded either side. WorkdayView owns selection and
+ * keys; the carousel only reports where a swipe or a neighbour tap lands.
  */
 export function DeckMode({
   deck,
@@ -105,6 +126,9 @@ export function DeckMode({
   onCancelNote,
   onResolveNote,
   swipe = null,
+  stops,
+  onPrev,
+  onNext,
   loading = false,
   sourceError = null,
   onRetry,
@@ -114,11 +138,7 @@ export function DeckMode({
   navHints = false,
   phone,
 }: DeckModeProps) {
-  // Phone: swiping the card steps through the rail; swiping the drawer left closes it.
-  const swipeCard = useSwipe((s) => {
-    if (s === "left") phone?.onNext();
-    else phone?.onPrev();
-  });
+  // Phone: swiping the drawer left closes it.
   const swipeDrawer = useSwipe((s) => {
     if (s === "left") phone?.onRailOpenChange(false);
   });
@@ -135,6 +155,50 @@ export function DeckMode({
     jiraMention: cardJiraMention ?? found.jiraMention,
   };
   const empty = !loading && deck.current.length === 0 && deck.open.length === 0;
+  const loop = stops ?? (found ? [found] : []);
+
+  // On a move, find where the previous card sits on the new track, so the
+  // glide starts from it. A card that left the loop (a jump, a close) joins
+  // the track on the side it leaves by, until the glide ends.
+  const [shown, setShown] = useState<Shown>(() => ({
+    id: found?.id ?? null,
+    ticket: found,
+    outgoing: null,
+    from: null,
+  }));
+  if (shown.id !== (found?.id ?? null) || shown.ticket !== found) {
+    let { outgoing, from } = shown;
+    if (shown.id !== (found?.id ?? null)) {
+      outgoing = null;
+      from = null;
+      if (swipe && shown.ticket && found) {
+        from = outgoingOffset(loopWindow(loop, found), shown.ticket.id, swipe);
+        if (from === null) {
+          outgoing = { ticket: shown.ticket, offset: swipe === "next" ? -1 : 1 };
+          from = outgoing.offset;
+        }
+      }
+    }
+    setShown({ id: found?.id ?? null, ticket: found, outgoing, from });
+  }
+  const slots = phone && ticket ? loopWindow(loop, ticket, shown.outgoing) : [];
+
+  // A swipe that lands on a neighbour, or a tap on one, steps to it.
+  const goTo = (offset: number) => {
+    if (offset === 1) onNext?.();
+    else if (offset === -1) onPrev?.();
+    else {
+      const slot = slots.find((s) => s.offset === offset);
+      if (slot) onSelect(slot.ticket.id);
+    }
+  };
+  const [track, setTrack] = useState<HTMLDivElement | null>(null);
+  useDeckCarousel(track, {
+    selectedId: found?.id ?? null,
+    from: shown.from,
+    onSettle: goTo,
+    onGlideEnd: () => setShown((s) => (s.outgoing ? { ...s, outgoing: null } : s)),
+  });
   const rail = (select: (id: string) => void, reopen?: (id: string) => void) => (
     <DeckRail
       deck={deck}
@@ -147,6 +211,21 @@ export function DeckMode({
       loading={loading}
       sourceError={sourceError}
       onRetry={onRetry}
+    />
+  );
+  const card = ticket && (
+    <DeckCard
+      ticket={ticket}
+      selectedPrUrl={selectedPrUrl}
+      onSelectPr={onSelectPr}
+      onOpen={onOpen}
+      jiraBaseUrl={jiraBaseUrl}
+      now={now}
+      onOpenNote={onOpenNote}
+      composing={composing}
+      onSaveNote={onSaveNote}
+      onCancelNote={onCancelNote}
+      onResolveNote={onResolveNote}
     />
   );
   // In the drawer, a pick (or a reopen) is a jump: the drawer closes on it.
@@ -174,7 +253,7 @@ export function DeckMode({
       ) : (
         rail(onSelect, onReopen)
       )}
-      <div className="deck-stage" {...(phone ? swipeCard : {})}>
+      <div className="deck-stage">
         {loading && (
           <div className="deck-column" data-testid="deck-card-skeleton" aria-hidden="true">
             <div className="deck-card deck-card--skeleton">
@@ -209,25 +288,50 @@ export function DeckMode({
             </p>
           </div>
         )}
-        {ticket && (
+        {ticket && !phone && (
           // Keyed on the ticket so each new selection restarts the swipe from scratch.
           <div key={ticket.id} className="deck-column" data-swipe={swipe ?? undefined}>
             {swipe && <div className="deck-swipe-out" aria-hidden="true" />}
             <div className="deck-ghost deck-ghost--back" aria-hidden="true" />
             <div className="deck-ghost deck-ghost--mid" aria-hidden="true" />
-            <DeckCard
-              ticket={ticket}
-              selectedPrUrl={selectedPrUrl}
-              onSelectPr={onSelectPr}
-              onOpen={onOpen}
-              jiraBaseUrl={jiraBaseUrl}
-              now={now}
-              onOpenNote={onOpenNote}
-              composing={composing}
-              onSaveNote={onSaveNote}
-              onCancelNote={onCancelNote}
-              onResolveNote={onResolveNote}
-            />
+            {card}
+          </div>
+        )}
+        {ticket && phone && (
+          // Sideways swiping is off while a note is being written, so a swipe
+          // on the text box can't carry the card away.
+          <div
+            ref={setTrack}
+            className={`deck-track${composing ? " deck-track--locked" : ""}`}
+            data-testid="deck-track"
+            data-swipe={swipe ?? undefined}
+          >
+            {slots.map((slot) =>
+              slot.offset === 0 ? (
+                <div key={slot.key} className="deck-slide" data-offset={0}>
+                  <div className="deck-slide-card">{card}</div>
+                </div>
+              ) : (
+                // A neighbour is a picture of its card: inert inside, a tap on it steps there.
+                <div
+                  key={slot.key}
+                  className="deck-slide deck-slide--peek"
+                  data-offset={slot.offset}
+                  onClick={() => goTo(slot.offset)}
+                >
+                  <div className="deck-slide-card" aria-hidden="true" {...{ inert: "" }}>
+                    <DeckCard
+                      ticket={slot.ticket}
+                      selectedPrUrl={null}
+                      onSelectPr={noop}
+                      onOpen={noop}
+                      jiraBaseUrl={jiraBaseUrl}
+                      now={now}
+                    />
+                  </div>
+                </div>
+              ),
+            )}
           </div>
         )}
         {ticket && navHints && !phone && (
@@ -247,13 +351,13 @@ export function DeckMode({
         // transform would anchor it to the page instead.
         createPortal(
           <div className="deck-phone-nav">
-            <Button variant="outline-secondary" aria-label="Previous ticket" onClick={phone.onPrev}>
+            <Button variant="outline-secondary" aria-label="Previous ticket" onClick={onPrev}>
               <IconChevronLeft size={14} aria-hidden="true" /> Prev
             </Button>
             <span className="deck-phone-position">
               {phone.position} / {phone.total}
             </span>
-            <Button variant="outline-secondary" aria-label="Next ticket" onClick={phone.onNext}>
+            <Button variant="outline-secondary" aria-label="Next ticket" onClick={onNext}>
               Next <IconChevronRight size={14} aria-hidden="true" />
             </Button>
           </div>,
