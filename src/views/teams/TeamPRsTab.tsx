@@ -57,7 +57,10 @@ export const TeamPRsTab = forwardRef<TeamPRsTabHandle, TeamPRsTabProps>(function
   { active, configured, teamId, teamName, jiraBaseUrl, jiraIssues, onLoadingChange },
   ref,
 ) {
+  // Open and Merged each report their groups up, so one Collapse all in the
+  // toolbar drives whichever list is showing and stays put across the toggle.
   const prTableRef = useRef<PRTableHandle>(null);
+  const mergedTableRef = useRef<PRTableHandle>(null);
   const [groupState, setGroupState] = useState({ hasGroups: false, allCollapsed: false });
 
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -228,11 +231,13 @@ export const TeamPRsTab = forwardRef<TeamPRsTabHandle, TeamPRsTabProps>(function
           />
         </div>
         <div className="d-flex align-items-center gap-2">
-          {subTab === "open" && groupState.hasGroups && (
+          {groupState.hasGroups && (
             <button
               type="button"
               className="pr-table-collapse-btn pr-toolbar-btn"
-              onClick={() => prTableRef.current?.toggleCollapseAll()}
+              onClick={() =>
+                (subTab === "open" ? prTableRef : mergedTableRef).current?.toggleCollapseAll()
+              }
               title={groupState.allCollapsed ? "Expand all groups" : "Collapse all groups"}
             >
               {groupState.allCollapsed ? <IconFoldDown size={14} /> : <IconFold size={14} />}
@@ -291,10 +296,14 @@ export const TeamPRsTab = forwardRef<TeamPRsTabHandle, TeamPRsTabProps>(function
           </div>
         ) : (
           <PRTable
+            ref={mergedTableRef}
             prs={mergedPRs}
             loading={mergedLoading}
             variant="recently-merged-org"
             jiraBaseUrl={jiraBaseUrl}
+            onCollapseStateChange={(hasGroups, allCollapsed) =>
+              setGroupState({ hasGroups, allCollapsed })
+            }
           />
         )}
       </div>
