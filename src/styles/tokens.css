@@ -14,6 +14,8 @@
   --color-bg-panel: #161b22;
   --color-bg-elevated: #161b22;
   --color-bg-hover: #1c2128;
+  /* Loading skeleton bars; must stand out from --color-bg-elevated (deck cards). */
+  --color-skeleton: #1c2128;
   --color-bg-input: #0d1117;
   --color-bg-titlebar: #010409;
 
@@ -101,6 +103,7 @@
   --color-bg-panel: #ffffff;
   --color-bg-elevated: #f6f8fa;
   --color-bg-hover: #f6f8fa;
+  --color-skeleton: #e6eaef;
   --color-bg-input: #ffffff;
   --color-bg-titlebar: #f6f8fa;
 

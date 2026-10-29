@@ -50,7 +50,7 @@
   height: 1em;
   margin: 0.25em 0;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-hover);
+  background: var(--color-skeleton);
   vertical-align: top;
   animation: jira-drawer-pulse 1.2s ease-in-out infinite;
 }

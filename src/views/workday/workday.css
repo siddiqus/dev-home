@@ -165,7 +165,7 @@
 .workday-skeleton {
   height: 14px;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-hover);
+  background: var(--color-skeleton);
   animation: workday-pulse 1.2s ease-in-out infinite;
 }
 

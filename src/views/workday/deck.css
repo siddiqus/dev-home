@@ -1253,7 +1253,7 @@ button.deck-rail-row:focus-visible {
 .deck-skeleton {
   display: block;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-hover);
+  background: var(--color-skeleton);
   animation: deck-skeleton-pulse 1.2s ease-in-out infinite;
 }
 
