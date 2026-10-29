@@ -714,8 +714,9 @@
   color: var(--color-status-warning);
 }
 
-/* Meta line: muted repo#number · author · age. The repo gives way first
-   (ellipsis, full ref in the title tooltip); the rest never truncates. */
+/* Meta line: muted repo#number · author · reviewers · age. Reviewers give
+   way first, then the repo (ellipsis, full ref in the title tooltip); the
+   number and the rest never truncate. */
 .deck-pr-meta {
   display: flex;
   align-items: center;
@@ -729,6 +730,25 @@
   flex: none;
 }
 
+/* Reviewers take only the room left over (a zero basis, so they never shrink
+   the repo): whole names drop behind an ellipsis. Block, not flex, for the
+   ellipsis. */
+.deck-pr-meta > .pr-participants {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-pr-meta > .pr-participants > * {
+  vertical-align: top;
+}
+
+.deck-pr-meta > .pr-participants > * + * {
+  margin-left: 4px;
+}
+
 /* Updated age and the unseen dot sit at the right end of the meta line. */
 .deck-pr-when {
   display: inline-flex;
@@ -738,9 +758,13 @@
   padding-left: 6px;
 }
 
+/* A grid so the ref's minimum width is its number: only the repo's
+   minmax(0, auto) column can shrink, and the number never slides under the
+   link icons. */
 .deck-pr-ref {
-  display: flex;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, auto) auto;
+  justify-content: start;
 }
 
 .deck-pr-repo {
@@ -748,10 +772,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.deck-pr-ref .deck-pr-number {
-  flex: none;
 }
 
 /* Copy-link and open-on-GitHub, always visible (unlike the List View's hover icons). */
