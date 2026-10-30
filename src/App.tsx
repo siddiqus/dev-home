@@ -436,9 +436,10 @@ export default function App() {
     >
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
+        {/* On a phone, the same 8px side margin as the page below, so its edges line up. */}
         <Container
           fluid
-          className="px-3"
+          className={phone ? "px-2" : "px-3"}
           style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center" }}
         >
           <div ref={setTopBarStart} />

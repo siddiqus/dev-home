@@ -617,8 +617,9 @@
    glides it for Prev / Next and jumps, and sizes and fades each card by its
    distance from the centre. Desktop keeps the single card and its swipe. */
 .deck-track {
-  /* The card takes the width, less 28px each side where the neighbours show. */
-  --deck-slide-w: calc(100% - 56px);
+  /* Each card takes the full width, so the neighbours stay off-screen until a
+     swipe brings them in; the slide's side padding is the card's gutter. */
+  --deck-slide-w: 100%;
   flex: 1;
   min-height: 0;
   align-self: stretch;
@@ -658,7 +659,7 @@
   overflow-y: auto;
   scroll-snap-align: center;
   scroll-snap-stop: always;
-  padding: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-2) 0;
 }
 
 /* A neighbour doesn't scroll under a thumb on its edge. */
@@ -1575,8 +1576,8 @@ button.deck-rail-row:focus-visible {
   height: auto;
 }
 
-/* Out past the page padding to the screen edges, so the neighbours peek in
-   from the edges and a dragged card travels off the screen, not off a margin. */
+/* Out past the page padding to the screen edges, so the card gets the width
+   and a dragged card travels off the screen, not off a margin. */
 .deck-mode--phone {
   flex-direction: column;
   margin: 0 calc(-1 * var(--space-2));
@@ -1603,6 +1604,12 @@ button.deck-rail-row:focus-visible {
   content: "";
   flex: none;
   height: calc(var(--deck-phone-nav-h) + var(--space-4));
+}
+
+/* Flat on phones: the card nearly fills the screen, so there's nothing for a
+   lift to separate it from, and the shadow just smudges its edges. */
+.deck-mode--phone .deck-card {
+  box-shadow: none;
 }
 
 /* The slide scrolls a long card as a whole, not a box inside the card. */
