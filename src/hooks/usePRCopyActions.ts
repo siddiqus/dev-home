@@ -1,13 +1,15 @@
 import { useCallback } from "react";
-import { useToast } from "../components/Toast";
+import { useToast, type ToastState } from "../components/Toast";
 import { copyText } from "../utils/clipboard";
 
 /**
  * Clipboard actions for PR rows, confirmed with a toast. Render
- * `<Toast {...toast} />` once alongside the rows.
+ * `<Toast {...toast} />` once alongside the rows, or pass a toast that's
+ * already rendered higher up.
  */
-export function usePRCopyActions() {
-  const toast = useToast();
+export function usePRCopyActions(external?: ToastState) {
+  const own = useToast();
+  const toast = external ?? own;
   const showToast = toast.show;
 
   const copy = useCallback(

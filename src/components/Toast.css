@@ -24,6 +24,27 @@
   transform: translateX(-50%) translateY(0);
 }
 
+/* With an action (Undo), the toast takes clicks while it shows. */
+.app-toast--action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.app-toast--action.is-visible {
+  pointer-events: auto;
+}
+
+.app-toast-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .app-toast--danger {
   background: var(--color-status-danger);
 }

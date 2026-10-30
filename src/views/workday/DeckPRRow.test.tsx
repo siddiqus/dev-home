@@ -1,10 +1,22 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import { ViewerLoginContext } from "../../context/ViewerLoginContext";
 import { MergeProvider } from "../../context/MergeContext";
+import { commentCounts } from "../../utils/commentCounts";
 import { DeckPRRow } from "./DeckPRRow";
 import type { DeckPR, Signal } from "./deckTypes";
+
+vi.mock("../../utils/commentCounts", () => ({ commentCounts: vi.fn() }));
+vi.mock("../../services/commentsRead", () => ({
+  useCommentsReadAt: () => "2026-10-13T00:00:00Z",
+}));
+const mockCounts = vi.mocked(commentCounts);
+
+beforeEach(() => {
+  mockCounts.mockReset();
+  mockCounts.mockReturnValue(null);
+});
 
 const NOW = new Date("2026-10-14T12:00:00Z");
 
@@ -42,7 +54,7 @@ function item(p: Partial<GitHubPR>, signals: Signal[]): DeckPR {
 function renderRow(row: DeckPR) {
   const onSelect = vi.fn();
   const onOpen = vi.fn();
-  render(
+  const { container } = render(
     <ViewerLoginContext.Provider value="me">
       <MergeProvider>
         <DeckPRRow
@@ -57,7 +69,7 @@ function renderRow(row: DeckPR) {
       </MergeProvider>
     </ViewerLoginContext.Provider>,
   );
-  return { onSelect, onOpen };
+  return { onSelect, onOpen, container };
 }
 
 describe("DeckPRRow merge button", () => {
@@ -83,5 +95,37 @@ describe("DeckPRRow merge button", () => {
     );
     expect(screen.getByText("✓ Approved · merge when CI passes")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
+  });
+});
+
+describe("DeckPRRow comment count", () => {
+  const signals = (n: number): Signal[] =>
+    Array.from({ length: n }, (_, i) => ({ label: `signal ${i}`, tone: "warning" as const }));
+  const chips = (container: HTMLElement) =>
+    [...container.querySelectorAll(".deck-pr-signals > *")].map((c) => c.textContent);
+
+  it("ends the signals row, after the +N it's never folded into", () => {
+    mockCounts.mockReturnValue({ total: 12, unread: 3, unreadAtLeast: false });
+    const { container } = renderRow(item({ checks_status: "PENDING" }, signals(6)));
+    expect(chips(container)).toEqual([
+      "signal 0",
+      "signal 1",
+      "signal 2",
+      "signal 3",
+      "+2",
+      "12 · 3 new",
+    ]);
+  });
+
+  it("brings the signals row along when it's the only thing to show", () => {
+    mockCounts.mockReturnValue({ total: 4, unread: 0, unreadAtLeast: false });
+    const { container } = renderRow(item({}, []));
+    expect(chips(container)).toEqual(["4"]);
+  });
+
+  it("leaves no empty row without comments or signals", () => {
+    mockCounts.mockReturnValue({ total: 0, unread: 0, unreadAtLeast: false });
+    const { container } = renderRow(item({}, []));
+    expect(container.querySelector(".deck-pr-signals")).toBeNull();
   });
 });

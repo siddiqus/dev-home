@@ -1,0 +1,29 @@
+/* Comment counts and what's new since the last look: the signals-row chip,
+   and the accent text and pill shared with the PR modal and its Comments tab. */
+.comment-count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-count-chip svg {
+  flex-shrink: 0;
+}
+
+/* Only the unread part carries the accent: text in a label, a pill elsewhere. */
+.comment-count-new {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.comment-new-pill {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}

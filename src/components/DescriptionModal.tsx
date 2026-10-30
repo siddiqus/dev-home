@@ -1,5 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
+import { useOptionalNotes } from "../context/NotesContext";
+import { notesForPr } from "../utils/prNotes";
 import { prAction, restatedReasons } from "../utils/prAction";
 import Modal from "react-bootstrap/Modal";
 import Row from "react-bootstrap/Row";
@@ -8,14 +10,20 @@ import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
 import { IconChevronRight, IconCopy, IconExternalLink, IconX } from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
-import type { GitHubPR } from "../types";
+import type { GitHubPR, PRComments as PRCommentsData } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { MergeButton } from "./MergeButton";
 import { PrNotesPanel } from "./PrNotesPanel";
-import { Toast } from "./Toast";
+import { PRComments } from "./PRComments";
+import { NewPill, newLabel, totalLabel } from "./CommentCountChip";
+import { SegmentedTabs } from "./SegmentedTabs";
+import { Toast, toastProps, useToast } from "./Toast";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { useBackClose } from "../hooks/useBackClose";
 import { usePRCopyActions } from "../hooks/usePRCopyActions";
+import { usePRComments } from "../hooks/usePRComments";
+import { commentsReadAt, markCommentsRead, useCommentsReadAt } from "../services/commentsRead";
+import { commentCounts, loadedCommentCounts, type CommentCounts } from "../utils/commentCounts";
 import { checkRunDuration, formatRelativeTime } from "../utils/time";
 import { ticketKeyOf } from "../utils/tickets";
 import { categorizeOpenPR } from "../utils/prCategories";
@@ -59,6 +67,12 @@ function checksSummary(checks: CheckRunInfo[]): string {
   for (const c of checks) counts[Math.min(CHECK_SORT_ORDER[c.status] ?? 3, 3)]++;
   return CHECK_RANKS.flatMap((rank, i) => (counts[i] ? [`${counts[i]} ${rank}`] : [])).join(" · ");
 }
+
+/**
+ * What a PR modal shows in place: the description or the review comments (the
+ * desktop description column's tabs), or, on a phone, the notes too.
+ */
+type DescriptionTab = "description" | "comments" | "notes";
 
 function columnWidths(hasChecks: boolean, hasNotes: boolean) {
   if (!hasNotes) {
@@ -141,6 +155,105 @@ function PhoneChecks({ checks }: { checks: CheckRunInfo[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/**
+ * The Comments tab's counts: exact once the comments are loaded, else the
+ * list's. A truncated load is only some of them, so it neither drops below the
+ * list's numbers (140 turning into 100) nor claims its new count is exact.
+ */
+function tabCounts(
+  list: CommentCounts | null,
+  loaded: PRCommentsData | null,
+  readAt: string,
+  viewer: string | null,
+): CommentCounts | null {
+  if (!loaded) return list;
+  const counts = loadedCommentCounts(loaded, readAt, viewer);
+  if (!loaded.truncated) return counts;
+  return {
+    total: Math.max(list?.total ?? 0, counts.total),
+    totalAtLeast: true,
+    unread: Math.max(list?.unread ?? 0, counts.unread),
+    unreadAtLeast: true,
+  };
+}
+
+/**
+ * What a look at the loaded comments has read up to: the newest one shown, not
+ * now. Comments can be served from the session cache, so one posted since they
+ * were fetched stays new. Null when there's nothing to read.
+ */
+function readThrough(comments: PRCommentsData): string | null {
+  const times = [...comments.threads.flatMap((t) => t.comments), ...comments.conversation]
+    .map((c) => new Date(c.created_at).getTime())
+    .filter((t) => !Number.isNaN(t));
+  return times.length ? new Date(Math.max(...times)).toISOString() : null;
+}
+
+/**
+ * Phone: the PR's sections as chips under the top bar, each its own page, so
+ * the comments never sit below a long description. Comments counts comments,
+ * with the new ones in an accent pill; Notes counts unresolved notes.
+ */
+function PhoneTabs({
+  tab,
+  comments,
+  openNotes,
+  onChange,
+}: {
+  tab: DescriptionTab;
+  comments: CommentCounts | null;
+  openNotes?: number;
+  onChange: (tab: DescriptionTab) => void;
+}) {
+  const unread = comments?.unread ? newLabel(comments) : undefined;
+  const chips: {
+    key: DescriptionTab;
+    label: string;
+    count?: number | string;
+    /** The accent "N new" pill after the count. */
+    pill?: string;
+    spoken?: string;
+  }[] = [
+    { key: "description", label: "Overview" },
+    {
+      key: "comments",
+      label: "Comments",
+      count: comments?.total ? totalLabel(comments) : undefined,
+      pill: unread,
+      spoken: comments?.total
+        ? `Comments, ${comments.totalAtLeast ? `${totalLabel(comments)} comments` : plural(comments.total, "comment")}${unread ? `, ${unread}` : ""}`
+        : undefined,
+    },
+    {
+      key: "notes",
+      label: "Notes",
+      count: openNotes,
+      spoken: openNotes ? `Notes, ${openNotes} open` : undefined,
+    },
+  ];
+  return (
+    <div className="modal-phone-tabs" role="tablist">
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          role="tab"
+          aria-selected={tab === chip.key}
+          aria-label={chip.spoken}
+          className={`modal-phone-tab${tab === chip.key ? " active" : ""}`}
+          onClick={() => onChange(chip.key)}
+        >
+          {chip.label}
+          {!!chip.count && <span className="modal-phone-tab-count">{chip.count}</span>}
+          {chip.pill && <NewPill>{chip.pill}</NewPill>}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -336,9 +449,80 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   const hasChecks = !!sortedChecks;
   const hasNotes = !!pr;
   const widths = columnWidths(hasChecks, hasNotes);
-  // Phone: one scroll (checks summary, description, notes) under a slim top bar.
+  // Phone: a slim top bar, then for a PR the Overview / Comments / Notes chips,
+  // each a page of the one scroll.
   const phone = useIsPhone();
   useBackClose(show, onHide);
+
+  // Each opening of a PR starts on its description. The tab is stored with the
+  // PR it belongs to and reset during render, not in an effect, so a newly
+  // opened PR never paints (or starts fetching for) the previous PR's tab.
+  // `scroll` keeps each phone tab's place in the shared scroll. `readSince` is
+  // when the viewer had last looked at the comments, read as the Comments tab
+  // first opens this time (null until then).
+  const openKey = show && pr ? `${pr.repo_full_name}#${pr.number}` : null;
+  const [tabState, setTabState] = useState<{
+    key: string | null;
+    tab: DescriptionTab;
+    scroll: Partial<Record<DescriptionTab, number>>;
+    readSince: string | null;
+  }>({ key: openKey, tab: "description", scroll: {}, readSince: null });
+  if (tabState.key !== openKey) {
+    setTabState({ key: openKey, tab: "description", scroll: {}, readSince: null });
+  }
+  const tab = tabState.key === openKey ? tabState.tab : "description";
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const switchTab = (next: DescriptionTab) => {
+    // The Comments tab's first opening keeps the old marker, so what was new
+    // stays tagged while it's read (the effect below then marks it read).
+    const readSince = pr && next === "comments" ? commentsReadAt(pr) : null;
+    setTabState((s) => ({
+      key: openKey,
+      tab: next,
+      scroll: { ...s.scroll, [s.tab]: bodyRef.current?.scrollTop ?? 0 },
+      readSince: s.readSince ?? readSince,
+    }));
+  };
+  const restoreTop = tabState.scroll[tab] ?? 0;
+  useLayoutEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = restoreTop;
+  }, [tab, restoreTop]);
+
+  // Fetched on demand, when the Comments tab opens.
+  const prComments = usePRComments(pr, !!pr && tab === "comments");
+  // The comments' toast lives here, not in the tab, so an Undo or a refused
+  // resolve still shows after switching tabs.
+  const commentsToast = useToast();
+  // Closing the modal or opening another PR drops it, so one PR's Undo can't
+  // show up (and act) in the next PR's modal.
+  const hideCommentsToast = commentsToast.hide;
+  useEffect(() => {
+    hideCommentsToast();
+  }, [openKey, hideCommentsToast]);
+  // Only opening the Comments tab counts as a look, and only once its comments
+  // have loaded, so a failed load leaves them unread. Once per open.
+  const loadedComments = prComments.comments;
+  const markedThisOpen = useRef(false);
+  useEffect(() => {
+    markedThisOpen.current = false;
+  }, [openKey]);
+  useEffect(() => {
+    if (!pr || tab !== "comments" || !loadedComments || markedThisOpen.current) return;
+    markedThisOpen.current = true;
+    const through = readThrough(loadedComments);
+    if (through) markCommentsRead(pr, through);
+  }, [pr, tab, loadedComments]);
+  // The tab labels' counts, against the live marker, so "new" goes once the
+  // tab has marked them read.
+  const liveReadAt = useCommentsReadAt(pr);
+  const viewer = useContext(ViewerLoginContext) || null;
+  const counts =
+    !pr || liveReadAt === null
+      ? null
+      : tabCounts(commentCounts(pr, liveReadAt, viewer), loadedComments, liveReadAt, viewer);
+  const notesApi = useOptionalNotes();
+  const openNotes =
+    pr && notesApi ? notesForPr(notesApi.notes, pr).filter((n) => n.resolved === 0).length : 0;
 
   const descriptionBody =
     loading && !description ? (
@@ -353,6 +537,43 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         No description provided.
       </p>
     );
+
+  const titleSection = (
+    <div
+      className="modal-title-section"
+      style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        {pr ? (
+          <PrModalHeader pr={pr} jiraBaseUrl={jiraBaseUrl} url={url} />
+        ) : (
+          <>
+            <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
+            {subtitle && (
+              <div
+                className="text-secondary-custom"
+                style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
+              >
+                {subtitle}
+              </div>
+            )}
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
+                className="text-truncate-custom"
+                title={url}
+              >
+                {url}
+              </a>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <Modal
@@ -369,60 +590,89 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           onHide={onHide}
         />
       )}
-      <Modal.Body className="modal-tab-content">
-        <div
-          className="modal-title-section"
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
-        >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            {pr ? (
-              <PrModalHeader pr={pr} jiraBaseUrl={jiraBaseUrl} url={url} />
-            ) : (
-              <>
-                <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
-                {subtitle && (
-                  <div
-                    className="text-secondary-custom"
-                    style={{ fontSize: "0.75rem", fontWeight: 400, marginTop: 2 }}
-                  >
-                    {subtitle}
-                  </div>
-                )}
-                {url && (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: "0.75rem", marginTop: 4, display: "inline-block" }}
-                    className="text-truncate-custom"
-                    title={url}
-                  >
-                    {url}
-                  </a>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+      {phone && pr && (
+        <PhoneTabs tab={tab} comments={counts} openNotes={openNotes} onChange={switchTab} />
+      )}
+      <Modal.Body className="modal-tab-content" ref={bodyRef}>
+        {!phone && titleSection}
 
         {phone ? (
+          // Panels stay mounted while hidden, so a half-written note survives a tab switch.
           <>
-            {hasChecks && <PhoneChecks checks={sortedChecks!} />}
-            <section className="modal-phone-section">
-              <div className="modal-body-section-header">Description</div>
-              {descriptionBody}
-            </section>
-            {pr && (
+            <div
+              className="modal-phone-panel"
+              role={pr ? "tabpanel" : undefined}
+              hidden={!!pr && tab !== "description"}
+            >
+              {titleSection}
+              {hasChecks && <PhoneChecks checks={sortedChecks!} />}
               <section className="modal-phone-section">
-                <PrNotesPanel pr={pr} />
+                <div className="modal-body-section-header">Description</div>
+                {descriptionBody}
               </section>
+            </div>
+            {pr && (
+              <div className="modal-phone-panel" role="tabpanel" hidden={tab !== "comments"}>
+                <PRComments
+                  layout="phone"
+                  pr={pr}
+                  {...prComments}
+                  toast={commentsToast}
+                  readSince={tabState.readSince}
+                />
+              </div>
+            )}
+            {pr && (
+              <div className="modal-phone-panel" role="tabpanel" hidden={tab !== "notes"}>
+                <PrNotesPanel pr={pr} />
+              </div>
             )}
           </>
         ) : (
           <Row className="g-0 modal-split-layout">
             <Col md={widths.desc} className="modal-description-col">
-              <div className="modal-body-section-header">Description</div>
-              {descriptionBody}
+              {pr ? (
+                <>
+                  <SegmentedTabs
+                    tabs={[
+                      { key: "description", label: "Description" },
+                      {
+                        key: "comments",
+                        label: (
+                          <>
+                            Comments
+                            {!!counts?.total && ` ${totalLabel(counts)}`}
+                            {!!counts?.unread && (
+                              <>
+                                {" · "}
+                                <span className="comment-count-new">{newLabel(counts)}</span>
+                              </>
+                            )}
+                          </>
+                        ),
+                      },
+                    ]}
+                    activeKey={tab === "comments" ? "comments" : "description"}
+                    onChange={(key) => switchTab(key as DescriptionTab)}
+                  />
+                  {tab === "comments" ? (
+                    <PRComments
+                      layout="desktop"
+                      pr={pr}
+                      {...prComments}
+                      toast={commentsToast}
+                      readSince={tabState.readSince}
+                    />
+                  ) : (
+                    descriptionBody
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="modal-body-section-header">Description</div>
+                  {descriptionBody}
+                </>
+              )}
             </Col>
             {hasChecks && (
               <Col md={widths.checks} className="modal-checks-col">
@@ -442,6 +692,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           </Row>
         )}
       </Modal.Body>
+
+      {pr && <Toast {...toastProps(commentsToast)} />}
 
       {!phone && (
         <Modal.Footer>

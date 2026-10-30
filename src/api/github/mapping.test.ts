@@ -201,3 +201,148 @@ describe("deriveViewerReview", () => {
     ).toBe(false);
   });
 });
+
+describe("mapGraphQLPr comment counts", () => {
+  const c = (login: string, createdAt: string) => ({ createdAt, author: { login } });
+  const conn = (nodes: any[], totalCount?: number) => ({
+    ...(totalCount === undefined ? {} : { totalCount }),
+    nodes,
+  });
+
+  it("leaves the fields undefined when the query fetched no comments", () => {
+    const pr = mapGraphQLPr({ reviewThreads: { nodes: [{ comments: conn([], 4) }] } });
+    expect(pr.comment_count).toBeUndefined();
+    expect(pr.recent_comments).toBeUndefined();
+    expect(pr.comments_complete_after).toBeUndefined();
+  });
+
+  it("totals conversation and thread comments, falling back to the fetched nodes", () => {
+    const node = {
+      comments: conn([c("bob", "2026-10-01T00:00:00Z")], 1),
+      reviewThreads: {
+        nodes: [
+          { comments: conn([c("carol", "2026-10-02T00:00:00Z")], 1) },
+          { comments: conn([c("bob", "2026-10-03T00:00:00Z"), c("me", "2026-10-04T00:00:00Z")]) },
+          { comments: null },
+        ],
+      },
+    };
+    expect(mapGraphQLPr(node).comment_count).toBe(4);
+    expect(mapGraphQLPr({ comments: conn([]) }).comment_count).toBe(0);
+  });
+
+  it("lists recent non-bot comments with a time and an author", () => {
+    const node = {
+      comments: conn(
+        [
+          c("bob", "2026-10-01T00:00:00Z"),
+          c("github-actions[bot]", "2026-10-01T01:00:00Z"),
+          { createdAt: "2026-10-01T02:00:00Z", author: null },
+          { author: { login: "carol" } },
+        ],
+        4,
+      ),
+      reviewThreads: {
+        nodes: [
+          {
+            comments: conn(
+              [
+                c("dave", "2026-10-02T00:00:00Z"),
+                // An app bot: GraphQL gives no "[bot]" suffix, only the typename.
+                {
+                  createdAt: "2026-10-02T01:00:00Z",
+                  author: { __typename: "Bot", login: "coderabbitai" },
+                },
+              ],
+              2,
+            ),
+          },
+        ],
+      },
+    };
+    const pr = mapGraphQLPr(node);
+    expect(pr.recent_comments).toEqual([
+      { at: "2026-10-01T00:00:00Z", by: "bob" },
+      { at: "2026-10-02T00:00:00Z", by: "dave" },
+    ]);
+    expect(pr.comment_count).toBe(6);
+  });
+
+  it("has no completeness bound when nothing was cut off", () => {
+    const node = {
+      comments: conn([c("bob", "2026-10-01T00:00:00Z")], 1),
+      reviewThreads: {
+        totalCount: 1,
+        nodes: [{ comments: conn([c("bob", "2026-10-02T00:00:00Z")], 1) }],
+      },
+    };
+    const pr = mapGraphQLPr(node);
+    expect(pr.comments_complete_after).toBeUndefined();
+    expect(pr.comment_threads_cut_off).toBeUndefined();
+  });
+
+  it("flags threads beyond the list's limit", () => {
+    const node = {
+      comments: conn([], 0),
+      reviewThreads: {
+        totalCount: 51,
+        nodes: [{ comments: conn([c("bob", "2026-10-02T00:00:00Z")], 1) }],
+      },
+    };
+    expect(mapGraphQLPr(node).comment_threads_cut_off).toBe(true);
+    // No thread total selected: nothing to compare against.
+    expect(
+      mapGraphQLPr({ ...node, reviewThreads: { nodes: node.reviewThreads.nodes } })
+        .comment_threads_cut_off,
+    ).toBeUndefined();
+  });
+
+  it("bounds completeness by a cut-off connection's oldest fetched comment, bots included", () => {
+    const node = {
+      comments: conn(
+        [c("renovate[bot]", "2026-10-05T00:00:00Z"), c("bob", "2026-10-06T00:00:00Z")],
+        30,
+      ),
+    };
+    expect(mapGraphQLPr(node).comments_complete_after).toBe("2026-10-05T00:00:00Z");
+  });
+
+  it("takes the latest bound across cut-off connections", () => {
+    const node = {
+      comments: conn([c("bob", "2026-10-05T00:00:00Z")], 25),
+      reviewThreads: {
+        nodes: [
+          // Cut off, oldest fetched is the latest bound.
+          {
+            comments: conn(
+              [c("carol", "2026-10-08T00:00:00Z"), c("bob", "2026-10-09T00:00:00Z")],
+              7,
+            ),
+          },
+          // Complete: its old comment sets no bound.
+          { comments: conn([c("dave", "2026-10-01T00:00:00Z")], 1) },
+          // Cut off, but earlier.
+          { comments: conn([c("eve", "2026-10-07T00:00:00Z")], 4) },
+        ],
+      },
+    };
+    const pr = mapGraphQLPr(node);
+    expect(pr.comments_complete_after).toBe("2026-10-08T00:00:00Z");
+    expect(pr.comment_count).toBe(37);
+  });
+
+  it("keeps review-plate signals unchanged by their light threads", () => {
+    // REVIEW_SEARCH_QUERY threads carry no isResolved, and review PRs map without a viewer.
+    const node = {
+      author: { login: "alice" },
+      comments: conn([c("alice", "2026-10-01T00:00:00Z")], 1),
+      reviewThreads: {
+        nodes: [{ comments: conn([c("bob", "2026-10-02T00:00:00Z")], 1) }],
+      },
+    };
+    const pr = mapGraphQLPr(node);
+    expect(pr.unresolved_thread_count).toBe(0);
+    expect(pr.your_turn).toBe(false);
+    expect(pr.participants).toEqual([{ login: "bob", state: "COMMENTED" }]);
+  });
+});

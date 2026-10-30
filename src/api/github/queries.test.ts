@@ -60,3 +60,47 @@ describe("merged-PR query", () => {
     expect(SEARCH_MERGED_PRS_QUERY).not.toMatch(/\breviews\(/);
   });
 });
+
+describe("comment counts", () => {
+  /** The text of `field(...) { ... }` in `query`, braces balanced. */
+  const block = (query: string, field: string) => {
+    const start = query.indexOf(`${field}(`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    let depth = 0;
+    for (let i = query.indexOf("{", start); i < query.length; i++) {
+      if (query[i] === "{") depth++;
+      else if (query[i] === "}" && --depth === 0) return query.slice(start, i + 1);
+    }
+    throw new Error(`unbalanced ${field}`);
+  };
+
+  // mapGraphQLPr totals totalCounts and reads createdAt + author for unread counts;
+  // __typename catches app bots (no "[bot]" suffix in GraphQL logins).
+  it.each([
+    ["REVIEW_SEARCH_QUERY", REVIEW_SEARCH_QUERY],
+    ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
+  ])("%s selects totals, times and authors of comments and thread comments", (_name, query) => {
+    for (const field of ["comments", "reviewThreads"]) {
+      const sel = block(query, field);
+      expect(sel).toMatch(/\btotalCount\b/);
+      expect(sel).toMatch(/\bcreatedAt\b/);
+      expect(sel).toMatch(/author \{ __typename login \}/);
+    }
+  });
+
+  // A thread count above the fetched threads flags counts as incomplete.
+  it.each([
+    ["REVIEW_SEARCH_QUERY", REVIEW_SEARCH_QUERY],
+    ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
+  ])("%s selects the total thread count", (_name, query) => {
+    expect(query).toMatch(/reviewThreads\(last: \d+\) \{\s*totalCount\b/);
+  });
+
+  it("keeps the review search's threads light", () => {
+    // The review plates are latency-sensitive; they need no thread state.
+    const threads = block(REVIEW_SEARCH_QUERY, "reviewThreads");
+    expect(threads).not.toMatch(/\bisResolved\b/);
+    expect(threads).toMatch(/reviewThreads\(last: 30\)/);
+    expect(threads).toMatch(/comments\(last: 2\)/);
+  });
+});

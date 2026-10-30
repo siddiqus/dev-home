@@ -6,10 +6,12 @@ import {
   clearRequiredContextsCache,
   getMergedPrs,
   getOrgMembers,
+  getPrComments,
   getPrDetail,
   getPrs,
   getReviewedSince,
   getReviews,
+  setReviewThreadResolved,
 } from "./index";
 
 useFetchAdapter();
@@ -147,6 +149,47 @@ describe("getPrDetail", () => {
     });
     const { pr } = await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(pr).toMatchObject({ number: 7, repo_full_name: "test-org/app", state: "open" });
+  });
+});
+
+describe("getPrComments", () => {
+  it("queries the PR's comments and maps them", async () => {
+    adapter.mockImplementation(async (config: any) =>
+      ok(config, {
+        data: {
+          repository: {
+            pullRequest: {
+              reviewThreads: { pageInfo: { hasPreviousPage: true }, nodes: [] },
+              comments: { pageInfo: { hasPreviousPage: false }, nodes: [] },
+              reviews: { pageInfo: { hasPreviousPage: false }, nodes: [] },
+            },
+          },
+        },
+      }),
+    );
+    await expect(getPrComments({ owner: "test-org", repo: "app", number: 7 })).resolves.toEqual({
+      threads: [],
+      conversation: [],
+      truncated: true,
+    });
+    const [body] = graphqlBodies();
+    expect(body.query).toContain("query PRComments");
+    // Newest threads and conversation items win; older ones only flag truncation.
+    for (const field of ["reviewThreads", "comments", "reviews"]) {
+      expect(body.query).toContain(`${field}(last: 100)`);
+    }
+    expect(body.variables).toEqual({ owner: "test-org", repo: "app", number: 7 });
+  });
+
+  it("returns nothing when the pull request is missing", async () => {
+    adapter.mockImplementation(async (config: any) =>
+      ok(config, { data: { repository: { pullRequest: null } } }),
+    );
+    await expect(getPrComments({ owner: "test-org", repo: "app", number: 7 })).resolves.toEqual({
+      threads: [],
+      conversation: [],
+      truncated: false,
+    });
   });
 });
 
@@ -344,5 +387,42 @@ describe("getReviewedSince", () => {
     expect(reviews.map((r) => [r.pr.number, r.state, r.submittedAt])).toEqual([
       [1, "APPROVED", "2026-10-08T12:00:00Z"],
     ]);
+  });
+});
+
+describe("setReviewThreadResolved", () => {
+  const thread = (isResolved: boolean, isOutdated = false) => ({
+    id: "T1",
+    isResolved,
+    isOutdated,
+    viewerCanResolve: !isResolved,
+    viewerCanUnresolve: isResolved,
+  });
+
+  it("resolves a thread and returns its status after", async () => {
+    adapter.mockImplementation(async (config: any) =>
+      ok(config, { data: { resolveReviewThread: { thread: thread(true) } } }),
+    );
+    await expect(setReviewThreadResolved({ threadId: "T1", resolved: true })).resolves.toEqual({
+      state: "resolved",
+      can_resolve: false,
+      can_unresolve: true,
+    });
+    const [body] = graphqlBodies();
+    expect(body.query).toContain("resolveReviewThread(");
+    expect(body.query).not.toContain("unresolveReviewThread");
+    expect(body.variables).toEqual({ threadId: "T1" });
+  });
+
+  it("unresolves a thread, which may come back outdated", async () => {
+    adapter.mockImplementation(async (config: any) =>
+      ok(config, { data: { unresolveReviewThread: { thread: thread(false, true) } } }),
+    );
+    await expect(setReviewThreadResolved({ threadId: "T1", resolved: false })).resolves.toEqual({
+      state: "outdated",
+      can_resolve: true,
+      can_unresolve: false,
+    });
+    expect(graphqlBodies()[0].query).toContain("unresolveReviewThread(");
   });
 });

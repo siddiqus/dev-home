@@ -1,4 +1,4 @@
-import type { PRParticipant, ReviewState } from "../../types";
+import type { GitHubPR, PRParticipant, RecentComment, ReviewState } from "../../types";
 import { computeChecksStatus, findOptionalFailures, latestContexts } from "./checks";
 
 /**
@@ -215,6 +215,55 @@ export function countUnresolvedThreads(node: any): number {
 }
 
 /**
+ * Comment data for the list chips (see commentCounts), from the issue comments
+ * and each fetched thread's comments: GitHub's totalCounts, the fetched non-bot
+ * comments (by typename, which catches app bots, or by name), and
+ * `comments_complete_after`. A connection whose totalCount exceeds what it
+ * returned hid older comments, all before its oldest fetched one (bots count:
+ * they fill the window too); the latest such time bounds every gap. Threads
+ * past the thread list's own `last:` limit can't be bounded that way (an old
+ * thread may hold a new reply), so they only set `comment_threads_cut_off`;
+ * their comments are missing from the total. Empty when the query fetched no
+ * comments.
+ */
+export function deriveCommentData(
+  node: any,
+): Pick<
+  GitHubPR,
+  "comment_count" | "recent_comments" | "comments_complete_after" | "comment_threads_cut_off"
+> {
+  if (!node.comments) return {};
+  const threads: any[] = (node.reviewThreads?.nodes || []).filter(Boolean);
+  const connections = [node.comments, ...threads.map((t) => t.comments).filter(Boolean)];
+  let count = 0;
+  const recent: RecentComment[] = [];
+  let bound: { at: string; t: number } | null = null;
+  for (const conn of connections) {
+    const nodes: any[] = (conn.nodes || []).filter(Boolean);
+    const total = typeof conn.totalCount === "number" ? conn.totalCount : nodes.length;
+    count += total;
+    let oldest: { at: string; t: number } | null = null;
+    for (const c of nodes) {
+      const login = c.author?.login;
+      const bot = c.author?.__typename === "Bot" || isBot(login);
+      if (c.createdAt && login && !bot) recent.push({ at: c.createdAt, by: login });
+      const t = new Date(c.createdAt).getTime();
+      if (!Number.isNaN(t) && (!oldest || t < oldest.t)) oldest = { at: c.createdAt, t };
+    }
+    if (total > nodes.length && oldest && (!bound || oldest.t > bound.t)) bound = oldest;
+  }
+  const threadTotal = node.reviewThreads?.totalCount;
+  return {
+    comment_count: count,
+    recent_comments: recent,
+    ...(bound ? { comments_complete_after: bound.at } : {}),
+    ...(typeof threadTotal === "number" && threadTotal > threads.length
+      ? { comment_threads_cut_off: true }
+      : {}),
+  };
+}
+
+/**
  * Map a GitHub GraphQL PullRequest node to the frontend GitHubPR shape.
  * `viewer` (the authenticated username) is only passed by the "my PRs" endpoint,
  * where it drives the "your turn" signal; elsewhere it's omitted.
@@ -286,6 +335,7 @@ export function mapGraphQLPr(
           .filter((x: unknown): x is string => typeof x === "string" && x.length > 0)
       : undefined,
     participants: deriveParticipants(node),
+    ...deriveCommentData(node),
   };
 }
 

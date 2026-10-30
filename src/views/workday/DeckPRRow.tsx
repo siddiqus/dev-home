@@ -1,6 +1,7 @@
 import { Fragment, useContext, type MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
+import { CommentCountChip, useCommentCounts } from "../../components/CommentCountChip";
 import { MergeButton } from "../../components/MergeButton";
 import { Participants } from "../../components/prIndicators";
 import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
@@ -28,8 +29,9 @@ export interface DeckPRRowProps {
  * copy-link / open-on-GitHub icons · author (unless it's me) · reviewers /
  * commenters (approvers, once merged), and a "current" label, the updated age
  * and the unseen dot on the right; the title without the key; up to four
- * signal chips with "+N"; the newest unseen comment and my newest unresolved
- * note.
+ * signal chips with "+N", then the comment count (never folded into "+N",
+ * since unread feedback is a reason to act); the newest unseen comment and my
+ * newest unresolved note.
  */
 export function DeckPRRow({
   id,
@@ -45,6 +47,8 @@ export function DeckPRRow({
   const me = useContext(ViewerLoginContext);
   const showAuthor = !me || pr.user.login.toLowerCase() !== me.toLowerCase();
   const { shown, more } = visibleChips(item.signals);
+  // Null without comments or comment data (merged PRs), so no chip and no chip-only row.
+  const comments = useCommentCounts(pr);
   // Merged PRs carry approvers instead (the merged query skips full reviews).
   const participants =
     pr.participants ?? pr.approved_by?.map((login) => ({ login, state: "APPROVED" as const }));
@@ -95,7 +99,7 @@ export function DeckPRRow({
           </span>
         </div>
         <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>
-        {item.signals.length > 0 && (
+        {(item.signals.length > 0 || comments) && (
           <div className="deck-pr-signals">
             {shown.map((s, i) => {
               const chip = s.href ? (
@@ -127,6 +131,7 @@ export function DeckPRRow({
                 +{more.length}
               </Badge>
             )}
+            <CommentCountChip counts={comments} />
           </div>
         )}
         {item.unseenComment && <DeckQuote item={item.unseenComment} now={now} />}

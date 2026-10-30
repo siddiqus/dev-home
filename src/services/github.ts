@@ -1,4 +1,4 @@
-import { GitHubPR, GitHubComment, GitHubReviewRequest } from "../types";
+import { GitHubPR, GitHubComment, GitHubReviewRequest, PRComments, PRThreadStatus } from "../types";
 import { SETTINGS_EVENT } from "./config";
 import {
   enqueuePr,
@@ -9,13 +9,19 @@ import {
   getOrgPrs,
   getOrgRepos,
   getPrBody,
+  getPrComments,
   getPrDetail,
   getPrs,
   getReviews,
   mergePr,
+  setReviewThreadResolved,
   type MergeMethod,
   type MergeOptions,
 } from "../api/github";
+import { withThreadStatus } from "../api/github/prComments";
+
+// Hooks patch comments the same way the cache does.
+export { withThreadStatus };
 
 /**
  * Short-lived promise cache for list lookups that several views repeat on mount
@@ -165,6 +171,49 @@ export function fetchPRBody(pr: GitHubPR): Promise<string> {
     prBodyCache.set(key, pending);
   }
   return pending;
+}
+
+// PR comments for the modal's Comments tab, cached like descriptions: keyed by
+// updated_at (new comments bump it), failures evicted so the next open retries.
+const prCommentsCache = new Map<string, Promise<PRComments>>();
+if (typeof window !== "undefined") {
+  window.addEventListener(SETTINGS_EVENT, () => prCommentsCache.clear());
+}
+
+const prCommentsKey = (pr: GitHubPR) => `${pr.repo_full_name}#${pr.number}@${pr.updated_at}`;
+
+/** Lazily fetch (and cache) a PR's review threads and conversation. */
+export function fetchPRComments(pr: GitHubPR): Promise<PRComments> {
+  const key = prCommentsKey(pr);
+  let pending = prCommentsCache.get(key);
+  if (!pending) {
+    const [owner, repo] = pr.repo_full_name.split("/");
+    pending = getPrComments({ owner, repo, number: pr.number });
+    pending.catch(() => prCommentsCache.delete(key));
+    prCommentsCache.set(key, pending);
+  }
+  return pending;
+}
+
+/**
+ * Resolve or unresolve one of a PR's review threads, then patch the cached
+ * comments: resolving needn't bump the PR's updated_at, so a reopened modal
+ * would otherwise show the old state.
+ */
+export async function setPRThreadResolved(
+  pr: GitHubPR,
+  threadId: string,
+  resolved: boolean,
+): Promise<PRThreadStatus> {
+  const status = await setReviewThreadResolved({ threadId, resolved });
+  const key = prCommentsKey(pr);
+  const cached = prCommentsCache.get(key);
+  if (cached)
+    prCommentsCache.set(
+      key,
+      cached.then((c) => withThreadStatus(c, threadId, status)),
+    );
+  return status;
 }
 
 // Merge options per PR for the session: a repo's merge methods and queue rarely

@@ -1,4 +1,4 @@
-import type { ReviewedPR, ReviewState } from "../../types";
+import type { PRComments, PRThreadStatus, ReviewedPR, ReviewState } from "../../types";
 import { requireSettings } from "../http/credentials";
 import { ApiError, toApiError } from "../http/errors";
 import { githubGraphql, githubRest } from "../http/github";
@@ -17,15 +17,19 @@ import {
   filterOpenNotifications,
   pruneMentionsCache,
 } from "./notifications";
+import { mapPrComments, threadStatus } from "./prComments";
 import {
   OWN_PR_COMMENTS_QUERY,
   PR_BODY_QUERY,
+  PR_COMMENTS_QUERY,
+  RESOLVE_THREAD_MUTATION,
   REVIEWED_SINCE_QUERY,
   REVIEW_SEARCH_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
   SEARCH_ORG_PRS_QUERY,
   SINGLE_PR_QUERY,
+  UNRESOLVE_THREAD_MUTATION,
 } from "./queries";
 import { getRequiredContexts, mapOpenPrsWithChecks } from "./requiredContexts";
 
@@ -464,4 +468,34 @@ export async function getPrBody(args: {
     args,
   );
   return result.repository?.pullRequest?.body || "";
+}
+
+/** A PR's review threads and conversation (empty when the PR isn't found). */
+export async function getPrComments(args: {
+  owner: string;
+  repo: string;
+  number: number;
+}): Promise<PRComments> {
+  const result = await githubGraphql<{ repository: { pullRequest: any } | null }>(
+    PR_COMMENTS_QUERY,
+    args,
+  );
+  return mapPrComments(result.repository?.pullRequest);
+}
+
+/**
+ * Resolve or unresolve a review thread. Returns the thread's status after, as
+ * GitHub reports it (an unresolved thread may come back outdated).
+ */
+export async function setReviewThreadResolved(args: {
+  threadId: string;
+  resolved: boolean;
+}): Promise<PRThreadStatus> {
+  const result = await githubGraphql<Record<string, { thread: unknown } | null>>(
+    args.resolved ? RESOLVE_THREAD_MUTATION : UNRESOLVE_THREAD_MUTATION,
+    { threadId: args.threadId },
+  );
+  const payload = result[args.resolved ? "resolveReviewThread" : "unresolveReviewThread"];
+  if (!payload?.thread) throw new ApiError(404, "Review thread not found");
+  return threadStatus(payload.thread);
 }

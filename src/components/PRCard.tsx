@@ -3,6 +3,7 @@ import { IconExternalLink, IconCopy, IconNote } from "@tabler/icons-react";
 import { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
+import { CommentCountChip, useCommentCounts } from "./CommentCountChip";
 import { MergeButton } from "./MergeButton";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { prAction } from "../utils/prAction";
@@ -81,6 +82,8 @@ export function PRCard({
   // pill; PRs I'm not involved in keep it. The CI status icon stays on every row.
   const viewer = useContext(ViewerLoginContext);
   const [next, ...facts] = showSignals ? mySignals(pr, new Date()) : [];
+  // The comment count ends the signals line on every row, so it can carry the line alone.
+  const comments = useCommentCounts(pr);
   const action = next ? null : actionPill === undefined ? prAction(pr, viewer) : actionPill;
   const showStatusPill =
     (fields.showStatus && !next && !action) ||
@@ -216,11 +219,12 @@ export function PRCard({
           ) : null}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
-        {facts.length > 0 && (
+        {(facts.length > 0 || comments) && (
           <div className="pr-card-signals">
             {facts.map((signal) => (
               <SignalChip key={signal.label} signal={signal} />
             ))}
+            <CommentCountChip counts={comments} />
           </div>
         )}
       </div>

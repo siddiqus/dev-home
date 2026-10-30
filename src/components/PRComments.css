@@ -1,0 +1,468 @@
+/* ============================================
+   PR modal Comments view: open review threads by file, resolved / outdated
+   ones folded, then the conversation. Desktop fills the description column's
+   Comments tab; phone renders two .modal-phone-section blocks in the scroll.
+   ============================================ */
+
+/* --- Toolbar (desktop): counts + Copy open feedback --- */
+.pr-comments-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.pr-comments-counts {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pr-comments-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.pr-comments-copy-btn:hover:not(:disabled) {
+  background-color: var(--color-accent-bg-subtle);
+}
+
+.pr-comments-copy-btn:disabled {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pr-comments-truncated {
+  margin-bottom: var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Section headers: title, a quiet count, and (phone) the copy button --- */
+.pr-comments-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pr-comments-header-count {
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.pr-comments-header .pr-comments-copy-btn {
+  margin-left: auto;
+}
+
+.pr-comments-part + .pr-comments-part {
+  margin-top: var(--space-5);
+}
+
+.pr-comments-empty {
+  padding: var(--space-1) 0 var(--space-2);
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+.pr-comments-status {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- File groups --- */
+.pr-comments-file-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pr-comments-header + .pr-comments-file .pr-comments-file-header {
+  margin-top: var(--space-1);
+}
+
+.pr-comments-file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pr-comments-file-count {
+  flex-shrink: 0;
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+/* --- Thread card --- */
+.pr-thread {
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+}
+
+.pr-thread-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 6px 3px 10px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: 0.75rem;
+}
+
+.pr-thread-loc {
+  min-width: 0;
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.pr-thread-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* Outdated: the thread's line is gone from the current diff. */
+.pr-thread-tag {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-neutral-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.pr-comments-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.1s,
+    color 0.1s;
+}
+
+/* Resolve / Unresolve: a labelled button, since it writes to GitHub. */
+.pr-thread-resolve-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 8px;
+  margin-right: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.pr-thread-resolve-btn:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.pr-comments-icon-btn:hover {
+  background-color: var(--color-status-neutral-bg);
+  color: var(--color-text-primary);
+}
+
+.pr-comments-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+.pr-comments-dot--success {
+  background: var(--color-status-success);
+}
+.pr-comments-dot--warning {
+  background: var(--color-status-warning);
+}
+.pr-comments-dot--danger {
+  background: var(--color-status-danger);
+}
+.pr-comments-dot--neutral {
+  background: var(--color-text-secondary);
+}
+
+/* --- Diff hunk: scrolls sideways rather than wrapping. The inner block grows
+   to the longest line so the add/del tints span the whole scroll width. --- */
+.pr-hunk {
+  margin: 0;
+  padding: 4px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-app);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+}
+
+.pr-hunk-code {
+  display: inline-block;
+  min-width: 100%;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.pr-hunk-line {
+  display: block;
+  padding-right: var(--space-3);
+  white-space: pre;
+}
+
+.pr-hunk-line--add {
+  background: var(--color-status-success-bg);
+}
+
+.pr-hunk-line--del {
+  background: var(--color-status-danger-bg);
+}
+
+/* The commented line, which the hunk ends on. */
+.pr-hunk-line.is-commented {
+  box-shadow: inset 0 0 0 1px var(--color-alert-warning-border);
+}
+
+.pr-hunk-num {
+  display: inline-block;
+  width: 5ch;
+  padding-right: 1ch;
+  text-align: right;
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+/* --- Comment entries (thread replies and the conversation) --- */
+.pr-comments-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.pr-comments-entry .avatar {
+  flex-shrink: 0;
+}
+
+.pr-comments-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pr-comments-entry-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  min-height: 24px;
+  font-size: 0.75rem;
+}
+
+.pr-comments-who {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pr-comments-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-secondary);
+}
+
+.pr-comments-time {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.pr-comments-time:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.pr-comments .markdown-body {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.pr-thread-comment {
+  padding: var(--space-2) 10px;
+}
+
+.pr-thread-comment + .pr-thread-comment {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pr-convo-item {
+  padding: var(--space-2) 0;
+}
+
+.pr-convo-item + .pr-convo-item {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* --- New since the last look: the accent only on small pills (CommentCountChip's
+   .comment-new-pill) and text --- */
+.pr-comments-summary-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pr-comments-since {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+  font-size: 0.75rem;
+  color: var(--color-accent);
+}
+
+.pr-comments-since::before,
+.pr-comments-since::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* --- Folds: resolved / outdated threads, bot comments --- */
+.pr-comments-fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 6px 0 var(--space-2);
+  padding: 6px var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.pr-comments-fold:hover {
+  color: var(--color-text-primary);
+}
+
+.pr-comments-fold-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.pr-comments-fold[aria-expanded="true"] .pr-comments-fold-chevron {
+  transform: rotate(90deg);
+}
+
+.pr-comments-oneline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 5px var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.pr-comments-oneline:hover {
+  background: var(--color-bg-hover);
+}
+
+.pr-comments-oneline-loc {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.pr-comments-oneline-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-comments-oneline-count {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.pr-comments-closed > .pr-thread {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+/* --- Phone: smaller code and avatars, bigger tap targets --- */
+.pr-comments--phone .pr-hunk {
+  font-size: 0.6875rem;
+}
+
+.pr-comments--phone .avatar {
+  width: 20px;
+  height: 20px;
+}
+
+.pr-comments--phone .pr-comments-entry-head {
+  min-height: 20px;
+}
+
+.pr-comments--phone .pr-comments-icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.pr-comments--phone .pr-thread-resolve-btn {
+  height: 32px;
+  padding: 0 10px;
+}

@@ -185,6 +185,33 @@ export interface GitHubPR {
    * fetched neither reviews nor comments.
    */
   participants?: PRParticipant[];
+  /**
+   * Comments people typed: conversation comments plus inline thread comments
+   * (GitHub's totalCounts, bots included). Undefined when the query fetched no
+   * comment data (merged, org and single-PR queries).
+   */
+  comment_count?: number;
+  /** The recent non-bot comments the list query fetched, for counting unread ones. */
+  recent_comments?: RecentComment[];
+  /**
+   * Older comments exist that the list didn't fetch, all before this time; an
+   * unread count from a read marker earlier than this is only a lower bound.
+   * Undefined when nothing was cut off.
+   */
+  comments_complete_after?: string;
+  /**
+   * Threads beyond the list's limit weren't fetched; counts from them are
+   * missing, so unread is only a lower bound. Undefined when all were fetched.
+   */
+  comment_threads_cut_off?: boolean;
+}
+
+/** One recent comment on a PR, as far as the list query sees it. */
+export interface RecentComment {
+  /** createdAt */
+  at: string;
+  /** Author login. */
+  by: string;
 }
 
 /** Someone who reviewed or commented on a PR. */
@@ -218,6 +245,80 @@ export interface GitHubComment {
   repo_full_name: string;
   context_title: string;
   reason: string;
+}
+
+/** Author of a comment shown in the PR modal's Comments tab. */
+export interface PRCommentAuthor {
+  login: string;
+  avatar_url: string;
+  /** GitHub reports the account as a Bot (codecov, sonarcloud, …). */
+  is_bot: boolean;
+}
+
+/** One line of a review thread's diff hunk, without its +/-/space marker. */
+export interface DiffHunkLine {
+  kind: "add" | "del" | "context";
+  /** New-side line number for add/context lines, old-side for deletions; null if unknown. */
+  line: number | null;
+  text: string;
+}
+
+/** Resolved wins over outdated: an outdated thread is one still unresolved. */
+export type PRThreadState = "open" | "resolved" | "outdated";
+
+export interface PRThreadComment {
+  id: number;
+  author: PRCommentAuthor;
+  body: string;
+  created_at: string;
+  html_url: string;
+}
+
+/** An inline review thread, anchored to a file line. */
+export interface PRReviewThread {
+  id: string;
+  path: string;
+  /** Current line, or the original line for outdated threads; null for file-level threads. */
+  line: number | null;
+  state: PRThreadState;
+  /** The last few lines of the diff hunk, ending on the commented line. */
+  hunk: DiffHunkLine[];
+  /** Oldest first. */
+  comments: PRThreadComment[];
+  /** Link to the thread's first comment. */
+  html_url: string;
+  /** GitHub lets the viewer resolve it (viewerCanResolve). */
+  can_resolve: boolean;
+  /** GitHub lets the viewer unresolve it (viewerCanUnresolve). */
+  can_unresolve: boolean;
+}
+
+/** What resolving or unresolving changes on a thread. */
+export type PRThreadStatus = Pick<PRReviewThread, "state" | "can_resolve" | "can_unresolve">;
+
+export type PRReviewVerdict = "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED";
+
+/** A conversation-tab entry: an issue comment or a review summary. */
+export interface PRConversationItem {
+  kind: "comment" | "review";
+  id: string;
+  author: PRCommentAuthor;
+  /** May be empty for a verdict-only review. */
+  body: string;
+  created_at: string;
+  html_url: string;
+  /** Reviews only. */
+  verdict?: PRReviewVerdict;
+}
+
+/** Everything the PR modal's Comments tab shows, fetched on demand. */
+export interface PRComments {
+  /** Ordered by each thread's first comment, oldest first. */
+  threads: PRReviewThread[];
+  /** Oldest first. */
+  conversation: PRConversationItem[];
+  /** Not everything was fetched: older threads or conversation items, or a long thread's later replies. */
+  truncated: boolean;
 }
 
 export type GitHubReviewRequest = GitHubPR;

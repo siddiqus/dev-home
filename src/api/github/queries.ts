@@ -67,6 +67,10 @@ const PR_STATUS_FIELDS = `mergeable
  * request costs the sum of the three instead of the slowest. Reviews carry
  * submittedAt + author so deriveViewerReview can find the viewer's latest one;
  * comment authors complete the participants list (deriveParticipants).
+ * Comment totals, times and authors (with __typename, which catches app bots)
+ * feed the comment chips (deriveCommentData); threads take only that, a few
+ * comments each and no isResolved, to keep this search light (review PRs show
+ * no thread state).
  */
 export const REVIEW_SEARCH_QUERY = `
   query ReviewPRs($query: String!, $first: Int!) {
@@ -83,7 +87,17 @@ export const REVIEW_SEARCH_QUERY = `
             }
           }
           comments(last: 20) {
-            nodes { author { login } }
+            totalCount
+            nodes { createdAt author { __typename login } }
+          }
+          reviewThreads(last: 30) {
+            totalCount
+            nodes {
+              comments(last: 2) {
+                totalCount
+                nodes { createdAt author { __typename login } }
+              }
+            }
           }
         }
       }
@@ -93,9 +107,10 @@ export const REVIEW_SEARCH_QUERY = `
 
 /**
  * Query for the user's own open PRs. Comment/thread selections are limited to
- * what mapGraphQLPr reads (timestamps + authors for "your turn", isResolved for
- * the unresolved count); comment bodies are fetched separately by
- * OWN_PR_COMMENTS_QUERY for the Mentions view, keeping this list query light.
+ * what mapGraphQLPr reads (timestamps + authors for "your turn" and the comment
+ * chips, __typename to drop app bots, totalCounts for the chips' totals,
+ * isResolved for the unresolved count); comment bodies are fetched separately by OWN_PR_COMMENTS_QUERY for
+ * the Mentions view, keeping this list query light.
  */
 export const SEARCH_MY_PRS_QUERY = `
   query SearchMyPRs($query: String!, $first: Int!) {
@@ -112,18 +127,21 @@ export const SEARCH_MY_PRS_QUERY = `
             }
           }
           comments(last: 20) {
+            totalCount
             nodes {
               createdAt
-              author { login }
+              author { __typename login }
             }
           }
           reviewThreads(last: 50) {
+            totalCount
             nodes {
               isResolved
               comments(last: 3) {
+                totalCount
                 nodes {
                   createdAt
-                  author { login }
+                  author { __typename login }
                 }
               }
             }
@@ -254,6 +272,85 @@ export const PR_BODY_QUERY = `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         body
+      }
+    }
+  }
+`;
+
+/**
+ * A review thread's state and what the viewer may do to it (see threadStatus);
+ * the comments query and the resolve mutations both select it.
+ */
+const THREAD_STATUS_FIELDS = `id isResolved isOutdated viewerCanResolve viewerCanUnresolve`;
+
+export const RESOLVE_THREAD_MUTATION = `
+  mutation ResolveThread($threadId: ID!) {
+    resolveReviewThread(input: { threadId: $threadId }) {
+      thread { ${THREAD_STATUS_FIELDS} }
+    }
+  }
+`;
+
+export const UNRESOLVE_THREAD_MUTATION = `
+  mutation UnresolveThread($threadId: ID!) {
+    unresolveReviewThread(input: { threadId: $threadId }) {
+      thread { ${THREAD_STATUS_FIELDS} }
+    }
+  }
+`;
+
+/**
+ * A PR's review threads and conversation, lazy-loaded when its modal's Comments
+ * tab opens (see mapPrComments). Takes the newest 100 of each: every thread
+ * reply adds an empty review, so `first` would push out recent verdicts. Thread
+ * comments stay oldest first, since a thread's opening matters most. pageInfo
+ * only flags truncation.
+ */
+export const PR_COMMENTS_QUERY = `
+  query PRComments($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        reviewThreads(last: 100) {
+          pageInfo { hasPreviousPage }
+          nodes {
+            ${THREAD_STATUS_FIELDS}
+            path
+            line
+            originalLine
+            comments(first: 50) {
+              pageInfo { hasNextPage }
+              nodes {
+                databaseId
+                body
+                createdAt
+                url
+                diffHunk
+                author { __typename login avatarUrl }
+              }
+            }
+          }
+        }
+        comments(last: 100) {
+          pageInfo { hasPreviousPage }
+          nodes {
+            databaseId
+            body
+            createdAt
+            url
+            author { __typename login avatarUrl }
+          }
+        }
+        reviews(last: 100) {
+          pageInfo { hasPreviousPage }
+          nodes {
+            databaseId
+            state
+            body
+            submittedAt
+            url
+            author { __typename login avatarUrl }
+          }
+        }
       }
     }
   }

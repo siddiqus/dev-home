@@ -228,8 +228,19 @@
   flex-shrink: 0;
 }
 
-/* --- Phone: one scroll (checks summary, description, notes) under a slim
-   top bar (PR ref, copy link, GitHub, ✕) that replaces the footer --- */
+/* --- Phone: a slim top bar (PR ref, copy link, GitHub, ✕) that replaces the
+   footer, then for a PR the Overview / Comments / Notes chips over one scroll --- */
+/* Edge to edge on phones. Bootstrap's fullscreen dialog drops the content's
+   border, but `.description-modal .modal-content` puts it back; React-Bootstrap
+   can also pad the modal inline, on the left, for a scrollbar phones don't have. */
+.description-modal--phone {
+  padding: 0 !important;
+}
+
+.description-modal--phone .modal-content {
+  border: 0;
+}
+
 .description-modal--phone .modal-tab-content {
   overflow-y: auto;
   padding: var(--space-3);
@@ -297,6 +308,51 @@
 .description-modal .modal-phone-section {
   padding: var(--space-3) 0;
   border-top: 1px solid var(--color-border-subtle);
+}
+
+/* A tab's first section starts the page: no rule above it. */
+.description-modal .modal-phone-panel > .modal-phone-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* The PR's sections as chips under the top bar; the selected one gets the
+   segmented tabs' faint accent tint. */
+.description-modal .modal-phone-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.description-modal .modal-phone-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.description-modal .modal-phone-tab.active {
+  border-color: transparent;
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent);
+}
+
+.description-modal .modal-phone-tab-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
 }
 
 .description-modal .modal-checks-summary {
