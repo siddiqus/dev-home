@@ -8,6 +8,7 @@ import {
   IconChevronDown,
   IconRefresh,
   IconAlertTriangle,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
@@ -25,7 +26,7 @@ import type { LinkedPR, Ref, SprintResult } from "../../types/teams";
 import { TeamPRsTab, type TeamPRsTabHandle } from "./TeamPRsTab";
 import "./TeamDashboardView.css";
 // --- Sprint cockpit ---
-import { SprintMetaBar } from "./cockpit/SprintMetaBar";
+import { SprintMetaBar, sprintBoardUrl } from "./cockpit/SprintMetaBar";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
 import { LoadDistribution } from "./cockpit/LoadDistribution";
 import { EpicCards } from "./cockpit/EpicCards";
@@ -93,11 +94,13 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   );
 
   // The dashboard is cleared while a sprint or refresh loads; remember the
-  // team's sprint list (and which one was showing) so the picker stays put.
+  // team's sprint list (and which one was showing) so the picker and its Jira
+  // link stay put.
   const [lastSprints, setLastSprints] = useState<{
     teamId: number;
     sprints: SprintResult[];
     shownId: number | null;
+    boardId: number | null;
   } | null>(null);
   useEffect(() => {
     if (dashboard) {
@@ -105,6 +108,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
         teamId: dashboard.team.id,
         sprints: dashboard.sprints,
         shownId: dashboard.sprint?.id ?? null,
+        boardId: dashboard.team.board?.id ?? null,
       });
     }
   }, [dashboard]);
@@ -126,6 +130,18 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   // The sprint object currently on screen — used by the meta bar.
   const selectedSprint =
     dashboard?.sprints.find((s) => s.id === selectedSprintId) ?? dashboard?.sprint ?? null;
+
+  const boardUrl = sprintBoardUrl(
+    jiraBaseUrl,
+    dashboard?.team.board?.id ?? known?.boardId ?? null,
+    selectedSprintId,
+  );
+  // Last sync time rides on the refresh button's tooltip.
+  const refreshLabel = tab === "sprint" ? "Refresh sprint data" : "Refresh PRs";
+  const refreshTitle =
+    tab === "sprint" && dashboard?.syncedAt
+      ? `${refreshLabel} (synced ${formatRelativeTime(dashboard.syncedAt)})`
+      : refreshLabel;
 
   // The backend reports per-source failures as "Source: message" strings.
   const jiraError =
@@ -264,8 +280,8 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
             className="pr-table-collapse-btn pr-toolbar-btn"
             onClick={refreshActive}
             disabled={activeLoading}
-            title={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
-            aria-label={tab === "sprint" ? "Refresh sprint data" : "Refresh PRs"}
+            title={refreshTitle}
+            aria-label={refreshLabel}
           >
             <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
           </button>
@@ -280,8 +296,21 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
             allLabel="Sprint"
             hideAllOption
             triggerIcon={<IconRun size={14} style={{ opacity: 0.5, flexShrink: 0 }} />}
-            width={400}
+            width={300}
           />
+        )}
+
+        {teamId != null && tab === "sprint" && boardUrl && (
+          <a
+            href={boardUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="d-inline-flex align-items-center gap-1 px-1"
+            style={{ fontSize: "0.8125rem" }}
+          >
+            Open in JIRA
+            <IconExternalLink size={13} stroke={1.5} style={{ opacity: 0.6 }} />
+          </a>
         )}
       </div>
 
@@ -334,13 +363,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
               ) : (
                 <>
                   {/* Sprint meta */}
-                  <SprintMetaBar
-                    sprint={selectedSprint}
-                    pace={dashboard.pace}
-                    lastSynced={dashboard.syncedAt ?? null}
-                    jiraBaseUrl={jiraBaseUrl}
-                    boardId={dashboard.team.board?.id ?? null}
-                  />
+                  <SprintMetaBar sprint={selectedSprint} pace={dashboard.pace} />
 
                   <div className="mb-3">
                     <EpicCards epics={dashboard.epics} onOpenRef={openRef} />

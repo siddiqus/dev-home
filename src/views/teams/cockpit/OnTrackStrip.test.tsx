@@ -9,8 +9,8 @@ describe("OnTrackStrip", () => {
 
     render(<OnTrackStrip pace={pace} />);
 
-    // Hero: percentages
-    expect(screen.getByText(/33% done · 43% elapsed/)).toBeInTheDocument();
+    expect(screen.getByText(/33% done/)).toBeInTheDocument();
+    expect(screen.getByText(/43% elapsed/)).toBeInTheDocument();
     // Behind pace badge (from fixture: behindPace = true)
     expect(screen.getByText("Behind pace")).toBeInTheDocument();
   });
@@ -21,9 +21,8 @@ describe("OnTrackStrip", () => {
     render(<OnTrackStrip pace={pace} />);
 
     // Remaining: 8 of 12
-    expect(screen.getByText(/8/)).toBeInTheDocument();
-    expect(screen.getByText(/of 12/)).toBeInTheDocument();
-    expect(screen.getByText("tickets left")).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByText("of 12 tickets left")).toBeInTheDocument();
   });
 
   it("shows On track badge when not behind pace", () => {

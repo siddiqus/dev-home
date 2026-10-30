@@ -4,69 +4,43 @@ interface Props {
   pace: SprintPace;
 }
 
+/** Done vs elapsed, pace badge and tickets left: the pace half of the sprint strip. */
 export function OnTrackStrip({ pace }: Props) {
   const donePctWhole = Math.round(pace.donePct * 100);
   const elapsedPctWhole = Math.round(pace.elapsedPct * 100);
   const isBehind = pace.behindPace;
 
   return (
-    <div className="d-flex gap-2">
-      {/* 1. Hero: Completion vs Time */}
-      <div className="flex-fill" style={{ minWidth: 160 }}>
-        <div className="d-flex align-items-center gap-2 mb-2">
-          <span className="fw-semibold" style={{ fontSize: "0.9375rem" }}>
-            {donePctWhole}% done · {elapsedPctWhole}% elapsed
-          </span>
+    <>
+      <span className="sprint-strip__meter">
+        {donePctWhole}% done
+        <span className="sprint-strip__track">
           <span
-            className={`badge ${isBehind ? "text-bg-danger" : "text-bg-success"}`}
-            style={{ fontSize: "0.6875rem" }}
-          >
-            {isBehind ? "Behind pace" : "On track"}
-          </span>
-        </div>
-        {/* Dual mini-bar: done vs elapsed */}
-        <div className="d-flex gap-1">
-          <div
-            className="flex-fill"
-            style={{ background: "rgba(125,125,125,.15)", borderRadius: 2, overflow: "hidden" }}
-          >
-            <div
-              style={{
-                width: `${donePctWhole}%`,
-                height: 4,
-                background: "#50c878",
-                borderRadius: 2,
-              }}
-              title={`${donePctWhole}% done`}
-            />
-          </div>
-          <div
-            className="flex-fill"
-            style={{ background: "rgba(125,125,125,.15)", borderRadius: 2, overflow: "hidden" }}
-          >
-            <div
-              style={{
-                width: `${elapsedPctWhole}%`,
-                height: 4,
-                background: isBehind ? "#dc3545" : "#6e7781",
-                borderRadius: 2,
-              }}
-              title={`${elapsedPctWhole}% elapsed`}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Remaining */}
-      <div
-        className="text-center ps-3 d-flex flex-column justify-content-center"
-        style={{ borderLeft: "1px solid rgba(125,125,125,.2)", minWidth: 84 }}
+            className="sprint-strip__fill sprint-strip__fill--done"
+            style={{ width: `${donePctWhole}%` }}
+          />
+        </span>
+      </span>
+      <span className="sprint-strip__meter">
+        {elapsedPctWhole}% elapsed
+        <span className="sprint-strip__track">
+          <span
+            className={`sprint-strip__fill ${isBehind ? "sprint-strip__fill--behind" : "sprint-strip__fill--elapsed"}`}
+            style={{ width: `${elapsedPctWhole}%` }}
+          />
+        </span>
+      </span>
+      <span
+        className={`badge ${isBehind ? "text-bg-danger" : "text-bg-success"}`}
+        style={{ fontSize: "0.6875rem" }}
       >
-        <div className="h5 mb-0">
-          {pace.remainingCount} <span className="text-muted small">of {pace.totalCount}</span>
-        </div>
-        <div className="small text-muted">tickets left</div>
-      </div>
-    </div>
+        {isBehind ? "Behind pace" : "On track"}
+      </span>
+      <span className="sprint-strip__divider" aria-hidden="true" />
+      <span>
+        <span className="fw-semibold">{pace.remainingCount}</span>{" "}
+        <span className="text-muted">of {pace.totalCount} tickets left</span>
+      </span>
+    </>
   );
 }

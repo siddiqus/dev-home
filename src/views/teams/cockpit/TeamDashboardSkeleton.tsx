@@ -13,15 +13,14 @@ function CardSkeleton({ lines }: { lines: number }) {
 }
 
 /**
- * Pulsing placeholder in the sprint cockpit's layout (sprint bar, epics, then
+ * Pulsing placeholder in the sprint cockpit's layout (sprint strip, epics, then
  * the two columns of cards), shown while a team or sprint loads.
  */
 export function TeamDashboardSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading sprint data" data-testid="team-dashboard-skeleton">
-      <div className="border rounded p-2 mb-3">
-        <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: "45%" }} />
-        <div className="cockpit-skeleton cockpit-skeleton--line" style={{ width: "25%" }} />
+      <div className="sprint-strip mb-3" style={{ width: 520 }}>
+        <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: "100%" }} />
       </div>
       <div className="border rounded p-2 mb-3">
         <div className="d-flex gap-2 flex-wrap">

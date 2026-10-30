@@ -19,6 +19,57 @@
   flex-direction: column;
 }
 
+/* --- Sprint cockpit: one-line sprint strip under the toolbar ---
+   Same height and type size as the toolbar controls above it, and only as
+   wide as its content, so it reads as the toolbar's second line. */
+.sprint-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: fit-content;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sprint-strip__divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 7px 0;
+  background: var(--color-border-subtle);
+}
+.sprint-strip__meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sprint-strip__track {
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(125, 125, 125, 0.15);
+  overflow: hidden;
+}
+.sprint-strip__fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+.sprint-strip__fill--done {
+  background: #50c878;
+}
+.sprint-strip__fill--elapsed {
+  background: #6e7781;
+}
+.sprint-strip__fill--behind {
+  background: #dc3545;
+}
+
 /* --- Sprint cockpit: Needs Attention + Delivery Hygiene items --- */
 
 /* One item per line: key · title · meta. The title is the part that gives
