@@ -132,7 +132,7 @@ export interface WorkloadEntry {
   ticketCount: number;
   prCount: number;
   byStatus: { new: number; indeterminate: number; inReview: number; done: number };
-  // --- cockpit: load distribution ---
+  // --- cockpit: Work Spread ---
   /** Work in progress = tickets in the indeterminate/in-review buckets. */
   wip: number;
   doneCount: number;

@@ -1,5 +1,5 @@
 /**
- * Tests for load distribution — per-member ticket/WIP/stalled/done + PR counts,
+ * Tests for Work Spread — per-member ticket/WIP/stalled/done + PR counts,
  * plus team balance indicator.
  */
 import { describe, it, expect } from "vitest";

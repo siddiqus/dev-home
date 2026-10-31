@@ -71,7 +71,7 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
   if (workload.length === 0) {
     return (
       <div className="border rounded p-3">
-        <h6 className="mb-2">Load Distribution</h6>
+        <h6 className="mb-2">Work Spread</h6>
         <div className="text-muted small">No team members</div>
       </div>
     );
@@ -83,10 +83,7 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
     <div className="border rounded p-3">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
-          <h6 className="mb-0">Load Distribution</h6>
-          <div className="small text-muted" style={{ fontSize: "0.75rem" }}>
-            sorted by who needs help
-          </div>
+          <h6 className="mb-0">Work Spread</h6>
         </div>
         {showImbalanceWarning && (
           <span className="badge bg-warning text-dark" style={{ fontSize: "0.75rem" }}>

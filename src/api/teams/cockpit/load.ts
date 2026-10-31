@@ -1,5 +1,5 @@
 /**
- * Load distribution: per-member ticket/WIP/stalled/done + PR counts, plus a
+ * Work Spread: per-member ticket/WIP/stalled/done + PR counts, plus a
  * team imbalance indicator. Supersedes the old computeWorkload.
  * Pure — `now` is a parameter.
  *
