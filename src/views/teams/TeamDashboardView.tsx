@@ -16,7 +16,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { JiraIssueDrawer } from "../../components/JiraIssueDrawer";
-import { DescriptionModal } from "../../components/DescriptionModal";
+import { PRDetailModal } from "../../components/PRDetailModal";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { fetchIssueDetail } from "../../services/jira";
 import { fetchPR } from "../../services/github";
@@ -492,19 +492,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
         loadingKey={drawerLoadingKey}
       />
 
-      <DescriptionModal
-        show={!!modalPR}
-        onHide={() => setModalPR(null)}
-        title={modalPR ? `#${modalPR.number} ${modalPR.title}` : ""}
-        subtitle={
-          modalPR
-            ? `${modalPR.user.login} · ${modalPR.repo_full_name} · ${modalPR.head.ref} · ${formatRelativeTime(modalPR.created_at)}`
-            : ""
-        }
-        description={modalPR?.body || ""}
-        url={modalPR?.html_url}
-        checks={modalPR?.checks}
-      />
+      <PRDetailModal pr={modalPR} onHide={() => setModalPR(null)} jiraBaseUrl={jiraBaseUrl} />
     </div>
   );
 }
