@@ -1,7 +1,7 @@
-/* When the PRs tab is active the dashboard becomes a fixed-height flex column so
-   the team/top bar and the PR filter toolbar stay pinned while only the PR list
-   scrolls. The Sprint tab keeps its natural page scroll (root stays a plain
-   block), so this frame is applied only in PR mode. */
+/* The dashboard becomes a fixed-height flex column so the top of each tab stays
+   pinned and only what's below scrolls: on PRs, the team bar and PR filter
+   toolbar; on Sprint, everything down to the overview/people switch. While the
+   sprint is loading or Jira failed, the root stays a plain block. */
 .team-dashboard--pinned {
   display: flex;
   flex-direction: column;
@@ -17,6 +17,25 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Sprint tab, pinned: the sprint strip, epics and the switch keep their size;
+   the area below them takes the rest and scrolls. */
+.team-dashboard--pinned .team-dashboard-sprint {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.team-dashboard--pinned .team-dashboard-sprint > * {
+  flex-shrink: 0;
+}
+.team-dashboard--pinned .team-dashboard-sprint__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* The overview grid's negative gutters would add a sideways scrollbar. */
+  overflow-x: hidden;
 }
 
 /* --- Sprint cockpit: one-line sprint strip under the toolbar ---
@@ -230,9 +249,143 @@
   padding: 4px 0 0 14px;
 }
 
-/* --- Work Spread: check-in icon + member modal ---
+/* --- Work Spread + People: status bars, check-in icon, member detail ---
    Tones follow the status tokens: danger = blocking, warning = slowing down,
    neutral = context only. */
+.status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.status-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.status-bar {
+  display: flex;
+  overflow: hidden;
+  background: rgba(125, 125, 125, 0.15);
+}
+.status-bar > div {
+  height: 100%;
+}
+
+/* People tab: the team on the left, the picked person on the right. Pinned, it
+   fills the area below the switch and each side scrolls on its own, so the
+   frame never slides under the switch. */
+.people-view {
+  display: grid;
+  grid-template-columns: 390px minmax(0, 1fr);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+}
+.team-dashboard--pinned .team-dashboard-sprint__scroll--fill {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.team-dashboard--pinned .team-dashboard-sprint__scroll--fill > .people-view {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  /* Keeps the detail's scrollbar inside the rounded corners. */
+  overflow: hidden;
+}
+.team-dashboard--pinned .people-view__rail,
+.team-dashboard--pinned .people-view__detail {
+  overflow-y: auto;
+}
+.people-view__rail {
+  padding: var(--space-2);
+}
+.people-view__legend {
+  padding: 4px 6px 8px;
+}
+.people-view__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.people-view__person {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.people-view__person:hover {
+  background: var(--color-bg-hover);
+}
+.people-view__person.is-selected {
+  background: var(--color-accent-bg-subtle);
+}
+.people-view__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.people-view__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.people-view__person.is-selected .people-view__name {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.people-view__stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+}
+.people-view__detail {
+  min-width: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-left: 1px solid var(--color-border-subtle);
+}
+/* Narrow screens stack the list above the detail and scroll them as one. */
+@media (max-width: 767.98px) {
+  .people-view {
+    grid-template-columns: 1fr;
+  }
+  .team-dashboard--pinned .team-dashboard-sprint__scroll--fill {
+    display: block;
+    overflow-y: auto;
+  }
+  .team-dashboard--pinned .team-dashboard-sprint__scroll--fill > .people-view {
+    grid-template-rows: none;
+  }
+  .team-dashboard--pinned .people-view__rail,
+  .team-dashboard--pinned .people-view__detail {
+    overflow-y: visible;
+  }
+  .people-view__detail {
+    border-top: 1px solid var(--color-border-subtle);
+    border-left: 0;
+  }
+}
+
 /* The row's check-in nudge: Bootstrap's warning yellow. */
 .work-spread-flag {
   display: inline-flex;
@@ -261,13 +414,16 @@
   align-items: center;
 }
 
-.member-modal__head {
+.member-detail__head {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   min-width: 0;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
-.member-modal__avatar {
+.member-detail__avatar {
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -280,24 +436,21 @@
   font-size: 0.8125rem;
   font-weight: 600;
 }
-.member-modal__who {
+.member-detail__who {
   min-width: 0;
 }
-.member-modal__name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.member-detail__name {
+  margin: 0;
   font-size: 1rem;
   font-weight: 600;
 }
-.member-modal__chips {
+.member-detail__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 6px;
 }
-.member-modal__chip {
+.member-detail__chip {
   padding: 0 9px;
   /* Transparent, so the bordered stalled chip is the same size as the rest. */
   border: 1px solid transparent;
@@ -306,15 +459,15 @@
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
-.member-modal__chip b {
+.member-detail__chip b {
   color: var(--color-text-primary);
   font-weight: 600;
 }
 /* The stalled chip takes the epic cards' shading (inline); its number follows. */
-.member-modal__chip--stalled b {
+.member-detail__chip--stalled b {
   color: inherit;
 }
-.member-modal__section {
+.member-detail__section {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -325,15 +478,15 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.modal-body > :first-child .member-modal__section,
-.modal-body > .member-modal__section:first-child {
+.member-detail__body > :first-child .member-detail__section,
+.member-detail__body > .member-detail__section:first-child {
   margin-top: 0;
 }
-.member-modal__count {
+.member-detail__count {
   color: var(--color-text-muted);
   font-weight: 500;
 }
-.member-modal__clear {
+.member-detail__clear {
   display: flex;
   align-items: center;
   gap: 6px;

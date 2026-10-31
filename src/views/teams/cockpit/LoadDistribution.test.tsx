@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { LoadDistribution } from "./LoadDistribution";
 import dashboardFixture from "../__fixtures__/dashboardFixture";
@@ -10,7 +10,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -23,7 +22,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -38,7 +36,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -56,7 +53,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -65,13 +61,7 @@ describe("LoadDistribution", () => {
 
   it("shows uneven load caption when imbalance >= 3", () => {
     const highImbalance: LoadBalance = { max: 10, min: 3, imbalance: 7 };
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={highImbalance}
-        issues={dashboardFixture.issues}
-      />,
-    );
+    render(<LoadDistribution workload={dashboardFixture.workload} loadBalance={highImbalance} />);
 
     expect(screen.getByText(/Uneven load · 7 ticket spread/)).toBeInTheDocument();
   });
@@ -83,7 +73,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
         onOpenRef={onOpenRef}
       />,
     );
@@ -96,9 +85,7 @@ describe("LoadDistribution", () => {
   });
 
   it("renders empty state when workload is empty", () => {
-    render(
-      <LoadDistribution workload={[]} loadBalance={{ max: 0, min: 0, imbalance: 0 }} issues={[]} />,
-    );
+    render(<LoadDistribution workload={[]} loadBalance={{ max: 0, min: 0, imbalance: 0 }} />);
 
     expect(screen.getByText("No team members")).toBeInTheDocument();
   });
@@ -111,7 +98,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -126,7 +112,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
         staleDays={staleDaysMap}
       />,
     );
@@ -140,7 +125,6 @@ describe("LoadDistribution", () => {
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
       />,
     );
 
@@ -148,118 +132,36 @@ describe("LoadDistribution", () => {
     expect(screen.queryByText(/\dd$/)).not.toBeInTheDocument();
   });
 
-  it("opens the member modal with stat chips, ticket titles and plain-language signals", () => {
+  it("picks the member for the People tab when their row is clicked", () => {
+    const onSelectMember = vi.fn();
     render(
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
-      />,
-    );
-
-    // Click Tashfia's row (name text bubbles to the row container's onClick).
-    fireEvent.click(screen.getByText("Tashfia"));
-    const dialog = screen.getByRole("dialog");
-
-    expect(dialog).toHaveTextContent("7 tickets");
-    expect(dialog).toHaveTextContent("4 in flight");
-    expect(dialog).toHaveTextContent("2 stalled");
-    expect(dialog).toHaveTextContent("3 open PRs · 1 waiting on reviewers · 1 merged");
-
-    // The flagged ticket's card: key, title, and each warning sign in words.
-    const atRisk = within(dialog).getByRole("region", { name: "At risk tickets" });
-    expect(within(atRisk).getByText("PLAT-101")).toBeInTheDocument();
-    expect(within(atRisk).getByText("Sprint health strip")).toBeInTheDocument();
-    // Staleness shows as the card's last update, not as a signal line.
-    expect(within(atRisk).getByText("updated 4d ago")).toBeInTheDocument();
-    expect(within(atRisk).queryByText(/^No update for/)).not.toBeInTheDocument();
-    expect(within(atRisk).getByText("PR #12 is failing CI")).toBeInTheDocument();
-    expect(
-      within(atRisk).getByText(/^PR #12 has waited \d+ days for a first review$/),
-    ).toBeInTheDocument();
-    expect(within(atRisk).getByText("Added after the sprint started")).toBeInTheDocument();
-  });
-
-  it("lists every ticket of the member grouped by status", () => {
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
+        onSelectMember={onSelectMember}
       />,
     );
 
     fireEvent.click(screen.getByText("Tashfia"));
-    const dialog = screen.getByRole("dialog");
 
-    const inProgress = within(dialog).getByRole("region", { name: "In Progress tickets" });
-    expect(within(inProgress).getByText("Sprint health strip")).toBeInTheDocument();
-    // Other members' tickets stay out.
-    expect(within(dialog).queryByText("Token refresh")).not.toBeInTheDocument();
+    expect(onSelectMember).toHaveBeenCalledWith("u1");
   });
 
-  it("says a member is on track when no ticket is flagged", () => {
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
-      />,
-    );
-
-    fireEvent.click(screen.getByText("Nadman"));
-    const dialog = screen.getByRole("dialog");
-
-    // No level label beside the name.
-    expect(within(dialog).queryByText("On track")).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/nothing needs a look/)).toBeInTheDocument();
-    const done = within(dialog).getByRole("region", { name: "Done tickets" });
-    expect(within(done).getByText("Token refresh")).toBeInTheDocument();
-  });
-
-  it("shows three done tickets and folds the rest behind a button", () => {
-    const base = dashboardFixture.issues.find((i) => i.key === "PLAT-201")!;
-    const done = [1, 2, 3, 4, 5].map((n) => ({
-      ...base,
-      key: `PLAT-90${n}`,
-      summary: `Done thing ${n}`,
-      daysSinceUpdate: n,
-    }));
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        issues={done}
-      />,
-    );
-
-    fireEvent.click(screen.getByText("Nadman"));
-    const group = within(screen.getByRole("dialog")).getByRole("region", { name: "Done tickets" });
-
-    expect(within(group).getAllByText(/^Done thing/)).toHaveLength(3);
-    fireEvent.click(within(group).getByRole("button", { name: "Show 2 more" }));
-    expect(within(group).getAllByText(/^Done thing/)).toHaveLength(5);
-  });
-
-  it("opens a flagged ticket from the modal and closes it", () => {
+  it("opens the stalest ticket without also picking the member", () => {
     const onOpenRef = vi.fn();
-
+    const onSelectMember = vi.fn();
     render(
       <LoadDistribution
         workload={dashboardFixture.workload}
         loadBalance={dashboardFixture.loadBalance}
-        issues={dashboardFixture.issues}
         onOpenRef={onOpenRef}
+        onSelectMember={onSelectMember}
       />,
     );
 
-    fireEvent.click(screen.getByText("Tashfia"));
-    const atRisk = within(screen.getByRole("dialog")).getByRole("region", {
-      name: "At risk tickets",
-    });
-    fireEvent.click(within(atRisk).getByText("Sprint health strip"));
+    fireEvent.click(screen.getByText("stalest: PLAT-101"));
 
     expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onSelectMember).not.toHaveBeenCalled();
   });
 });

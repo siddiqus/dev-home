@@ -9,6 +9,8 @@ import {
   IconRefresh,
   IconAlertTriangle,
   IconExternalLink,
+  IconLayoutDashboard,
+  IconUsers,
 } from "@tabler/icons-react";
 import { useTeams } from "../../hooks/useTeams";
 import { useTeamDashboard } from "../../hooks/useTeamDashboard";
@@ -29,6 +31,7 @@ import "./TeamDashboardView.css";
 import { SprintMetaBar, sprintBoardUrl } from "./cockpit/SprintMetaBar";
 import { NeedsAttentionPanel } from "./cockpit/NeedsAttentionPanel";
 import { LoadDistribution } from "./cockpit/LoadDistribution";
+import { PeopleView } from "./cockpit/PeopleView";
 import { EpicCards } from "./cockpit/EpicCards";
 import { DeliveryHygiene } from "./cockpit/DeliveryHygiene";
 import { ReviewQueuePanel } from "./cockpit/ReviewQueuePanel";
@@ -37,6 +40,7 @@ import { TeamDashboardSkeleton } from "./cockpit/TeamDashboardSkeleton";
 import { useStoredId, useStoredState } from "../../hooks/useStoredState";
 
 const TEAM_TABS = ["sprint", "prs"] as const;
+const SPRINT_VIEWS = ["overview", "people"] as const;
 
 interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
@@ -55,6 +59,14 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   const [sprintId, setSprintId] = useStoredId("dev-home-team-sprint");
   // Top-level view: the Jira sprint cockpit, or the team's PRs.
   const [tab, setTab] = useStoredState("dev-home-team-tab", "sprint", TEAM_TABS);
+  // Under the epics: the team-wide panels, or one person at a time (standup).
+  const [sprintView, setSprintView] = useStoredState(
+    "dev-home-team-sprint-view",
+    "overview",
+    SPRINT_VIEWS,
+  );
+  // The person shown on the People tab; null = whoever needs help most.
+  const [personId, setPersonId] = useState<string | null>(null);
   // Mount the PRs tab lazily on first open, then keep it alive so switching back
   // doesn't refetch (it self-fetches on mount, gated on `active`).
   const [prsEverOpened, setPrsEverOpened] = useState(false);
@@ -165,6 +177,10 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     [dashboard?.issues, dashboard?.offBoardPRs],
   );
 
+  // PRs pins its toolbar; the Sprint cockpit pins everything down to its
+  // overview/people switch. Only what's below them scrolls.
+  const pinned = tab === "prs" || (tab === "sprint" && !!dashboard && !jiraError);
+
   // --- Detail modals (Jira drawer + PR description modal) ---
   // Every cockpit panel drills down through a single `openRef` handler; the
   // modals are rendered once here at the dashboard level. Each ref only carries
@@ -233,7 +249,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   );
 
   return (
-    <div className={`p-3${tab === "prs" ? " team-dashboard--pinned" : ""}`}>
+    <div className={`p-3${pinned ? " team-dashboard--pinned" : ""}`}>
       <div className="d-flex gap-2 mb-3 align-items-center flex-wrap flex-shrink-0">
         <SearchableDropdown
           items={teamItems}
@@ -328,7 +344,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
 
       {/* ---- Sprint tab: the Jira cockpit ---- */}
       {teamId != null && (
-        <div className={tab === "sprint" ? "" : "d-none"}>
+        <div className={tab === "sprint" ? "team-dashboard-sprint" : "d-none"}>
           {!dashboard && loading && <TeamDashboardSkeleton />}
           {dashboard && (
             <>
@@ -372,15 +388,68 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                     <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
                   </div>
 
-                  {/* Three independent columns, so expanding a hygiene row
-                      only grows its own column. */}
-                  <div className="row g-3 mb-3">
+                  <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+                    <SegmentedTabs
+                      className="inline-control"
+                      activeKey={sprintView}
+                      onChange={(k) => setSprintView(k as (typeof SPRINT_VIEWS)[number])}
+                      tabs={[
+                        {
+                          key: "overview",
+                          label: (
+                            <span className="d-inline-flex align-items-center gap-1">
+                              <IconLayoutDashboard size={14} /> Sprint overview
+                            </span>
+                          ),
+                        },
+                        {
+                          key: "people",
+                          label: (
+                            <span className="d-inline-flex align-items-center gap-1">
+                              <IconUsers size={14} /> People
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                    {sprintView === "people" && (
+                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>
+                        ↑ ↓ in the list steps through people
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* People fills this area rather than scrolling in it, so its
+                  frame stays whole; its list and detail scroll inside. */}
+              <div
+                className={`team-dashboard-sprint__scroll${!jiraError && sprintView === "people" ? " team-dashboard-sprint__scroll--fill" : ""}`}
+              >
+                {!jiraError && sprintView === "people" && (
+                  <PeopleView
+                    workload={dashboard.workload}
+                    issues={dashboard.issues}
+                    selectedId={personId}
+                    onSelect={setPersonId}
+                    onOpenRef={openRef}
+                  />
+                )}
+
+                {/* Three independent columns, so expanding a hygiene row
+                        only grows its own column. Kept mounted while People
+                        shows, so expanded rows survive the round trip. */}
+                {!jiraError && (
+                  <div className={`row g-3 mb-3${sprintView === "overview" ? "" : " d-none"}`}>
                     <div className="col-lg-6">
                       <LoadDistribution
                         workload={dashboard.workload}
                         loadBalance={dashboard.loadBalance}
-                        issues={dashboard.issues}
                         onOpenRef={openRef}
+                        onSelectMember={(accountId) => {
+                          setPersonId(accountId);
+                          setSprintView("people");
+                        }}
                         staleDays={staleDaysMap}
                       />
                       <div className="mt-3"></div>
@@ -407,56 +476,58 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                       />
                     </div>
                   </div>
-                </>
-              )}
-
-              {/* Off-board PRs — full list */}
-              <div className="border rounded p-2" style={{ background: "rgba(255,170,60,.06)" }}>
+                )}
+                {/* Off-board PRs — full list. Team-wide, so not on People. */}
                 <div
-                  className="small text-muted d-flex align-items-center gap-1"
-                  style={{ cursor: "pointer" }}
-                  role="button"
-                  onClick={() => setOffBoardCollapsed((c) => !c)}
+                  className={`border rounded p-2${!jiraError && sprintView === "people" ? " d-none" : ""}`}
+                  style={{ background: "rgba(255,170,60,.06)" }}
                 >
-                  {offBoardCollapsed ? (
-                    <IconChevronRight size={14} />
-                  ) : (
-                    <IconChevronDown size={14} />
-                  )}
-                  ⚠ PRs OUTSIDE THE SPRINT · last 2 weeks · {dashboard.offBoardPRs.length}
+                  <div
+                    className="small text-muted d-flex align-items-center gap-1"
+                    style={{ cursor: "pointer" }}
+                    role="button"
+                    onClick={() => setOffBoardCollapsed((c) => !c)}
+                  >
+                    {offBoardCollapsed ? (
+                      <IconChevronRight size={14} />
+                    ) : (
+                      <IconChevronDown size={14} />
+                    )}
+                    ⚠ PRs OUTSIDE THE SPRINT · last 2 weeks · {dashboard.offBoardPRs.length}
+                  </div>
+                  {!offBoardCollapsed &&
+                    (dashboard.offBoardPRs.length === 0 ? (
+                      <div className="text-muted small mt-2">None.</div>
+                    ) : (
+                      <table className="table table-sm table-hover mb-0 mt-2">
+                        <tbody>
+                          {dashboard.offBoardPRs.map((pr) => (
+                            <tr
+                              key={`${pr.repo_full_name}#${pr.number}`}
+                              onClick={() => openPR(pr.repo_full_name, pr.number)}
+                              style={{ cursor: "pointer" }}
+                            >
+                              <td>{pr.author}</td>
+                              <td>
+                                <a
+                                  href={pr.html_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  #{pr.number} {pr.title}
+                                </a>
+                              </td>
+                              <td className="text-muted">
+                                {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
+                              </td>
+                              <td>{pr.state}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ))}
                 </div>
-                {!offBoardCollapsed &&
-                  (dashboard.offBoardPRs.length === 0 ? (
-                    <div className="text-muted small mt-2">None.</div>
-                  ) : (
-                    <table className="table table-sm table-hover mb-0 mt-2">
-                      <tbody>
-                        {dashboard.offBoardPRs.map((pr) => (
-                          <tr
-                            key={`${pr.repo_full_name}#${pr.number}`}
-                            onClick={() => openPR(pr.repo_full_name, pr.number)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td>{pr.author}</td>
-                            <td>
-                              <a
-                                href={pr.html_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                #{pr.number} {pr.title}
-                              </a>
-                            </td>
-                            <td className="text-muted">
-                              {pr.ticketKey ? `${pr.ticketKey} (other project)` : "no ticket"}
-                            </td>
-                            <td>{pr.state}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ))}
               </div>
             </>
           )}

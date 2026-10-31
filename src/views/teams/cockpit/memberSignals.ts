@@ -1,4 +1,10 @@
-import type { AtRiskIssue, DashboardIssue, IssueFlags, RiskLevel } from "../../../types/teams";
+import type {
+  AtRiskIssue,
+  DashboardIssue,
+  IssueFlags,
+  RiskLevel,
+  WorkloadEntry,
+} from "../../../types/teams";
 
 /** Plain-language names for a ticket's risk level in the member modal. */
 export const LEVEL_LABELS: Record<RiskLevel, string> = {
@@ -125,7 +131,10 @@ export function prBadge(issue: DashboardIssue): PRBadge | null {
 
 export type StatusBucket = "new" | "indeterminate" | "inReview" | "done";
 
-// Status colors for the Work Spread bars and the member modal's groups.
+/** Left-to-right order of the status bars and their legend. */
+export const STATUS_ORDER: StatusBucket[] = ["new", "indeterminate", "inReview", "done"];
+
+// Status colors for the Work Spread and People bars and the member detail's groups.
 export const STATUS_COLORS: Record<StatusBucket, string> = {
   new: "#6e7781",
   indeterminate: "#4c8dff",
@@ -178,4 +187,14 @@ export function memberTickets(issues: DashboardIssue[], accountId: string): Memb
   })).filter((g) => g.issues.length > 0);
 
   return { atRisk: byScore("high"), needsLook: byScore("attention"), groups };
+}
+
+const NEED: Record<RiskLevel, number> = { high: 3, attention: 2, normal: 1 };
+
+/** Who needs help first: risk level, then stalled count, then WIP. Work Spread and People share it. */
+export function sortByNeed(workload: WorkloadEntry[]): WorkloadEntry[] {
+  return [...workload].sort(
+    (a, b) =>
+      NEED[b.riskLevel] - NEED[a.riskLevel] || b.stalledCount - a.stalledCount || b.wip - a.wip,
+  );
 }

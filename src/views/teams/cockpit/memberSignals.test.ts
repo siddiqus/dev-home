@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
-import type { DashboardIssue, LinkedPR } from "../../../types/teams";
+import type { DashboardIssue, LinkedPR, WorkloadEntry } from "../../../types/teams";
 import {
   describeSignals,
   flagSummary,
   memberTickets,
   prBadge,
+  sortByNeed,
   statusBucket,
 } from "./memberSignals";
 
@@ -263,5 +264,21 @@ describe("flagSummary", () => {
     expect(flagSummary([{ level: "attention" }, { level: "high" }, { level: "attention" }])).toBe(
       "1 ticket at risk, 2 need a look",
     );
+  });
+});
+
+describe("sortByNeed", () => {
+  const member = (accountId: string, over: Partial<WorkloadEntry>): WorkloadEntry =>
+    ({ accountId, riskLevel: "normal", stalledCount: 0, wip: 0, ...over }) as WorkloadEntry;
+
+  it("puts who needs help first: risk level, then stalled, then WIP", () => {
+    const sorted = sortByNeed([
+      member("calm", {}),
+      member("busy", { wip: 5 }),
+      member("look", { riskLevel: "attention" }),
+      member("stuck", { riskLevel: "high", stalledCount: 1 }),
+      member("stucker", { riskLevel: "high", stalledCount: 3 }),
+    ]);
+    expect(sorted.map((m) => m.accountId)).toEqual(["stucker", "stuck", "look", "busy", "calm"]);
   });
 });

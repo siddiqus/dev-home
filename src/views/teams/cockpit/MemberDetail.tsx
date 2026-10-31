@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Modal from "react-bootstrap/Modal";
 import {
   IconAlertTriangle,
   IconCalendar,
@@ -33,11 +32,9 @@ import {
 import { STALLED_CHIP_STYLE, staleTone } from "./staleTone";
 
 interface Props {
-  /** The member whose modal is open, or null when closed. */
-  member: WorkloadEntry | null;
-  /** Every sprint issue; the modal picks the member's own. */
+  member: WorkloadEntry;
+  /** Every sprint issue; the panel picks the member's own. */
   issues: DashboardIssue[];
-  onHide: () => void;
   onOpenRef?: (ref: Ref) => void;
 }
 
@@ -93,16 +90,13 @@ function PRChip({ issue, full }: { issue: DashboardIssue; full?: boolean }) {
   );
 }
 
-function MemberDetail({
-  member,
-  issues,
-  onOpen,
-}: {
-  member: WorkloadEntry;
-  issues: DashboardIssue[];
-  onOpen: (key: string) => void;
-}) {
+/**
+ * One member on the People tab: their numbers, why they're flagged, then every
+ * ticket they hold. Key it by member so the done fold resets between people.
+ */
+export function MemberDetail({ member, issues, onOpenRef }: Props) {
   const [showAllDone, setShowAllDone] = useState(false);
+  const onOpen = (key: string) => onOpenRef?.({ kind: "issue", key });
   const now = new Date();
   const { atRisk, needsLook, groups } = memberTickets(issues, member.accountId);
   const total = groups.reduce((n, g) => n + g.issues.length, 0);
@@ -113,63 +107,59 @@ function MemberDetail({
   ].filter((s) => s.issues.length > 0);
 
   return (
-    <>
-      <Modal.Header closeButton className="align-items-start">
-        <div className="member-modal__head">
-          <span className="member-modal__avatar" aria-hidden>
-            {initials(member.displayName)}
-          </span>
-          <div className="member-modal__who">
-            <Modal.Title as="div" className="member-modal__name">
-              {member.displayName}
-            </Modal.Title>
-            <div className="member-modal__chips">
-              <span className="member-modal__chip">
-                <b>{member.ticketCount}</b> {plural(member.ticketCount, "ticket")}
-              </span>
-              <span className="member-modal__chip">
-                <b>{member.wip}</b> in flight
-              </span>
-              <span
-                className={`member-modal__chip${member.stalledCount > 0 ? " member-modal__chip--stalled" : ""}`}
-                style={member.stalledCount > 0 ? STALLED_CHIP_STYLE : undefined}
-              >
-                <b>{member.stalledCount}</b> stalled
-              </span>
-              <span className="member-modal__chip">
-                <b>{member.doneCount}</b> done
-              </span>
-              <span className="member-modal__chip">
-                <b>{member.prOpen}</b> open {plural(member.prOpen, "PR")}
-                {member.prReviewing > 0 && (
-                  <>
-                    {" · "}
-                    <b>{member.prReviewing}</b> waiting on reviewers
-                  </>
-                )}
-                {" · "}
-                <b>{member.prMerged}</b> merged
-              </span>
-            </div>
+    <div className="member-detail">
+      <div className="member-detail__head">
+        <span className="member-detail__avatar" aria-hidden>
+          {initials(member.displayName)}
+        </span>
+        <div className="member-detail__who">
+          <h2 className="member-detail__name">{member.displayName}</h2>
+          <div className="member-detail__chips">
+            <span className="member-detail__chip">
+              <b>{member.ticketCount}</b> {plural(member.ticketCount, "ticket")}
+            </span>
+            <span className="member-detail__chip">
+              <b>{member.wip}</b> in flight
+            </span>
+            <span
+              className={`member-detail__chip${member.stalledCount > 0 ? " member-detail__chip--stalled" : ""}`}
+              style={member.stalledCount > 0 ? STALLED_CHIP_STYLE : undefined}
+            >
+              <b>{member.stalledCount}</b> stalled
+            </span>
+            <span className="member-detail__chip">
+              <b>{member.doneCount}</b> done
+            </span>
+            <span className="member-detail__chip">
+              <b>{member.prOpen}</b> open {plural(member.prOpen, "PR")}
+              {member.prReviewing > 0 && (
+                <>
+                  {" · "}
+                  <b>{member.prReviewing}</b> waiting on reviewers
+                </>
+              )}
+              {" · "}
+              <b>{member.prMerged}</b> merged
+            </span>
           </div>
         </div>
-      </Modal.Header>
+      </div>
 
-      <Modal.Body>
+      <div className="member-detail__body">
         {flagged.length === 0 ? (
-          <div className="member-modal__clear">
+          <div className="member-detail__clear">
             <IconCircleCheck size={14} />
             All clear: nothing needs a look.
           </div>
         ) : (
           flagged.map(({ level, issues: list }) => (
             <section key={level} aria-label={`${LEVEL_LABELS[level]} tickets`}>
-              <div className="member-modal__section">
+              <div className="member-detail__section">
                 <span className={`member-tone--${LEVEL_TONES[level]}`}>
                   <IconAlertTriangle size={13} />
                 </span>
                 {LEVEL_LABELS[level]}
-                <span className="member-modal__count">{list.length}</span>
+                <span className="member-detail__count">{list.length}</span>
               </div>
               <div className="d-flex flex-column gap-2">
                 {list.map((issue) => {
@@ -225,8 +215,8 @@ function MemberDetail({
           ))
         )}
 
-        <div className="member-modal__section">
-          All tickets <span className="member-modal__count">{total}</span>
+        <div className="member-detail__section">
+          All tickets <span className="member-detail__count">{total}</span>
         </div>
         {total === 0 && <div className="text-muted small">No tickets in this sprint.</div>}
         {groups.map(({ bucket, issues: list }) => {
@@ -241,7 +231,7 @@ function MemberDetail({
               <div className="cockpit-group-head">
                 <StatusSquare bucket={bucket} />
                 {STATUS_LABELS[bucket]}
-                <span className="member-modal__count">{list.length}</span>
+                <span className="member-detail__count">{list.length}</span>
               </div>
               <div className="member-rows">
                 {visible.map((issue) => (
@@ -283,25 +273,7 @@ function MemberDetail({
             </section>
           );
         })}
-      </Modal.Body>
-    </>
-  );
-}
-
-/** Work Spread drill-down: why a member is flagged, then every ticket they hold. */
-export function MemberModal({ member, issues, onHide, onOpenRef }: Props) {
-  return (
-    <Modal show={member !== null} onHide={onHide} size="lg" centered scrollable animation={false}>
-      {member && (
-        <MemberDetail
-          member={member}
-          issues={issues}
-          onOpen={(key) => {
-            onOpenRef?.({ kind: "issue", key });
-            onHide();
-          }}
-        />
-      )}
-    </Modal>
+      </div>
+    </div>
   );
 }

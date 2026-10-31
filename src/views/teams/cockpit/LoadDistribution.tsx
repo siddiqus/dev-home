@@ -1,34 +1,27 @@
-import { useState } from "react";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import type { DashboardIssue, WorkloadEntry, LoadBalance, Ref } from "../../../types/teams";
-import { MemberModal } from "./MemberModal";
-import { STATUS_COLORS, STATUS_LABELS, flagSummary } from "./memberSignals";
+import type { WorkloadEntry, LoadBalance, Ref } from "../../../types/teams";
+import { flagSummary, sortByNeed } from "./memberSignals";
+import { StatusBar, StatusLegend } from "./StatusBar";
 import { STALLED_CHIP_STYLE, staleTone } from "./staleTone";
 
 interface Props {
   workload: WorkloadEntry[];
   loadBalance: LoadBalance;
-  /** Every sprint issue, for the member modal's ticket list. */
-  issues: DashboardIssue[];
   onOpenRef?: (ref: Ref) => void;
+  /** A row was clicked: show this member on the People tab. */
+  onSelectMember?: (accountId: string) => void;
   staleDays?: Map<string, number>;
 }
 
-const STATUS_ORDER = ["new", "indeterminate", "inReview", "done"] as const;
-
-export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, staleDays }: Props) {
-  // The member whose detail modal is open, or null when closed.
-  const [selected, setSelected] = useState<WorkloadEntry | null>(null);
-
-  // Sort workload to surface who needs help: by riskLevel (desc), stalledCount (desc), wip (desc)
-  const riskOrder = { high: 3, attention: 2, normal: 1 };
-  const sorted = [...workload].sort((a, b) => {
-    const riskDiff = riskOrder[b.riskLevel] - riskOrder[a.riskLevel];
-    if (riskDiff !== 0) return riskDiff;
-    const stalledDiff = b.stalledCount - a.stalledCount;
-    if (stalledDiff !== 0) return stalledDiff;
-    return b.wip - a.wip;
-  });
+export function LoadDistribution({
+  workload,
+  loadBalance,
+  onOpenRef,
+  onSelectMember,
+  staleDays,
+}: Props) {
+  // Surface who needs help first.
+  const sorted = sortByNeed(workload);
 
   const showImbalanceWarning = loadBalance.imbalance >= 3;
 
@@ -56,27 +49,7 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
         )}
       </div>
 
-      {/* Legend for the stacked status bars. */}
-      <div
-        className="d-flex flex-wrap gap-3 mb-2 text-muted"
-        style={{ fontSize: "0.75rem" }}
-        aria-label="Bar colors"
-      >
-        {STATUS_ORDER.map((k) => (
-          <span key={k} className="d-inline-flex align-items-center gap-1">
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 2,
-                background: STATUS_COLORS[k],
-                display: "inline-block",
-              }}
-            />
-            {STATUS_LABELS[k]}
-          </span>
-        ))}
-      </div>
+      <StatusLegend className="mb-2" />
 
       <div>
         {sorted.map((w) => (
@@ -85,7 +58,7 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
             className="mb-2"
             role="button"
             style={{ cursor: "pointer" }}
-            onClick={() => setSelected(w)}
+            onClick={() => onSelectMember?.(w.accountId)}
           >
             <div className="d-flex align-items-center justify-content-between mb-1">
               <span className="fw-medium" style={{ fontSize: "0.875rem" }}>
@@ -105,7 +78,7 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
                 <span className="text-muted">
                   PRs: {w.prOpen}/{w.prMerged}
                 </span>
-                {/* Just a nudge to check in; the modal says which tickets and why.
+                {/* Just a nudge to check in; the People tab says which tickets and why.
                     No label beside a name on a shared standup screen. */}
                 {w.atRiskIssues.length > 0 && (
                   <span
@@ -119,29 +92,7 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
               </div>
             </div>
 
-            <div className="d-flex align-items-center gap-2">
-              <div
-                className="d-flex flex-fill"
-                style={{
-                  background: "rgba(125,125,125,.15)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  height: 12,
-                }}
-              >
-                {STATUS_ORDER.map((k) => (
-                  <div
-                    key={k}
-                    title={`${STATUS_LABELS[k]}: ${w.byStatus[k]}`}
-                    style={{
-                      width: `${(w.byStatus[k] / max) * 100}%`,
-                      height: 12,
-                      background: STATUS_COLORS[k],
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            <StatusBar byStatus={w.byStatus} max={max} height={12} />
 
             {w.stalest &&
               (() => {
@@ -152,7 +103,7 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
                       className="btn btn-link btn-sm p-0 text-decoration-none"
                       style={{ fontSize: "0.7rem" }}
                       onClick={(e) => {
-                        // Don't also open the member modal (row click).
+                        // Don't also jump to the People tab (row click).
                         e.stopPropagation();
                         onOpenRef?.(w.stalest!);
                       }}
@@ -169,13 +120,6 @@ export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, sta
           </div>
         ))}
       </div>
-
-      <MemberModal
-        member={selected}
-        issues={issues}
-        onHide={() => setSelected(null)}
-        onOpenRef={onOpenRef}
-      />
     </div>
   );
 }
