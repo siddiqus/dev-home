@@ -26,6 +26,9 @@ export const BASE_ISSUE_FIELDS = [
   CODE_REVIEWERS_FIELD,
 ];
 
+/** Base fields plus description + issue type, for callers that pass `withDetail`. */
+export const DETAIL_ISSUE_FIELDS = [...BASE_ISSUE_FIELDS, "description", "issuetype"];
+
 /** Map a raw Jira search issue to the app's JiraIssue shape. */
 export function mapIssue(issue: any, opts: { withDetail?: boolean } = {}): any {
   const f = issue.fields ?? {};
@@ -137,9 +140,7 @@ export async function postIssuesBulk(args: {
     return { issues: [] };
   }
 
-  const fields = withDetail
-    ? [...BASE_ISSUE_FIELDS, "description", "issuetype"]
-    : BASE_ISSUE_FIELDS;
+  const fields = withDetail ? DETAIL_ISSUE_FIELDS : BASE_ISSUE_FIELDS;
   const batches: string[][] = [];
   for (let i = 0; i < keys.length; i += KEY_BATCH_SIZE) {
     batches.push(keys.slice(i, i + KEY_BATCH_SIZE));

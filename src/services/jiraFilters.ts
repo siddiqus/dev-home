@@ -60,10 +60,12 @@ export async function fetchRemoteJiraFilters(): Promise<RemoteJiraFilter[]> {
   return filters;
 }
 
+/** `withDetail` adds description + issue type; only the export needs them. */
 export async function searchJql(
   jql: string,
   nextPageToken?: string | null,
+  opts: { withDetail?: boolean } = {},
 ): Promise<{ issues: JiraIssue[]; nextPageToken: string | null }> {
-  const result = await postJqlSearch({ jql, nextPageToken: nextPageToken ?? null });
+  const result = await postJqlSearch({ jql, nextPageToken: nextPageToken ?? null, ...opts });
   return { issues: result.issues, nextPageToken: result.nextPageToken };
 }

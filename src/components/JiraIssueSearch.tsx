@@ -152,17 +152,20 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     setExportTruncated(false);
     setSearchError(null);
     try {
-      // Start from the pages already on screen and fetch only the rest.
+      // Refetch from the first page: the on-screen results omit descriptions,
+      // which only the export needs.
       const MAX_PAGES = 100;
-      const all: JiraIssue[] = [...results];
-      let token: string | null = nextToken;
-      let pages = Math.ceil(results.length / 50);
-      while (token && pages < MAX_PAGES) {
-        const { issues, nextPageToken: npt } = await searchJql(activeQuery, token);
+      const all: JiraIssue[] = [];
+      let token: string | null = null;
+      let pages = 0;
+      do {
+        const { issues, nextPageToken: npt } = await searchJql(activeQuery, token, {
+          withDetail: true,
+        });
         all.push(...issues);
         token = npt;
         pages++;
-      }
+      } while (token && pages < MAX_PAGES);
       if (token) setExportTruncated(true); // cap reached with more remaining
       const tsv = issuesToTsv(all);
       const date = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local tz
@@ -178,7 +181,7 @@ export const JiraIssueSearch: React.FC<JiraIssueSearchProps> = ({ baseUrl }) => 
     } finally {
       setExporting(false);
     }
-  }, [exporting, searching, activeQuery, activeFilterName, results, nextToken]);
+  }, [exporting, searching, activeQuery, activeFilterName]);
 
   const handleRun = () => runSearch(jql);
 

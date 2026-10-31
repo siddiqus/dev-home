@@ -13,7 +13,16 @@ function toLocalDate(iso?: string): string {
   return d.toLocaleDateString();
 }
 
-const HEADERS = ["key", "summary", "status", "assignee", "reporter", "created", "updated"];
+const HEADERS = [
+  "key",
+  "summary",
+  "description",
+  "status",
+  "assignee",
+  "reporter",
+  "created",
+  "updated",
+];
 
 /**
  * Serialize Jira issues to a tab-separated grid. The first line is the header row;
@@ -28,6 +37,7 @@ export function issuesToTsv(issues: JiraIssue[]): string {
       [
         clean(issue.key),
         clean(issue.summary),
+        clean(issue.description || "").substring(0, 2000), // truncate to avoid exceeding Excel's 32k cell limit
         clean(issue.status?.name),
         clean(issue.assignee?.displayName ?? "Unassigned"),
         clean(issue.reporter?.displayName),

@@ -1,6 +1,6 @@
 import { jiraClient } from "../http";
 import { ApiError } from "../http/errors";
-import { BASE_ISSUE_FIELDS, mapIssue } from "./issues";
+import { BASE_ISSUE_FIELDS, DETAIL_ISSUE_FIELDS, mapIssue } from "./issues";
 
 /**
  * GET /api/jira-filters/remote → getRemoteFilters()
@@ -21,13 +21,15 @@ export async function getRemoteFilters(): Promise<{ filters: any[] }> {
 
 /**
  * POST /api/jira-filters/search → postJqlSearch({ jql, nextPageToken })
- * JQL Search
+ * JQL Search. `withDetail` adds description + issue type (for export, not the
+ * on-screen results).
  */
 export async function postJqlSearch(args: {
   jql: string;
   nextPageToken?: string | null;
+  withDetail?: boolean;
 }): Promise<{ issues: any[]; nextPageToken: string | null }> {
-  const { jql, nextPageToken } = args;
+  const { jql, nextPageToken, withDetail = false } = args;
 
   if (!jql || typeof jql !== "string" || jql.trim().length === 0) {
     throw new ApiError(400, "jql is required");
@@ -38,7 +40,7 @@ export async function postJqlSearch(args: {
 
   const payload: Record<string, any> = {
     jql: jql.trim(),
-    fields: BASE_ISSUE_FIELDS,
+    fields: withDetail ? DETAIL_ISSUE_FIELDS : BASE_ISSUE_FIELDS,
     maxResults,
   };
 
@@ -48,7 +50,7 @@ export async function postJqlSearch(args: {
 
   const { data } = await jira.post("/search/jql", payload);
 
-  const issues = (data.issues || []).map((issue: any) => mapIssue(issue));
+  const issues = (data.issues || []).map((issue: any) => mapIssue(issue, { withDetail }));
 
   return {
     issues,

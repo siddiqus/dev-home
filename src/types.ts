@@ -43,8 +43,9 @@ export interface JiraIssue {
   }[];
   /**
    * Full issue description (ADF converted to markdown). Only populated by the
-   * bulk endpoint; the assigned-issues list and filter search omit it and it is
-   * lazy-loaded on demand when a single issue's drawer/modal is opened.
+   * bulk endpoint and the JQL search's TSV export; the assigned-issues list and
+   * on-screen filter search omit it and it is lazy-loaded on demand when a
+   * single issue's drawer/modal is opened.
    */
   description?: string;
   issueType?: {

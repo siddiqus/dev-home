@@ -544,6 +544,50 @@ describe("Jira API", () => {
       const data = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
       expect(data.nextPageToken).toBe("prev");
     });
+
+    function mockSearchWithDescription() {
+      httpMock.adapter = vi.fn(async (config) => ({
+        data: {
+          issues: [
+            {
+              key: "TEST-1",
+              fields: {
+                summary: "Issue",
+                description: {
+                  type: "doc",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "Body" }] }],
+                },
+              },
+            },
+          ],
+          nextPageToken: null,
+        },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      }));
+    }
+
+    function lastPayload() {
+      const calls = (httpMock.adapter as any).mock.calls;
+      const config = calls[calls.length - 1][0];
+      return typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+    }
+
+    it("omits the description by default", async () => {
+      mockSearchWithDescription();
+      const result = await postJqlSearch({ jql: "project = TEST" });
+      expect(lastPayload().fields).not.toContain("description");
+      expect(result.issues[0].description).toBeUndefined();
+    });
+
+    it("requests and maps the description when withDetail is set", async () => {
+      mockSearchWithDescription();
+      const result = await postJqlSearch({ jql: "project = TEST", withDetail: true });
+      expect(lastPayload().fields).toContain("description");
+      expect(result.issues[0].description).toContain("Body");
+    });
   });
 
   describe("getRemoteFilters", () => {
