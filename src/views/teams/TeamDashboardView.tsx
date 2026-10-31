@@ -379,6 +379,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                       <LoadDistribution
                         workload={dashboard.workload}
                         loadBalance={dashboard.loadBalance}
+                        issues={dashboard.issues}
                         onOpenRef={openRef}
                         staleDays={staleDaysMap}
                       />

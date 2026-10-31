@@ -1,4 +1,5 @@
 import type { DashboardEpic, Ref } from "../../../types/teams";
+import { STALLED_CHIP_STYLE } from "./staleTone";
 
 interface Props {
   epics: DashboardEpic[];
@@ -71,12 +72,7 @@ export function EpicCards({ epics, onOpenRef }: Props) {
               {hasStalled && (
                 <span
                   className="badge rounded-pill"
-                  style={{
-                    fontSize: "0.6875rem",
-                    background: epic.stalled > 1 ? "rgba(220,53,69,.15)" : "rgba(255,193,7,.15)",
-                    color: epic.stalled > 1 ? "#dc3545" : "#ffc107",
-                    border: `1px solid ${epic.stalled > 1 ? "rgba(220,53,69,.3)" : "rgba(255,193,7,.3)"}`,
-                  }}
+                  style={{ fontSize: "0.6875rem", ...STALLED_CHIP_STYLE }}
                 >
                   {epic.stalled} stalled
                 </span>

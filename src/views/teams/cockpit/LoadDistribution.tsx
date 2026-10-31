@@ -1,58 +1,22 @@
 import { useState } from "react";
-import Modal from "react-bootstrap/Modal";
-import { IconChevronRight } from "@tabler/icons-react";
-import type { WorkloadEntry, LoadBalance, Ref, RiskLevel } from "../../../types/teams";
-import { staleTone } from "./staleTone";
+import { IconAlertTriangle } from "@tabler/icons-react";
+import type { DashboardIssue, WorkloadEntry, LoadBalance, Ref } from "../../../types/teams";
+import { MemberModal } from "./MemberModal";
+import { STATUS_COLORS, STATUS_LABELS, flagSummary } from "./memberSignals";
+import { STALLED_CHIP_STYLE, staleTone } from "./staleTone";
 
 interface Props {
   workload: WorkloadEntry[];
   loadBalance: LoadBalance;
+  /** Every sprint issue, for the member modal's ticket list. */
+  issues: DashboardIssue[];
   onOpenRef?: (ref: Ref) => void;
   staleDays?: Map<string, number>;
 }
 
-// Status colors for the per-member workload bars.
-const STATUS_COLORS = {
-  new: "#6e7781",
-  indeterminate: "#4c8dff",
-  inReview: "#e0a458",
-  done: "#50c878",
-} as const;
-
 const STATUS_ORDER = ["new", "indeterminate", "inReview", "done"] as const;
 
-const STATUS_LABELS = {
-  new: "To Do",
-  indeterminate: "In Progress",
-  inReview: "In Review",
-  done: "Done",
-} as const;
-
-// Risk level → Bootstrap semantic color for the risk chip.
-function getRiskBadgeVariant(level: RiskLevel): string {
-  switch (level) {
-    case "normal":
-      return "success";
-    case "attention":
-      return "warning";
-    case "high":
-      return "danger";
-  }
-}
-
-// Raw backend flag keys → human-readable chip labels for the "Why flagged" list.
-const REASON_LABELS: Record<string, string> = {
-  stale: "stale",
-  prFailingCI: "failing CI",
-  prWaitingReview: "waiting review",
-  dueSoon: "due soon",
-  noEpic: "no epic",
-  unassigned: "unassigned",
-  inProgressNoPR: "in progress · no PR",
-  addedAfterStart: "added mid-sprint",
-};
-
-export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }: Props) {
+export function LoadDistribution({ workload, loadBalance, issues, onOpenRef, staleDays }: Props) {
   // The member whose detail modal is open, or null when closed.
   const [selected, setSelected] = useState<WorkloadEntry | null>(null);
 
@@ -130,7 +94,10 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
               <div className="d-flex gap-2 align-items-center" style={{ fontSize: "0.75rem" }}>
                 <span className="text-muted">WIP: {w.wip}</span>
                 {w.stalledCount > 0 && (
-                  <span className="badge bg-danger" style={{ fontSize: "0.6875rem" }}>
+                  <span
+                    className="badge rounded-pill"
+                    style={{ fontSize: "0.6875rem", ...STALLED_CHIP_STYLE }}
+                  >
                     Stalled: {w.stalledCount}
                   </span>
                 )}
@@ -138,12 +105,17 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
                 <span className="text-muted">
                   PRs: {w.prOpen}/{w.prMerged}
                 </span>
-                <span
-                  className={`badge bg-${getRiskBadgeVariant(w.riskLevel)}`}
-                  style={{ fontSize: "0.6875rem" }}
-                >
-                  {w.riskLevel}
-                </span>
+                {/* Just a nudge to check in; the modal says which tickets and why.
+                    No label beside a name on a shared standup screen. */}
+                {w.atRiskIssues.length > 0 && (
+                  <span
+                    className="work-spread-flag"
+                    title={`Check in: ${flagSummary(w.atRiskIssues)}`}
+                    aria-label={`Check in: ${flagSummary(w.atRiskIssues)}`}
+                  >
+                    <IconAlertTriangle size={15} />
+                  </span>
+                )}
               </div>
             </div>
 
@@ -198,73 +170,12 @@ export function LoadDistribution({ workload, loadBalance, onOpenRef, staleDays }
         ))}
       </div>
 
-      <Modal show={selected !== null} onHide={() => setSelected(null)} centered animation={false}>
-        {selected && (
-          <>
-            <Modal.Header closeButton>
-              <Modal.Title
-                as="div"
-                className="d-flex align-items-center gap-2"
-                style={{ fontSize: "1rem" }}
-              >
-                {selected.displayName}
-                <span
-                  className={`badge bg-${getRiskBadgeVariant(selected.riskLevel)}`}
-                  style={{ fontSize: "0.6875rem" }}
-                >
-                  {selected.riskLevel}
-                </span>
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="small mb-2">
-                Tickets {selected.ticketCount} · WIP {selected.wip} · Stalled{" "}
-                {selected.stalledCount} · Done {selected.doneCount}
-              </div>
-              <div className="small text-muted mb-2">
-                PRs {selected.prOpen} open / {selected.prReviewing} reviewing / {selected.prMerged}{" "}
-                merged · idle {selected.avgDaysSinceUpdate}d
-              </div>
-              <div className="small text-muted mb-3">
-                To Do {selected.byStatus.new} · In Progress {selected.byStatus.indeterminate} · In
-                Review {selected.byStatus.inReview} · Done {selected.byStatus.done}
-              </div>
-
-              <div className="fw-medium small mb-2">Why flagged</div>
-              {selected.atRiskIssues.length === 0 ? (
-                <div className="text-muted small">On track — no risk signals.</div>
-              ) : (
-                <div className="d-flex flex-column gap-1">
-                  {selected.atRiskIssues.map((issue) => (
-                    <button
-                      key={issue.key}
-                      className="btn btn-sm btn-light d-flex align-items-center justify-content-between text-start w-100"
-                      onClick={() => {
-                        onOpenRef?.({ kind: "issue", key: issue.key });
-                        setSelected(null);
-                      }}
-                    >
-                      <span className="d-flex align-items-center gap-2 flex-wrap">
-                        <span className="fw-medium">{issue.key}</span>
-                        {issue.reasons.map((r) => (
-                          <span
-                            key={r}
-                            className="badge bg-secondary"
-                            style={{ fontSize: "0.6875rem" }}
-                          >
-                            {REASON_LABELS[r] ?? r}
-                          </span>
-                        ))}
-                      </span>
-                      <IconChevronRight size={14} className="flex-shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Modal.Body>
-          </>
-        )}
-      </Modal>
+      <MemberModal
+        member={selected}
+        issues={issues}
+        onHide={() => setSelected(null)}
+        onOpenRef={onOpenRef}
+      />
     </div>
   );
 }

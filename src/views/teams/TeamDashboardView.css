@@ -230,6 +230,245 @@
   padding: 4px 0 0 14px;
 }
 
+/* --- Work Spread: check-in icon + member modal ---
+   Tones follow the status tokens: danger = blocking, warning = slowing down,
+   neutral = context only. */
+/* The row's check-in nudge: Bootstrap's warning yellow. */
+.work-spread-flag {
+  display: inline-flex;
+  color: #ffc107;
+}
+.member-tone--danger {
+  color: var(--color-status-danger);
+}
+.member-tone--warning {
+  color: var(--color-status-warning);
+}
+.member-tone--success {
+  color: var(--color-status-success);
+}
+.member-tone--purple {
+  color: var(--color-status-purple);
+}
+.member-tone--neutral {
+  color: var(--color-text-secondary);
+}
+.member-tone--danger,
+.member-tone--warning,
+.member-tone--success,
+.member-tone--neutral {
+  display: inline-flex;
+  align-items: center;
+}
+
+.member-modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.member-modal__avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.member-modal__who {
+  min-width: 0;
+}
+.member-modal__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.member-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.member-modal__chip {
+  padding: 0 9px;
+  /* Transparent, so the bordered stalled chip is the same size as the rest. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.member-modal__chip b {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+/* The stalled chip takes the epic cards' shading (inline); its number follows. */
+.member-modal__chip--stalled b {
+  color: inherit;
+}
+.member-modal__section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.modal-body > :first-child .member-modal__section,
+.modal-body > .member-modal__section:first-child {
+  margin-top: 0;
+}
+.member-modal__count {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.member-modal__clear {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-status-success);
+  font-size: 0.8125rem;
+}
+
+/* A flagged ticket: key + title, its status line, then one warning sign per line. */
+.member-ticket {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.member-ticket:hover {
+  background: var(--color-bg-hover);
+}
+.member-ticket__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.member-ticket__title {
+  display: flex;
+  gap: var(--space-2);
+}
+.member-ticket__key {
+  color: var(--color-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.member-ticket__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 4px 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.member-ticket__signals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.member-ticket__chev {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+}
+.member-signal {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.member-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.member-status-square {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.member-pr {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+/* Every ticket, grouped by status: key · title · flag, PR, age. */
+.member-group {
+  margin-top: var(--space-3);
+}
+.member-group .cockpit-group-head {
+  margin-bottom: 6px;
+}
+.member-rows {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.member-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+.member-row:first-child {
+  border-top: 0;
+}
+.member-row:hover {
+  background: var(--color-bg-hover);
+}
+.member-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-row__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.75rem;
+}
+.member-row__age {
+  min-width: 48px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+.member-row--more {
+  display: block;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+}
+
 /* --- Review Queue: card + See-all modal ---
    Each list is one grid and every row is a subgrid row, so the PR, title,
    people and waiting columns line up across rows and groups. */
