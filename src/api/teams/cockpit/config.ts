@@ -20,13 +20,15 @@ export const DEFAULT_COCKPIT_CONFIG: CockpitConfig = {
   behindPaceTolerance: 0.1,
 };
 
-/** Risk weights (blocked intentionally omitted for v1; stalled is the heavy term). */
+/**
+ * Risk weights (blocked intentionally omitted for v1; stalled is the heavy term).
+ * noEpic is not a risk: it stays a flag for Delivery Hygiene only.
+ */
 export const RISK_WEIGHTS = {
   stale: 3,
   prFailingCI: 2,
   prWaitingReview: 2,
   unassigned: 1,
-  noEpic: 1,
   inProgressNoPR: 1,
   dueSoon: 1,
   addedAfterStart: 1,

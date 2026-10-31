@@ -155,6 +155,23 @@ describe("enrichIssue", () => {
     expect(enriched.flags.noEpic).toBe(true);
   });
 
+  it("does not count noEpic toward the risk score", () => {
+    const issue: RawIssue = {
+      key: "ABC-123",
+      summary: "test",
+      status: "To Do",
+      statusCategory: "new",
+      assigneeAccountId: "user1",
+      assigneeName: "Alice",
+      epicKey: null,
+      epicName: null,
+    };
+    const enriched = enrichIssue(issue, [], null, NOW, DEFAULT_COCKPIT_CONFIG);
+    expect(enriched.flags.noEpic).toBe(true);
+    expect(enriched.risk.score).toBe(0);
+    expect(enriched.risk.reasons).not.toContain("noEpic");
+  });
+
   it("flags stale when statusCategory=indeterminate and daysSinceUpdate > staleDays", () => {
     const issue: RawIssue = {
       key: "ABC-123",
@@ -465,17 +482,17 @@ describe("enrichIssue", () => {
       statusCategory: "indeterminate",
       assigneeAccountId: null, // +1 unassigned
       assigneeName: null,
-      epicKey: null, // +1 noEpic
+      epicKey: null, // noEpic: not scored
       epicName: null,
       updatedAt: "2026-06-29T12:00:00Z", // 3 days ago -> stale +3
     };
-    // stale (3) + unassigned (1) + noEpic (1) + inProgressNoPR (1) = 6 -> high
+    // stale (3) + unassigned (1) + inProgressNoPR (1) = 5 -> high
     const enriched = enrichIssue(issue, [], null, NOW, DEFAULT_COCKPIT_CONFIG);
-    expect(enriched.risk.score).toBe(6);
+    expect(enriched.risk.score).toBe(5);
     expect(enriched.risk.level).toBe("high");
     expect(enriched.risk.reasons).toContain("stale");
     expect(enriched.risk.reasons).toContain("unassigned");
-    expect(enriched.risk.reasons).toContain("noEpic");
+    expect(enriched.risk.reasons).not.toContain("noEpic");
     expect(enriched.risk.reasons).toContain("inProgressNoPR");
   });
 
@@ -539,13 +556,13 @@ describe("enrichIssue", () => {
       statusCategory: "indeterminate",
       assigneeAccountId: null, // +1
       assigneeName: null,
-      epicKey: null, // +1
+      epicKey: null, // noEpic: not scored
       epicName: null,
       dueDate: "2026-07-03T00:00:00Z", // +1
     };
-    // unassigned (1) + noEpic (1) + dueSoon (1) + inProgressNoPR (1) = 4 -> attention
+    // unassigned (1) + dueSoon (1) + inProgressNoPR (1) = 3 -> attention
     const enriched = enrichIssue(issue, [], null, NOW, DEFAULT_COCKPIT_CONFIG);
-    expect(enriched.risk.score).toBe(4);
+    expect(enriched.risk.score).toBe(3);
     expect(enriched.risk.level).toBe("attention");
   });
 
