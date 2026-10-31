@@ -22,6 +22,8 @@ export interface DeckPRRowProps {
   onSelect(url: string): void;
   onOpen(pr: GitHubPR): void;
   onOpenNote?(note: Note): void;
+  /** Show the author even when it's me (PR search lists anyone's PRs). */
+  alwaysShowAuthor?: boolean;
 }
 
 /**
@@ -42,10 +44,11 @@ export function DeckPRRow({
   onSelect,
   onOpen,
   onOpenNote,
+  alwaysShowAuthor = false,
 }: DeckPRRowProps) {
   const { pr } = item;
   const me = useContext(ViewerLoginContext);
-  const showAuthor = !me || pr.user.login.toLowerCase() !== me.toLowerCase();
+  const showAuthor = alwaysShowAuthor || !me || pr.user.login.toLowerCase() !== me.toLowerCase();
   const { shown, more } = visibleChips(item.signals);
   // Null without comments or comment data (merged PRs), so no chip and no chip-only row.
   const comments = useCommentCounts(pr);

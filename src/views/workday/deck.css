@@ -1657,14 +1657,38 @@ button.deck-rail-row:focus-visible {
   bottom: calc(var(--deck-phone-nav-h) + var(--space-2) + env(safe-area-inset-bottom));
 }
 
-/* ☰ and the ticket count, in the top bar's left cell. */
+/* Pinned over the carousel: the Tickets button left, what's on the deck right. */
+.deck-phone-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+}
 .deck-rail-trigger {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-panel);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+}
+.deck-phone-counts {
+  overflow: hidden;
   color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck-phone-counts b {
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 /* Bootstrap's own variables, set on the same element so load order can't undo them. */

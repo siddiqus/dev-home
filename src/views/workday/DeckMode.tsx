@@ -2,12 +2,13 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Button from "react-bootstrap/Button";
 import Offcanvas from "react-bootstrap/Offcanvas";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconListDetails } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { useSwipe } from "../../hooks/useSwipe";
 import { useBackClose } from "../../hooks/useBackClose";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
+import type { DeckCounts } from "./deckCounts";
 import { loopWindow, outgoingOffset, type SwipeDirection } from "./deckCarousel";
 import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 import type { MentionItem } from "./types";
@@ -50,6 +51,8 @@ export interface DeckModeProps {
   onNext?(): void;
   /** First load with no data yet: rail and card skeletons (spec §5.13). */
   loading?: boolean;
+  /** Every source has landed: until then the rail and the phone bar hide their counts. */
+  countsReady?: boolean;
   /** Source error banner text for the top of the rail. */
   sourceError?: string | null;
   onRetry?(): void;
@@ -72,8 +75,10 @@ export interface PhoneDeck {
   /** The card's 1-based place among the Prev / Next stops, and how many there are. */
   position: number;
   total: number;
-  /** The rail's length, for the drawer title. */
+  /** The rail's length, for the drawer title and the deck bar's Tickets button. */
   tickets: number;
+  /** What's on the deck, at the deck bar's right end. */
+  counts: DeckCounts;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -130,6 +135,7 @@ export function DeckMode({
   onPrev,
   onNext,
   loading = false,
+  countsReady = true,
   sourceError = null,
   onRetry,
   notStartedCount = 0,
@@ -143,6 +149,7 @@ export function DeckMode({
     if (s === "left") phone?.onRailOpenChange(false);
   });
   useBackClose(!!phone?.railOpen, () => phone?.onRailOpenChange(false));
+  const showCounts = countsReady && !loading;
   if (loading) {
     deck = LOADING_DECK;
     selectedId = null;
@@ -209,6 +216,7 @@ export function DeckMode({
       onReopen={reopen}
       onlyCurrent={onlyCurrent}
       loading={loading}
+      showCounts={showCounts}
       sourceError={sourceError}
       onRetry={onRetry}
     />
@@ -244,7 +252,7 @@ export function DeckMode({
           aria-labelledby="deck-rail-drawer-title"
         >
           <Offcanvas.Header closeButton>
-            <Offcanvas.Title id="deck-rail-drawer-title">Tickets · {phone.tickets}</Offcanvas.Title>
+            <Offcanvas.Title id="deck-rail-drawer-title">Items</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body {...swipeDrawer}>
             {rail(closeAfter(onSelect), onReopen && closeAfter(onReopen))}
@@ -252,6 +260,28 @@ export function DeckMode({
         </Offcanvas>
       ) : (
         rail(onSelect, onReopen)
+      )}
+      {phone && (
+        // Above the carousel, which doesn't scroll (each card does), so it stays put.
+        <div className="deck-phone-bar" data-testid="deck-phone-bar">
+          <button
+            type="button"
+            className="deck-rail-trigger"
+            aria-label="Show items"
+            aria-expanded={phone.railOpen}
+            onClick={() => phone.onRailOpenChange(true)}
+          >
+            <IconListDetails size={14} aria-hidden="true" />
+            All Items
+          </button>
+          {showCounts && (
+            <span className="deck-phone-counts">
+              <b>{phone.counts.openPRs}</b> {phone.counts.openPRs === 1 ? "open PR" : "open PRs"},{" "}
+              <b>{phone.counts.reviewRequests}</b>{" "}
+              {phone.counts.reviewRequests === 1 ? "review request" : "review requests"}
+            </span>
+          )}
+        </div>
       )}
       <div className="deck-stage">
         {loading && (

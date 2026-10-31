@@ -1650,16 +1650,16 @@ describe("WorkdayView on a phone", () => {
     expect(localStorage.getItem("workday-v2.mode")).toBe("list");
   });
 
-  it("puts a tickets button in the top bar that opens the rail drawer", () => {
-    const slot = document.body.appendChild(document.createElement("div"));
-    renderView({ phone: true, topBarStart: slot, openPRs: [prs[0], second] });
-    const button = within(slot).getByRole("button", { name: "Show tickets" });
-    expect(button).toHaveTextContent("2");
+  it("puts an items button and the deck's counts in the deck bar", () => {
+    renderView({ phone: true, openPRs: [prs[0], second] });
+    const bar = screen.getByTestId("deck-phone-bar");
+    expect(bar).toHaveTextContent("2 open PRs, 0 review requests");
+    const button = within(bar).getByRole("button", { name: "Show items" });
+    expect(button).toHaveTextContent("All Items");
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(button);
-    const drawer = screen.getByRole("dialog", { name: "Tickets · 2" });
+    const drawer = screen.getByRole("dialog", { name: "Items" });
     expect(within(drawer).getAllByRole("option")).toHaveLength(2);
-    slot.remove();
   });
 
   it("steps to the next ticket with the Next button", () => {
@@ -1688,18 +1688,16 @@ describe("WorkdayView on a phone", () => {
       }),
     ];
     try {
-      const slot = document.body.appendChild(document.createElement("div"));
-      renderView({ phone: true, topBarStart: slot, openPRs: [prs[0], second] });
+      renderView({ phone: true, openPRs: [prs[0], second] });
       expect(screen.getByText("1 / 2")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
       expect(screen.getByText("2 / 2")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
       expect(screen.getByText("1 / 2")).toBeTruthy();
       expect(screen.getByRole("region", { name: /^CCP-/ })).not.toHaveAccessibleName(/^CCP-350/);
-      fireEvent.click(within(slot).getByRole("button", { name: "Show tickets" }));
-      const drawer = screen.getByRole("dialog", { name: "Tickets · 3" });
+      fireEvent.click(screen.getByRole("button", { name: "Show items" }));
+      const drawer = screen.getByRole("dialog", { name: "Items" });
       expect(within(drawer).getAllByRole("option")).toHaveLength(3);
-      slot.remove();
     } finally {
       extrasMock.merged = [];
     }

@@ -10,9 +10,8 @@ import { mergedTabId, notePin, prPin, ticketPin } from "./pins";
 import { parseLink } from "./deckSearch";
 import { hasTag, noteHeadline } from "../../utils/noteTags";
 import { parseTimestamp } from "../../utils/time";
-import { compactAge } from "./dates";
 import type { MentionItem, TicketRef } from "./types";
-import { headline, mySignals, prPriority, reviewSignals, PRIORITY } from "./signals";
+import { headline, mergedSignal, mySignals, prPriority, reviewSignals, PRIORITY } from "./signals";
 import type { DeckData, DeckInputs, DeckPR, DeckTicket } from "./deckTypes";
 
 /** Persisted deck state, minus the version (useDeckState owns storage). Spec §6.3. */
@@ -137,6 +136,7 @@ function deckPR(c: Collected, ctx: BuildContext, now: Date): DeckPR {
   return {
     pr: c.pr,
     mine: c.mine,
+    requested: c.requested,
     signals,
     priority: prPriority(signals),
     unseenComment: comment ? githubMentionItem(comment) : null,
@@ -284,15 +284,11 @@ function noteTab(n: Note, ctx: BuildContext): DeckTicket {
 
 /** A merged PR of mine: read-only, never current or unseen, its one chip saying when it merged. */
 function mergedDeckPR(pr: GitHubPR, ctx: BuildContext, now: Date): DeckPR {
-  const age = compactAge(pr.merged_at!, now);
-  const by = pr.merged_by ? ` by ${pr.merged_by}` : "";
   return {
     pr,
     mine: true,
     // Also the rail's status line, for the newest merge.
-    signals: [
-      { label: `Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" },
-    ],
+    signals: [mergedSignal(pr, now)],
     priority: PRIORITY.purple,
     unseenComment: null,
     note: newest(ctx.prNotes.get(prNoteKey(pr)) ?? [], (n) => n.created_at),

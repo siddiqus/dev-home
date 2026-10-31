@@ -66,6 +66,14 @@ describe("effectiveTabFor", () => {
     expect(effectiveTabFor("board", { ...ready, hiddenTabs: ["board"] })).toBe("summary");
   });
 
+  it("lets a phone reach PR search (All PRs) when it's available", () => {
+    const phone = { ...ready, phone: true, githubOrg: "acme" };
+    expect(effectiveTabFor("org-prs", phone)).toBe("org-prs");
+    // No org, or All PRs hidden: back to Workday.
+    expect(effectiveTabFor("org-prs", { ...phone, githubOrg: "" })).toBe("workday");
+    expect(effectiveTabFor("org-prs", { ...phone, hiddenTabs: ["org-prs"] })).toBe("workday");
+  });
+
   it("shows only Workday on a phone, with Settings still reachable", () => {
     const phone = { ...ready, phone: true };
     expect(effectiveTabFor("prs", phone)).toBe("workday");

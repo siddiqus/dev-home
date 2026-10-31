@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import {
-  IconCopy,
-  IconFold,
-  IconFoldDown,
-  IconMenu2,
-  IconRefresh,
-  IconSun,
-} from "@tabler/icons-react";
+import { IconCopy, IconFold, IconFoldDown, IconRefresh, IconSun } from "@tabler/icons-react";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
@@ -36,6 +28,7 @@ import type { MentionItem } from "./types";
 import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
 import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
+import { deckCounts } from "./deckCounts";
 import { jiraCommentUrl } from "./DeckContext";
 import type { DeckPR } from "./deckTypes";
 import { DeckMode, type SwipeDirection } from "./DeckMode";
@@ -85,8 +78,6 @@ export interface WorkdayViewProps {
   sourceError?: string | null;
   /** Phone layout: Focus only, full-width card, the rail as a drawer. */
   phone?: boolean;
-  /** The app top bar's empty left cell: on a phone, the button that opens the rail drawer goes there. */
-  topBarStart?: HTMLElement | null;
 }
 
 type Mode = "focus" | "list" | "standup";
@@ -245,7 +236,6 @@ export function WorkdayView(props: WorkdayViewProps) {
     resolveNote,
     onOpenNote,
     phone = false,
-    topBarStart = null,
   } = props;
 
   const now = useMemo(() => props.now ?? new Date(), [props.now, refreshKey]);
@@ -1043,6 +1033,10 @@ export function WorkdayView(props: WorkdayViewProps) {
   // above Open, so landing late would push every Open row down.
   const firstLoad =
     (!sourcesLoaded || (mergedPRs === null && !extras.merged.error)) && !sourceError;
+  // Counts wait for every source the deck reads (notes, mentions and merged PRs
+  // too), so they don't climb as each one lands; a refresh hides them again.
+  const countsReady =
+    !firstLoad && !loading && !mentionsLoading && notesLoaded && !ticketMergedLoading;
   const notStartedCount =
     sections.notStarted.items.length + sections.notStarted.offSprintItems.length;
   const summary = `${deck.counts.tickets} tickets · ${deck.counts.current} current · ${deck.counts.unseen} updated`;
@@ -1056,21 +1050,6 @@ export function WorkdayView(props: WorkdayViewProps) {
       <CopyPRLinkContext.Provider value={onCopyLink}>
         <ViewerLoginContext.Provider value={props.githubUsername ?? ""}>
           <div className={`workday-page${phone ? " workday-page--phone" : ""}`}>
-            {phone &&
-              topBarStart &&
-              createPortal(
-                <button
-                  type="button"
-                  className="top-bar-icon-btn deck-rail-trigger"
-                  aria-label="Show tickets"
-                  aria-expanded={railOpen}
-                  onClick={() => setRailOpen(true)}
-                >
-                  <IconMenu2 size={16} aria-hidden="true" />
-                  {rail.length}
-                </button>,
-                topBarStart,
-              )}
             {!phone && (
               <div className="workday-header">
                 <SegmentedTabs
@@ -1087,7 +1066,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                   onChange={(k) => setMode(k as Mode)}
                 />
                 <span className="workday-date-pill">{formatSinceLabel(now)}</span>
-                <span className="workday-summary">{summary}</span>
+                {countsReady && <span className="workday-summary">{summary}</span>}
                 <Button
                   variant="link"
                   size="sm"
@@ -1166,6 +1145,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                 onPrev={deckKeys.prev}
                 onNext={deckKeys.next}
                 loading={firstLoad}
+                countsReady={countsReady}
                 sourceError={sourceErrorText(sourceError)}
                 onRetry={refresh}
                 notStartedCount={notStartedCount}
@@ -1180,6 +1160,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                         position: stops.findIndex((t) => t.id === selectedId) + 1,
                         total: stops.length,
                         tickets: rail.length,
+                        counts: deckCounts(rail),
                       }
                     : undefined
                 }

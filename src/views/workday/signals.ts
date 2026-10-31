@@ -83,6 +83,13 @@ export function mySignals(pr: GitHubPR, now: Date): Signal[] {
   return [{ label, tone: action.tone, ...(feedback && onPR) }, ...facts];
 }
 
+/** A merged PR's one chip: when it merged, and by whom. */
+export function mergedSignal(pr: GitHubPR, now: Date): Signal {
+  const age = compactAge(pr.merged_at ?? pr.updated_at, now);
+  const by = pr.merged_by ? ` by ${pr.merged_by}` : "";
+  return { label: `Merged ${age === "now" ? "just now" : `${age} ago`}${by}`, tone: "purple" };
+}
+
 /**
  * Signals for PRs I'm reviewing: the next step (reviewerAction) as the only
  * chip, never blank. A fresh request carries the diff size.

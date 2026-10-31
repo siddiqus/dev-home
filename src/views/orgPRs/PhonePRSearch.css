@@ -1,0 +1,162 @@
+/* PR search on a phone: a title, Open / Merged, the filter chips, then cards. */
+.phone-pr-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.phone-pr-search__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+/* One row: the filter chips on the left, Open / Merged on the right. On a
+   narrow screen the chips' labels truncate; the tabs never shrink. */
+.phone-pr-search__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.phone-pr-search__toolbar > .segmented-tab-bar {
+  flex: none;
+  margin-left: auto;
+}
+.phone-pr-search__chips {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+.phone-pr-search__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-panel);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+/* A chip with picks: the faint accent tint. */
+.phone-pr-search__chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.phone-pr-search__chip svg {
+  flex: none;
+}
+.phone-pr-search__chip.is-set {
+  border-color: transparent;
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.phone-pr-search__count {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+.phone-pr-search__list {
+  /* The Workday card sets the PR row's side padding; there's no card here. */
+  --deck-pr-pad-x: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: opacity 0.15s ease;
+}
+/* The rows are the cards: the list's gap spaces them, not the row's margin. */
+.phone-pr-search__list > .deck-pr {
+  margin-top: 0;
+}
+/* Refreshing over old results: dim them rather than blanking the list. */
+.phone-pr-search__list.is-stale {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.phone-pr-search__more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
+/* Filter bottom sheet. Bootstrap's own variables, set on the same element so
+   load order can't undo them. */
+.phone-sheet.offcanvas {
+  --bs-offcanvas-height: min(75dvh, 560px);
+  --bs-offcanvas-bg: var(--color-bg-panel);
+  --bs-offcanvas-color: var(--color-text-primary);
+  --bs-offcanvas-border-color: var(--color-border);
+  border-radius: 14px 14px 0 0;
+}
+.phone-sheet .offcanvas-header {
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.phone-sheet__clear {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: 0.8125rem;
+}
+.phone-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 0;
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+}
+.phone-sheet__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+}
+.phone-sheet__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+.phone-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px 2px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.phone-sheet__row:first-child {
+  border-top: 0;
+}
+.phone-sheet__avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+.phone-sheet__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phone-sheet__check {
+  color: var(--color-accent);
+}
+.phone-sheet__none {
+  padding: var(--space-3) 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}

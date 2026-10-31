@@ -18,6 +18,8 @@ export interface DeckRailProps {
   onlyCurrent?: boolean;
   /** First load with no data yet: six skeleton rows (spec §5.13). */
   loading?: boolean;
+  /** Group counts, hidden until every source has landed so they don't climb. */
+  showCounts?: boolean;
   /** A source failed: a one-line banner at the top of the rail, e.g. "Jira unavailable, showing PRs only". */
   sourceError?: string | null;
   /** The banner's "retry" link. */
@@ -57,6 +59,7 @@ export function DeckRail({
   onReopen,
   onlyCurrent = false,
   loading = false,
+  showCounts = true,
   sourceError = null,
   onRetry,
 }: DeckRailProps) {
@@ -162,7 +165,7 @@ export function DeckRail({
                     aria-hidden="true"
                   >
                     <span>{g.heading}</span>
-                    <span>{g.tickets.length}</span>
+                    {showCounts && <span>{g.tickets.length}</span>}
                   </div>
                   {g.tickets.map((t, i) => (
                     <DeckRailRow
@@ -193,7 +196,7 @@ export function DeckRail({
                 onToggleClosed?.();
               }}
             >
-              <span>Closed · {deck.closed.length}</span>
+              <span>{showCounts ? `Closed · ${deck.closed.length}` : "Closed"}</span>
               <span aria-hidden="true">{closedFolded ? "▸" : "▾"}</span>
             </button>
             {!closedFolded && (

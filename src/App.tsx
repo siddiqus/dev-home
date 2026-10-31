@@ -23,6 +23,7 @@ import {
   IconSun,
   IconMoon,
   IconFilePlus,
+  IconMenu2,
   type Icon,
 } from "@tabler/icons-react";
 import { useConfig } from "./hooks/useConfig";
@@ -46,6 +47,7 @@ import { useBackExitPrompt } from "./hooks/useBackClose";
 import { AnalyticsConsent } from "./components/AnalyticsConsent";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { PullIndicator } from "./components/PullIndicator";
+import { PhoneMenu } from "./components/PhoneMenu";
 import { useKanban } from "./hooks/useKanban";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
@@ -78,6 +80,9 @@ const KanbanBoard = lazy(() =>
 );
 const OrgPRsView = lazy(() =>
   import("./views/orgPRs/OrgPRsView").then((m) => ({ default: m.OrgPRsView })),
+);
+const PhonePRSearch = lazy(() =>
+  import("./views/orgPRs/PhonePRSearch").then((m) => ({ default: m.PhonePRSearch })),
 );
 const TeamsView = lazy(() =>
   import("./views/teams/TeamsView").then((m) => ({ default: m.TeamsView })),
@@ -156,8 +161,8 @@ export default function App() {
   // The installed app on a phone: a Back with nothing open asks before leaving.
   const exitToast = useToast(2500);
   useBackExitPrompt(() => exitToast.show("Swipe back again to exit", { tone: "neutral" }));
-  // The top bar's empty left cell; Workday puts its rail button there on a phone.
-  const [topBarStart, setTopBarStart] = useState<HTMLDivElement | null>(null);
+  // The phone's app menu, behind the top bar's ☰.
+  const [phoneMenuOpen, setPhoneMenuOpen] = useState(false);
 
   // Settings until configured; then the saved tab, or summary if it's unknown
   // (e.g. a stale saved key), hidden, or missing its prerequisites. A phone
@@ -282,14 +287,23 @@ export default function App() {
     jiraComments: jiraCommentsLoading,
     notes: notesLoading,
   };
-  const pageRefresh = PAGE_REFRESH[effectiveTab];
-  const pageRefreshing = pageRefresh?.sources.some((s) => sourceLoading[s]) ?? false;
+  // A phone's PR search fetches on its own: its refresh just bumps refreshKey
+  // (refresh([])), and it reports its own loading.
+  const [prSearchLoading, setPrSearchLoading] = useState(false);
+  const phonePRSearch = phone && effectiveTab === "org-prs";
+  const pageRefresh = phonePRSearch
+    ? { sources: [], label: "Refresh PR search" }
+    : PAGE_REFRESH[effectiveTab];
+  const pageRefreshing = phonePRSearch
+    ? prSearchLoading
+    : (pageRefresh?.sources.some((s) => sourceLoading[s]) ?? false);
   const handlePageRefresh = useCallback(() => {
     if (!pageRefresh) return;
+    if (phonePRSearch) return refresh([]);
     const remote = pageRefresh.sources.filter(isRemoteSource);
     if (remote.length > 0) refresh(remote);
     if (pageRefresh.sources.includes("notes")) refreshNotes();
-  }, [pageRefresh, refresh, refreshNotes]);
+  }, [pageRefresh, phonePRSearch, refresh, refreshNotes]);
 
   // Pull to refresh on a phone: the page refetches like its top-bar Refresh,
   // and Settings, which has none, re-checks the backend.
@@ -442,7 +456,19 @@ export default function App() {
           className={phone ? "px-2" : "px-3"}
           style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center" }}
         >
-          <div ref={setTopBarStart} />
+          <div>
+            {phone && (
+              <button
+                type="button"
+                className="top-bar-icon-btn"
+                onClick={() => setPhoneMenuOpen(true)}
+                aria-label="Menu"
+                aria-expanded={phoneMenuOpen}
+              >
+                <IconMenu2 size={18} />
+              </button>
+            )}
+          </div>
           <Navbar.Brand
             className="d-flex align-items-center gap-2 mx-auto mb-0"
             style={{ fontSize: "0.8125rem", fontWeight: 600 }}
@@ -640,6 +666,15 @@ export default function App() {
           )}
 
           {phone && <PullIndicator pull={pull} phase={pullPhase} />}
+          {phone && (
+            <PhoneMenu
+              show={phoneMenuOpen}
+              onHide={() => setPhoneMenuOpen(false)}
+              activeTab={effectiveTab}
+              prSearchAvailable={isTabVisible("org-prs", { hiddenTabs, githubOrg })}
+              onNavigate={setActiveTab}
+            />
+          )}
 
           {/* Main content panel */}
           <main className="main-content" ref={setMainEl}>
@@ -702,7 +737,6 @@ export default function App() {
                       <WorkdayView
                         configured={configured}
                         phone={phone}
-                        topBarStart={topBarStart}
                         openPRs={openPRs}
                         reviewRequests={reviewRequests}
                         reviewingPRs={reviewingPRs}
@@ -782,14 +816,22 @@ export default function App() {
                         jiraBaseUrl={jiraBaseUrl}
                       />
                     )}
-                    {effectiveTab === "org-prs" && (
-                      <OrgPRsView
-                        configured={configured}
-                        jiraBaseUrl={jiraBaseUrl}
-                        jiraIssues={jiraIssues}
-                        refreshKey={refreshKey}
-                      />
-                    )}
+                    {effectiveTab === "org-prs" &&
+                      (phone ? (
+                        <PhonePRSearch
+                          configured={configured}
+                          jiraBaseUrl={jiraBaseUrl}
+                          refreshKey={refreshKey}
+                          onLoadingChange={setPrSearchLoading}
+                        />
+                      ) : (
+                        <OrgPRsView
+                          configured={configured}
+                          jiraBaseUrl={jiraBaseUrl}
+                          jiraIssues={jiraIssues}
+                          refreshKey={refreshKey}
+                        />
+                      ))}
                     {effectiveTab === "teams" && (
                       <TeamsView configured={configured} onOpenDashboard={openTeamDashboard} />
                     )}

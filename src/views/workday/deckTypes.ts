@@ -35,6 +35,8 @@ export interface DeckInputs {
 export interface DeckPR {
   pr: GitHubPR;
   mine: boolean;
+  /** Someone requested my review (not a re-review on new commits). */
+  requested?: boolean;
   signals: Signal[];
   priority: number;
   unseenComment: MentionItem | null;

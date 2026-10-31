@@ -100,6 +100,7 @@ const phoneDeck = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
   position: 1,
   total: 3,
   tickets: 3,
+  counts: { openPRs: 5, reviewRequests: 2 },
   ...o,
 });
 
@@ -594,6 +595,41 @@ describe("DeckMode on a phone", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /CCP-9/ }));
     expect(onReopen).toHaveBeenCalledWith("CCP-9");
     expect(p.onRailOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("pins a deck bar with the Items button and what's on the deck", () => {
+    const p = phone();
+    renderDeck({ deck: three(), phone: p });
+    const bar = screen.getByTestId("deck-phone-bar");
+    expect(screen.getByTestId("deck-mode")).toContainElement(bar);
+    expect(bar).toHaveTextContent("5 open PRs, 2 review requests");
+    const button = within(bar).getByRole("button", { name: "Show items" });
+    expect(button).toHaveTextContent("All Items");
+    fireEvent.click(button);
+    expect(p.onRailOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it("counts in the singular, and leaves the counts out while loading", () => {
+    renderDeck({ deck: three(), phone: phone({ counts: { openPRs: 1, reviewRequests: 1 } }) });
+    expect(screen.getByTestId("deck-phone-bar")).toHaveTextContent("1 open PR, 1 review request");
+    cleanup();
+    renderDeck({ deck: three(), phone: phone(), loading: true });
+    expect(screen.getByTestId("deck-phone-bar")).not.toHaveTextContent(/open PR/);
+  });
+
+  it("hides every count until all sources have landed", () => {
+    renderDeck({ deck: three(), phone: phone(), countsReady: false });
+    const bar = screen.getByTestId("deck-phone-bar");
+    expect(bar).not.toHaveTextContent(/open PR/);
+    expect(within(bar).getByRole("button", { name: "Show items" })).toHaveTextContent(
+      /^All Items$/,
+    );
+    cleanup();
+    renderDeck({ deck: three(), countsReady: false });
+    for (const heading of document.querySelectorAll(".deck-rail-heading")) {
+      expect(heading.textContent).not.toMatch(/\d/);
+    }
+    expect(document.querySelectorAll(".deck-rail-heading").length).toBeGreaterThan(0);
   });
 
   it("closes the drawer on a left swipe", () => {

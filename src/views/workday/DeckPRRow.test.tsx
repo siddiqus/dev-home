@@ -51,7 +51,7 @@ function item(p: Partial<GitHubPR>, signals: Signal[]): DeckPR {
   };
 }
 
-function renderRow(row: DeckPR) {
+function renderRow(row: DeckPR, extra: { alwaysShowAuthor?: boolean } = {}) {
   const onSelect = vi.fn();
   const onOpen = vi.fn();
   const { container } = render(
@@ -65,6 +65,7 @@ function renderRow(row: DeckPR) {
           now={NOW}
           onSelect={onSelect}
           onOpen={onOpen}
+          {...extra}
         />
       </MergeProvider>
     </ViewerLoginContext.Provider>,
@@ -127,5 +128,17 @@ describe("DeckPRRow comment count", () => {
     mockCounts.mockReturnValue({ total: 0, unread: 0, unreadAtLeast: false });
     const { container } = renderRow(item({}, []));
     expect(container.querySelector(".deck-pr-signals")).toBeNull();
+  });
+});
+
+describe("DeckPRRow author", () => {
+  it("hides my own login on Workday", () => {
+    const { container } = renderRow(item({}, []));
+    expect(container.querySelector(".deck-pr-author")).toBeNull();
+  });
+
+  it("shows any author, me included, when asked (PR search)", () => {
+    const { container } = renderRow(item({}, []), { alwaysShowAuthor: true });
+    expect(container.querySelector(".deck-pr-author")).toHaveTextContent("me");
   });
 });

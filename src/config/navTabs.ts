@@ -101,8 +101,9 @@ export function isTabVisible(
 
 /**
  * The tab to show for the saved `activeTab`. Settings comes first until the app
- * is configured. A phone only gets Workday (Focus), plus Settings. Elsewhere an
- * unknown, hidden or unavailable tab falls back to summary.
+ * is configured. A phone gets Workday (Focus), PR search (All PRs) when it's
+ * available, and Settings; anything else lands on Workday. Elsewhere an unknown,
+ * hidden or unavailable tab falls back to summary.
  */
 export function effectiveTabFor(
   activeTab: string,
@@ -115,6 +116,9 @@ export function effectiveTabFor(
   },
 ): string {
   if (!ctx.configured && !ctx.configLoading) return "settings";
-  if (ctx.phone) return activeTab === "settings" ? "settings" : "workday";
+  if (ctx.phone) {
+    if (activeTab === "settings") return "settings";
+    return activeTab === "org-prs" && isTabVisible(activeTab, ctx) ? activeTab : "workday";
+  }
   return isTabVisible(activeTab, ctx) ? activeTab : "summary";
 }
