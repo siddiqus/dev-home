@@ -22,12 +22,10 @@ export function TeamDashboardSkeleton() {
       <div className="sprint-strip mb-3" style={{ width: 520 }}>
         <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: "100%" }} />
       </div>
-      <div className="border rounded p-2 mb-3">
-        <div className="d-flex gap-2 flex-wrap">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="cockpit-skeleton cockpit-skeleton--epic" />
-          ))}
-        </div>
+      <div className="epic-cards mb-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="cockpit-skeleton cockpit-skeleton--epic" />
+        ))}
       </div>
       <div className="row g-3 mb-3">
         <div className="col-lg-6 d-flex flex-column gap-3">

@@ -9,9 +9,11 @@ describe("EpicCards", () => {
     expect(screen.getByText("No epics")).toBeInTheDocument();
   });
 
-  it("renders header with epic count", () => {
+  it("marks each real epic with the epic icon instead of a header", () => {
     render(<EpicCards epics={dashboardFixture.epics} />);
-    expect(screen.getByText(/Epics · 3/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Epics ·/i)).not.toBeInTheDocument();
+    // Cockpit and Auth revamp; the No epic bucket's icon is decorative.
+    expect(screen.getAllByRole("img", { name: "Epic" })).toHaveLength(2);
   });
 
   it("renders all epic names", () => {
@@ -45,6 +47,13 @@ describe("EpicCards", () => {
     expect(screen.getByText("2 stalled")).toBeInTheDocument();
   });
 
+  it("puts the stalled chip on the same row as the done label", () => {
+    render(<EpicCards epics={dashboardFixture.epics} />);
+    expect(screen.getByText("2 stalled").parentElement).toBe(
+      screen.getByText("3/8 done").parentElement,
+    );
+  });
+
   it("does not render stalled chip on Auth revamp (0 stalled)", () => {
     render(<EpicCards epics={dashboardFixture.epics} />);
     const stalledChips = screen.queryAllByText(/stalled/i);
@@ -56,7 +65,7 @@ describe("EpicCards", () => {
     render(<EpicCards epics={dashboardFixture.epics} />);
     // The "No epic" card has a specific title attribute
     const noEpicCard = screen.getByTitle("Synthetic bucket for tickets without an epic");
-    expect(noEpicCard).toHaveClass("border-dashed");
+    expect(noEpicCard).toHaveClass("epic-card--none");
   });
 
   it("calls onOpenRef with {kind:'issue', key} when clicking real epic", () => {

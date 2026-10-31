@@ -70,6 +70,79 @@
   background: #dc3545;
 }
 
+/* --- Sprint cockpit: epics --- */
+
+/* One card holding a borderless filled tile per epic, so it never reads as
+   boxes in boxes. */
+.epic-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+}
+.epic-card {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-hover);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.epic-card:hover {
+  background: color-mix(in srgb, var(--color-bg-hover), var(--color-text-primary) 4%);
+}
+/* The No epic bucket: an empty dashed slot, not a tile. */
+.epic-card--none {
+  border-color: var(--color-border);
+  border-style: dashed;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+.epic-card--none:hover {
+  background: transparent;
+}
+.epic-card__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.epic-card__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.epic-card__name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Under the name, past the icon. */
+.epic-card__key {
+  margin-left: 22px;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.epic-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 1px 0 5px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 /* --- Sprint cockpit: Needs Attention + Delivery Hygiene items --- */
 
 /* One item per line: key · title · meta. The title is the part that gives
