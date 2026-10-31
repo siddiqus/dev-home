@@ -22,8 +22,9 @@ export function sprintBoardUrl(
 }
 
 /**
- * One line under the toolbar: where we are in the sprint, then pace. The sprint
- * name lives in the picker above, and the goal in the tooltip.
+ * One line under the toolbar, no box: the sprint's facts on the left (day,
+ * dates, tickets), its progress and pace on the right. The sprint name lives in
+ * the picker above, and the goal in the tooltip.
  */
 export function SprintMetaBar({ sprint, pace }: Props) {
   if (!sprint) {
@@ -36,18 +37,24 @@ export function SprintMetaBar({ sprint, pace }: Props) {
 
   return (
     <div className="sprint-strip mb-3" title={sprint.goal ? `Goal: ${sprint.goal}` : undefined}>
-      <span>
+      <span className="sprint-strip__half">
         <span className="fw-semibold">
           Day {pace.dayOfSprint} of {pace.sprintLength}
         </span>
         {sprint.startDate && sprint.endDate && (
-          <span className="text-muted">
-            {" "}
-            · {formatShortDate(sprint.startDate)} – {formatShortDate(sprint.endDate)}
-          </span>
+          <>
+            <span className="sprint-strip__divider" aria-hidden="true" />
+            <span className="text-muted">
+              {formatShortDate(sprint.startDate)} – {formatShortDate(sprint.endDate)}
+            </span>
+          </>
         )}
+        <span className="sprint-strip__divider" aria-hidden="true" />
+        <span title={`${pace.remainingCount} left`}>
+          <span className="fw-semibold">{pace.totalCount}</span>{" "}
+          <span className="text-muted">tickets</span>
+        </span>
       </span>
-      <span className="sprint-strip__divider" aria-hidden="true" />
       <OnTrackStrip pace={pace} />
     </div>
   );

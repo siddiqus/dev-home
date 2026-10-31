@@ -248,45 +248,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           width={220}
         />
 
-        {teamId != null && (
-          <SegmentedTabs
-            className="inline-control"
-            activeKey={tab}
-            onChange={(k) => setTab(k as (typeof TEAM_TABS)[number])}
-            tabs={[
-              {
-                key: "sprint",
-                label: (
-                  <span className="d-inline-flex align-items-center gap-1">
-                    <IconRun size={14} /> Sprint
-                  </span>
-                ),
-              },
-              {
-                key: "prs",
-                label: (
-                  <span className="d-inline-flex align-items-center gap-1">
-                    <IconGitPullRequest size={14} /> PRs
-                  </span>
-                ),
-              },
-            ]}
-          />
-        )}
-
-        {teamId != null && (
-          <button
-            type="button"
-            className="pr-table-collapse-btn pr-toolbar-btn"
-            onClick={refreshActive}
-            disabled={activeLoading}
-            title={refreshTitle}
-            aria-label={refreshLabel}
-          >
-            <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
-          </button>
-        )}
-
         {teamId != null && tab === "sprint" && sprints.length > 0 && (
           <SearchableDropdown
             items={sprintItems}
@@ -300,6 +261,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           />
         )}
 
+        {/* Beside the picker: it opens the picked sprint. */}
         {teamId != null && tab === "sprint" && boardUrl && (
           <a
             href={boardUrl}
@@ -311,6 +273,47 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
             Open in JIRA
             <IconExternalLink size={13} stroke={1.5} style={{ opacity: 0.6 }} />
           </a>
+        )}
+
+        {/* Refresh and the tabs at the far right, so neither moves when the
+            tab (and the controls on the left) changes. Refresh reloads the
+            active tab. */}
+        {teamId != null && (
+          <div className="ms-auto d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="pr-table-collapse-btn pr-toolbar-btn"
+              onClick={refreshActive}
+              disabled={activeLoading}
+              title={refreshTitle}
+              aria-label={refreshLabel}
+            >
+              <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
+            </button>
+            <SegmentedTabs
+              className="inline-control"
+              activeKey={tab}
+              onChange={(k) => setTab(k as (typeof TEAM_TABS)[number])}
+              tabs={[
+                {
+                  key: "sprint",
+                  label: (
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <IconRun size={14} /> Sprint
+                    </span>
+                  ),
+                },
+                {
+                  key: "prs",
+                  label: (
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <IconGitPullRequest size={14} /> PRs
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </div>
         )}
       </div>
 

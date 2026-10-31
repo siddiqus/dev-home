@@ -19,8 +19,9 @@ function CardSkeleton({ lines }: { lines: number }) {
 export function TeamDashboardSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading sprint data" data-testid="team-dashboard-skeleton">
-      <div className="sprint-strip mb-3" style={{ width: 520 }}>
-        <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: "100%" }} />
+      <div className="sprint-strip mb-3">
+        <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: 260 }} />
+        <div className="cockpit-skeleton cockpit-skeleton--line mt-0" style={{ width: 260 }} />
       </div>
       <div className="epic-cards mb-3">
         {[0, 1, 2, 3].map((i) => (

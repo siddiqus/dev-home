@@ -20,54 +20,46 @@
 }
 
 /* --- Sprint cockpit: one-line sprint strip under the toolbar ---
-   Same height and type size as the toolbar controls above it, and only as
-   wide as its content, so it reads as the toolbar's second line. */
+   No box and no bars, just words: the sprint's facts on the left, progress and
+   pace on the right, ending on the same edge as the toolbar's actions. */
 .sprint-strip {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  width: fit-content;
-  max-width: 100%;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-panel);
-  font-size: 0.8125rem;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-6);
+  min-height: 22px;
+  padding: 0 2px;
+}
+.sprint-strip__half {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
   white-space: nowrap;
-  overflow: hidden;
 }
 .sprint-strip__divider {
-  align-self: stretch;
   width: 1px;
-  margin: 7px 0;
-  background: var(--color-border-subtle);
+  height: 14px;
+  background: var(--color-border);
 }
-.sprint-strip__meter {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.sprint-strip__pace {
+  padding: 0 8px;
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 18px;
 }
-.sprint-strip__track {
-  width: 64px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(125, 125, 125, 0.15);
-  overflow: hidden;
+.sprint-strip__pace--behind {
+  border-color: color-mix(in srgb, var(--color-status-danger) 30%, transparent);
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger);
 }
-.sprint-strip__fill {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-}
-.sprint-strip__fill--done {
-  background: #50c878;
-}
-.sprint-strip__fill--elapsed {
-  background: #6e7781;
-}
-.sprint-strip__fill--behind {
-  background: #dc3545;
+.sprint-strip__pace--ok {
+  border-color: color-mix(in srgb, var(--color-status-success) 30%, transparent);
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success);
 }
 
 /* --- Sprint cockpit: epics --- */

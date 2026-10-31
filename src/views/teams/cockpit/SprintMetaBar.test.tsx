@@ -4,15 +4,25 @@ import { SprintMetaBar, sprintBoardUrl } from "./SprintMetaBar";
 import dashboardFixture from "../__fixtures__/dashboardFixture";
 
 describe("SprintMetaBar", () => {
-  it("renders day of sprint, date range and pace on one line", () => {
+  it("puts the sprint's facts on the left and its progress on the right", () => {
+    const { container } = render(
+      <SprintMetaBar sprint={dashboardFixture.sprint} pace={dashboardFixture.pace} />,
+    );
+
+    const [left, right] = Array.from(container.firstElementChild!.children);
+    expect(left).toHaveTextContent("Day 6 of 14");
+    // Date range (Jun 26 – Jul 10)
+    expect(left).toHaveTextContent(/Jun 26 – Jul 10/);
+    expect(left).toHaveTextContent("12 tickets");
+    expect(right).toHaveTextContent("33% done");
+    expect(right).toHaveTextContent("Behind pace");
+  });
+
+  it("shows the total tickets, with what's left in the tooltip", () => {
     render(<SprintMetaBar sprint={dashboardFixture.sprint} pace={dashboardFixture.pace} />);
 
-    expect(screen.getByText("Day 6 of 14")).toBeInTheDocument();
-    // Date range (Jun 26 – Jul 10)
-    expect(screen.getByText(/Jun 26/)).toBeInTheDocument();
-    expect(screen.getByText(/Jul 10/)).toBeInTheDocument();
-    expect(screen.getByText(/33% done/)).toBeInTheDocument();
-    expect(screen.getByText(/of 12 tickets left/)).toBeInTheDocument();
+    expect(screen.getByTitle("8 left")).toHaveTextContent("12 tickets");
+    expect(screen.queryByText(/tickets left/)).not.toBeInTheDocument();
   });
 
   it("leaves the sprint name to the picker", () => {

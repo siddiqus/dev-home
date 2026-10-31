@@ -4,33 +4,28 @@ import { OnTrackStrip } from "./OnTrackStrip";
 import dashboardFixture from "../__fixtures__/dashboardFixture";
 
 describe("OnTrackStrip", () => {
-  it("renders completion vs time with percentages and behind-pace badge", () => {
+  it("says done and time elapsed in words, with no bars", () => {
     const { pace } = dashboardFixture;
 
-    render(<OnTrackStrip pace={pace} />);
+    const { container } = render(<OnTrackStrip pace={pace} />);
 
-    expect(screen.getByText(/33% done/)).toBeInTheDocument();
-    expect(screen.getByText(/43% elapsed/)).toBeInTheDocument();
-    // Behind pace badge (from fixture: behindPace = true)
-    expect(screen.getByText("Behind pace")).toBeInTheDocument();
+    expect(container).toHaveTextContent("33% done");
+    expect(container).toHaveTextContent("43% time elapsed");
+    expect(container.querySelector("[style*='width']")).toBeNull();
   });
 
-  it("renders remaining count from pace data", () => {
-    const { pace } = dashboardFixture;
+  it("shows a Behind pace pill when behind", () => {
+    render(<OnTrackStrip pace={dashboardFixture.pace} />);
 
-    render(<OnTrackStrip pace={pace} />);
-
-    // Remaining: 8 of 12
-    expect(screen.getByText("8")).toBeInTheDocument();
-    expect(screen.getByText("of 12 tickets left")).toBeInTheDocument();
+    expect(screen.getByText("Behind pace")).toHaveClass("sprint-strip__pace--behind");
   });
 
-  it("shows On track badge when not behind pace", () => {
+  it("shows an On track pill when not behind pace", () => {
     const pace = { ...dashboardFixture.pace, behindPace: false };
 
     render(<OnTrackStrip pace={pace} />);
 
-    expect(screen.getByText("On track")).toBeInTheDocument();
+    expect(screen.getByText("On track")).toHaveClass("sprint-strip__pace--ok");
     expect(screen.queryByText("Behind pace")).not.toBeInTheDocument();
   });
 });
