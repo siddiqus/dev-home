@@ -1658,7 +1658,7 @@ describe("WorkdayView on a phone", () => {
     expect(button).toHaveTextContent("All Items");
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(button);
-    const drawer = screen.getByRole("dialog", { name: "Items" });
+    const drawer = screen.getByRole("dialog", { name: "All Items" });
     expect(within(drawer).getAllByRole("option")).toHaveLength(2);
   });
 
@@ -1696,7 +1696,7 @@ describe("WorkdayView on a phone", () => {
       expect(screen.getByText("1 / 2")).toBeTruthy();
       expect(screen.getByRole("region", { name: /^CCP-/ })).not.toHaveAccessibleName(/^CCP-350/);
       fireEvent.click(screen.getByRole("button", { name: "Show items" }));
-      const drawer = screen.getByRole("dialog", { name: "Items" });
+      const drawer = screen.getByRole("dialog", { name: "All Items" });
       expect(within(drawer).getAllByRole("option")).toHaveLength(3);
     } finally {
       extrasMock.merged = [];

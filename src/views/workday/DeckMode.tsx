@@ -252,7 +252,7 @@ export function DeckMode({
           aria-labelledby="deck-rail-drawer-title"
         >
           <Offcanvas.Header closeButton>
-            <Offcanvas.Title id="deck-rail-drawer-title">Items</Offcanvas.Title>
+            <Offcanvas.Title id="deck-rail-drawer-title">All Items</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body {...swipeDrawer}>
             {rail(closeAfter(onSelect), onReopen && closeAfter(onReopen))}
