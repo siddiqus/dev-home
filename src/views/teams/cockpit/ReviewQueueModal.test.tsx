@@ -109,10 +109,10 @@ describe("ReviewQueueModal", () => {
     expect(titles(dialog)).toEqual(["Calendar lazy-load"]);
   });
 
-  it("closes and opens the PR when a row is clicked", () => {
+  it("opens the PR on top and stays open when a row is clicked", () => {
     const { dialog, onOpenPR, onHide } = renderModal();
     fireEvent.click(within(dialog).getByText("Calendar lazy-load"));
-    expect(onHide).toHaveBeenCalled();
     expect(onOpenPR).toHaveBeenCalledWith("newscred/cmp-frontend", 202);
+    expect(onHide).not.toHaveBeenCalled();
   });
 });

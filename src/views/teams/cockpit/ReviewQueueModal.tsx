@@ -105,10 +105,8 @@ export function ReviewQueueModal({ show, onHide, entries, teamLogins, onOpenPR }
                     type="button"
                     className="review-row"
                     title={e.reason}
-                    onClick={() => {
-                      onHide();
-                      onOpenPR?.(e.repo_full_name, e.number);
-                    }}
+                    // The PR modal opens on top; closing it lands back on this list.
+                    onClick={() => onOpenPR?.(e.repo_full_name, e.number)}
                   >
                     <span className="review-row__key">{prLabel(e)}</span>
                     <span className="review-row__title-cell">
