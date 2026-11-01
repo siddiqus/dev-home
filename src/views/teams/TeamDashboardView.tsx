@@ -442,7 +442,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                       <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
                     </div>
                     <div className="row g-3 mb-3">
-                      <div className="col-lg-6">
+                      <div className="col-lg-5">
                         <LoadDistribution
                           workload={dashboard.workload}
                           loadBalance={dashboard.loadBalance}
@@ -460,7 +460,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                           onOpenRef={openRef}
                         />
                       </div>
-                      <div className="col-lg-6">
+                      <div className="col-lg-7">
                         <NeedsAttentionPanel
                           needsAttention={dashboard.needsAttention}
                           lookup={refLookup}

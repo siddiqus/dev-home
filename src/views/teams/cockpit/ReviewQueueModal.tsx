@@ -54,7 +54,7 @@ export function ReviewQueueModal({ show, onHide, entries, teamLogins, onOpenPR }
   );
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" scrollable animation={false}>
+    <Modal show={show} onHide={onHide} size="xl" scrollable animation={false}>
       <Modal.Header closeButton>
         <Modal.Title as="h6" className="mb-0">
           Review Queue · {entries.length}

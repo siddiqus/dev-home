@@ -92,7 +92,7 @@ export function LoadDistribution({
               </div>
             </div>
 
-            <StatusBar byStatus={w.byStatus} max={max} height={12} />
+            <StatusBar byStatus={w.byStatus} max={max} height={6} />
 
             {w.stalest &&
               (() => {
