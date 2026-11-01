@@ -466,6 +466,44 @@ describe("DeckMode card", () => {
   });
 });
 
+describe("DeckMode trackpad swipes on desktop", () => {
+  const three = () => ["CCP-1", "CCP-2", "CCP-3"].map((k) => ticket(k));
+  const stage = () => document.querySelector(".deck-stage")!;
+
+  it("steps to the next card on a swipe left, and the previous on a swipe right", () => {
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
+    renderDeck({ deck: deck({ open: three() }), stops: three(), onPrev, onNext });
+    // A positive deltaX is a swipe left (natural scrolling); fireEvent is false when prevented.
+    expect(fireEvent.wheel(stage(), { deltaX: 80 })).toBe(false);
+    expect(onNext).toHaveBeenCalledTimes(1);
+    cleanup();
+    renderDeck({ deck: deck({ open: three() }), stops: three(), onPrev, onNext });
+    fireEvent.wheel(stage(), { deltaX: -80 });
+    expect(onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves swipes alone while the note composer is open", () => {
+    const onNext = vi.fn();
+    renderDeck({
+      deck: deck({ open: three() }),
+      stops: three(),
+      onNext,
+      composing: true,
+      onSaveNote: vi.fn(),
+    });
+    fireEvent.wheel(stage(), { deltaX: 80 });
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("leaves a phone's track to scroll natively", () => {
+    const onNext = vi.fn();
+    renderDeck({ deck: deck({ open: three() }), stops: three(), onNext, phone: phoneDeck() });
+    expect(fireEvent.wheel(screen.getByTestId("deck-track"), { deltaX: 80 })).toBe(true);
+    expect(onNext).not.toHaveBeenCalled();
+  });
+});
+
 describe("DeckMode carousel on a phone", () => {
   const five = () => ["CCP-1", "CCP-2", "CCP-3", "CCP-4", "CCP-5"].map((k) => ticket(k));
   const slide = (offset: number) =>

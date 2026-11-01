@@ -5,6 +5,7 @@ import Offcanvas from "react-bootstrap/Offcanvas";
 import { IconChevronLeft, IconChevronRight, IconListDetails } from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { useSwipe } from "../../hooks/useSwipe";
+import { useWheelSwipe } from "../../hooks/useWheelSwipe";
 import { useBackClose } from "../../hooks/useBackClose";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
@@ -206,6 +207,10 @@ export function DeckMode({
     onSettle: goTo,
     onGlideEnd: () => setShown((s) => (s.outgoing ? { ...s, outgoing: null } : s)),
   });
+  // Desktop: a two-finger trackpad swipe on the card steps like ← / →. Off on
+  // a phone, whose track scrolls itself, and while a note is being written.
+  const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  useWheelSwipe(stage, (s) => (s === "left" ? onNext?.() : onPrev?.()), !phone && !composing);
   const rail = (select: (id: string) => void, reopen?: (id: string) => void) => (
     <DeckRail
       deck={deck}
@@ -283,7 +288,7 @@ export function DeckMode({
           )}
         </div>
       )}
-      <div className="deck-stage">
+      <div ref={setStage} className="deck-stage">
         {loading && (
           <div className="deck-column" data-testid="deck-card-skeleton" aria-hidden="true">
             <div className="deck-card deck-card--skeleton">
