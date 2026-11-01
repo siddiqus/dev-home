@@ -312,12 +312,19 @@
 .people-view__legend {
   padding: 4px 6px 8px;
 }
-.people-view__list {
+.people-view__list,
+.work-spread__list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.people-view__person {
+/* Rows carry their own padding: line the names up with the card title. */
+.work-spread__list {
+  margin: 0 -10px;
+}
+
+/* A person in Work Spread and the People list (PersonRow). */
+.person-row {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -330,19 +337,19 @@
   font-size: 0.8125rem;
   text-align: left;
 }
-.people-view__person:hover {
+.person-row:hover {
   background: var(--color-bg-hover);
 }
-.people-view__person.is-selected {
+.person-row.is-selected {
   background: var(--color-accent-bg-subtle);
 }
-.people-view__name-row {
+.person-row__top {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
 }
-.people-view__name {
+.person-row__name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -350,11 +357,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.people-view__person.is-selected .people-view__name {
+.person-row.is-selected .person-row__name {
   color: var(--color-accent);
   font-weight: 600;
 }
-.people-view__stats {
+.person-row__stats {
   display: flex;
   align-items: center;
   gap: 6px;

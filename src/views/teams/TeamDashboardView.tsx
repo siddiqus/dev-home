@@ -160,17 +160,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     dashboard?.errors.find((e) => e.startsWith("Jira:"))?.replace(/^Jira:\s*/, "") ?? null;
   const otherErrors = dashboard?.errors.filter((e) => !e.startsWith("Jira:")) ?? [];
 
-  const staleDaysMap = useMemo(() => {
-    if (!dashboard) return new Map<string, number>();
-    const map = new Map<string, number>();
-    for (const issue of dashboard.issues) {
-      if (issue.flags.stale) {
-        map.set(issue.key, issue.daysSinceUpdate);
-      }
-    }
-    return map;
-  }, [dashboard]);
-
   // Resolves the panels' bare refs to titles, assignees and PR authors.
   const refLookup = useMemo(
     () => buildRefLookup(dashboard?.issues ?? [], dashboard?.offBoardPRs ?? []),
@@ -446,12 +435,10 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                         <LoadDistribution
                           workload={dashboard.workload}
                           loadBalance={dashboard.loadBalance}
-                          onOpenRef={openRef}
                           onSelectMember={(accountId) => {
                             setPersonId(accountId);
                             setSprintView("people");
                           }}
-                          staleDays={staleDaysMap}
                         />
                         <div className="mt-3"></div>
                         <DeliveryHygiene

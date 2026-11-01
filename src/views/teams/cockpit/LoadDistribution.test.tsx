@@ -26,9 +26,9 @@ describe("LoadDistribution", () => {
     );
 
     // Tashfia has stalledCount: 2
-    expect(screen.getByText("Stalled: 2")).toBeInTheDocument();
+    expect(screen.getByText("2 stalled")).toBeInTheDocument();
     // Nadman has stalledCount: 0, so no stalled badge
-    expect(screen.queryByText("Stalled: 0")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 stalled")).not.toBeInTheDocument();
   });
 
   it("marks members with flagged tickets with a warning icon instead of a label", () => {
@@ -66,24 +66,6 @@ describe("LoadDistribution", () => {
     expect(screen.getByText(/Uneven load · 7 ticket spread/)).toBeInTheDocument();
   });
 
-  it("calls onOpenRef with correct Ref when stalest link is clicked", () => {
-    const onOpenRef = vi.fn();
-
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        onOpenRef={onOpenRef}
-      />,
-    );
-
-    // Tashfia's stalest is { kind: "issue", key: "PLAT-101" }
-    const stalestButton = screen.getByText("stalest: PLAT-101");
-    fireEvent.click(stalestButton);
-
-    expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
-  });
-
   it("renders empty state when workload is empty", () => {
     render(<LoadDistribution workload={[]} loadBalance={{ max: 0, min: 0, imbalance: 0 }} />);
 
@@ -106,21 +88,7 @@ describe("LoadDistribution", () => {
     expect(names[1]).toHaveTextContent("Nadman");
   });
 
-  it("shows day count on stalest link when staleDays map is provided", () => {
-    const staleDaysMap = new Map([["PLAT-101", 4]]);
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        staleDays={staleDaysMap}
-      />,
-    );
-
-    expect(screen.getByText(/stalest: PLAT-101/)).toBeInTheDocument();
-    expect(screen.getByText(/4d/)).toBeInTheDocument();
-  });
-
-  it("renders stalest link without day count when staleDays map is absent", () => {
+  it("uses the People list's row: WIP, done and PRs under the bar, no stalest link", () => {
     render(
       <LoadDistribution
         workload={dashboardFixture.workload}
@@ -128,8 +96,10 @@ describe("LoadDistribution", () => {
       />,
     );
 
-    expect(screen.getByText("stalest: PLAT-101")).toBeInTheDocument();
-    expect(screen.queryByText(/\dd$/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tashfia/ })).toHaveTextContent(
+      "WIP 4 · Done 2 · PRs 3/1",
+    );
+    expect(screen.queryByText(/stalest/)).not.toBeInTheDocument();
   });
 
   it("picks the member for the People tab when their row is clicked", () => {
@@ -145,23 +115,5 @@ describe("LoadDistribution", () => {
     fireEvent.click(screen.getByText("Tashfia"));
 
     expect(onSelectMember).toHaveBeenCalledWith("u1");
-  });
-
-  it("opens the stalest ticket without also picking the member", () => {
-    const onOpenRef = vi.fn();
-    const onSelectMember = vi.fn();
-    render(
-      <LoadDistribution
-        workload={dashboardFixture.workload}
-        loadBalance={dashboardFixture.loadBalance}
-        onOpenRef={onOpenRef}
-        onSelectMember={onSelectMember}
-      />,
-    );
-
-    fireEvent.click(screen.getByText("stalest: PLAT-101"));
-
-    expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
-    expect(onSelectMember).not.toHaveBeenCalled();
   });
 });

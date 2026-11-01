@@ -1,10 +1,9 @@
 import { useRef, type KeyboardEvent } from "react";
-import { IconAlertTriangle } from "@tabler/icons-react";
 import type { DashboardIssue, Ref, WorkloadEntry } from "../../../types/teams";
 import { MemberDetail } from "./MemberDetail";
-import { flagSummary, sortByNeed } from "./memberSignals";
-import { StatusBar, StatusLegend } from "./StatusBar";
-import { STALLED_CHIP_STYLE } from "./staleTone";
+import { sortByNeed } from "./memberSignals";
+import { PersonRow } from "./PersonRow";
+import { StatusLegend } from "./StatusBar";
 
 interface Props {
   workload: WorkloadEntry[];
@@ -49,45 +48,15 @@ export function PeopleView({ workload, issues, selectedId, onSelect, onOpenRef }
           className="people-view__list"
           onKeyDown={onKeyDown}
         >
-          {people.map((w) => {
-            const isSelected = w === selected;
-            return (
-              <button
-                key={w.accountId}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                tabIndex={isSelected ? 0 : -1}
-                className={`people-view__person${isSelected ? " is-selected" : ""}`}
-                onClick={() => onSelect(w.accountId)}
-              >
-                <span className="people-view__name-row">
-                  <span className="people-view__name">{w.displayName}</span>
-                  {w.atRiskIssues.length > 0 && (
-                    <span
-                      className="work-spread-flag"
-                      title={`Check in: ${flagSummary(w.atRiskIssues)}`}
-                      aria-label={`Check in: ${flagSummary(w.atRiskIssues)}`}
-                    >
-                      <IconAlertTriangle size={14} />
-                    </span>
-                  )}
-                </span>
-                <StatusBar byStatus={w.byStatus} max={max} height={6} />
-                <span className="people-view__stats">
-                  WIP {w.wip} · Done {w.doneCount}
-                  {w.stalledCount > 0 && (
-                    <span
-                      className="badge rounded-pill"
-                      style={{ fontSize: "0.6875rem", ...STALLED_CHIP_STYLE }}
-                    >
-                      {w.stalledCount} stalled
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
+          {people.map((w) => (
+            <PersonRow
+              key={w.accountId}
+              member={w}
+              max={max}
+              selected={w === selected}
+              onClick={() => onSelect(w.accountId)}
+            />
+          ))}
         </div>
       </div>
       <div className="people-view__detail">
