@@ -33,10 +33,8 @@ export function sprintBoardUrl(
 export function SprintMetaBar({ sprint, pace, children }: Props) {
   if (!sprint) {
     return (
-      <div className="sprint-strip mb-3">
-        {children}
-        <span className="text-muted">No active sprint</span>
-      </div>
+      // The toolbar says "No active sprint", by the team picker.
+      <div className="sprint-strip mb-3">{children}</div>
     );
   }
 

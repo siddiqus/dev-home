@@ -85,10 +85,11 @@
 /* --- Sprint cockpit: epics --- */
 
 /* One card holding a borderless filled tile per epic, so it never reads as
-   boxes in boxes. */
+   boxes in boxes. Equal tiles, at most four a row (fewer when narrow), No epic
+   last; fewer than four stretch to fill the row. */
 .epic-cards {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(160px, calc((100% - 3 * 6px) / 4)), 1fr));
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--color-border);
@@ -96,7 +97,6 @@
   background: var(--color-bg-panel);
 }
 .epic-card {
-  flex: 1 1 160px;
   min-width: 0;
   padding: 8px 10px 10px;
   border: 1px solid transparent;
@@ -752,8 +752,6 @@
   margin-top: var(--space-3);
 }
 .cockpit-skeleton--epic {
-  flex: 1 1 180px;
-  max-width: 240px;
   height: 72px;
 }
 @media (prefers-reduced-motion: reduce) {

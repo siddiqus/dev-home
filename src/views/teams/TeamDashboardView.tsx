@@ -291,6 +291,13 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
           </a>
         )}
 
+        {/* Here rather than in the sprint strip, so it doesn't take a row. */}
+        {teamId != null && tab === "sprint" && dashboard && !jiraError && !selectedSprint && (
+          <span className="text-muted px-1" style={{ fontSize: "0.8125rem" }}>
+            No active sprint
+          </span>
+        )}
+
         {/* Refresh and the tabs at the far right, so neither moves when the
             tab (and the controls on the left) changes. Refresh reloads the
             active tab. */}
@@ -391,7 +398,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                         key: "overview",
                         label: (
                           <span className="d-inline-flex align-items-center gap-1">
-                            <IconLayoutDashboard size={14} /> Sprint overview
+                            <IconLayoutDashboard size={14} /> Overview
                           </span>
                         ),
                       },

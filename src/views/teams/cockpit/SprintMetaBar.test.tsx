@@ -34,12 +34,12 @@ describe("SprintMetaBar", () => {
   it("leads with what it's given, ahead of the facts and progress", () => {
     const { container } = render(
       <SprintMetaBar sprint={dashboardFixture.sprint} pace={dashboardFixture.pace}>
-        <button type="button">Sprint overview</button>
+        <button type="button">Overview</button>
       </SprintMetaBar>,
     );
 
     const [lead, facts, progress] = Array.from(container.firstElementChild!.children);
-    expect(lead).toHaveTextContent("Sprint overview");
+    expect(lead).toHaveTextContent("Overview");
     expect(facts).toHaveTextContent("Day 6 of 14");
     expect(progress).toHaveTextContent("33% done");
   });
@@ -47,18 +47,17 @@ describe("SprintMetaBar", () => {
   it("keeps what it leads with when there's no sprint", () => {
     render(
       <SprintMetaBar sprint={null} pace={dashboardFixture.pace}>
-        <button type="button">Sprint overview</button>
+        <button type="button">Overview</button>
       </SprintMetaBar>,
     );
 
-    expect(screen.getByRole("button", { name: "Sprint overview" })).toBeInTheDocument();
-    expect(screen.getByText("No active sprint")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Overview" })).toBeInTheDocument();
   });
 
   it("puts the goal in the facts' tooltip instead of the line", () => {
     const { container } = render(
       <SprintMetaBar sprint={dashboardFixture.sprint} pace={dashboardFixture.pace}>
-        <button type="button">Sprint overview</button>
+        <button type="button">Overview</button>
       </SprintMetaBar>,
     );
 
@@ -86,10 +85,10 @@ describe("SprintMetaBar", () => {
     expect(screen.queryByText(/Jun 26/)).not.toBeInTheDocument();
   });
 
-  it("renders 'No active sprint' when sprint is null", () => {
+  it("leaves 'No active sprint' to the toolbar when sprint is null", () => {
     render(<SprintMetaBar sprint={null} pace={dashboardFixture.pace} />);
 
-    expect(screen.getByText("No active sprint")).toBeInTheDocument();
+    expect(screen.queryByText("No active sprint")).not.toBeInTheDocument();
     expect(screen.queryByText(/done/)).not.toBeInTheDocument();
   });
 });
