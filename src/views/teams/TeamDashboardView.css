@@ -19,8 +19,8 @@
   flex-direction: column;
 }
 
-/* Sprint tab, pinned: the sprint strip, epics and the switch keep their size;
-   the area below them takes the rest and scrolls. */
+/* Sprint tab, pinned: the sprint strip and the switch keep their size; the
+   area below them (epics included) takes the rest and scrolls. */
 .team-dashboard--pinned .team-dashboard-sprint {
   flex: 1;
   min-height: 0;

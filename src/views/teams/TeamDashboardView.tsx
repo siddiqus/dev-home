@@ -59,7 +59,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   const [sprintId, setSprintId] = useStoredId("dev-home-team-sprint");
   // Top-level view: the Jira sprint cockpit, or the team's PRs.
   const [tab, setTab] = useStoredState("dev-home-team-tab", "sprint", TEAM_TABS);
-  // Under the epics: the team-wide panels, or one person at a time (standup).
+  // Under the sprint strip: the team-wide panels, or one person at a time (standup).
   const [sprintView, setSprintView] = useStoredState(
     "dev-home-team-sprint-view",
     "overview",
@@ -384,10 +384,6 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                   {/* Sprint meta */}
                   <SprintMetaBar sprint={selectedSprint} pace={dashboard.pace} />
 
-                  <div className="mb-3">
-                    <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
-                  </div>
-
                   <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
                     <SegmentedTabs
                       className="inline-control"
@@ -436,44 +432,49 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                   />
                 )}
 
-                {/* Three independent columns, so expanding a hygiene row
-                        only grows its own column. Kept mounted while People
-                        shows, so expanded rows survive the round trip. */}
+                {/* The epics, then independent columns, so expanding a hygiene
+                    row only grows its own column. Kept mounted while People
+                    shows, so expanded rows survive the round trip. */}
                 {!jiraError && (
-                  <div className={`row g-3 mb-3${sprintView === "overview" ? "" : " d-none"}`}>
-                    <div className="col-lg-6">
-                      <LoadDistribution
-                        workload={dashboard.workload}
-                        loadBalance={dashboard.loadBalance}
-                        onOpenRef={openRef}
-                        onSelectMember={(accountId) => {
-                          setPersonId(accountId);
-                          setSprintView("people");
-                        }}
-                        staleDays={staleDaysMap}
-                      />
-                      <div className="mt-3"></div>
-                      <DeliveryHygiene
-                        hygiene={dashboard.hygiene}
-                        lookup={refLookup}
-                        onOpenRef={openRef}
-                      />
+                  <div className={sprintView === "overview" ? undefined : "d-none"}>
+                    <div className="mb-3">
+                      <EpicCards epics={dashboard.epics} onOpenRef={openRef} />
                     </div>
-                    <div className="col-lg-6">
-                      <NeedsAttentionPanel
-                        needsAttention={dashboard.needsAttention}
-                        lookup={refLookup}
-                        onOpenRef={openRef}
-                      />
-                      <div className="mt-3"></div>
-                      <ReviewQueuePanel
-                        entries={dashboard.reviewQueue}
-                        members={dashboard.workload.map((w) => ({
-                          login: w.githubUsername,
-                          name: w.displayName,
-                        }))}
-                        onOpenPR={openPR}
-                      />
+                    <div className="row g-3 mb-3">
+                      <div className="col-lg-6">
+                        <LoadDistribution
+                          workload={dashboard.workload}
+                          loadBalance={dashboard.loadBalance}
+                          onOpenRef={openRef}
+                          onSelectMember={(accountId) => {
+                            setPersonId(accountId);
+                            setSprintView("people");
+                          }}
+                          staleDays={staleDaysMap}
+                        />
+                        <div className="mt-3"></div>
+                        <DeliveryHygiene
+                          hygiene={dashboard.hygiene}
+                          lookup={refLookup}
+                          onOpenRef={openRef}
+                        />
+                      </div>
+                      <div className="col-lg-6">
+                        <NeedsAttentionPanel
+                          needsAttention={dashboard.needsAttention}
+                          lookup={refLookup}
+                          onOpenRef={openRef}
+                        />
+                        <div className="mt-3"></div>
+                        <ReviewQueuePanel
+                          entries={dashboard.reviewQueue}
+                          members={dashboard.workload.map((w) => ({
+                            login: w.githubUsername,
+                            name: w.displayName,
+                          }))}
+                          onOpenPR={openPR}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
