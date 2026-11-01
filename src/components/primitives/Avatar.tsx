@@ -7,8 +7,22 @@ interface AvatarProps {
   size?: "sm" | "md";
   className?: string;
   style?: React.CSSProperties;
+  title?: string;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ src, alt, size = "sm", className = "", style }) => (
-  <img src={src} alt={alt} className={`avatar avatar--${size} ${className}`.trim()} style={style} />
+export const Avatar: React.FC<AvatarProps> = ({
+  src,
+  alt,
+  size = "sm",
+  className = "",
+  style,
+  title,
+}) => (
+  <img
+    src={src}
+    alt={alt}
+    title={title}
+    className={`avatar avatar--${size} ${className}`.trim()}
+    style={style}
+  />
 );

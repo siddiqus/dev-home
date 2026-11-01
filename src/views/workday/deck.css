@@ -464,6 +464,13 @@
   padding: 0 5px;
 }
 
+/* A review-only tab's author, in place of the chip. */
+.deck-rail-line .deck-rail-avatar {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+}
+
 .deck-rail-status {
   display: block;
   overflow: hidden;
@@ -749,6 +756,33 @@
   outline: none;
 }
 
+/* Yours / To review, on a card with both. */
+.deck-pr-group-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-3);
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.deck-pr-list > :first-child > .deck-pr-group-label {
+  margin-top: var(--space-1);
+}
+
+/* The review group's color sits on its icon only. */
+.deck-pr-group-label svg {
+  color: var(--color-status-info);
+}
+
+.deck-pr-group-count {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .deck-pr {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -779,7 +813,7 @@
   color: var(--color-status-warning);
 }
 
-/* Meta line: muted repo#number · author · reviewers · age. Reviewers give
+/* Meta line: author · muted repo#number · reviewers · age. Reviewers give
    way first, then the repo (ellipsis, full ref in the title tooltip); the
    number and the rest never truncate. */
 .deck-pr-meta {
@@ -837,6 +871,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Someone else's PR: their face and login lead the line, in body text. */
+.deck-pr-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.deck-pr-author .deck-pr-avatar {
+  width: 16px;
+  height: 16px;
 }
 
 /* Copy-link and open-on-GitHub, always visible (unlike the List View's hover icons). */

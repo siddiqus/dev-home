@@ -1,5 +1,6 @@
 import { Fragment, useContext, type MouseEvent } from "react";
 import type { GitHubPR, Note } from "../../types";
+import { Avatar } from "../../components/primitives/Avatar";
 import { Badge } from "../../components/primitives/Badge";
 import { CommentCountChip, useCommentCounts } from "../../components/CommentCountChip";
 import { MergeButton } from "../../components/MergeButton";
@@ -27,8 +28,8 @@ export interface DeckPRRowProps {
 }
 
 /**
- * One PR on the card (spec §5.4): a muted meta line with repo#number,
- * copy-link / open-on-GitHub icons · author (unless it's me) · reviewers /
+ * One PR on the card (spec §5.4): a muted meta line with the author's avatar
+ * and login (unless it's me) · repo#number, copy-link / open-on-GitHub icons · reviewers /
  * commenters (approvers, once merged), and a "current" label, the updated age
  * and the unseen dot on the right; the title without the key; up to four
  * signal chips with "+N", then the comment count (never folded into "+N",
@@ -71,6 +72,19 @@ export function DeckPRRow({
     <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
       <div className="deck-pr-main">
         <div className="deck-pr-meta">
+          {/* First, with the author's face: someone else's PR reads apart from mine. */}
+          {showAuthor && (
+            <>
+              <span className="deck-pr-author">
+                {pr.user.avatar_url && (
+                  // Decorative: the login follows.
+                  <Avatar src={pr.user.avatar_url} alt="" className="deck-pr-avatar" />
+                )}
+                {pr.user.login}
+              </span>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
           <span className="deck-pr-ref" title={ref}>
             <span className="deck-pr-repo">{repo}</span>
             <span className="deck-pr-number">#{pr.number}</span>
@@ -78,12 +92,6 @@ export function DeckPRRow({
           <span className="deck-pr-links">
             <PRLinkIcons pr={pr} />
           </span>
-          {showAuthor && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="deck-pr-author">{pr.user.login}</span>
-            </>
-          )}
           {participants && participants.length > 0 && (
             <>
               <span aria-hidden="true">·</span>

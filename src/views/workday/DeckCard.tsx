@@ -12,8 +12,8 @@ import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
-import type { DeckTicket } from "./deckTypes";
-import { IconExternalLink } from "@tabler/icons-react";
+import type { DeckPR, DeckTicket } from "./deckTypes";
+import { IconExternalLink, IconEye } from "@tabler/icons-react";
 
 export interface DeckCardProps {
   ticket: DeckTicket;
@@ -33,7 +33,10 @@ export interface DeckCardProps {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** The ticket card (spec §5.4): header, sub-line and PR rows as a listbox. */
+/**
+ * The ticket card (spec §5.4): header, sub-line and PR rows as a listbox, in
+ * Yours / To review groups when the ticket has both.
+ */
 export function DeckCard({
   ticket,
   selectedPrUrl,
@@ -73,6 +76,31 @@ export function DeckCard({
   const mergedCount = prs.filter((p) => p.pr.merged_at).length;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
   const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
+  const row = (p: DeckPR, i: number) => (
+    <DeckPRRow
+      key={p.pr.html_url}
+      id={prRowId(i)}
+      item={p}
+      ticketKey={key}
+      selected={i === activeIndex}
+      onSelect={onSelectPr}
+      onOpen={onOpen}
+      onOpenNote={onOpenNote}
+      now={now}
+    />
+  );
+  // Mine and the ones I review, labelled only when the ticket has both. Rows keep
+  // their index in `prs` (buildDeck lists mine first), which ↑/↓ walk.
+  const indexed = prs.map((p, i) => [p, i] as const);
+  const mineRows = indexed.filter(([p]) => p.mine);
+  const reviewRows = indexed.filter(([p]) => !p.mine);
+  const groups =
+    mineRows.length > 0 && reviewRows.length > 0
+      ? [
+          { label: "Yours", rows: mineRows, review: false },
+          { label: "To review", rows: reviewRows, review: true },
+        ]
+      : null;
   const composer =
     composing && onSaveNote ? (
       <DeckNoteComposer
@@ -173,19 +201,18 @@ export function DeckCard({
               aria-activedescendant={activeIndex === -1 ? undefined : prRowId(activeIndex)}
               tabIndex={0}
             >
-              {prs.map((p, i) => (
-                <DeckPRRow
-                  key={p.pr.html_url}
-                  id={prRowId(i)}
-                  item={p}
-                  ticketKey={key}
-                  selected={i === activeIndex}
-                  onSelect={onSelectPr}
-                  onOpen={onOpen}
-                  onOpenNote={onOpenNote}
-                  now={now}
-                />
-              ))}
+              {groups
+                ? groups.map((g) => (
+                    <div key={g.label} role="group" aria-label={g.label}>
+                      <div className="deck-pr-group-label" aria-hidden="true">
+                        {g.review && <IconEye size={13} stroke={1.8} />}
+                        {g.label}
+                        <span className="deck-pr-group-count">{g.rows.length}</span>
+                      </div>
+                      {g.rows.map(([p, i]) => row(p, i))}
+                    </div>
+                  ))
+                : prs.map(row)}
             </div>
             {/* A ticket whose PRs have all merged keeps its ticket note. */}
             {ticket.note && <DeckNoteLine note={ticket.note} onOpen={onOpenNote} />}

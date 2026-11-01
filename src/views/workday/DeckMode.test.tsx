@@ -322,6 +322,22 @@ describe("DeckMode rail", () => {
     ).toBeNull();
   });
 
+  it("shows the author's avatar instead of the review chip on a review-only tab", () => {
+    const review = deckPR(
+      8,
+      { mine: false },
+      { user: { login: "tomas", avatar_url: "https://avatars/tomas.png" } },
+    );
+    renderDeck({ deck: deck({ open: [ticket("CCP-1", { reviewOnly: true, prs: [review] })] }) });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    const row = within(rail).getByRole("option", { name: /CCP-1/ });
+    expect(within(row).getByRole("img", { name: "Review for tomas" })).toHaveAttribute(
+      "src",
+      "https://avatars/tomas.png",
+    );
+    expect(within(row).queryByText("review")).toBeNull();
+  });
+
   it("selects on click", () => {
     const { onSelect } = renderDeck({ deck: deck({ open: [ticket("CCP-1"), ticket("CCP-2")] }) });
     fireEvent.click(screen.getByRole("option", { name: /Title CCP-2/ }));
@@ -375,6 +391,29 @@ describe("DeckMode card", () => {
     for (const l of ["A", "B", "C", "D"]) expect(within(theirs).getByText(l)).toBeTruthy();
     expect(within(theirs).queryByText("E")).toBeNull();
     expect(within(theirs).getByText("+2")).toHaveAttribute("title", "E, F");
+  });
+
+  it("splits a card with mine and theirs into Yours and To review groups", () => {
+    const review = deckPR(9, { mine: false }, { user: { login: "tomas", avatar_url: "" } });
+    const t = ticket("CCP-1", { prs: [deckPR(7), deckPR(8), review] });
+    renderDeck({ deck: deck({ open: [t] }), selectedPrUrl: review.pr.html_url });
+    const list = screen.getByRole("listbox", { name: "Pull requests" });
+    const yours = within(list).getByRole("group", { name: "Yours" });
+    const toReview = within(list).getByRole("group", { name: "To review" });
+    expect(within(yours).getAllByRole("option")).toHaveLength(2);
+    const [row] = within(toReview).getAllByRole("option");
+    expect(within(row).getByText("tomas")).toBeTruthy();
+    // Row ids keep their place in `prs`, so the selection still points at the right row.
+    expect(list).toHaveAttribute("aria-activedescendant", row.id);
+    expect(row).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("leaves a card whose PRs are all mine (or all theirs) unlabelled", () => {
+    const mine = ticket("CCP-1", { prs: [deckPR(7), deckPR(8)] });
+    renderDeck({ deck: deck({ open: [mine] }) });
+    expect(screen.queryByRole("group", { name: "Yours" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "To review" })).toBeNull();
+    expect(screen.getAllByRole("option", { name: /PR [78]/ })).toHaveLength(2);
   });
 
   it("renders a chip with an href as a GitHub link that doesn't open the modal", () => {

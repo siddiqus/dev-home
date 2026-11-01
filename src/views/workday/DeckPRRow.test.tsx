@@ -135,6 +135,27 @@ describe("DeckPRRow author", () => {
   it("hides my own login on Workday", () => {
     const { container } = renderRow(item({}, []));
     expect(container.querySelector(".deck-pr-author")).toBeNull();
+    expect(container.querySelector(".deck-pr-avatar")).toBeNull();
+  });
+
+  it("leads someone else's PR with their avatar and login, before repo#number", () => {
+    const { container } = renderRow(
+      item({ user: { login: "tomas", avatar_url: "https://avatars/tomas.png" } }, []),
+    );
+    const author = container.querySelector(".deck-pr-author")!;
+    expect(author).toHaveTextContent("tomas");
+    expect(author.querySelector("img.deck-pr-avatar")).toHaveAttribute(
+      "src",
+      "https://avatars/tomas.png",
+    );
+    const meta = container.querySelector(".deck-pr-meta")!;
+    expect(meta.firstElementChild).toBe(author);
+  });
+
+  it("shows the login alone when the author has no avatar", () => {
+    const { container } = renderRow(item({ user: { login: "tomas", avatar_url: "" } }, []));
+    expect(container.querySelector(".deck-pr-author")).toHaveTextContent("tomas");
+    expect(container.querySelector(".deck-pr-avatar")).toBeNull();
   });
 
   it("shows any author, me included, when asked (PR search)", () => {

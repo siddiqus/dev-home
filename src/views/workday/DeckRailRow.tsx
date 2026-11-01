@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { Avatar } from "../../components/primitives/Avatar";
 import { blurOnPointer } from "./pointer";
 import type { DeckTicket } from "./deckTypes";
 
@@ -18,7 +19,10 @@ export interface DeckRailRowProps {
   as?: "option" | "button";
 }
 
-/** One rail row: stripe, key, title, review chip, status line and activity dot (spec §5.3). */
+/**
+ * One rail row: stripe, key, title, review marker (the author's avatar, else a
+ * chip), status line and activity dot (spec §5.3).
+ */
 export function DeckRailRow({
   id,
   ticket,
@@ -31,6 +35,8 @@ export function DeckRailRow({
     blurOnPointer(e);
     onSelect(ticket.id, e);
   };
+  // A review-only tab's top PR: its author stands in for the "review" chip.
+  const author = ticket.reviewOnly ? ticket.prs[0]?.pr.user : undefined;
   const classes = [
     "deck-rail-row",
     selected && "deck-rail-row--selected",
@@ -62,13 +68,22 @@ export function DeckRailRow({
               #todo
             </span>
           )}
-          {ticket.reviewOnly && (
-            // Badge's neutral tone by class: the Badge component pins an inline
-            // 12px font size that only !important could shrink.
-            <span className="badge badge-status badge-status--neutral deck-rail-review">
-              review
-            </span>
-          )}
+          {ticket.reviewOnly &&
+            (author?.avatar_url ? (
+              // The face of whose PR it is, as on the card's review rows.
+              <Avatar
+                src={author.avatar_url}
+                alt={`Review for ${author.login}`}
+                title={`Review for ${author.login}`}
+                className="deck-rail-review deck-rail-avatar"
+              />
+            ) : (
+              // Badge's neutral tone by class: the Badge component pins an inline
+              // 12px font size that only !important could shrink.
+              <span className="badge badge-status badge-status--neutral deck-rail-review">
+                review
+              </span>
+            ))}
         </span>
         <span className={`deck-rail-status deck-rail-status--${ticket.statusTone}`}>
           {ticket.mergedLoading ? (

@@ -237,18 +237,20 @@ describe("buildDeck ticket fields", () => {
 });
 
 describe("buildDeck PR order on the card", () => {
-  it("orders current first, then needs-me priority, then newest", () => {
+  it("orders mine before the ones I review, each current first, then needs-me priority, then newest", () => {
     const old = pr(1, { title: "CCP-1 a", draft: true, updated_at: "2026-10-01T10:00:00Z" });
     const newer = pr(2, { title: "CCP-1 b", draft: true, updated_at: "2026-10-12T10:00:00Z" });
     const failing = pr(3, { title: "CCP-1 c", checks_status: "FAILURE" });
     const review = theirs(4, { title: "CCP-1 d" });
     const ready = pr(5, { title: "CCP-1 e", review_status: "APPROVED", checks_status: "SUCCESS" });
+    const reReview = theirs(6, { title: "CCP-1 f", viewer_engaged: true });
     const deck = build(
-      { openPRs: [old, newer, failing, ready], reviewRequests: [review] },
+      { openPRs: [old, newer, failing, ready], reviewRequests: [review, reReview] },
       { current: [`pr:${old.html_url}`] },
     );
-    // current (1), danger (3), info (4), success (5), neutral newest first (2)
-    expect(numbers(deck.current[0])).toEqual([1, 3, 4, 5, 2]);
+    // Mine: current (1), danger (3), success (5), neutral newest first (2).
+    // Then theirs: warning (6), info (4).
+    expect(numbers(deck.current[0])).toEqual([1, 3, 5, 2, 6, 4]);
   });
 
   it("carries signals and priority on each PR", () => {
@@ -1081,6 +1083,19 @@ describe("buildDeck merged PRs on open tickets", () => {
     expect(t.stripe).toBe(without.stripe);
     expect(t.unseen).toBe(without.unseen);
     expect(t.reviewOnly).toBe(false);
+  });
+
+  it("keeps my merged PRs with my open ones, before the PRs I review", () => {
+    const deck = build(
+      {
+        openPRs: [pr(5, { title: "CCP-1 follow-up" })],
+        reviewRequests: [theirs(6, { title: "CCP-1 infra" })],
+        allIssues: [issue("CCP-1")],
+        ticketMergedPRs: [merged(1, "2026-10-13T11:00:00Z", { title: "CCP-1 backend" })],
+      },
+      { seeded: true },
+    );
+    expect(numbers(byId(all(deck), "CCP-1"))).toEqual([5, 1, 6]);
   });
 
   it("skips a merged PR that's still listed as open", () => {

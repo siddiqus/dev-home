@@ -51,7 +51,10 @@ export interface DeckTicket {
   key: string | null;
   title: string;
   ticket: TicketRef | null;
-  /** Open PRs in card order, then my merged ones (`merged_at` set), newest merge first. */
+  /**
+   * My open PRs in card order, then my merged ones (`merged_at` set), newest
+   * merge first, then the PRs I review in card order.
+   */
   prs: DeckPR[];
   stripe: BadgeVariant;
   status: string;
