@@ -30,8 +30,10 @@ function jiraProxyDev(): Plugin {
   };
 }
 
-// Light-theme app background (--color-bg-app in src/styles/tokens.css).
-const THEME_COLOR = "#ffffff";
+// Dark-theme app background (--color-bg-app in src/styles/tokens.css). Chrome paints the
+// strip behind Android's gesture bar in an installed app from these manifest colours, not
+// the live <meta name="theme-color">, so it can't follow the theme; dark is the default.
+const THEME_COLOR = "#0d1117";
 
 /**
  * Installable PWA. The service worker precaches only the built app shell; it never caches
