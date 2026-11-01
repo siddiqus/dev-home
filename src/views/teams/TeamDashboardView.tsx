@@ -380,41 +380,35 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                   />
                 </div>
               ) : (
-                <>
-                  {/* Sprint meta */}
-                  <SprintMetaBar sprint={selectedSprint} pace={dashboard.pace} />
-
-                  <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
-                    <SegmentedTabs
-                      className="inline-control"
-                      activeKey={sprintView}
-                      onChange={(k) => setSprintView(k as (typeof SPRINT_VIEWS)[number])}
-                      tabs={[
-                        {
-                          key: "overview",
-                          label: (
-                            <span className="d-inline-flex align-items-center gap-1">
-                              <IconLayoutDashboard size={14} /> Sprint overview
-                            </span>
-                          ),
-                        },
-                        {
-                          key: "people",
-                          label: (
-                            <span className="d-inline-flex align-items-center gap-1">
-                              <IconUsers size={14} /> People
-                            </span>
-                          ),
-                        },
-                      ]}
-                    />
-                    {sprintView === "people" && (
-                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>
-                        ↑ ↓ in the list steps through people
-                      </span>
-                    )}
-                  </div>
-                </>
+                /* The overview/people switch leads the sprint strip, one row. */
+                <SprintMetaBar sprint={selectedSprint} pace={dashboard.pace}>
+                  <SegmentedTabs
+                    className="inline-control"
+                    activeKey={sprintView}
+                    onChange={(k) => setSprintView(k as (typeof SPRINT_VIEWS)[number])}
+                    tabs={[
+                      {
+                        key: "overview",
+                        label: (
+                          <span className="d-inline-flex align-items-center gap-1">
+                            <IconLayoutDashboard size={14} /> Sprint overview
+                          </span>
+                        ),
+                      },
+                      {
+                        key: "people",
+                        label: (
+                          <span
+                            className="d-inline-flex align-items-center gap-1"
+                            title="↑ ↓ in the list steps through people"
+                          >
+                            <IconUsers size={14} /> People
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
+                </SprintMetaBar>
               )}
 
               {/* People fills this area rather than scrolling in it, so its

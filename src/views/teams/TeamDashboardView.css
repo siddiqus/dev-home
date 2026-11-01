@@ -39,8 +39,9 @@
 }
 
 /* --- Sprint cockpit: one-line sprint strip under the toolbar ---
-   No box and no bars, just words: the sprint's facts on the left, progress and
-   pace on the right, ending on the same edge as the toolbar's actions. */
+   No box and no bars, just words: the overview/people switch leads, the
+   sprint's facts sit in the middle, progress and pace on the right, ending on
+   the same edge as the toolbar's actions. */
 .sprint-strip {
   display: flex;
   flex-wrap: wrap;
