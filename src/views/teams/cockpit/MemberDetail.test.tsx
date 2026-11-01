@@ -16,18 +16,37 @@ describe("MemberDetail", () => {
     expect(head).toHaveTextContent("2 stalled");
     expect(head).toHaveTextContent("3 open PRs · 1 waiting on reviewers · 1 merged");
 
-    // The flagged ticket's card: key, title, and each warning sign in words.
-    const atRisk = screen.getByRole("region", { name: "At risk tickets" });
-    expect(within(atRisk).getByText("PLAT-101")).toBeInTheDocument();
-    expect(within(atRisk).getByText("Sprint health strip")).toBeInTheDocument();
-    // Staleness shows as the card's last update, not as a signal line.
-    expect(within(atRisk).getByText("updated 4d ago")).toBeInTheDocument();
-    expect(within(atRisk).queryByText(/^No update for/)).not.toBeInTheDocument();
-    expect(within(atRisk).getByText("PR #12 is failing CI")).toBeInTheDocument();
+    // Flagged tickets stay in the full list; the header counts them.
+    expect(screen.queryByRole("region", { name: "At risk tickets" })).not.toBeInTheDocument();
+    expect(screen.getByText("1 at risk")).toBeInTheDocument();
+
+    // The flagged ticket says why, in its own row: level, status line, each warning sign.
+    const inProgress = screen.getByRole("region", { name: "In Progress tickets" });
+    expect(within(inProgress).getByText("At risk")).toBeInTheDocument();
+    expect(within(inProgress).getByText("updated 4d ago")).toBeInTheDocument();
+    expect(within(inProgress).getByText("No update for 4 days")).toBeInTheDocument();
+    expect(within(inProgress).getByText("web#12 is failing CI")).toBeInTheDocument();
     expect(
-      within(atRisk).getByText(/^PR #12 has waited \d+ days for a first review$/),
+      within(inProgress).getByText(/^web#12 has waited \d+ days for a first review$/),
     ).toBeInTheDocument();
-    expect(within(atRisk).getByText("Added after the sprint started")).toBeInTheDocument();
+    expect(within(inProgress).getByText("Added after the sprint started")).toBeInTheDocument();
+    expect(
+      within(inProgress).getByRole("button", { name: "web#12 failing CI" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts a flagged ticket's reasons in a callout led by its level", () => {
+    // PLAT-101 is at risk, PLAT-301 needs a look, PLAT-201 is fine; all given to one person.
+    const issues = dashboardFixture.issues.map((i) => ({ ...i, assigneeAccountId: "u2" }));
+    render(<MemberDetail member={nadman} issues={issues} />);
+
+    const callout = (text: string) =>
+      screen.getByText(text).closest(".member-ticket")!.querySelector(".member-callout");
+    expect(callout("Sprint health strip")).toHaveClass("member-callout--danger");
+    expect(callout("Sprint health strip")).toHaveTextContent(/^At risk.*web#12 is failing CI/);
+    expect(callout("Unassigned cleanup")).toHaveClass("member-callout--warning");
+    expect(callout("Unassigned cleanup")).toHaveTextContent(/^Needs a look.*Nobody is assigned/);
+    expect(callout("Token refresh")).toBeNull();
   });
 
   it("lists every ticket of the member grouped by status", () => {
@@ -39,12 +58,12 @@ describe("MemberDetail", () => {
     expect(screen.queryByText("Token refresh")).not.toBeInTheDocument();
   });
 
-  it("says a member is on track when no ticket is flagged", () => {
+  it("says all clear when no ticket is flagged", () => {
     render(<MemberDetail member={nadman} issues={dashboardFixture.issues} />);
 
     // No level label beside the name.
     expect(screen.queryByText("On track")).not.toBeInTheDocument();
-    expect(screen.getByText(/nothing needs a look/)).toBeInTheDocument();
+    expect(screen.getByText("All clear")).toBeInTheDocument();
     const done = screen.getByRole("region", { name: "Done tickets" });
     expect(within(done).getByText("Token refresh")).toBeInTheDocument();
   });
@@ -65,16 +84,21 @@ describe("MemberDetail", () => {
     expect(within(group).getAllByText(/^Done thing/)).toHaveLength(5);
   });
 
-  it("opens a ticket and stays in place", () => {
+  it("opens the ticket from its key and the PR from its link, and stays in place", () => {
     const onOpenRef = vi.fn();
     render(
       <MemberDetail member={tashfia} issues={dashboardFixture.issues} onOpenRef={onOpenRef} />,
     );
 
-    const atRisk = screen.getByRole("region", { name: "At risk tickets" });
-    fireEvent.click(within(atRisk).getByText("Sprint health strip"));
+    // The row itself isn't a link.
+    fireEvent.click(screen.getByText("Sprint health strip"));
+    expect(onOpenRef).not.toHaveBeenCalled();
 
-    expect(onOpenRef).toHaveBeenCalledWith({ kind: "issue", key: "PLAT-101" });
+    fireEvent.click(screen.getByRole("button", { name: "PLAT-101" }));
+    expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "issue", key: "PLAT-101" });
+
+    fireEvent.click(screen.getByRole("button", { name: "web#12 failing CI" }));
+    expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "pr", repo: "acme/web", number: 12 });
     expect(screen.getByRole("heading", { name: "Tashfia" })).toBeInTheDocument();
   });
 });

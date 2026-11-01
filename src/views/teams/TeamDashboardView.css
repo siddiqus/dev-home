@@ -486,64 +486,116 @@
   color: var(--color-text-muted);
   font-weight: 500;
 }
-.member-detail__clear {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-status-success);
-  font-size: 0.8125rem;
+/* The All tickets header's flag counts, or "All clear". */
+.member-detail__summary {
+  display: inline-flex;
+  gap: var(--space-3);
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.member-detail__summary > span {
+  gap: 4px;
 }
 
-/* A flagged ticket: key + title, its status line, then one warning sign per line. */
-.member-ticket {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+/* The key and PR links: buttons that read as links, the only clickable parts of a ticket. */
+.member-link {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
   background: none;
-  color: inherit;
-  font-size: 0.8125rem;
+  font: inherit;
   text-align: left;
 }
-.member-ticket:hover {
-  background: var(--color-bg-hover);
+.member-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.member-ticket__body {
+.member-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Every ticket, grouped by status. Each one: key · title, its status line,
+   then (flagged) a callout with its level and warning signs. */
+.member-group {
+  margin-top: var(--space-3);
+}
+.member-group .cockpit-group-head {
+  margin-bottom: 6px;
+}
+.member-rows {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.member-ticket {
   display: flex;
-  flex: 1;
   flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 0.8125rem;
+}
+.member-ticket:first-child {
+  border-top: 0;
+}
+.member-ticket__top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
-.member-ticket__title {
-  display: flex;
-  gap: var(--space-2);
-}
 .member-ticket__key {
+  flex-shrink: 0;
   color: var(--color-accent);
   font-weight: 600;
+  white-space: nowrap;
+}
+.member-ticket__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .member-ticket__meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
-  margin: 4px 0 8px;
+  gap: 2px var(--space-3);
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
-.member-ticket__signals {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* A flagged ticket's why: a tinted box only as wide as its text, so the color
+   sits in one spot instead of banding the card. */
+.member-callout {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: flex-start;
+  gap: 3px var(--space-3);
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
 }
-.member-ticket__chev {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--color-text-muted);
+.member-callout--danger {
+  --member-callout-tone: var(--color-status-danger);
+  background: var(--color-status-danger-bg);
+}
+.member-callout--warning {
+  --member-callout-tone: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+}
+.member-callout__level {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--member-callout-tone);
+  font-weight: 600;
 }
 .member-signal {
   display: flex;
@@ -567,59 +619,19 @@
   gap: 3px;
   white-space: nowrap;
 }
-
-/* Every ticket, grouped by status: key · title · flag, PR, age. */
-.member-group {
-  margin-top: var(--space-3);
-}
-.member-group .cockpit-group-head {
-  margin-bottom: 6px;
-}
-.member-rows {
-  overflow: hidden;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
-.member-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto;
-  gap: var(--space-3);
-  align-items: center;
+.member-more {
+  display: block;
   width: 100%;
-  padding: 7px 10px;
+  padding: 7px 12px;
   border: 0;
   border-top: 1px solid var(--color-border-subtle);
   background: none;
-  color: inherit;
-  font-size: 0.8125rem;
-  text-align: left;
-}
-.member-row:first-child {
-  border-top: 0;
-}
-.member-row:hover {
-  background: var(--color-bg-hover);
-}
-.member-row__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.member-row__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: 0.75rem;
-}
-.member-row__age {
-  min-width: 48px;
-  color: var(--color-text-muted);
-  text-align: right;
-}
-.member-row--more {
-  display: block;
   color: var(--color-accent);
   font-size: 0.75rem;
+  text-align: left;
+}
+.member-more:hover {
+  background: var(--color-bg-hover);
 }
 
 /* --- Review Queue: card + See-all modal ---

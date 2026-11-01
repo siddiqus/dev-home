@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 
+/** A stalled ticket's last-update color: the theme's warning, then danger past four days. */
 export function staleTone(days: number): string {
-  return days > 4 ? "#dc3545" : "#e0a458";
+  return days > 4 ? "var(--color-status-danger)" : "var(--color-status-warning)";
 }
 
 /** Shading for every stalled chip (epic cards and Work Spread): one light red, whatever the count. */

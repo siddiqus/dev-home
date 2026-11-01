@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { STALLED_CHIP_STYLE, staleTone } from "./staleTone";
 
 describe("staleTone", () => {
-  it("returns amber for days <= 4", () => {
-    expect(staleTone(3)).toBe("#e0a458");
-    expect(staleTone(4)).toBe("#e0a458");
+  it("returns the theme's warning color for days <= 4", () => {
+    expect(staleTone(3)).toBe("var(--color-status-warning)");
+    expect(staleTone(4)).toBe("var(--color-status-warning)");
   });
 
-  it("returns red for days > 4", () => {
-    expect(staleTone(5)).toBe("#dc3545");
-    expect(staleTone(9)).toBe("#dc3545");
+  it("returns the theme's danger color for days > 4", () => {
+    expect(staleTone(5)).toBe("var(--color-status-danger)");
+    expect(staleTone(9)).toBe("var(--color-status-danger)");
   });
 });
 

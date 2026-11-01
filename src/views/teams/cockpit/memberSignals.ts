@@ -2,9 +2,11 @@ import type {
   AtRiskIssue,
   DashboardIssue,
   IssueFlags,
+  LinkedPR,
   RiskLevel,
   WorkloadEntry,
 } from "../../../types/teams";
+import { refLabel } from "./refLookup";
 
 /** Plain-language names for a ticket's risk level in the member modal. */
 export const LEVEL_LABELS: Record<RiskLevel, string> = {
@@ -41,6 +43,11 @@ function days(n: number): string {
   return n === 1 ? "1 day" : `${n} days`;
 }
 
+/** "web#12": how a ticket row names a PR. */
+function prLabel(pr: LinkedPR): string {
+  return refLabel({ kind: "pr", repo: pr.repo_full_name, number: pr.number });
+}
+
 /** Calendar days from today to a Jira due date ("YYYY-MM-DD" or a full ISO string), in local time. */
 function daysUntil(dueDate: string, now: Date): number {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dueDate);
@@ -60,8 +67,7 @@ function dueText(dueDate: string | null, now: Date): string {
 
 /**
  * The flags that count toward a ticket's risk level, in display order: blocking
- * first, context last. noEpic is deliberately absent: it isn't a risk. stale is
- * left out too: the card's "updated Nd ago" already shows it.
+ * first, context last. noEpic is deliberately absent: it isn't a risk.
  */
 const SIGNALS: {
   key: keyof IssueFlags;
@@ -73,26 +79,32 @@ const SIGNALS: {
     tone: "danger",
     text: (i) => {
       const pr = i.linkedPRs.find((p) => p.checks_status === "FAILURE");
-      return pr ? `PR #${pr.number} is failing CI` : "A linked PR is failing CI";
+      return pr ? `${prLabel(pr)} is failing CI` : "A linked PR is failing CI";
     },
   },
+  { key: "stale", tone: "warning", text: (i) => `No update for ${days(i.daysSinceUpdate)}` },
   {
     key: "prWaitingReview",
     tone: "warning",
     text: (i, now) => {
       const pr = i.linkedPRs.find((p) => p.waitingReview);
       if (!pr) return "A linked PR is waiting for a first review";
-      if (!pr.createdAt) return `PR #${pr.number} is waiting for a first review`;
+      if (!pr.createdAt) return `${prLabel(pr)} is waiting for a first review`;
       const waited = Math.max(
         1,
         Math.floor((now.getTime() - new Date(pr.createdAt).getTime()) / DAY_MS),
       );
-      return `PR #${pr.number} has waited ${days(waited)} for a first review`;
+      return `${prLabel(pr)} has waited ${days(waited)} for a first review`;
     },
   },
   { key: "dueSoon", tone: "warning", text: (i, now) => dueText(i.dueDate, now) },
   { key: "unassigned", tone: "neutral", text: () => "Nobody is assigned" },
-  { key: "inProgressNoPR", tone: "neutral", text: () => "In progress, but no PR is linked yet" },
+  {
+    key: "inProgressNoPR",
+    tone: "neutral",
+    text: (i) =>
+      `${statusBucket(i) === "inReview" ? "In review" : "In progress"}, but no PR is linked yet`,
+  },
   { key: "addedAfterStart", tone: "neutral", text: () => "Added after the sprint started" },
 ];
 
@@ -108,25 +120,38 @@ export function describeSignals(issue: DashboardIssue, now: Date): Signal[] {
 export type PRTone = "danger" | "warning" | "success" | "purple" | "neutral";
 
 export interface PRBadge {
+  repo: string;
   number: number;
   tone: PRTone;
   label: string;
 }
 
-/** The ticket's most telling PR: an open one (by review/CI state), else a merged one. */
-export function prBadge(issue: DashboardIssue): PRBadge | null {
-  const open = issue.linkedPRs.find((p) => p.state === "open");
-  if (open) {
-    const badge = (tone: PRTone, label: string) => ({ number: open.number, tone, label });
-    if (open.checks_status === "FAILURE") return badge("danger", "failing CI");
-    if (open.reviewState === "APPROVED") return badge("success", "approved");
-    if (open.reviewState === "CHANGES_REQUESTED") return badge("warning", "changes requested");
-    if (open.waitingReview) return badge("warning", "awaiting review");
-    if (open.reviewState === "REVIEW_REQUIRED") return badge("neutral", "awaiting review");
-    return badge("neutral", "open");
-  }
-  const merged = issue.linkedPRs.find((p) => p.state === "merged" || p.mergedAt);
-  return merged ? { number: merged.number, tone: "purple", label: "merged" } : null;
+/** An open PR's state, by CI first, then review. */
+function openBadge(pr: LinkedPR): Pick<PRBadge, "tone" | "label"> {
+  if (pr.checks_status === "FAILURE") return { tone: "danger", label: "failing CI" };
+  if (pr.reviewState === "APPROVED") return { tone: "success", label: "approved" };
+  if (pr.reviewState === "CHANGES_REQUESTED")
+    return { tone: "warning", label: "changes requested" };
+  if (pr.waitingReview) return { tone: "warning", label: "awaiting review" };
+  if (pr.reviewState === "REVIEW_REQUIRED") return { tone: "neutral", label: "awaiting review" };
+  return { tone: "neutral", label: "open" };
+}
+
+/** The ticket's open PRs, then its merged ones, each with its state. PRs closed unmerged are left out. */
+export function prBadges(issue: DashboardIssue): PRBadge[] {
+  const badge = (pr: LinkedPR, state: Pick<PRBadge, "tone" | "label">): PRBadge => ({
+    repo: pr.repo_full_name,
+    number: pr.number,
+    ...state,
+  });
+  const open = issue.linkedPRs.filter((p) => p.state === "open");
+  const merged = issue.linkedPRs.filter(
+    (p) => p.state !== "open" && (p.state === "merged" || p.mergedAt),
+  );
+  return [
+    ...open.map((p) => badge(p, openBadge(p))),
+    ...merged.map((p) => badge(p, { tone: "purple", label: "merged" })),
+  ];
 }
 
 export type StatusBucket = "new" | "indeterminate" | "inReview" | "done";
@@ -159,10 +184,10 @@ export function statusBucket(
 }
 
 export interface MemberTickets {
-  /** risk level "high", highest score first. */
-  atRisk: DashboardIssue[];
-  /** risk level "attention", highest score first. */
-  needsLook: DashboardIssue[];
+  /** How many tickets are at risk level "high". */
+  atRisk: number;
+  /** How many tickets are at risk level "attention". */
+  needsLook: number;
   /** Every ticket by status, review first; empty groups are left out. */
   groups: { bucket: StatusBucket; issues: DashboardIssue[] }[];
 }
@@ -171,8 +196,7 @@ const GROUP_ORDER: StatusBucket[] = ["inReview", "indeterminate", "new", "done"]
 
 export function memberTickets(issues: DashboardIssue[], accountId: string): MemberTickets {
   const mine = issues.filter((i) => i.assigneeAccountId === accountId);
-  const byScore = (level: RiskLevel) =>
-    mine.filter((i) => i.risk.level === level).sort((a, b) => b.risk.score - a.risk.score);
+  const count = (level: RiskLevel) => mine.filter((i) => i.risk.level === level).length;
 
   const groups = GROUP_ORDER.map((bucket) => ({
     bucket,
@@ -186,7 +210,7 @@ export function memberTickets(issues: DashboardIssue[], accountId: string): Memb
       ),
   })).filter((g) => g.issues.length > 0);
 
-  return { atRisk: byScore("high"), needsLook: byScore("attention"), groups };
+  return { atRisk: count("high"), needsLook: count("attention"), groups };
 }
 
 const NEED: Record<RiskLevel, number> = { high: 3, attention: 2, normal: 1 };

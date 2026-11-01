@@ -4,7 +4,7 @@ import {
   describeSignals,
   flagSummary,
   memberTickets,
-  prBadge,
+  prBadges,
   sortByNeed,
   statusBucket,
 } from "./memberSignals";
@@ -63,12 +63,12 @@ function pr(over: Partial<LinkedPR> = {}): LinkedPR {
 }
 
 describe("describeSignals", () => {
-  it("leaves staleness to the card's last-update line", () => {
+  it("says how long a stale ticket has gone without an update", () => {
     const signals = describeSignals(
       issue({ daysSinceUpdate: 4, flags: { ...NO_FLAGS, stale: true } }),
       NOW,
     );
-    expect(signals).toEqual([]);
+    expect(signals).toEqual([{ key: "stale", tone: "warning", text: "No update for 4 days" }]);
   });
 
   it("names the PR that is failing CI", () => {
@@ -79,7 +79,7 @@ describe("describeSignals", () => {
       }),
       NOW,
     );
-    expect(signals).toEqual([{ key: "prFailingCI", tone: "danger", text: "PR #12 is failing CI" }]);
+    expect(signals).toEqual([{ key: "prFailingCI", tone: "danger", text: "web#12 is failing CI" }]);
   });
 
   it("says how long the PR has waited for a first review", () => {
@@ -94,7 +94,7 @@ describe("describeSignals", () => {
       {
         key: "prWaitingReview",
         tone: "warning",
-        text: "PR #2381 has waited 2 days for a first review",
+        text: "web#2381 has waited 2 days for a first review",
       },
     ]);
   });
@@ -123,6 +123,16 @@ describe("describeSignals", () => {
     ]);
   });
 
+  it("says a ticket in review has no PR", () => {
+    const signals = describeSignals(
+      issue({ status: "In Review", flags: { ...NO_FLAGS, inProgressNoPR: true } }),
+      NOW,
+    );
+    expect(signals).toEqual([
+      { key: "inProgressNoPR", tone: "neutral", text: "In review, but no PR is linked yet" },
+    ]);
+  });
+
   it("does not treat a missing epic as a signal", () => {
     expect(describeSignals(issue({ flags: { ...NO_FLAGS, noEpic: true } }), NOW)).toEqual([]);
   });
@@ -131,66 +141,83 @@ describe("describeSignals", () => {
     const signals = describeSignals(
       issue({
         dueDate: "2026-07-03",
+        daysSinceUpdate: 3,
         linkedPRs: [pr({ checks_status: "FAILURE" })],
-        flags: { ...NO_FLAGS, addedAfterStart: true, dueSoon: true, prFailingCI: true },
+        flags: {
+          ...NO_FLAGS,
+          addedAfterStart: true,
+          dueSoon: true,
+          prFailingCI: true,
+          stale: true,
+        },
       }),
       NOW,
     );
-    expect(signals.map((s) => s.tone)).toEqual(["danger", "warning", "neutral"]);
+    expect(signals.map((s) => s.key)).toEqual([
+      "prFailingCI",
+      "stale",
+      "dueSoon",
+      "addedAfterStart",
+    ]);
   });
 });
 
-describe("prBadge", () => {
-  it("returns null when the ticket has no PR", () => {
-    expect(prBadge(issue())).toBeNull();
+describe("prBadges", () => {
+  const badge = (number: number, tone: string, label: string) => ({
+    repo: "acme/web",
+    number,
+    tone,
+    label,
+  });
+
+  it("returns nothing when the ticket has no PR", () => {
+    expect(prBadges(issue())).toEqual([]);
   });
 
   it("flags an open PR failing CI first", () => {
     expect(
-      prBadge(issue({ linkedPRs: [pr({ checks_status: "FAILURE", waitingReview: true })] })),
-    ).toEqual({ number: 12, tone: "danger", label: "failing CI" });
+      prBadges(issue({ linkedPRs: [pr({ checks_status: "FAILURE", waitingReview: true })] })),
+    ).toEqual([badge(12, "danger", "failing CI")]);
   });
 
   it("warns when an open PR has waited too long for review", () => {
-    expect(prBadge(issue({ linkedPRs: [pr({ waitingReview: true })] }))).toEqual({
-      number: 12,
-      tone: "warning",
-      label: "awaiting review",
-    });
+    expect(prBadges(issue({ linkedPRs: [pr({ waitingReview: true })] }))).toEqual([
+      badge(12, "warning", "awaiting review"),
+    ]);
   });
 
   it("shows a fresh review request without warning", () => {
-    expect(prBadge(issue({ linkedPRs: [pr({ reviewState: "REVIEW_REQUIRED" })] }))).toEqual({
-      number: 12,
-      tone: "neutral",
-      label: "awaiting review",
-    });
+    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "REVIEW_REQUIRED" })] }))).toEqual([
+      badge(12, "neutral", "awaiting review"),
+    ]);
   });
 
   it("shows approved and changes-requested reviews", () => {
-    expect(prBadge(issue({ linkedPRs: [pr({ reviewState: "APPROVED" })] }))).toEqual({
-      number: 12,
-      tone: "success",
-      label: "approved",
-    });
-    expect(prBadge(issue({ linkedPRs: [pr({ reviewState: "CHANGES_REQUESTED" })] }))).toEqual({
-      number: 12,
-      tone: "warning",
-      label: "changes requested",
-    });
+    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "APPROVED" })] }))).toEqual([
+      badge(12, "success", "approved"),
+    ]);
+    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "CHANGES_REQUESTED" })] }))).toEqual([
+      badge(12, "warning", "changes requested"),
+    ]);
   });
 
-  it("prefers an open PR over a merged one", () => {
-    const linkedPRs = [pr({ number: 3, state: "merged" }), pr({ number: 4 })];
-    expect(prBadge(issue({ linkedPRs }))).toEqual({ number: 4, tone: "neutral", label: "open" });
+  it("lists every open PR before the merged ones", () => {
+    const linkedPRs = [
+      pr({ number: 3, state: "merged" }),
+      pr({ number: 4 }),
+      pr({ number: 5, state: "closed", mergedAt: "2026-07-01T10:00:00Z" }),
+      pr({ number: 6, reviewState: "APPROVED" }),
+    ];
+    expect(prBadges(issue({ linkedPRs }))).toEqual([
+      badge(4, "neutral", "open"),
+      badge(6, "success", "approved"),
+      badge(3, "purple", "merged"),
+      badge(5, "purple", "merged"),
+    ]);
   });
 
-  it("falls back to the merged PR", () => {
-    expect(prBadge(issue({ linkedPRs: [pr({ number: 3, state: "merged" })] }))).toEqual({
-      number: 3,
-      tone: "purple",
-      label: "merged",
-    });
+  it("leaves out PRs closed without a merge", () => {
+    expect(prBadges(issue({ linkedPRs: [pr({ state: "closed" })] }))).toEqual([]);
   });
 });
 
@@ -218,7 +245,7 @@ describe("memberTickets", () => {
     expect(result.groups.flatMap((g) => g.issues.map((i) => i.key))).toEqual(["A"]);
   });
 
-  it("splits flagged tickets by level, highest score first", () => {
+  it("counts flagged tickets by level", () => {
     const result = memberTickets(
       [
         high("H1", 5),
@@ -228,8 +255,8 @@ describe("memberTickets", () => {
       ],
       "u1",
     );
-    expect(result.atRisk.map((i) => i.key)).toEqual(["H2", "H1"]);
-    expect(result.needsLook.map((i) => i.key)).toEqual(["A1"]);
+    expect(result.atRisk).toBe(2);
+    expect(result.needsLook).toBe(1);
   });
 
   it("groups tickets review-first, skips empty groups, and orders each group", () => {
