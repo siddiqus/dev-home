@@ -65,6 +65,11 @@ export interface RawPR {
   reviews?: RawReview[];
   /** Outstanding review requests (users + teams); the queue filters teams out itself. */
   requestedReviewers?: RawReviewRequest[];
+  /** Lines added / removed across the diff. */
+  additions?: number | null;
+  deletions?: number | null;
+  /** Login of whoever merged the PR. */
+  merged_by?: string | null;
 }
 
 export interface RawIssue {

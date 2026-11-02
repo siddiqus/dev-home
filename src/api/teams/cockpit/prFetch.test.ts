@@ -126,6 +126,23 @@ describe("mapPullRequestNode", () => {
     expect(pr.first_review_at).toBeNull();
   });
 
+  it("maps lines changed and who merged", () => {
+    const pr = mapPullRequestNode(
+      { ...node, additions: 120, deletions: 30, mergedBy: { login: "bob" } },
+      "fallback",
+    );
+    expect(pr.additions).toBe(120);
+    expect(pr.deletions).toBe(30);
+    expect(pr.merged_by).toBe("bob");
+  });
+
+  it("leaves lines changed and merger null when GitHub omits them", () => {
+    const pr = mapPullRequestNode(node, "fallback");
+    expect(pr.additions).toBeNull();
+    expect(pr.deletions).toBeNull();
+    expect(pr.merged_by).toBeNull();
+  });
+
   it("uses fallbackLogin only when author is missing", () => {
     const pr = mapPullRequestNode({ ...node, author: null }, "fallback");
     expect(pr.author).toBe("fallback");

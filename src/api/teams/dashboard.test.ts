@@ -91,8 +91,13 @@ describe("postTeamDashboard — fetching", () => {
     repository: { nameWithOwner: "o/r" },
   });
   let graphqlBodies: any[];
+  let sprintValues: any[];
 
   beforeEach(() => {
+    sprintValues = [
+      { id: 5, name: "Old", state: "closed", endDate: "2026-08-01" },
+      { id: 6, name: "Now", state: "active", endDate: "2026-10-10" },
+    ];
     localStorage.clear();
     clearSprintCache();
     saveSettings({
@@ -120,13 +125,7 @@ describe("postTeamDashboard — fetching", () => {
         });
       }
       if (config.url?.endsWith("/sprint")) {
-        return ok(config, {
-          values: [
-            { id: 5, name: "Old", state: "closed", endDate: "2026-08-01" },
-            { id: 6, name: "Now", state: "active", endDate: "2026-10-10" },
-          ],
-          isLast: true,
-        });
+        return ok(config, { values: sprintValues, isLast: true });
       }
       return ok(config, { issues: [], total: 0 });
     }) as any;
@@ -138,9 +137,82 @@ describe("postTeamDashboard — fetching", () => {
     const queries = Object.values(graphqlBodies[0].variables) as string[];
     expect(queries).toHaveLength(4);
     expect(queries.every((q) => q.endsWith(" org:acme"))).toBe(true);
+    // No sprint start date: authored PRs fall back to the last two weeks.
+    expect(queries[0]).toMatch(/^author:alice type:pr created:>=\d{4}-\d{2}-\d{2} org:acme$/);
     // Review requests reach the queue but don't count as the team's PRs.
     expect(result.offBoardPRs.map((p: any) => p.number)).toEqual([1]);
     expect(result.reviewQueue.map((e: any) => e.number).sort()).toEqual([1, 2]);
+  });
+
+  it("finds PRs opened or merged in the sprint, with lines changed and who merged", async () => {
+    sprintValues = [
+      {
+        id: 6,
+        name: "Now",
+        state: "active",
+        startDate: "2026-10-20T04:00:00.000Z",
+        endDate: "2026-11-03T04:00:00.000Z",
+      },
+    ];
+    const merged = {
+      ...prNode(3, "alice"),
+      state: "MERGED",
+      createdAt: "2026-10-10T00:00:00Z",
+      mergedAt: "2026-10-22T00:00:00Z",
+      mergedBy: { login: "bob" },
+      additions: 120,
+      deletions: 30,
+    };
+    httpMock.adapter = vi.fn(async (config: any) => {
+      if (config.url?.includes("graphql")) {
+        const body = JSON.parse(config.data);
+        graphqlBodies.push(body);
+        const nodesFor = (q: string) => {
+          if (!q.startsWith("author:alice"))
+            return q.startsWith("review-requested:alice") ? [prNode(2, "outsider")] : [];
+          // PR 1 was opened in the sprint, PR 3 only merged in it.
+          return q.includes(" created:") ? [prNode(1, "alice"), merged] : [merged];
+        };
+        const data = Object.fromEntries(
+          Object.entries(body.variables).map(([k, q]) => [
+            k.replace("q", "s"),
+            { nodes: nodesFor(q as string) },
+          ]),
+        );
+        return ok(config, { data });
+      }
+      if (config.url?.endsWith("/sprint")) {
+        return ok(config, { values: sprintValues, isLast: true });
+      }
+      return ok(config, { issues: [], total: 0 });
+    }) as any;
+
+    const result = await postTeamDashboard({ team: TEAM, members: MEMBERS });
+
+    const queries = Object.values(graphqlBodies[0].variables) as string[];
+    expect(queries).toEqual([
+      "author:alice type:pr created:2026-10-20..2026-11-03 org:acme",
+      "author:alice type:pr merged:2026-10-20..2026-11-03 org:acme",
+      "review-requested:alice type:pr state:open org:acme",
+      "author:bob type:pr created:2026-10-20..2026-11-03 org:acme",
+      "author:bob type:pr merged:2026-10-20..2026-11-03 org:acme",
+      "review-requested:bob type:pr state:open org:acme",
+    ]);
+    // Opened-in and merged-in results union without duplicates; review requests stay out.
+    expect(result.authoredPRs.map((p) => p.number).sort()).toEqual([1, 3]);
+    expect(result.authoredPRs.find((p) => p.number === 3)).toEqual({
+      number: 3,
+      title: "AA-3 pr",
+      repo_full_name: "o/r",
+      html_url: "https://github.com/o/r/pull/3",
+      author: "alice",
+      state: "merged",
+      createdAt: "2026-10-10T00:00:00Z",
+      mergedAt: "2026-10-22T00:00:00Z",
+      mergedBy: "bob",
+      additions: 120,
+      deletions: 30,
+    });
   });
 
   it("defaults to the active sprint and honours an explicit sprintId", async () => {

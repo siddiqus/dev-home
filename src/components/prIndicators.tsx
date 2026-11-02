@@ -268,7 +268,11 @@ function labelStyle(color: string): React.CSSProperties {
  * Renders nothing when the counts weren't fetched (older cached PRs, or endpoints
  * that don't populate them) — guards on additions/deletions being real numbers.
  */
-export function DiffStat({ pr }: { pr: GitHubPR }) {
+export function DiffStat({
+  pr,
+}: {
+  pr: Pick<GitHubPR, "additions" | "deletions" | "changed_files">;
+}) {
   if (typeof pr.additions !== "number" || typeof pr.deletions !== "number") return null;
   const files = pr.changed_files;
   return (

@@ -13,7 +13,7 @@ import { buildNeedsAttention } from "./cockpit/attention";
 import { computePace } from "./cockpit/pace";
 import { computeLoadDistribution, computeLoadBalance } from "./cockpit/load";
 import { computeHygiene } from "./cockpit/hygiene";
-import { mapPullRequestNode, dedupePRs } from "./cockpit/prFetch";
+import { mapPullRequestNode, dedupePRs, toAuthoredPR } from "./cockpit/prFetch";
 import { computeReviewQueue } from "./cockpit/reviewQueue";
 import { DEFAULT_COCKPIT_CONFIG } from "./cockpit/config";
 import type { SprintInfo } from "./cockpit/types";
@@ -21,7 +21,8 @@ import type { SprintInfo } from "./cockpit/types";
 const PR_NODE_FRAGMENT = `
   fragment MemberPR on PullRequest {
     number title url state createdAt updatedAt mergedAt headRefName body isDraft
-    reviewDecision
+    reviewDecision additions deletions
+    mergedBy { login }
     author { login }
     repository { nameWithOwner }
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
@@ -46,12 +47,26 @@ function buildSearchesQuery(count: number): string {
 interface MemberSearch {
   q: string;
   fallbackLogin: string;
+  /** PRs the member wrote, vs. open PRs awaiting their review. */
+  authored?: boolean;
 }
 
 function twoWeeksAgoISO(): string {
   const d = new Date();
   d.setDate(d.getDate() - 14);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Date qualifiers for the roster's own PRs: opened in the sprint, and merged
+ * in it (two searches, since GitHub search can't OR date qualifiers). Without
+ * a sprint start date, PRs opened in the last two weeks.
+ */
+function authoredWindows(sprint: SprintInfo | null): string[] {
+  if (!sprint?.startDate) return [`created:>=${twoWeeksAgoISO()}`];
+  const day = (iso: string) => iso.slice(0, 10);
+  const range = `${day(sprint.startDate)}..${sprint.endDate ? day(sprint.endDate) : "*"}`;
+  return [`created:${range}`, `merged:${range}`];
 }
 
 /**
@@ -76,35 +91,38 @@ async function runSearches(searches: MemberSearch[]): Promise<(RawPR[] | null)[]
 }
 
 /**
- * Fetch PRs the roster authored (last 2 weeks) and open PRs awaiting their
- * review (any author, any age), kept apart: authored PRs measure the team's own
- * work, review requests feed the review queue. Searches are scoped to the
- * configured org when there is one.
+ * Fetch PRs the roster authored (opened or merged in the sprint) and open PRs
+ * awaiting their review (any author, any age), kept apart: authored PRs
+ * measure the team's own work, review requests feed the review queue. Searches
+ * are scoped to the configured org when there is one.
  */
 async function fetchMemberPRs(
   roster: RosterEntry[],
+  sprint: SprintInfo | null,
 ): Promise<{ authored: RawPR[]; reviewRequested: RawPR[]; failed: number }> {
-  const since = twoWeeksAgoISO();
+  const windows = authoredWindows(sprint);
   const org = requireSettings().githubOrg?.trim();
   const scope = org ? ` org:${org}` : "";
-  const members = roster.filter((m) => m.githubUsername?.trim());
-  const MEMBERS_PER_REQUEST = 8;
+  const searches: MemberSearch[] = roster
+    .filter((m) => m.githubUsername?.trim())
+    .flatMap((m) => [
+      ...windows.map((w) => ({
+        q: `author:${m.githubUsername} type:pr ${w}${scope}`,
+        fallbackLogin: m.githubUsername,
+        authored: true,
+      })),
+      { q: `review-requested:${m.githubUsername} type:pr state:open${scope}`, fallbackLogin: "" },
+    ]);
+  const SEARCHES_PER_REQUEST = 16;
   const authored: RawPR[] = [];
   const reviewRequested: RawPR[] = [];
   let failed = 0;
-  for (let i = 0; i < members.length; i += MEMBERS_PER_REQUEST) {
-    const batch = members.slice(i, i + MEMBERS_PER_REQUEST);
-    const searches = batch.flatMap((m) => [
-      {
-        q: `author:${m.githubUsername} type:pr created:>=${since}${scope}`,
-        fallbackLogin: m.githubUsername,
-      },
-      { q: `review-requested:${m.githubUsername} type:pr state:open${scope}`, fallbackLogin: "" },
-    ]);
-    const results = await runSearches(searches);
+  for (let i = 0; i < searches.length; i += SEARCHES_PER_REQUEST) {
+    const batch = searches.slice(i, i + SEARCHES_PER_REQUEST);
+    const results = await runSearches(batch);
     results.forEach((r, j) => {
       if (!r) failed++;
-      else (j % 2 === 0 ? authored : reviewRequested).push(...r);
+      else (batch[j]!.authored ? authored : reviewRequested).push(...r);
     });
   }
   return { authored: dedupePRs(authored), reviewRequested: dedupePRs(reviewRequested), failed };
@@ -277,12 +295,20 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
     }
   }
 
+  const sprintInfo: SprintInfo | null = currentSprint
+    ? {
+        id: currentSprint.id,
+        startDate: currentSprint.startDate ?? null,
+        endDate: currentSprint.endDate ?? null,
+      }
+    : null;
+
   // --- GitHub ---
   let prs: RawPR[] = [];
   let reviewRequested: RawPR[] = [];
   if (roster.length > 0) {
     try {
-      const result = await fetchMemberPRs(roster);
+      const result = await fetchMemberPRs(roster, sprintInfo);
       prs = result.authored;
       reviewRequested = result.reviewRequested;
       if (result.failed > 0) {
@@ -299,13 +325,6 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
   // --- Aggregate (sprint cockpit) ---
   const now = new Date();
   const config = DEFAULT_COCKPIT_CONFIG;
-  const sprintInfo: SprintInfo | null = currentSprint
-    ? {
-        id: currentSprint.id,
-        startDate: currentSprint.startDate ?? null,
-        endDate: currentSprint.endDate ?? null,
-      }
-    : null;
 
   const sprintKeys = new Set(issues.map((i) => i.key));
   // Enrich each issue with its linked PRs, flags, and risk score.
@@ -335,6 +354,7 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
     issues: enrichedIssues,
     workload,
     offBoardPRs,
+    authoredPRs: prs.map(toAuthoredPR),
     pace,
     needsAttention,
     loadBalance,

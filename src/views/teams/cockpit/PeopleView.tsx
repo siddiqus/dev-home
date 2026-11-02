@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent } from "react";
-import type { DashboardIssue, Ref, WorkloadEntry } from "../../../types/teams";
+import type { AuthoredPR, DashboardIssue, Ref, WorkloadEntry } from "../../../types/teams";
 import { MemberDetail } from "./MemberDetail";
 import { sortByNeed } from "./memberSignals";
 import { PersonRow } from "./PersonRow";
@@ -8,6 +8,7 @@ import { StatusLegend } from "./StatusBar";
 interface Props {
   workload: WorkloadEntry[];
   issues: DashboardIssue[];
+  prs: AuthoredPR[];
   /** The picked member; null (or someone no longer on the team) falls back to the first. */
   selectedId: string | null;
   onSelect: (accountId: string) => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 /** The People tab: the team on the left, in Work Spread order; the picked person on the right. */
-export function PeopleView({ workload, issues, selectedId, onSelect, onOpenRef }: Props) {
+export function PeopleView({ workload, issues, prs, selectedId, onSelect, onOpenRef }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
 
   if (workload.length === 0) {
@@ -64,6 +65,7 @@ export function PeopleView({ workload, issues, selectedId, onSelect, onOpenRef }
           key={selected.accountId}
           member={selected}
           issues={issues}
+          prs={prs}
           onOpenRef={onOpenRef}
         />
       </div>

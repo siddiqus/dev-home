@@ -234,29 +234,12 @@ describe("statusBucket", () => {
 });
 
 describe("memberTickets", () => {
-  const high = (key: string, score: number) =>
-    issue({ key, risk: { score, level: "high", reasons: [] } });
-
   it("only includes the member's own tickets", () => {
     const result = memberTickets(
       [issue({ key: "A" }), issue({ key: "B", assigneeAccountId: "u2" })],
       "u1",
     );
     expect(result.groups.flatMap((g) => g.issues.map((i) => i.key))).toEqual(["A"]);
-  });
-
-  it("counts flagged tickets by level", () => {
-    const result = memberTickets(
-      [
-        high("H1", 5),
-        high("H2", 7),
-        issue({ key: "A1", risk: { score: 3, level: "attention", reasons: [] } }),
-        issue({ key: "N1" }),
-      ],
-      "u1",
-    );
-    expect(result.atRisk).toBe(2);
-    expect(result.needsLook).toBe(1);
   });
 
   it("groups tickets review-first, skips empty groups, and orders each group", () => {

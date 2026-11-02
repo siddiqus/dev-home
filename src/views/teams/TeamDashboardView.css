@@ -285,7 +285,7 @@
    frame never slides under the switch. */
 .people-view {
   display: grid;
-  grid-template-columns: 390px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-panel);
@@ -369,8 +369,11 @@
   font-size: 0.6875rem;
 }
 .people-view__detail {
+  /* The member detail lays out by the pane's width, not the window's. */
+  container-type: inline-size;
   min-width: 0;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  /* The bottom padding lives on the member detail, so its lists can scroll to the edge. */
+  padding: var(--space-3) var(--space-4) 0;
   border-left: 1px solid var(--color-border-subtle);
 }
 /* Narrow screens stack the list above the detail and scroll them as one. */
@@ -487,26 +490,56 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.member-detail__body > :first-child .member-detail__section,
-.member-detail__body > .member-detail__section:first-child {
+/* Tickets, then PRs. The pane scrolls them as one until it's wide enough
+   for two columns (below). */
+.member-detail {
+  padding-bottom: var(--space-4);
+}
+.member-detail__body {
+  display: grid;
+  gap: var(--space-4) var(--space-5);
+}
+.member-detail__col {
+  min-width: 0;
+}
+.member-detail__col > .member-detail__section {
   margin-top: 0;
+}
+/* Wide pane: tickets and PRs side by side. The name and chips stay put, and
+   each list scrolls on its own under its header. */
+@container (min-width: 700px) {
+  .member-detail__body {
+    grid-template-columns: 1fr 1fr;
+  }
+  .team-dashboard--pinned .member-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-bottom: 0;
+  }
+  .team-dashboard--pinned .member-detail__head {
+    flex-shrink: 0;
+  }
+  .team-dashboard--pinned .member-detail__body {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .team-dashboard--pinned .member-detail__col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .team-dashboard--pinned .member-detail__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: var(--space-4);
+  }
 }
 .member-detail__count {
   color: var(--color-text-muted);
   font-weight: 500;
-}
-/* The All tickets header's flag counts, or "All clear". */
-.member-detail__summary {
-  display: inline-flex;
-  gap: var(--space-3);
-  margin-left: auto;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.member-detail__summary > span {
-  gap: 4px;
 }
 
 /* The key and PR links: buttons that read as links, the only clickable parts of a ticket. */

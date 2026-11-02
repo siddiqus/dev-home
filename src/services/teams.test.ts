@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { loadSettings } from "./config";
+import { writeDashboardCache } from "./teamDashboardCache";
 import {
   addTeamMember,
+  cacheTeamDashboard,
   createTeam,
   deleteTeam,
   fetchTeamDashboard,
@@ -8,6 +11,7 @@ import {
   fetchTeams,
   exportTeams,
   importTeams,
+  readCachedTeamDashboard,
   removeTeamMember,
   updateTeam,
 } from "./teams";
@@ -70,6 +74,18 @@ describe("teams (localStorage)", () => {
       sprintId: 11,
     });
     expect(d.sprint?.id).toBe(11);
+  });
+
+  it("ignores dashboards cached before the payload's current shape", async () => {
+    const t = await createTeam({ name: "T", boardId: 3, boardName: "B" });
+    await addTeamMember(t.id, { displayName: "A", jiraAccountId: "j", githubUsername: "a" });
+    const { jiraBaseUrl, githubOrg } = loadSettings();
+    const unversioned = JSON.stringify([3, ["j|a"], jiraBaseUrl, githubOrg]);
+    writeDashboardCache(t.id, null, unversioned, { errors: [] } as any);
+    expect(readCachedTeamDashboard(t.id, null)).toBeNull();
+
+    cacheTeamDashboard(t.id, null, { errors: [] } as any);
+    expect(readCachedTeamDashboard(t.id, null)).toEqual({ errors: [] });
   });
 
   describe("export / import", () => {

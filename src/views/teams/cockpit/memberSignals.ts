@@ -184,10 +184,6 @@ export function statusBucket(
 }
 
 export interface MemberTickets {
-  /** How many tickets are at risk level "high". */
-  atRisk: number;
-  /** How many tickets are at risk level "attention". */
-  needsLook: number;
   /** Every ticket by status, review first; empty groups are left out. */
   groups: { bucket: StatusBucket; issues: DashboardIssue[] }[];
 }
@@ -196,7 +192,6 @@ const GROUP_ORDER: StatusBucket[] = ["inReview", "indeterminate", "new", "done"]
 
 export function memberTickets(issues: DashboardIssue[], accountId: string): MemberTickets {
   const mine = issues.filter((i) => i.assigneeAccountId === accountId);
-  const count = (level: RiskLevel) => mine.filter((i) => i.risk.level === level).length;
 
   const groups = GROUP_ORDER.map((bucket) => ({
     bucket,
@@ -210,7 +205,7 @@ export function memberTickets(issues: DashboardIssue[], accountId: string): Memb
       ),
   })).filter((g) => g.issues.length > 0);
 
-  return { atRisk: count("high"), needsLook: count("attention"), groups };
+  return { groups };
 }
 
 const NEED: Record<RiskLevel, number> = { high: 3, attention: 2, normal: 1 };

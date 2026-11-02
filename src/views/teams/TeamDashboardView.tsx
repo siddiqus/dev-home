@@ -414,6 +414,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
                   <PeopleView
                     workload={dashboard.workload}
                     issues={dashboard.issues}
+                    prs={dashboard.authoredPRs}
                     selectedId={personId}
                     onSelect={setPersonId}
                     onOpenRef={openRef}

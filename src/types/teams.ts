@@ -159,6 +159,26 @@ export interface OffBoardPR {
   ticketProject: string | null;
 }
 
+/**
+ * A PR the roster authored that was opened or merged in the sprint (the last
+ * two weeks when the sprint has no dates).
+ */
+export interface AuthoredPR {
+  number: number;
+  title: string;
+  repo_full_name: string;
+  html_url: string;
+  author: string;
+  /** open | merged | closed */
+  state: string;
+  createdAt: string | null;
+  mergedAt: string | null;
+  /** GitHub login of whoever merged it. */
+  mergedBy: string | null;
+  additions: number | null;
+  deletions: number | null;
+}
+
 // ---------------------------------------------------------------------------
 // Cockpit sprint-level aggregates
 // ---------------------------------------------------------------------------
@@ -238,6 +258,7 @@ export interface TeamDashboard {
   issues: DashboardIssue[];
   workload: WorkloadEntry[];
   offBoardPRs: OffBoardPR[];
+  authoredPRs: AuthoredPR[];
   // --- cockpit aggregates ---
   pace: SprintPace;
   needsAttention: NeedsAttention;

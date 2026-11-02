@@ -313,8 +313,15 @@ export async function fetchTeamDashboard(
 }
 
 /**
+ * Bump when the dashboard payload changes shape, so dashboards cached by an
+ * older version are refetched. 2: authoredPRs, sprint-scoped PR searches.
+ */
+const DASHBOARD_VERSION = 2;
+
+/**
  * What a team's dashboard depends on besides the sprint: its board and roster,
- * and the Jira site / GitHub org. Null when the team no longer exists.
+ * the Jira site / GitHub org, and the payload version. Null when the team no
+ * longer exists.
  */
 function dashboardSignature(teamId: number): string | null {
   const team = teamsCollection.get(teamId);
@@ -325,7 +332,7 @@ function dashboardSignature(teamId: number): string | null {
     .map((m) => `${m.jira_account_id}|${m.github_username}`)
     .sort();
   const { jiraBaseUrl, githubOrg } = loadSettings();
-  return JSON.stringify([team.jira_board_id, roster, jiraBaseUrl, githubOrg]);
+  return JSON.stringify([DASHBOARD_VERSION, team.jira_board_id, roster, jiraBaseUrl, githubOrg]);
 }
 
 /** The dashboard last loaded for this team + sprint, unless the team or settings changed since. */

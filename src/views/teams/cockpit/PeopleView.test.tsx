@@ -8,6 +8,7 @@ function renderView(selectedId: string | null, onSelect = vi.fn()) {
     <PeopleView
       workload={dashboardFixture.workload}
       issues={dashboardFixture.issues}
+      prs={dashboardFixture.authoredPRs}
       selectedId={selectedId}
       onSelect={onSelect}
     />,
@@ -87,7 +88,7 @@ describe("PeopleView", () => {
   });
 
   it("says so when the team has nobody", () => {
-    render(<PeopleView workload={[]} issues={[]} selectedId={null} onSelect={vi.fn()} />);
+    render(<PeopleView workload={[]} issues={[]} prs={[]} selectedId={null} onSelect={vi.fn()} />);
 
     expect(screen.getByText("No team members")).toBeInTheDocument();
   });

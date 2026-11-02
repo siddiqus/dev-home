@@ -2,6 +2,7 @@
  * Pure mapping helpers for the member-PR GraphQL fetch. Kept out of the route
  * file so they can be unit-tested without importing Express/DB/graphql clients.
  */
+import type { AuthoredPR } from "../../../types/teams";
 import type { RawPR, RawReview, RawReviewRequest } from "../aggregation";
 import { isPersonReview } from "./reviewQueue";
 
@@ -60,6 +61,9 @@ export function mapPullRequestNode(n: any, fallbackLogin: string): RawPR {
     requestedReviewers,
     head_ref: n.headRefName || "",
     body: n.body || "",
+    additions: typeof n.additions === "number" ? n.additions : null,
+    deletions: typeof n.deletions === "number" ? n.deletions : null,
+    merged_by: n.mergedBy?.login || null,
   };
 }
 
@@ -71,4 +75,21 @@ export function dedupePRs(prs: RawPR[]): RawPR[] {
     if (!seen.has(k)) seen.set(k, pr);
   }
   return [...seen.values()];
+}
+
+/** The fields the People tab's PR list shows. */
+export function toAuthoredPR(pr: RawPR): AuthoredPR {
+  return {
+    number: pr.number,
+    title: pr.title,
+    repo_full_name: pr.repo_full_name,
+    html_url: pr.html_url,
+    author: pr.author,
+    state: pr.state,
+    createdAt: pr.created_at || null,
+    mergedAt: pr.merged_at ?? null,
+    mergedBy: pr.merged_by ?? null,
+    additions: pr.additions ?? null,
+    deletions: pr.deletions ?? null,
+  };
 }

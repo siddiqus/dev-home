@@ -2,17 +2,19 @@ import { useState } from "react";
 import {
   IconAlertTriangle,
   IconCalendar,
-  IconCircleCheck,
   IconCirclePlus,
   IconCircleX,
   IconClock,
   IconGitMerge,
   IconGitPullRequest,
+  IconGitPullRequestClosed,
   IconHourglass,
   IconUserQuestion,
   type Icon,
 } from "@tabler/icons-react";
+import { DiffStat } from "../../../components/prIndicators";
 import type {
+  AuthoredPR,
   DashboardIssue,
   IssueFlags,
   Ref,
@@ -36,6 +38,8 @@ interface Props {
   member: WorkloadEntry;
   /** Every sprint issue; the panel picks the member's own. */
   issues: DashboardIssue[];
+  /** Every PR the team opened or merged in the sprint; the panel picks the member's own. */
+  prs: AuthoredPR[];
   onOpenRef?: (ref: Ref) => void;
 }
 
@@ -73,6 +77,15 @@ function initials(name: string): string {
 
 function ageLabel(days: number): string {
   return days === 0 ? "today" : `${days}d ago`;
+}
+
+/** "Jun 27", or "" when there's no date. */
+function shortDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function StatusSquare({ bucket }: { bucket: StatusBucket }) {
@@ -157,16 +170,72 @@ function TicketCard({
   );
 }
 
+const PR_STATES: Record<string, { tone: string; icon: Icon }> = {
+  open: { tone: "neutral", icon: IconGitPullRequest },
+  merged: { tone: "purple", icon: IconGitMerge },
+  closed: { tone: "neutral", icon: IconGitPullRequestClosed },
+};
+
+/**
+ * One PR: link and title, then its state, lines changed, and when it was
+ * opened and merged (and by whom). Only the link opens anything.
+ */
+function MemberPRCard({ pr, onOpenRef }: { pr: AuthoredPR; onOpenRef?: (ref: Ref) => void }) {
+  const ref = { kind: "pr" as const, repo: pr.repo_full_name, number: pr.number };
+  const { tone, icon: StateIcon } = PR_STATES[pr.state] ?? PR_STATES.open!;
+  const opened = shortDate(pr.createdAt);
+  const merged = shortDate(pr.mergedAt);
+  return (
+    <div className="member-ticket">
+      <div className="member-ticket__top">
+        <button
+          type="button"
+          className="member-link member-ticket__key"
+          onClick={() => onOpenRef?.(ref)}
+        >
+          {refLabel(ref)}
+        </button>
+        <span className="member-ticket__title" title={pr.title}>
+          {pr.title}
+        </span>
+      </div>
+      <div className="member-ticket__meta">
+        <span className={`member-pr member-tone--${tone}`}>
+          <StateIcon size={13} />
+          {pr.state}
+        </span>
+        <DiffStat pr={pr} />
+        {opened && <span>opened {opened}</span>}
+        {merged && (
+          <span>
+            merged {merged}
+            {pr.mergedBy && ` by ${pr.mergedBy}`}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Newest first. */
+function byOpenedDesc(a: AuthoredPR, b: AuthoredPR): number {
+  return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+}
+
 /**
  * One member on the People tab: their numbers, then every ticket they hold,
  * each flagged one saying why. Key it by member so the done fold resets
  * between people.
  */
-export function MemberDetail({ member, issues, onOpenRef }: Props) {
+export function MemberDetail({ member, issues, prs, onOpenRef }: Props) {
   const [showAllDone, setShowAllDone] = useState(false);
   const now = new Date();
-  const { atRisk, needsLook, groups } = memberTickets(issues, member.accountId);
+  const { groups } = memberTickets(issues, member.accountId);
   const total = groups.reduce((n, g) => n + g.issues.length, 0);
+  const login = member.githubUsername.toLowerCase();
+  const memberPRs = login
+    ? prs.filter((p) => p.author.toLowerCase() === login).sort(byOpenedDesc)
+    : [];
   return (
     <div className="member-detail">
       <div className="member-detail__head">
@@ -206,64 +275,69 @@ export function MemberDetail({ member, issues, onOpenRef }: Props) {
         </div>
       </div>
 
+      {/* Tickets and PRs side by side, each list scrolling under its header;
+          on a narrow pane they stack and scroll with the pane. */}
       <div className="member-detail__body">
-        <div className="member-detail__section">
-          All tickets <span className="member-detail__count">{total}</span>
-          {total > 0 && (
-            <span className="member-detail__summary">
-              {atRisk > 0 && (
-                <span className="member-tone--danger">
-                  <IconAlertTriangle size={13} />
-                  {atRisk} at risk
-                </span>
-              )}
-              {needsLook > 0 && (
-                <span className="member-tone--warning">
-                  <IconAlertTriangle size={13} />
-                  {needsLook} {needsLook === 1 ? "needs" : "need"} a look
-                </span>
-              )}
-              {atRisk + needsLook === 0 && (
-                <span className="member-tone--success">
-                  <IconCircleCheck size={13} />
-                  All clear
-                </span>
-              )}
-            </span>
-          )}
+        <div className="member-detail__col">
+          <div className="member-detail__section">
+            All tickets <span className="member-detail__count">{total}</span>
+          </div>
+          <div className="member-detail__list">
+            {total === 0 && <div className="text-muted small">No tickets in this sprint.</div>}
+            {groups.map(({ bucket, issues: list }) => {
+              const folded = bucket === "done" && !showAllDone && list.length > DONE_PREVIEW;
+              const visible = folded ? list.slice(0, DONE_PREVIEW) : list;
+              return (
+                <section
+                  key={bucket}
+                  className="member-group"
+                  aria-label={`${STATUS_LABELS[bucket]} tickets`}
+                >
+                  <div className="cockpit-group-head">
+                    <StatusSquare bucket={bucket} />
+                    {STATUS_LABELS[bucket]}
+                    <span className="member-detail__count">{list.length}</span>
+                  </div>
+                  <div className="member-rows">
+                    {visible.map((issue) => (
+                      <TicketCard key={issue.key} issue={issue} now={now} onOpenRef={onOpenRef} />
+                    ))}
+                    {folded && (
+                      <button
+                        type="button"
+                        className="member-more"
+                        onClick={() => setShowAllDone(true)}
+                      >
+                        Show {list.length - DONE_PREVIEW} more
+                      </button>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         </div>
-        {total === 0 && <div className="text-muted small">No tickets in this sprint.</div>}
-        {groups.map(({ bucket, issues: list }) => {
-          const folded = bucket === "done" && !showAllDone && list.length > DONE_PREVIEW;
-          const visible = folded ? list.slice(0, DONE_PREVIEW) : list;
-          return (
-            <section
-              key={bucket}
-              className="member-group"
-              aria-label={`${STATUS_LABELS[bucket]} tickets`}
-            >
-              <div className="cockpit-group-head">
-                <StatusSquare bucket={bucket} />
-                {STATUS_LABELS[bucket]}
-                <span className="member-detail__count">{list.length}</span>
-              </div>
-              <div className="member-rows">
-                {visible.map((issue) => (
-                  <TicketCard key={issue.key} issue={issue} now={now} onOpenRef={onOpenRef} />
+
+        <div className="member-detail__col">
+          <div className="member-detail__section">
+            All PRs <span className="member-detail__count">{memberPRs.length}</span>
+          </div>
+          <div className="member-detail__list">
+            {memberPRs.length === 0 ? (
+              <div className="text-muted small">No PRs in this sprint.</div>
+            ) : (
+              <section className="member-rows" aria-label="PRs">
+                {memberPRs.map((pr) => (
+                  <MemberPRCard
+                    key={`${pr.repo_full_name}#${pr.number}`}
+                    pr={pr}
+                    onOpenRef={onOpenRef}
+                  />
                 ))}
-                {folded && (
-                  <button
-                    type="button"
-                    className="member-more"
-                    onClick={() => setShowAllDone(true)}
-                  >
-                    Show {list.length - DONE_PREVIEW} more
-                  </button>
-                )}
-              </div>
-            </section>
-          );
-        })}
+              </section>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
