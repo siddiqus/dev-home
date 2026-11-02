@@ -5,6 +5,7 @@ import {
   IconGitBranch,
   IconCopy,
   IconMessageCircle,
+  IconTag,
 } from "@tabler/icons-react";
 import { GitHubPR, GitHubLabel, type PRParticipant } from "../types";
 import { ACTIONABLE_REASONS, type ActionableVariant } from "../utils/prCategories";
@@ -246,21 +247,13 @@ export function BranchPill({
 }
 
 /**
- * Style a label badge with its GitHub color, picking dark or light text based on
- * the color's perceived luminance so the name stays readable on any background.
- * Falls back to CSS defaults when the color is missing or malformed.
+ * Color a label's dot with its GitHub color. Returns no style when the color is
+ * missing or malformed, so the CSS fallback dot color applies.
  */
-function labelStyle(color: string): React.CSSProperties {
+function labelDotStyle(color: string): React.CSSProperties | undefined {
   const hex = (color || "").replace(/^#/, "");
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return {};
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return {
-    backgroundColor: `#${hex}`,
-    color: luminance > 0.6 ? "#1b1f24" : "#ffffff",
-  };
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return undefined;
+  return { backgroundColor: `#${hex}` };
 }
 
 /**
@@ -296,17 +289,20 @@ export function DiffStat({
   );
 }
 
-/** Small colored pills for the PR's GitHub labels. */
+/**
+ * The PR's GitHub labels: a tag icon, then neutral outlined chips with a dot in
+ * each label's color. Labels stay colorless on purpose. Color in a PR row means
+ * our status (Changes requested, Ready to merge…), so a red "bug" label must not
+ * look like one of those pills.
+ */
 export function PRLabels({ labels }: { labels: GitHubLabel[] }) {
+  if (labels.length === 0) return null;
   return (
-    <span className="pr-card-labels">
+    <span className="pr-card-labels" role="group" aria-label="Labels">
+      <IconTag className="pr-card-labels-icon" size={13} stroke={1.8} aria-hidden="true" />
       {labels.map((label) => (
-        <span
-          key={label.name}
-          className="pr-card-label"
-          style={labelStyle(label.color)}
-          title={label.name}
-        >
+        <span key={label.name} className="pr-card-label" title={label.name}>
+          <span className="pr-card-label-dot" style={labelDotStyle(label.color)} />
           {label.name}
         </span>
       ))}

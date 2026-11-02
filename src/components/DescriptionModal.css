@@ -118,6 +118,17 @@
   min-width: 0;
 }
 
+/* Divider between our pills and the GitHub labels, only when pills precede them
+   (a merged PR shows labels alone). */
+.description-modal .pr-modal-indicators > .pr-card-labels:not(:first-child)::before {
+  content: "";
+  flex-shrink: 0;
+  width: 1px;
+  height: 14px;
+  margin-right: 3px;
+  background: var(--color-border);
+}
+
 .description-modal .pr-modal-time {
   white-space: nowrap;
 }

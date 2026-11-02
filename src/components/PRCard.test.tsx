@@ -265,7 +265,7 @@ describe("PRCard", () => {
     expect(link).toHaveAttribute("href", "https://jira.example.com/browse/PROJ-7");
   });
 
-  it("renders label badges tinted with their GitHub color", () => {
+  it("renders labels as neutral chips with a dot in their GitHub color", () => {
     render(
       <PRCard
         pr={makePR({ labels: [{ name: "bug", color: "d73a4a" }] })}
@@ -275,35 +275,41 @@ describe("PRCard", () => {
     );
     const badge = screen.getByText("bug");
     expect(badge).toHaveClass("pr-card-label");
-    expect(badge).toHaveStyle({ backgroundColor: "#d73a4a" });
+    // The chip itself stays neutral so label colours never read as our status pills.
+    expect(badge.style.backgroundColor).toBe("");
+    expect(badge.querySelector(".pr-card-label-dot")).toHaveStyle({ backgroundColor: "#d73a4a" });
   });
 
-  it("picks readable text: dark on light labels, light on dark labels", () => {
-    const { unmount } = render(
+  it("leads the label group with a tag icon", () => {
+    const { container } = render(
       <PRCard
-        pr={makePR({ labels: [{ name: "light", color: "ffffff" }] })}
+        pr={makePR({ labels: [{ name: "bug", color: "d73a4a" }] })}
         fields={FIELDS.full}
         onOpen={noop}
       />,
     );
-    expect(screen.getByText("light")).toHaveStyle({ color: "#1b1f24" });
-    unmount();
+    const group = container.querySelector(".pr-card-labels");
+    expect(group?.firstElementChild).toHaveClass("pr-card-labels-icon");
+  });
 
+  it("falls back to the CSS dot color when the label color is missing or malformed", () => {
     render(
       <PRCard
-        pr={makePR({ labels: [{ name: "dark", color: "000000" }] })}
+        pr={makePR({ labels: [{ name: "odd", color: "not-a-hex" }] })}
         fields={FIELDS.full}
         onOpen={noop}
       />,
     );
-    expect(screen.getByText("dark")).toHaveStyle({ color: "#ffffff" });
+    const dot = screen.getByText("odd").querySelector<HTMLElement>(".pr-card-label-dot");
+    expect(dot).not.toBeNull();
+    expect(dot!.style.backgroundColor).toBe("");
   });
 
-  it("renders no label badges when the PR has no labels", () => {
+  it("renders no label group (and no tag icon) when the PR has no labels", () => {
     const { container } = render(
       <PRCard pr={makePR({ labels: [] })} fields={FIELDS.full} onOpen={noop} />,
     );
-    expect(container.querySelector(".pr-card-label")).toBeNull();
+    expect(container.querySelector(".pr-card-labels")).toBeNull();
   });
 
   it("shows note count badge when noteCount > 0", () => {
