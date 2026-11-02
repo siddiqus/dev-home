@@ -22,7 +22,7 @@ import { PRDetailModal } from "../../components/PRDetailModal";
 import { LoadingOverlay } from "../../components/LoadingOverlay";
 import { fetchIssueDetail } from "../../services/jira";
 import { fetchPR } from "../../services/github";
-import { formatRelativeTime } from "../../utils/time";
+import { LastUpdated } from "../../components/LastUpdated";
 import type { JiraIssue, GitHubPR } from "../../types";
 import type { LinkedPR, Ref, SprintResult } from "../../types/teams";
 import { TeamPRsTab, type TeamPRsTabHandle } from "./TeamPRsTab";
@@ -148,12 +148,7 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
     dashboard?.team.board?.id ?? known?.boardId ?? null,
     selectedSprintId,
   );
-  // Last sync time rides on the refresh button's tooltip.
   const refreshLabel = tab === "sprint" ? "Refresh sprint data" : "Refresh PRs";
-  const refreshTitle =
-    tab === "sprint" && dashboard?.syncedAt
-      ? `${refreshLabel} (synced ${formatRelativeTime(dashboard.syncedAt)})`
-      : refreshLabel;
 
   // The backend reports per-source failures as "Source: message" strings.
   const jiraError =
@@ -292,12 +287,15 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
             active tab. */}
         {teamId != null && (
           <div className="ms-auto d-flex align-items-center gap-2">
+            {/* Sprint data is served from the browser cache across reloads, so
+                say how old it is. The PRs tab has no single sync time. */}
+            {tab === "sprint" && <LastUpdated at={dashboard?.syncedAt} updating={loading} />}
             <button
               type="button"
               className="pr-table-collapse-btn pr-toolbar-btn"
               onClick={refreshActive}
               disabled={activeLoading}
-              title={refreshTitle}
+              title={refreshLabel}
               aria-label={refreshLabel}
             >
               <IconRefresh size={14} className={activeLoading ? "spin" : ""} />
