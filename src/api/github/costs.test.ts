@@ -9,6 +9,7 @@ import {
   getMergedPrs,
   resetMentionsCache,
 } from "./index";
+import { MENTIONS_CACHE_KEY, forgetMentionsMemory } from "./notifications";
 
 useFetchAdapter();
 
@@ -340,6 +341,91 @@ describe("getGithubMentions caching", () => {
     await getGithubMentions();
     expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBeUndefined();
     expect(commentCalls()).toHaveLength(1);
+  });
+});
+
+describe("getGithubMentions saved cache", () => {
+  it("answers a reload from the saved cache: a conditional request and no per-thread calls", async () => {
+    inbox = [notification(1), notification(2)];
+    const first = await getGithubMentions();
+
+    forgetMentionsMemory(); // a page reload
+    adapter.mockClear();
+    notModified = true;
+    const second = await getGithubMentions();
+    expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBe(LAST_MODIFIED);
+    expect(commentCalls()).toHaveLength(0);
+    expect(subjectCalls()).toHaveLength(0);
+    expect(second).toEqual(first);
+  });
+
+  it("after a reload, fetches comments only for threads that changed", async () => {
+    inbox = [notification(1, "2026-09-01T00:00:00Z"), notification(2, "2026-09-02T00:00:00Z")];
+    await getGithubMentions();
+
+    forgetMentionsMemory();
+    adapter.mockClear();
+    inbox = [notification(1, "2026-09-01T00:00:00Z"), notification(2, "2026-09-10T00:00:00Z")];
+    await getGithubMentions();
+    expect(commentCalls()).toEqual([`${API}/repos/test-org/app/issues/comments/2`]);
+  });
+
+  it("ignores a cache saved for another GitHub user", async () => {
+    inbox = [notification(1)];
+    await getGithubMentions();
+    const saved = JSON.parse(localStorage.getItem(MENTIONS_CACHE_KEY)!);
+    localStorage.setItem(MENTIONS_CACHE_KEY, JSON.stringify({ ...saved, owner: "someone-else" }));
+
+    forgetMentionsMemory();
+    adapter.mockClear();
+    notModified = true;
+    await getGithubMentions();
+    expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBeUndefined();
+    expect(commentCalls()).toHaveLength(1);
+  });
+
+  it("starts cold when the saved cache is garbled", async () => {
+    localStorage.setItem(MENTIONS_CACHE_KEY, "{not json");
+    forgetMentionsMemory();
+    inbox = [notification(1)];
+    const { mentions } = await getGithubMentions();
+    expect(mentions).toHaveLength(1);
+  });
+
+  it("saves only the notification fields it uses", async () => {
+    const n: any = {
+      ...notification(1),
+      unread: true,
+      url: "https://api.github.com/notifications/threads/1",
+      subscription_url: "https://api.github.com/notifications/threads/1/subscription",
+      repository: { full_name: "test-org/app", owner: { login: "test-org" }, private: true },
+    };
+    inbox = [n];
+    await getGithubMentions();
+    const saved = JSON.parse(localStorage.getItem(MENTIONS_CACHE_KEY)!);
+    expect(saved.owner).toBe("testuser");
+    expect(saved.notifications.list).toEqual([
+      {
+        id: "1",
+        reason: "mention",
+        updated_at: n.updated_at,
+        repository: { full_name: "test-org/app" },
+        subject: {
+          type: null,
+          title: "PR 1",
+          url: `${API}/repos/test-org/app/pulls/1`,
+          latest_comment_url: `${API}/repos/test-org/app/issues/comments/1`,
+        },
+      },
+    ]);
+  });
+
+  it("removes the saved cache when settings change", async () => {
+    inbox = [notification(1)];
+    await getGithubMentions();
+    expect(localStorage.getItem(MENTIONS_CACHE_KEY)).not.toBeNull();
+    window.dispatchEvent(new Event(SETTINGS_EVENT));
+    expect(localStorage.getItem(MENTIONS_CACHE_KEY)).toBeNull();
   });
 });
 

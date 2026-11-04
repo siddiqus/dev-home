@@ -1,5 +1,5 @@
 import type { HttpClient } from "../http/client";
-import { SETTINGS_EVENT } from "../../services/config";
+import { SETTINGS_EVENT, loadSettings } from "../../services/config";
 
 /**
  * Extract the issue/PR number from a GitHub API subject URL.
@@ -64,6 +64,86 @@ const subjectStates = new Map<string, { updatedAt: string; open: boolean; checke
 export const SUBJECT_OPEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
+ * The three caches above, saved so a page load starts warm: the first
+ * notifications request is conditional (a free 304 when nothing changed) and
+ * threads whose `updated_at` hasn't moved need no calls. Scoped to the GitHub
+ * user; read once per page load, written once per mentions refresh.
+ */
+export const MENTIONS_CACHE_KEY = "dev-home-mentions-cache";
+
+/** The saved copy has been read into memory (or deliberately skipped). */
+let hydrated = false;
+
+const cacheOwner = () => loadSettings().githubUsername || "";
+
+/** A notification cut to the fields the mentions code reads, so the saved copy stays small. */
+export function trimNotification(n: any): any {
+  return {
+    id: String(n.id),
+    reason: n.reason,
+    updated_at: n.updated_at,
+    repository: { full_name: n.repository?.full_name ?? "" },
+    subject: {
+      type: n.subject?.type ?? null,
+      title: n.subject?.title ?? "",
+      url: n.subject?.url ?? null,
+      latest_comment_url: n.subject?.latest_comment_url ?? null,
+    },
+  };
+}
+
+/** Fill the in-memory caches from the saved copy, once per page load. */
+export function hydrateMentionsCache(): void {
+  if (hydrated) return;
+  hydrated = true;
+  try {
+    const saved = JSON.parse(localStorage.getItem(MENTIONS_CACHE_KEY) || "null");
+    if (!saved || saved.owner !== cacheOwner()) return;
+    const n = saved.notifications;
+    if (n && Array.isArray(n.list)) {
+      notificationsCache = {
+        since: n.since ?? null,
+        lastModified: n.lastModified ?? null,
+        notifications: n.list,
+      };
+    }
+    for (const [k, v] of Object.entries(saved.subjects ?? {})) subjectStates.set(k, v as any);
+    for (const [k, v] of Object.entries(saved.comments ?? {})) threadComments.set(k, v as any);
+  } catch {
+    // Garbled copy: start cold.
+  }
+}
+
+/** Write the in-memory caches back; quota errors leave memory as the only copy. */
+export function saveMentionsCache(): void {
+  try {
+    localStorage.setItem(
+      MENTIONS_CACHE_KEY,
+      JSON.stringify({
+        owner: cacheOwner(),
+        notifications: {
+          since: notificationsCache.since,
+          lastModified: notificationsCache.lastModified,
+          list: notificationsCache.notifications,
+        },
+        subjects: Object.fromEntries(subjectStates),
+        comments: Object.fromEntries(threadComments),
+      }),
+    );
+  } catch {
+    /* quota exceeded */
+  }
+}
+
+/** Test helper: drop the in-memory caches but keep the saved copy, as a page reload does. */
+export function forgetMentionsMemory(): void {
+  notificationsCache = { since: null, lastModified: null, notifications: [] };
+  threadComments.clear();
+  subjectStates.clear();
+  hydrated = false;
+}
+
+/**
  * Drop the cached notification list, subject states and per-thread comments. Cleared whenever
  * settings change (a new token or user sees a different inbox).
  */
@@ -71,6 +151,13 @@ export function resetMentionsCache(): void {
   notificationsCache = { since: null, lastModified: null, notifications: [] };
   threadComments.clear();
   subjectStates.clear();
+  // Nothing saved to read back: the copy below is gone.
+  hydrated = true;
+  try {
+    localStorage.removeItem(MENTIONS_CACHE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 if (typeof window !== "undefined") {
@@ -127,7 +214,7 @@ export async function fetchAllNotifications(
 
     const data = response.data;
     for (const n of data) {
-      if (ALLOWED_REASONS.has(n.reason)) all.push(n);
+      if (ALLOWED_REASONS.has(n.reason)) all.push(trimNotification(n));
     }
     if (data.length < perPage || all.length >= MAX_MENTION_THREADS) break;
     page++;

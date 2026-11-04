@@ -15,7 +15,9 @@ import {
   fetchAllNotifications,
   fetchCommentsInBatches,
   filterOpenNotifications,
+  hydrateMentionsCache,
   pruneMentionsCache,
+  saveMentionsCache,
 } from "./notifications";
 import { mapPrComments, threadStatus } from "./prComments";
 import {
@@ -281,6 +283,7 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
   // Awaited below; this only stops an unhandled rejection if notifications fail first.
   ownPrComments.catch(() => {});
 
+  hydrateMentionsCache();
   const allNotifications = await fetchAllNotifications(github, since, signal);
   // Cap before the open-state check so at most MAX_MENTION_THREADS subjects are looked up.
   const newest = [...allNotifications]
@@ -288,10 +291,10 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
     .slice(0, MAX_MENTION_THREADS);
   pruneMentionsCache(newest.map((n) => String(n.id)));
   const notifications = await filterOpenNotifications(newest, github);
-  const mentions = [
-    ...(await fetchCommentsInBatches(notifications, github)),
-    ...(await ownPrComments),
-  ];
+  const threadMentions = await fetchCommentsInBatches(notifications, github);
+  // Saved before the own-PR search settles, so its failure can't lose the threads' work.
+  saveMentionsCache();
+  const mentions = [...threadMentions, ...(await ownPrComments)];
 
   // Filter out bot mentions and deduplicate by id
   const seen = new Set<number | string>();
