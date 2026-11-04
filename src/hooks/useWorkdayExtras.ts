@@ -13,11 +13,17 @@ import {
   type WorkdayExtras,
 } from "../services/workday";
 
+export interface WorkdayExtrasOptions {
+  /** List or Standup is showing: load the done-since parts (Focus doesn't read them). */
+  needsDone: boolean;
+}
+
 /**
  * Workday-only data, fetched while the Workday tab is mounted (lazy, like the
  * other self-fetching views). Gated on `configured` so it doesn't race the
  * credentials load; refetches when `refreshKey` bumps. Sprint data doesn't
  * depend on the lookback, so changing `since` only refetches the "done" parts.
+ * Done tickets and reviewed PRs load only while List or Standup is showing (needsDone); Focus never reads them.
  * A group loaded in the last few minutes under the same refreshKey is reused,
  * so switching back to the tab shows it at once instead of refetching.
  */
@@ -25,7 +31,9 @@ export function useWorkdayExtras(
   configured: boolean,
   since: Date,
   refreshKey: number,
+  opts: WorkdayExtrasOptions,
 ): WorkdayExtras {
+  const { needsDone } = opts;
   const [extras, setExtras] = useState<WorkdayExtras>(() => ({
     ...EMPTY_EXTRAS,
     ...cachedWorkdayStable(refreshKey),
@@ -57,7 +65,7 @@ export function useWorkdayExtras(
   }, [configured, refreshKey]);
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || !needsDone) return;
     const sinceDate = new Date(sinceMs);
     const hit = cachedWorkdaySince(sinceDate, refreshKey);
     if (hit) {
@@ -76,7 +84,7 @@ export function useWorkdayExtras(
       setExtras((prev) => ({ ...prev, ...res }));
     });
     return () => ctrl.abort();
-  }, [configured, sinceMs, refreshKey]);
+  }, [configured, needsDone, sinceMs, refreshKey]);
 
   // Merged recently / Standup read my merged PRs since the lookback: a filter of
   // the ticket list, so they cost no request and follow a lookback change at once.

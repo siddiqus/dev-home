@@ -279,7 +279,9 @@ export function WorkdayView(props: WorkdayViewProps) {
     () => sinceFor(lookback, now, weekendKey ? weekendKey.split(",").map(Number) : []),
     [lookback, now, weekendKey],
   );
-  const extras = useWorkdayExtras(configured, since, refreshKey);
+  // Done tickets and reviewed PRs feed List and Standup only; Focus (and the
+  // phone, which is always Focus) doesn't fetch them.
+  const extras = useWorkdayExtras(configured, since, refreshKey, { needsDone: mode !== "focus" });
   // The merged list as last loaded: a refresh or lookback change refetches it
   // from empty, which would otherwise drop the Merged recently group until it lands.
   const lastMerged = useRef<GitHubPR[] | null>(null);
