@@ -17,7 +17,11 @@ export function githubRest(): HttpClient {
   });
 }
 
-/** Execute a GitHub GraphQL query; throws if the response carries `errors`. */
+/**
+ * Execute a GitHub GraphQL query. Throws if the response carries `errors` and
+ * `data` is null; with `allowPartial`, returns partial data when `data` is
+ * present (one bad item in a batch doesn't sink the rest).
+ */
 export async function githubGraphql<T = any>(
   query: string,
   variables: Record<string, any> = {},

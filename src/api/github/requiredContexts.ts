@@ -74,10 +74,19 @@ function pruneRequiredContextsCache(now: number): void {
   }
 }
 
-/** 403/404 mean "no protection visible to this token": a stable answer worth caching. */
+/**
+ * 403/404 mean "no protection visible to this token": a stable answer worth
+ * caching. But a 403 that's a rate-limit is transient — treat it as a failure
+ * so the next call retries.
+ */
 function isDefinitiveMiss(err: unknown): boolean {
   const status = (err as { status?: number })?.status;
-  return status === 403 || status === 404;
+  if (status === 404) return true;
+  if (status === 403) {
+    const message = String((err as any)?.response?.data?.message || (err as any)?.message || "");
+    return !/rate limit/i.test(message);
+  }
+  return false;
 }
 
 /**

@@ -334,6 +334,33 @@ describe("required contexts cache", () => {
     await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(localStorage.getItem(PERSIST_KEY)).toBeNull();
   });
+
+  it("treats a rate-limit 403 as transient, not a definitive miss", async () => {
+    adapter.mockImplementation(async (config: any) => {
+      if (String(config.url).includes("/protection/required_status_checks")) {
+        const err: any = new Error("rate limited");
+        err.response = { status: 403, data: { message: "rate limit exceeded" } };
+        err.config = config;
+        throw err;
+      }
+      if (!String(config.url).endsWith("/graphql")) throw notFound(config);
+      return ok(config, { data: { repository: { pullRequest: prNode(7) } } });
+    });
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    // Rate-limit 403 is transient: not persisted.
+    expect(localStorage.getItem(PERSIST_KEY)).toBeNull();
+    adapter.mockClear();
+    // The next call should retry (not use a cached "no protection" answer).
+    adapter.mockImplementation(async (config: any) => {
+      if (String(config.url).includes("/protection/required_status_checks")) {
+        return ok(config, { contexts: ["ci"], checks: [] });
+      }
+      if (!String(config.url).endsWith("/graphql")) throw notFound(config);
+      return ok(config, { data: { repository: { pullRequest: prNode(7) } } });
+    });
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(1);
+  });
 });
 
 describe("getMergedPrs since", () => {

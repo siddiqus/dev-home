@@ -99,9 +99,9 @@ async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
 }
 
 /**
- * My merged PRs for the deck's open tickets: the shared list My PRs reads too
- * (fetchMyMergedPRs). Not aborted with the view, since another view may share
- * the request. Sprint and off-sprint come from sprintParts, not a fetch.
+ * My merged PRs for the deck's open tickets. Not aborted with the view, since
+ * another view may share the request. Sprint and off-sprint come from
+ * sprintParts, not a fetch.
  */
 export async function fetchWorkdayStable(
   refreshKey: number,

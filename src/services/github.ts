@@ -132,7 +132,7 @@ export async function fetchRecentlyMergedPRs(
   });
 }
 
-/** How far back my merged PRs are fetched: one list serves every view that shows them. */
+/** How far back my merged PRs are fetched: one list serves Workday's views. */
 export const MY_MERGED_DAYS = 60;
 /** GitHub's per-search maximum. */
 const MY_MERGED_MAX = 100;
