@@ -1,4 +1,4 @@
-import { createCollection, sqliteNow } from "../lib/localStore";
+import { sqliteNow } from "../lib/localStore";
 import { searchUsers, searchBoards } from "../api/jira";
 import { postTeamDashboard } from "../api/teams/dashboard";
 import { loadSettings } from "./config";
@@ -10,19 +10,9 @@ import type {
   JiraBoardResult,
   TeamDashboard,
 } from "../types/teams";
+import { teamsCollection, teamMembersCollection, type TeamRow } from "./teamsStore";
 
-// Stored rows keep created_at/updated_at timestamps
-interface TeamRow extends Team {
-  created_at: string;
-  updated_at: string;
-}
-
-interface TeamMemberRow extends TeamMember {
-  created_at: string;
-}
-
-export const teamsCollection = createCollection<TeamRow>("teams");
-export const teamMembersCollection = createCollection<TeamMemberRow>("team_members");
+export { teamsCollection, teamMembersCollection };
 
 export async function fetchTeams(): Promise<Team[]> {
   const teams = teamsCollection.all();

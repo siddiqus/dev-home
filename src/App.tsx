@@ -33,6 +33,9 @@ import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useDashboard } from "./hooks/useDashboard";
 import { useNotes } from "./hooks/useNotes";
 import { useReminderScheduler } from "./hooks/useReminderScheduler";
+import { useRecentTeams } from "./hooks/useRecentTeams";
+import { readTeamNames } from "./services/teamsStore";
+import { RecentTeamsNav } from "./views/teams/RecentTeamsNav";
 import { AppProviders } from "./context/AppProviders";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
@@ -129,12 +132,28 @@ export default function App() {
       prevTabRef.current = activeTab;
     }
   }, [activeTab]);
-  // Team id to pre-select when navigating into the team dashboard from a team row.
-  const [dashboardTeamId, setDashboardTeamId] = useState<number | null>(null);
+  // A team clicked in the sidebar or Manage Teams, for the dashboard to open on
+  // its Overview; cleared once applied so a later remount keeps what's showing.
+  const [teamOpenRequest, setTeamOpenRequest] = useState<{ teamId: number } | null>(null);
   const openTeamDashboard = (teamId: number) => {
-    setDashboardTeamId(teamId);
+    setTeamOpenRequest({ teamId });
     setActiveTab("team-dashboard");
   };
+  const clearTeamOpenRequest = useCallback(() => setTeamOpenRequest(null), []);
+  // The sidebar's recent teams: the dashboards visited last, by name. Names are
+  // read from local storage and re-read when Manage Teams changes the list.
+  const { recent: recentTeams, visit: visitTeam } = useRecentTeams();
+  const [teamNames, setTeamNames] = useState(readTeamNames);
+  const refreshTeamNames = useCallback(() => setTeamNames(readTeamNames()), []);
+  // The team on the dashboard, for the sidebar highlight.
+  const [shownTeamId, setShownTeamId] = useState<number | null>(null);
+  const handleTeamShown = useCallback(
+    (teamId: number | null) => {
+      setShownTeamId(teamId);
+      if (teamId != null) visitTeam(teamId);
+    },
+    [visitTeam],
+  );
   // useTheme() applies the stored/OS theme and keeps it live. The topbar exposes a
   // quick light/dark toggle; Settings' ThemePicker drives the full choice (incl. "system").
   const {
@@ -574,11 +593,17 @@ export default function App() {
                   pomodoro: { icon: IconClock },
                 };
 
+                // Recent team dashboards, below Manage Teams in the Teams group.
+                const showTeamLinks =
+                  isTabVisible("team-dashboard", { hiddenTabs, githubOrg }) &&
+                  recentTeams.some((r) => teamNames.some((t) => t.id === r.id));
+
                 return NAV_GROUPS.map((group) => {
                   const visibleTabs = group.tabs.filter((t) =>
                     isTabVisible(t.key, { hiddenTabs, githubOrg }),
                   );
-                  if (visibleTabs.length === 0) return null;
+                  const teamLinks = group.key === "teams" && showTeamLinks;
+                  if (visibleTabs.length === 0 && !teamLinks) return null;
 
                   return (
                     <div className="sidebar-group" key={group.key}>
@@ -620,6 +645,14 @@ export default function App() {
                           </button>
                         );
                       })}
+                      {teamLinks && (
+                        <RecentTeamsNav
+                          teams={teamNames}
+                          recent={recentTeams}
+                          activeTeamId={effectiveTab === "team-dashboard" ? shownTeamId : null}
+                          onOpen={openTeamDashboard}
+                        />
+                      )}
                     </div>
                   );
                 });
@@ -833,13 +866,19 @@ export default function App() {
                         />
                       ))}
                     {effectiveTab === "teams" && (
-                      <TeamsView configured={configured} onOpenDashboard={openTeamDashboard} />
+                      <TeamsView
+                        configured={configured}
+                        onOpenDashboard={openTeamDashboard}
+                        onTeamsChange={refreshTeamNames}
+                      />
                     )}
                     {effectiveTab === "team-dashboard" && (
                       <TeamDashboardView
                         configured={configured}
                         jiraBaseUrl={jiraBaseUrl}
-                        initialTeamId={dashboardTeamId}
+                        openRequest={teamOpenRequest}
+                        onOpenHandled={clearTeamOpenRequest}
+                        onTeamShown={handleTeamShown}
                         jiraIssues={jiraIssues}
                       />
                     )}

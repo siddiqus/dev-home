@@ -46,13 +46,28 @@ interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
   configured: boolean;
   jiraBaseUrl?: string;
-  /** Pre-select this team when navigating in from the teams list. */
-  initialTeamId?: number | null;
+  /**
+   * A click on a team (sidebar or Manage Teams): show it from the top, on the
+   * current sprint's Overview. Each click is a new object, so clicking the team
+   * already showing resets it too.
+   */
+  openRequest?: { teamId: number } | null;
+  /** Called once `openRequest` is applied, so a later remount doesn't re-apply it. */
+  onOpenHandled?: () => void;
+  /** The team now showing (null when none is picked); drives the sidebar's recent teams. */
+  onTeamShown?: (teamId: number | null) => void;
   // --- Team PRs tab (threaded through to the PRTable, as in Org PRs) ---
   jiraIssues?: JiraIssue[];
 }
 
-export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jiraIssues }: Props) {
+export function TeamDashboardView({
+  configured,
+  jiraBaseUrl,
+  openRequest,
+  onOpenHandled,
+  onTeamShown,
+  jiraIssues,
+}: Props) {
   const { teams } = useTeams(configured);
   // Team and sprint survive a page reload, like the tab.
   const [teamId, setTeamId] = useStoredId("dev-home-team-id");
@@ -76,15 +91,24 @@ export function TeamDashboardView({ configured, jiraBaseUrl, initialTeamId, jira
   // Off-board PRs is a secondary, noisy list — start collapsed.
   const [offBoardCollapsed, setOffBoardCollapsed] = useState(true);
 
-  // This view stays mounted while the app only toggles the active tab, so a new
-  // navigation target arrives as a prop change — reflect it (and reset the
-  // dependent sprint filter) when it points at a different team.
+  // A click on a team lands on its current sprint's Overview, whatever was
+  // showing before (another team, a past sprint, People, PRs).
   useEffect(() => {
-    if (initialTeamId != null && initialTeamId !== teamId) {
-      setTeamId(initialTeamId);
-      setSprintId(null);
-    }
-  }, [initialTeamId]);
+    if (!openRequest) return;
+    setTeamId(openRequest.teamId);
+    setSprintId(null);
+    setTab("sprint");
+    setSprintView("overview");
+    setPersonId(null);
+    onOpenHandled?.();
+  }, [openRequest]);
+
+  // Tell the app which team is showing. Hold off while a click is still being
+  // applied, so the team from before the click isn't counted as a visit.
+  useEffect(() => {
+    if (openRequest && openRequest.teamId !== teamId) return;
+    onTeamShown?.(teamId);
+  }, [teamId, openRequest]);
 
   const { dashboard, loading, error, refresh } = useTeamDashboard(teamId, sprintId);
 

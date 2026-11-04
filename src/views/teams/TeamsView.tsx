@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Table from "react-bootstrap/Table";
 import {
   IconUsersGroup,
@@ -20,12 +20,18 @@ import type { Team } from "../../types/teams";
 interface Props {
   /** True once backend config (and thus the resolved API port) is ready. */
   configured: boolean;
-  /** Navigate to the team dashboard, pre-selecting the given team. */
+  /** Open the given team's dashboard, on its current sprint's Overview. */
   onOpenDashboard?: (teamId: number) => void;
+  /** Called whenever the team list reloads (create, edit, delete, import). */
+  onTeamsChange?: () => void;
 }
 
-export function TeamsView({ configured, onOpenDashboard }: Props) {
+export function TeamsView({ configured, onOpenDashboard, onTeamsChange }: Props) {
   const { teams, loading, error, refresh } = useTeams(configured);
+  // The sidebar lists recent teams by name, so let the app re-read them.
+  useEffect(() => {
+    onTeamsChange?.();
+  }, [teams]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Team | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
