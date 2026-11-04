@@ -67,6 +67,10 @@ let ownPrs: any[];
 let notModified: boolean;
 /** When set, /notifications answers 304 regardless of request headers. */
 let alwaysNotModified: boolean;
+/** Subject numbers whose PR reads as merged (closed). */
+let closedSubjects: Set<number>;
+/** Subject numbers GitHub can't resolve (deleted repo, no access): null alias plus an error. */
+let missingSubjects: Set<number>;
 
 function urlOf(config: any): string {
   const url = String(config.url);
@@ -94,6 +98,54 @@ function subjectCalls(): string[] {
   return adapter.mock.calls.map(([c]) => urlOf(c)).filter((u: string) => /\/pulls\/\d+$/.test(u));
 }
 
+/** The SubjectStates response for a request's variables. */
+function subjectStatesBody(variables: Record<string, any>) {
+  const data: Record<string, any> = {};
+  const errors: any[] = [];
+  for (let i = 0; `n${i}` in variables; i++) {
+    const n = variables[`n${i}`];
+    if (missingSubjects.has(n)) {
+      data[`s${i}`] = null;
+      errors.push({ type: "NOT_FOUND", path: [`s${i}`], message: "Could not resolve" });
+      continue;
+    }
+    data[`s${i}`] = {
+      issueOrPullRequest: {
+        __typename: "PullRequest",
+        prState: closedSubjects.has(n) ? "MERGED" : "OPEN",
+        databaseId: n * 1000,
+        url: `https://github.com/${variables[`o${i}`]}/${variables[`r${i}`]}/pull/${n}`,
+        body: `PR body ${n}`,
+        createdAt: "2026-09-01T00:00:00Z",
+        updatedAt: "2026-09-01T00:00:00Z",
+        author: { login: "carol", avatarUrl: "" },
+      },
+    };
+  }
+  return errors.length > 0 ? { data, errors } : { data };
+}
+
+const isSubjectStates = (config: any) =>
+  urlOf(config).endsWith("/graphql") &&
+  String(JSON.parse(config.data).query).includes("SubjectStates");
+
+/** Variables of each batched SubjectStates request. */
+function subjectBatches(): Record<string, any>[] {
+  return adapter.mock.calls
+    .map(([c]) => c)
+    .filter(isSubjectStates)
+    .map((c: any) => JSON.parse(c.data).variables);
+}
+
+/** `owner/repo#n` for every subject asked about, across batches. */
+function subjectsChecked(): string[] {
+  return subjectBatches().flatMap((v) => {
+    const out: string[] = [];
+    for (let i = 0; `n${i}` in v; i++) out.push(`${v[`o${i}`]}/${v[`r${i}`]}#${v[`n${i}`]}`);
+    return out;
+  });
+}
+
 beforeEach(() => {
   localStorage.clear();
   saveSettings(BASE_SETTINGS);
@@ -103,10 +155,17 @@ beforeEach(() => {
   ownPrs = [];
   notModified = false;
   alwaysNotModified = false;
+  closedSubjects = new Set();
+  missingSubjects = new Set();
   adapter = vi.fn(async (config: any) => {
     const url = urlOf(config);
-    // Own-PR comments search.
-    if (url.endsWith("/graphql")) return response(config, { data: { search: { nodes: ownPrs } } });
+    if (url.endsWith("/graphql")) {
+      if (isSubjectStates(config)) {
+        return response(config, subjectStatesBody(JSON.parse(config.data).variables));
+      }
+      // Own-PR comments search.
+      return response(config, { data: { search: { nodes: ownPrs } } });
+    }
     if (url.endsWith("/notifications")) {
       if (
         alwaysNotModified ||
@@ -209,23 +268,31 @@ describe("getGithubMentions caching", () => {
     expect(notificationCalls()).toHaveLength(1);
   });
 
-  it("reuses the subject response when the latest comment URL is the subject itself", async () => {
+  it("builds the mention from the batched subject when the latest event is the PR itself", async () => {
     const n = notification(1);
     n.subject.latest_comment_url = n.subject.url;
     inbox = [n];
     const { mentions } = await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(1);
-    expect(mentions).toHaveLength(0); // the subject stub has no author, so it's filtered
+    expect(subjectCalls()).toHaveLength(0);
+    expect(subjectBatches()).toHaveLength(1);
+    expect(mentions).toMatchObject([
+      {
+        id: 1000,
+        html_url: "https://github.com/test-org/app/pull/1",
+        body: "PR body 1",
+        user: { login: "carol" },
+      },
+    ]);
   });
 
   it("makes no subject requests on a refresh with unchanged notifications", async () => {
     inbox = [notification(1), notification(2)];
     await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(2);
+    expect(subjectsChecked()).toHaveLength(2);
 
     adapter.mockClear();
     const { mentions } = await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(0);
+    expect(subjectBatches()).toHaveLength(0);
     expect(mentions).toHaveLength(2);
   });
 
@@ -235,22 +302,20 @@ describe("getGithubMentions caching", () => {
 
     adapter.mockClear();
     inbox = [notification(1, "2026-09-10T00:00:00Z")];
-    const base = adapter.getMockImplementation() as (config: any) => Promise<any>;
-    adapter.mockImplementation(async (config: any) =>
-      /\/pulls\/1$/.test(urlOf(config)) ? response(config, { state: "closed" }) : base(config),
-    );
+    closedSubjects.add(1);
     const { mentions } = await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(1);
+    expect(subjectsChecked()).toEqual(["test-org/app#1"]);
     expect(mentions).toEqual([]);
   });
 
-  it("looks up at most 50 subjects when there are more than 50 notifications", async () => {
+  it("looks up at most 50 subjects, in one request, when there are more than 50 notifications", async () => {
     inbox = Array.from({ length: 60 }, (_, i) =>
       notification(i + 1, new Date(Date.UTC(2026, 8, 1, 0, i + 1)).toISOString()),
     );
     await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(50);
-    expect(subjectCalls()).not.toContain(`${API}/repos/test-org/app/pulls/10`);
+    expect(subjectBatches()).toHaveLength(1);
+    expect(subjectsChecked()).toHaveLength(50);
+    expect(subjectsChecked()).not.toContain("test-org/app#10");
   });
 
   it("evicts cached state for a thread that left the inbox", async () => {
@@ -264,7 +329,7 @@ describe("getGithubMentions caching", () => {
     adapter.mockClear();
     inbox = [notification(1), notification(2)];
     await getGithubMentions();
-    expect(subjectCalls()).toEqual([`${API}/repos/test-org/app/pulls/2`]);
+    expect(subjectsChecked()).toEqual(["test-org/app#2"]);
     expect(commentCalls()).toEqual([`${API}/repos/test-org/app/issues/comments/2`]);
   });
 
@@ -273,33 +338,30 @@ describe("getGithubMentions caching", () => {
     vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
     inbox = [notification(1)];
     await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(1);
+    expect(subjectBatches()).toHaveLength(1);
 
     adapter.mockClear();
     vi.setSystemTime(new Date("2026-10-01T12:29:00Z"));
     await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(0);
+    expect(subjectBatches()).toHaveLength(0);
 
     vi.setSystemTime(new Date("2026-10-01T12:31:00Z"));
     await getGithubMentions();
-    expect(subjectCalls()).toHaveLength(1);
+    expect(subjectBatches()).toHaveLength(1);
   });
 
   it("keeps cached closed subjects until updated_at changes", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
-    const base = adapter.getMockImplementation() as (config: any) => Promise<any>;
-    adapter.mockImplementation(async (config: any) =>
-      /\/pulls\/1$/.test(urlOf(config)) ? response(config, { state: "closed" }) : base(config),
-    );
+    closedSubjects.add(1);
     inbox = [notification(1)];
     await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
-    expect(subjectCalls()).toHaveLength(1);
+    expect(subjectBatches()).toHaveLength(1);
 
     adapter.mockClear();
     vi.setSystemTime(new Date("2026-10-01T14:00:00Z"));
     await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
-    expect(subjectCalls()).toHaveLength(0);
+    expect(subjectBatches()).toHaveLength(0);
   });
 
   it("drops the conditional header when the since window changes", async () => {
@@ -322,7 +384,7 @@ describe("getGithubMentions caching", () => {
     alwaysNotModified = true;
     inbox = [notification(1)];
     await expect(getGithubMentions()).resolves.toEqual({ mentions: [] });
-    expect(subjectCalls()).toHaveLength(0);
+    expect(subjectBatches()).toHaveLength(0);
     expect(commentCalls()).toHaveLength(0);
 
     adapter.mockClear();
@@ -341,6 +403,54 @@ describe("getGithubMentions caching", () => {
     await getGithubMentions();
     expect(headerOf(notificationCalls()[0], "If-Modified-Since")).toBeUndefined();
     expect(commentCalls()).toHaveLength(1);
+  });
+
+  it("asks about every subject in one GraphQL request, with no REST subject calls", async () => {
+    inbox = [notification(1), notification(2), notification(3)];
+    await getGithubMentions();
+    expect(subjectBatches()).toHaveLength(1);
+    expect([...subjectsChecked()].sort()).toEqual([
+      "test-org/app#1",
+      "test-org/app#2",
+      "test-org/app#3",
+    ]);
+    expect(subjectCalls()).toHaveLength(0);
+  });
+
+  it("keeps a thread GitHub can't resolve, and asks about it again next time", async () => {
+    missingSubjects.add(2);
+    inbox = [notification(1), notification(2)];
+    const { mentions } = await getGithubMentions();
+    expect(mentions.map((m) => m.id).sort()).toEqual([1, 2]);
+
+    adapter.mockClear();
+    await getGithubMentions();
+    expect(subjectsChecked()).toEqual(["test-org/app#2"]);
+  });
+
+  it("keeps every thread, uncached, when the batch fails", async () => {
+    const base = adapter.getMockImplementation() as (config: any) => Promise<any>;
+    adapter.mockImplementation(async (config: any) => {
+      if (isSubjectStates(config)) throw { response: { status: 502, data: {} } };
+      return base(config);
+    });
+    inbox = [notification(1)];
+    expect((await getGithubMentions()).mentions).toHaveLength(1);
+
+    adapter.mockImplementation(base);
+    adapter.mockClear();
+    await getGithubMentions();
+    expect(subjectsChecked()).toEqual(["test-org/app#1"]);
+  });
+
+  it("leaves subjects without an issue or PR number unchecked", async () => {
+    const n: any = notification(1);
+    n.subject.url = `${API}/repos/test-org/app/releases/77`;
+    n.subject.latest_comment_url = null;
+    inbox = [n];
+    await getGithubMentions();
+    expect(subjectBatches()).toHaveLength(0);
+    expect(subjectCalls()).toHaveLength(0);
   });
 });
 

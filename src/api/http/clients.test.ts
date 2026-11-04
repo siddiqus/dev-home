@@ -115,6 +115,33 @@ describe("GitHub clients", () => {
     }
   });
 
+  it("githubGraphql returns partial data with allowPartial", async () => {
+    httpMock.adapter = vi.fn(async (config) => ({
+      data: { data: { s0: { ok: 1 }, s1: null }, errors: [{ message: "Could not resolve" }] },
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config,
+    }));
+    await expect(githubGraphql("query{x}", {}, { allowPartial: true })).resolves.toEqual({
+      s0: { ok: 1 },
+      s1: null,
+    });
+  });
+
+  it("githubGraphql still throws with allowPartial when there's no data", async () => {
+    httpMock.adapter = vi.fn(async (config) => ({
+      data: { data: null, errors: [{ message: "x" }] },
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config,
+    }));
+    await expect(githubGraphql("query{x}", {}, { allowPartial: true })).rejects.toThrow(
+      "GitHub GraphQL error: x",
+    );
+  });
+
   it("401 response from GitHub with Bad credentials rejects with ApiError", async () => {
     httpMock.adapter = vi.fn(async (_config) => {
       throw {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildSubjectStatesQuery,
   PR_BODY_QUERY,
   REVIEW_SEARCH_QUERY,
   SEARCH_MERGED_PRS_QUERY,
@@ -102,5 +103,21 @@ describe("comment counts", () => {
     expect(threads).not.toMatch(/\bisResolved\b/);
     expect(threads).toMatch(/reviewThreads\(last: 30\)/);
     expect(threads).toMatch(/comments\(last: 2\)/);
+  });
+});
+
+describe("buildSubjectStatesQuery", () => {
+  it("aliases one lookup per subject, with variables, and the two state enums apart", () => {
+    const q = buildSubjectStatesQuery(2);
+    expect(q).toContain(
+      "query SubjectStates($o0: String!, $r0: String!, $n0: Int!, $o1: String!, $r1: String!, $n1: Int!)",
+    );
+    expect(q).toContain("s0: repository(owner: $o0, name: $r0)");
+    expect(q).toContain("s1: repository(owner: $o1, name: $r1)");
+    expect(q).toContain("issueOrPullRequest(number: $n1)");
+    // PullRequestState and IssueState are different enums: GraphQL rejects
+    // both under one response name, so each gets its own alias.
+    expect(q).toContain("prState: state");
+    expect(q).toContain("issueState: state");
   });
 });

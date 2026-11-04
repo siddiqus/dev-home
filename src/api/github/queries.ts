@@ -417,3 +417,29 @@ export const ENQUEUE_PR_MUTATION = `
     }
   }
 `;
+
+/** What a mention needs from its issue/PR when that's the thread's latest event. */
+const SUBJECT_FIELDS = `databaseId url body createdAt updatedAt author { login avatarUrl }`;
+
+/**
+ * Open/closed state of many issues/PRs in one request: alias `s<i>` looks up
+ * `$o<i>/$r<i>#$n<i>`. The two `state` fields are aliased apart because
+ * PullRequestState and IssueState are different enums.
+ */
+export function buildSubjectStatesQuery(count: number): string {
+  const vars: string[] = [];
+  const lookups: string[] = [];
+  for (let i = 0; i < count; i++) {
+    vars.push(`$o${i}: String!, $r${i}: String!, $n${i}: Int!`);
+    lookups.push(
+      `s${i}: repository(owner: $o${i}, name: $r${i}) {
+        issueOrPullRequest(number: $n${i}) {
+          __typename
+          ... on PullRequest { prState: state ${SUBJECT_FIELDS} }
+          ... on Issue { issueState: state ${SUBJECT_FIELDS} }
+        }
+      }`,
+    );
+  }
+  return `query SubjectStates(${vars.join(", ")}) {\n${lookups.join("\n")}\n}`;
+}

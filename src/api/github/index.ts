@@ -290,7 +290,7 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, MAX_MENTION_THREADS);
   pruneMentionsCache(newest.map((n) => String(n.id)));
-  const notifications = await filterOpenNotifications(newest, github);
+  const notifications = await filterOpenNotifications(newest, signal);
   const threadMentions = await fetchCommentsInBatches(notifications, github);
   // Saved before the own-PR search settles, so its failure can't lose the threads' work.
   saveMentionsCache();

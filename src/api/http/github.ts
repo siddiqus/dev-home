@@ -21,7 +21,7 @@ export function githubRest(): HttpClient {
 export async function githubGraphql<T = any>(
   query: string,
   variables: Record<string, any> = {},
-  opts: { signal?: AbortSignal } = {},
+  opts: { signal?: AbortSignal; allowPartial?: boolean } = {},
 ): Promise<T> {
   const { githubToken } = requireSettings();
   const { data: body } = await request<GraphQLResponse<T>>("post", `${GITHUB_API}/graphql`, {
@@ -30,7 +30,10 @@ export async function githubGraphql<T = any>(
     signal: opts.signal,
   });
 
-  if (body.errors && body.errors.length > 0) {
+  // allowPartial: batched lookups where one bad item (a deleted repo) mustn't
+  // sink the rest; its alias comes back null alongside the error.
+  const partialOk = opts.allowPartial && body.data != null;
+  if (body.errors && body.errors.length > 0 && !partialOk) {
     const messages = body.errors.map((e) => e.message).join("; ");
     const error: any = new Error(`GitHub GraphQL error: ${messages}`);
     error.graphqlErrors = body.errors;

@@ -1,5 +1,7 @@
 import type { HttpClient } from "../http/client";
 import { SETTINGS_EVENT, loadSettings } from "../../services/config";
+import { githubGraphql } from "../http/github";
+import { buildSubjectStatesQuery } from "./queries";
 
 /**
  * Extract the issue/PR number from a GitHub API subject URL.
@@ -224,56 +226,78 @@ export async function fetchAllNotifications(
   return all;
 }
 
+/** Owner, repo and number of an issue/PR subject URL; null for other subjects (releases, commits…). */
+export function subjectRef(
+  url: string | null | undefined,
+): { owner: string; repo: string; number: number } | null {
+  const m = url?.match(/\/repos\/([^/]+)\/([^/]+)\/(?:pulls|issues)\/(\d+)$/);
+  return m ? { owner: m[1], repo: m[2], number: Number(m[3]) } : null;
+}
+
 /**
- * Filter out notifications whose subject (PR/issue) is no longer open.
- * Fetches the subject URL in batches to check state; threads whose
- * `updated_at` matches a cached state reuse it without a request (cached
- * "open" states are rechecked after SUBJECT_OPEN_TTL_MS). Freshly fetched
- * subjects are attached as `_subject` so the comment step can reuse them.
+ * Filter out notifications whose subject (PR/issue) is no longer open. Threads
+ * whose `updated_at` matches a cached state reuse it (cached "open" states are
+ * rechecked after SUBJECT_OPEN_TTL_MS); the rest are asked about in one
+ * batched GraphQL request. Freshly fetched subjects ride along as `_subject`,
+ * so the comment step needn't fetch a PR/issue that is its own latest event.
+ * Anything unknown (a null alias, a failed request) is kept and not cached, so
+ * it's retried next time. Subjects without an issue/PR number are kept unchecked.
  */
 export async function filterOpenNotifications(
   notifications: any[],
-  github: HttpClient,
-  batchSize: number = 10,
+  signal?: AbortSignal,
 ): Promise<any[]> {
-  const results: any[] = [];
-
-  for (let i = 0; i < notifications.length; i += batchSize) {
-    const batch = notifications.slice(i, i + batchSize);
-    const checked = await Promise.all(
-      batch.map(async (notification: any) => {
-        const subjectUrl = notification.subject?.url;
-        if (!subjectUrl) return notification;
-        const key = String(notification.id);
-        const cached = subjectStates.get(key);
-        if (
-          cached &&
-          cached.updatedAt === notification.updated_at &&
-          (!cached.open || Date.now() - cached.checkedAt < SUBJECT_OPEN_TTL_MS)
-        ) {
-          return cached.open ? notification : null;
-        }
-        try {
-          const { data: subject } = await github.get(subjectUrl);
-          // PRs have "state" (open/closed) and "merged" boolean
-          // Issues have "state" (open/closed)
-          const open = !(subject.state && subject.state !== "open");
-          subjectStates.set(key, {
-            updatedAt: notification.updated_at,
-            open,
-            checkedAt: Date.now(),
-          });
-          return open ? { ...notification, _subject: subject } : null;
-        } catch {
-          // If we can't fetch the subject, include it (fail open); not cached, so it's retried
-          return notification;
-        }
-      }),
-    );
-    results.push(...checked.filter(Boolean));
+  const now = Date.now();
+  const toCheck: { n: any; ref: NonNullable<ReturnType<typeof subjectRef>> }[] = [];
+  for (const n of notifications) {
+    const ref = subjectRef(n.subject?.url);
+    if (!ref) continue;
+    const cached = subjectStates.get(String(n.id));
+    const fresh =
+      cached &&
+      cached.updatedAt === n.updated_at &&
+      (!cached.open || now - cached.checkedAt < SUBJECT_OPEN_TTL_MS);
+    if (!fresh) toCheck.push({ n, ref });
   }
 
-  return results;
+  const subjects = new Map<string, any>();
+  if (toCheck.length > 0) {
+    const variables: Record<string, string | number> = {};
+    toCheck.forEach(({ ref }, i) => {
+      variables[`o${i}`] = ref.owner;
+      variables[`r${i}`] = ref.repo;
+      variables[`n${i}`] = ref.number;
+    });
+    try {
+      const data = await githubGraphql<Record<string, any>>(
+        buildSubjectStatesQuery(toCheck.length),
+        variables,
+        { signal, allowPartial: true },
+      );
+      toCheck.forEach(({ n }, i) => {
+        const subject = data?.[`s${i}`]?.issueOrPullRequest;
+        if (!subject) return;
+        const state = subject.prState ?? subject.issueState;
+        subjectStates.set(String(n.id), {
+          updatedAt: n.updated_at,
+          open: state === "OPEN",
+          checkedAt: now,
+        });
+        subjects.set(String(n.id), subject);
+      });
+    } catch {
+      // The whole request failed: keep every thread, cache none.
+    }
+  }
+
+  return notifications.flatMap((n) => {
+    const id = String(n.id);
+    const state = subjectStates.get(id);
+    // Only a state recorded for this exact update can drop a thread.
+    if (state && state.updatedAt === n.updated_at && !state.open) return [];
+    const subject = subjects.get(id);
+    return [subject ? { ...n, _subject: subject } : n];
+  });
 }
 
 /** Map one notification to its mention (latest comment, or notification-level info). */
@@ -281,11 +305,18 @@ async function fetchNotificationComment(notification: any, github: HttpClient): 
   const commentUrl = notification.subject?.latest_comment_url;
   if (commentUrl) {
     // When the latest event is the PR/issue itself, its URL is the subject URL,
-    // which the open-state check may already have fetched.
-    const comment =
-      commentUrl === notification.subject?.url && notification._subject
-        ? notification._subject
-        : (await github.get(commentUrl)).data;
+    // which the batched open-state check may already have fetched.
+    const s = commentUrl === notification.subject?.url ? notification._subject : null;
+    const comment = s
+      ? {
+          id: s.databaseId,
+          html_url: s.url,
+          body: s.body,
+          created_at: s.createdAt,
+          updated_at: s.updatedAt,
+          user: { login: s.author?.login, avatar_url: s.author?.avatarUrl },
+        }
+      : (await github.get(commentUrl)).data;
     return {
       id: comment.id,
       html_url: comment.html_url,
