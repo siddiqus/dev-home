@@ -16,7 +16,7 @@ import {
 } from "../services/workday";
 
 export interface WorkdayExtrasOptions {
-  /** List or Standup is showing: load the done-since parts (Focus doesn't read them). */
+  /** Standup is showing: load the done-since parts (Focus and List don't read them). */
   needsDone: boolean;
   /** The assigned-issues source; sprint and off-sprint are split from it, not fetched. */
   assigned?: AssignedIssues;
@@ -27,7 +27,7 @@ export interface WorkdayExtrasOptions {
  * other self-fetching views). Gated on `configured` so it doesn't race the
  * credentials load; refetches when `refreshKey` bumps. Sprint data doesn't
  * depend on the lookback, so changing `since` only refetches the "done" parts.
- * Done tickets and reviewed PRs load only while List or Standup is showing (needsDone); Focus never reads them.
+ * Done tickets and reviewed PRs load only while Standup is showing (needsDone); Focus and List never read them.
  * A group loaded in the last few minutes under the same refreshKey is reused,
  * so switching back to the tab shows it at once instead of refetching.
  */

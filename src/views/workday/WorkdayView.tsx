@@ -286,13 +286,14 @@ export function WorkdayView(props: WorkdayViewProps) {
     [lookback, now, weekendKey],
   );
   // Sprint and off-sprint are split from the assigned list (no Jira call of
-  // their own). Done tickets and reviewed PRs feed List and Standup only.
+  // their own). Done tickets and reviewed PRs feed Standup only (List renders
+  // the Focus lists and never reads them).
   const assigned = useMemo(
     () => ({ issues: assignedIssues, loaded: assignedLoaded, error: sourceError }),
     [assignedIssues, assignedLoaded, sourceError],
   );
   const extras = useWorkdayExtras(configured, since, refreshKey, {
-    needsDone: mode !== "focus",
+    needsDone: mode === "standup",
     assigned,
   });
   // The merged list as last loaded: a refresh or lookback change refetches it

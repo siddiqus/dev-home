@@ -7,15 +7,19 @@ const extrasMock = vi.hoisted(() => ({
   ticketMerged: [] as GitHubPR[] | null,
   ticketMergedError: null as string | null,
 }));
+const useWorkdayExtrasSpy = vi.hoisted(() => vi.fn());
 vi.mock("../../hooks/useWorkdayExtras", () => ({
-  useWorkdayExtras: () => ({
-    sprint: { data: [], error: null },
-    offSprint: { data: [], error: null },
-    doneTickets: { data: [], error: null },
-    merged: { data: extrasMock.merged, error: null },
-    reviewed: { data: null, error: null },
-    ticketMerged: { data: extrasMock.ticketMerged, error: extrasMock.ticketMergedError },
-  }),
+  useWorkdayExtras: (...args: any[]) => {
+    useWorkdayExtrasSpy(...args);
+    return {
+      sprint: { data: [], error: null },
+      offSprint: { data: [], error: null },
+      doneTickets: { data: [], error: null },
+      merged: { data: extrasMock.merged, error: null },
+      reviewed: { data: null, error: null },
+      ticketMerged: { data: extrasMock.ticketMerged, error: extrasMock.ticketMergedError },
+    };
+  },
 }));
 
 vi.mock("../../components/PrNotesPanel", () => ({ PrNotesPanel: () => null }));
@@ -124,7 +128,10 @@ describe("sourceErrorText", () => {
 });
 
 describe("WorkdayView", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    useWorkdayExtrasSpy.mockClear();
+  });
 
   it("defaults to Focus mode with the deck", () => {
     renderView();
@@ -197,6 +204,37 @@ describe("WorkdayView", () => {
     // Refresh completes: spinner disappears
     rerender({ loading: false });
     expect(screen.queryByLabelText("Refreshing")).toBeNull();
+  });
+
+  it("passes needsDone: false in Focus and List, needsDone: true in Standup", () => {
+    renderView();
+    // Focus mode: needsDone should be false
+    expect(useWorkdayExtrasSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ needsDone: false }),
+    );
+
+    useWorkdayExtrasSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /List/ }));
+    // List mode: needsDone should be false
+    expect(useWorkdayExtrasSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ needsDone: false }),
+    );
+
+    useWorkdayExtrasSpy.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
+    // Standup mode: needsDone should be true
+    expect(useWorkdayExtrasSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ needsDone: true }),
+    );
   });
 });
 

@@ -92,7 +92,7 @@ describe("useWorkdayExtras", () => {
     expect(fetchWorkdayStable).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves the done-since parts unfetched while Focus is showing", async () => {
+  it("leaves the done-since parts unfetched while Focus or List is showing", async () => {
     const { result } = renderHook(() =>
       useWorkdayExtras(true, since, 0, { needsDone: false, assigned: noneAssigned }),
     );
@@ -101,7 +101,7 @@ describe("useWorkdayExtras", () => {
     expect(result.current.doneTickets).toEqual({ data: null, error: null });
   });
 
-  it("fetches the done-since parts once List or Standup opens", async () => {
+  it("fetches the done-since parts once Standup opens", async () => {
     const { result, rerender } = renderHook(
       (needsDone: boolean) =>
         useWorkdayExtras(true, since, 0, { needsDone, assigned: noneAssigned }),
