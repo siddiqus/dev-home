@@ -12,7 +12,9 @@ const requiredContextsCache = new Map<
   string,
   { value: Promise<Set<string> | null>; expires: number }
 >();
-const REQUIRED_CONTEXTS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+// Branch protection rarely changes, and each lookup costs two REST calls per
+// repo@branch, so an answer is trusted for a day (a settings save clears it).
+const REQUIRED_CONTEXTS_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const REQUIRED_CONTEXTS_MAX_ENTRIES = 500;
 
 /**

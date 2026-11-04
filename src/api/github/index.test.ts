@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
 import { ApiError } from "../http/errors";
@@ -249,6 +249,26 @@ describe("required contexts cache", () => {
     });
   });
 
+  afterEach(() => vi.useRealTimers());
+
+  it("serves an answer persisted 23 hours ago without a network call", async () => {
+    persisted("testuser", ["ci"], Date.now() - 23 * 60 * 60 * 1000);
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(0);
+  });
+
+  it("asks again only once a fetched answer is a day old", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-04T09:00:00Z"));
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    vi.setSystemTime(new Date("2026-11-05T08:59:00Z"));
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(1);
+    vi.setSystemTime(new Date("2026-11-05T09:01:00Z"));
+    await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
+    expect(protectionCalls()).toBe(2);
+  });
+
   it("reuses the cached entry for the same owner/repo@branch", async () => {
     await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(protectionCalls()).toBe(1);
@@ -291,7 +311,7 @@ describe("required contexts cache", () => {
   });
 
   it("answers from a stale persisted entry and refreshes it in the background", async () => {
-    const at = Date.now() - 60 * 60 * 1000;
+    const at = Date.now() - 25 * 60 * 60 * 1000;
     persisted("testuser", ["old"], at);
     await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(protectionCalls()).toBe(1);
