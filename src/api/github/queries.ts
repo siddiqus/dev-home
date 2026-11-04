@@ -419,7 +419,7 @@ export const ENQUEUE_PR_MUTATION = `
 `;
 
 /** What a mention needs from its issue/PR when that's the thread's latest event. */
-const SUBJECT_FIELDS = `databaseId url body createdAt updatedAt author { login avatarUrl }`;
+const SUBJECT_FIELDS = `databaseId url body createdAt updatedAt author { __typename login avatarUrl }`;
 
 /**
  * Open/closed state of many issues/PRs in one request: alias `s<i>` looks up

@@ -119,5 +119,7 @@ describe("buildSubjectStatesQuery", () => {
     // both under one response name, so each gets its own alias.
     expect(q).toContain("prState: state");
     expect(q).toContain("issueState: state");
+    // Author __typename: bots keep their [bot] suffix when building mentions.
+    expect(q).toContain("author { __typename login avatarUrl }");
   });
 });

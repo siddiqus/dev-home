@@ -285,7 +285,9 @@ export async function filterOpenNotifications(
         });
         subjects.set(String(n.id), subject);
       });
-    } catch {
+    } catch (err) {
+      // A run superseded by a forced refresh or credentials change: bail.
+      if (signal?.aborted) throw err;
       // The whole request failed: keep every thread, cache none.
     }
   }
@@ -314,7 +316,11 @@ async function fetchNotificationComment(notification: any, github: HttpClient): 
           body: s.body,
           created_at: s.createdAt,
           updated_at: s.updatedAt,
-          user: { login: s.author?.login, avatar_url: s.author?.avatarUrl },
+          user: {
+            // Bot accounts carry no "[bot]" suffix in GraphQL: append it when __typename says Bot.
+            login: s.author?.__typename === "Bot" ? `${s.author.login}[bot]` : s.author?.login,
+            avatar_url: s.author?.avatarUrl,
+          },
         }
       : (await github.get(commentUrl)).data;
     return {

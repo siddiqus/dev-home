@@ -34,15 +34,17 @@ function response(config: any, data: any, status = 200, headers: Record<string, 
 function notification(
   id: number,
   updatedAt = `2026-09-${String((id % 28) + 1).padStart(2, "0")}T00:00:00Z`,
+  opts: { isIssue?: boolean } = {},
 ) {
+  const type = opts.isIssue ? "issues" : "pulls";
   return {
     id: String(id),
     reason: "mention",
     updated_at: updatedAt,
     repository: { full_name: "test-org/app" },
     subject: {
-      title: `PR ${id}`,
-      url: `${API}/repos/test-org/app/pulls/${id}`,
+      title: `${opts.isIssue ? "Issue" : "PR"} ${id}`,
+      url: `${API}/repos/test-org/app/${type}/${id}`,
       latest_comment_url: `${API}/repos/test-org/app/issues/comments/${id}`,
     },
   };
@@ -71,6 +73,10 @@ let alwaysNotModified: boolean;
 let closedSubjects: Set<number>;
 /** Subject numbers GitHub can't resolve (deleted repo, no access): null alias plus an error. */
 let missingSubjects: Set<number>;
+/** Subject numbers that are Issues (not PRs). */
+let issueSubjects: Set<number>;
+/** Subject numbers whose author is a Bot. */
+let botSubjects: Set<number>;
 
 function urlOf(config: any): string {
   const url = String(config.url);
@@ -109,16 +115,23 @@ function subjectStatesBody(variables: Record<string, any>) {
       errors.push({ type: "NOT_FOUND", path: [`s${i}`], message: "Could not resolve" });
       continue;
     }
+    const isIssue = issueSubjects.has(n);
     data[`s${i}`] = {
       issueOrPullRequest: {
-        __typename: "PullRequest",
-        prState: closedSubjects.has(n) ? "MERGED" : "OPEN",
+        __typename: isIssue ? "Issue" : "PullRequest",
+        ...(isIssue
+          ? { issueState: closedSubjects.has(n) ? "CLOSED" : "OPEN" }
+          : { prState: closedSubjects.has(n) ? "MERGED" : "OPEN" }),
         databaseId: n * 1000,
-        url: `https://github.com/${variables[`o${i}`]}/${variables[`r${i}`]}/pull/${n}`,
-        body: `PR body ${n}`,
+        url: `https://github.com/${variables[`o${i}`]}/${variables[`r${i}`]}/${isIssue ? "issues" : "pull"}/${n}`,
+        body: `${isIssue ? "Issue" : "PR"} body ${n}`,
         createdAt: "2026-09-01T00:00:00Z",
         updatedAt: "2026-09-01T00:00:00Z",
-        author: { login: "carol", avatarUrl: "" },
+        author: {
+          __typename: botSubjects.has(n) ? "Bot" : "User",
+          login: botSubjects.has(n) ? "renovate" : "carol",
+          avatarUrl: "",
+        },
       },
     };
   }
@@ -157,6 +170,8 @@ beforeEach(() => {
   alwaysNotModified = false;
   closedSubjects = new Set();
   missingSubjects = new Set();
+  issueSubjects = new Set();
+  botSubjects = new Set();
   adapter = vi.fn(async (config: any) => {
     const url = urlOf(config);
     if (url.endsWith("/graphql")) {
@@ -283,6 +298,39 @@ describe("getGithubMentions caching", () => {
         user: { login: "carol" },
       },
     ]);
+  });
+
+  it("handles Issues: keeps open Issue, drops closed, appends [bot] to bot authors", async () => {
+    const openIssue = notification(10, undefined, { isIssue: true });
+    const closedIssue = notification(20, undefined, { isIssue: true });
+    const botIssue = notification(30, undefined, { isIssue: true });
+    const userIssue = notification(40, undefined, { isIssue: true });
+    openIssue.subject.latest_comment_url = openIssue.subject.url;
+    closedIssue.subject.latest_comment_url = closedIssue.subject.url;
+    botIssue.subject.latest_comment_url = botIssue.subject.url;
+    userIssue.subject.latest_comment_url = userIssue.subject.url;
+
+    issueSubjects.add(10);
+    issueSubjects.add(20);
+    issueSubjects.add(30);
+    issueSubjects.add(40);
+    closedSubjects.add(20);
+    botSubjects.add(30);
+    inbox = [openIssue, closedIssue, botIssue, userIssue];
+
+    const { mentions } = await getGithubMentions();
+    expect(subjectBatches()).toHaveLength(1);
+    // Open issue kept, closed issue dropped, bot filtered out, user kept
+    expect(mentions.map((m) => m.id).sort()).toEqual([10000, 40000]);
+    expect(mentions.find((m) => m.id === 10000)).toMatchObject({
+      html_url: "https://github.com/test-org/app/issues/10",
+      body: "Issue body 10",
+      user: { login: "carol" },
+    });
+    expect(mentions.find((m) => m.id === 40000)).toMatchObject({
+      html_url: "https://github.com/test-org/app/issues/40",
+      user: { login: "carol" },
+    });
   });
 
   it("makes no subject requests on a refresh with unchanged notifications", async () => {
