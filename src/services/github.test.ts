@@ -4,6 +4,7 @@ import {
   approvePr,
   enqueuePr,
   getMergeOptions,
+  getMergedPrs,
   getPrComments,
   mergePr,
   setReviewThreadResolved,
@@ -11,9 +12,13 @@ import {
 } from "../api/github";
 import {
   approvePR,
+  clearListCache,
   fetchMergeOptions,
+  fetchMyMergedPRs,
   fetchPRComments,
   mergePR,
+  mergedSince,
+  MY_MERGED_DAYS,
   setPRThreadResolved,
 } from "./github";
 import { SETTINGS_EVENT } from "./config";
@@ -21,6 +26,7 @@ import { SETTINGS_EVENT } from "./config";
 vi.mock("../api/github", () => ({
   approvePr: vi.fn(),
   getMergeOptions: vi.fn(),
+  getMergedPrs: vi.fn(),
   mergePr: vi.fn(),
   enqueuePr: vi.fn(),
   getPrComments: vi.fn(),
@@ -175,5 +181,74 @@ describe("approvePR", () => {
       number: 12,
       commitId: "abc123",
     });
+  });
+});
+
+describe("fetchMyMergedPRs", () => {
+  beforeEach(() => {
+    clearListCache();
+    vi.mocked(getMergedPrs).mockReset();
+    vi.mocked(getMergedPrs).mockResolvedValue({
+      prs: [pr({ merged_at: "2026-11-01T00:00:00Z" })],
+    });
+  });
+
+  it("searches my PRs merged in the last 60 days, up to 100", async () => {
+    const now = new Date("2026-11-04T12:00:00Z");
+    await fetchMyMergedPRs(0, now);
+    expect(getMergedPrs).toHaveBeenCalledWith({
+      scope: "user",
+      since: new Date(now.getTime() - MY_MERGED_DAYS * 86_400_000),
+      first: 100,
+    });
+  });
+
+  it("shares one search across callers under the same refreshKey", async () => {
+    await fetchMyMergedPRs(0);
+    await fetchMyMergedPRs(0);
+    expect(getMergedPrs).toHaveBeenCalledTimes(1);
+  });
+
+  it("searches again once refreshKey moves on", async () => {
+    await fetchMyMergedPRs(0);
+    await fetchMyMergedPRs(1);
+    expect(getMergedPrs).toHaveBeenCalledTimes(2);
+  });
+
+  it("searches again after 5 minutes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-04T12:00:00Z"));
+      await fetchMyMergedPRs(0);
+      vi.setSystemTime(new Date("2026-11-04T12:05:00Z"));
+      await fetchMyMergedPRs(0);
+      expect(getMergedPrs).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries after a failed search", async () => {
+    vi.mocked(getMergedPrs).mockRejectedValueOnce(new Error("down"));
+    await expect(fetchMyMergedPRs(0)).rejects.toThrow("down");
+    await fetchMyMergedPRs(0);
+    expect(getMergedPrs).toHaveBeenCalledTimes(2);
+  });
+
+  it("forgets the list when settings change", async () => {
+    await fetchMyMergedPRs(0);
+    window.dispatchEvent(new Event(SETTINGS_EVENT));
+    await fetchMyMergedPRs(0);
+    expect(getMergedPrs).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("mergedSince", () => {
+  it("keeps PRs merged at or after since", () => {
+    const a = pr({ number: 1, merged_at: "2026-11-03T00:00:00Z" });
+    const b = pr({ number: 2, merged_at: "2026-11-01T00:00:00Z" });
+    const c = pr({ number: 3, merged_at: undefined });
+    expect(mergedSince([a, b, c], new Date("2026-11-02T00:00:00Z"))).toEqual([a]);
+    expect(mergedSince([a], new Date("2026-11-03T00:00:00Z"))).toEqual([a]);
   });
 });

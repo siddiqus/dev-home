@@ -1,7 +1,8 @@
 import type { DoneTicket, GitHubPR, OffSprintTicket, ReviewedPR, SprintTicket } from "../types";
 import { getDoneSince, getOffSprintTickets, getSprintTickets } from "../api/jira/workday";
-import { getMergedPrs, getReviewedSince } from "../api/github";
+import { getReviewedSince } from "../api/github";
 import { SETTINGS_EVENT } from "./config";
+import { fetchMyMergedPRs } from "./github";
 
 /** One independently-fetched piece: data and error are both null while loading. */
 export interface Part<T> {
@@ -14,9 +15,10 @@ export interface WorkdayExtras {
   sprint: Part<SprintTicket[]>;
   offSprint: Part<OffSprintTicket[]>;
   doneTickets: Part<DoneTicket[]>;
+  /** My PRs merged since the lookback, filtered from `ticketMerged` (no request of its own). */
   merged: Part<GitHubPR[]>;
   reviewed: Part<ReviewedPR[]>;
-  /** My PRs merged in the last TICKET_MERGED_DAYS, listed under their deck tickets. */
+  /** My PRs merged in the last MY_MERGED_DAYS (services/github), listed under their deck tickets. */
   ticketMerged: Part<GitHubPR[]>;
 }
 
@@ -31,16 +33,8 @@ export const EMPTY_EXTRAS: WorkdayExtras = {
   ticketMerged: LOADING,
 };
 
-/**
- * How far back the deck looks for merged PRs to list under open tickets: long
- * enough to cover a ticket that stays open well after its PRs merged.
- */
-export const TICKET_MERGED_DAYS = 60;
-/** GitHub's per-search maximum. */
-const TICKET_MERGED_MAX = 100;
-
 type StableParts = Pick<WorkdayExtras, "sprint" | "offSprint" | "ticketMerged">;
-type SinceParts = Pick<WorkdayExtras, "doneTickets" | "merged" | "reviewed">;
+type SinceParts = Pick<WorkdayExtras, "doneTickets" | "reviewed">;
 
 /**
  * How long a loaded group is reused. The view remounts on every tab switch, so
@@ -99,30 +93,27 @@ async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
 
 /**
  * Sprint membership, off-sprint tickets and my merged PRs for the deck's open
- * tickets; independent of the lookback.
+ * tickets; independent of the lookback. The merged PRs are the shared list
+ * (fetchMyMergedPRs) that Merged recently and Standup filter too.
  */
 export async function fetchWorkdayStable(
+  refreshKey: number,
   signal?: AbortSignal,
   now: Date = new Date(),
 ): Promise<StableParts> {
-  const since = new Date(now.getTime() - TICKET_MERGED_DAYS * 24 * 60 * 60 * 1000);
   const [sprint, offSprint, ticketMerged] = await Promise.all([
     part(async () => (await getSprintTickets(signal)).tickets),
     part(async () => (await getOffSprintTickets(signal)).issues),
-    part(
-      async () =>
-        (await getMergedPrs({ scope: "user", since, first: TICKET_MERGED_MAX })).prs as GitHubPR[],
-    ),
+    part(() => fetchMyMergedPRs(refreshKey, now)),
   ]);
   return { sprint, offSprint, ticketMerged };
 }
 
-/** "Done since" pieces; refetched when the lookback changes. */
+/** "Done since" pieces; refetched when the lookback changes. Merged PRs are derived, not fetched. */
 export async function fetchWorkdaySince(since: Date, signal?: AbortSignal): Promise<SinceParts> {
-  const [doneTickets, merged, reviewed] = await Promise.all([
+  const [doneTickets, reviewed] = await Promise.all([
     part(async () => (await getDoneSince(since, signal)).tickets),
-    part(async () => (await getMergedPrs({ scope: "user", since })).prs as GitHubPR[]),
     part(async () => (await getReviewedSince(since)).reviews),
   ]);
-  return { doneTickets, merged, reviewed };
+  return { doneTickets, reviewed };
 }

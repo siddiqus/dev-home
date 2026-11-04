@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { GitHubPR } from "../types";
+import { mergedSince } from "../services/github";
 import {
   EMPTY_EXTRAS,
   cachedWorkdaySince,
@@ -7,6 +9,7 @@ import {
   fetchWorkdayStable,
   rememberWorkdaySince,
   rememberWorkdayStable,
+  type Part,
   type WorkdayExtras,
 } from "../services/workday";
 
@@ -45,7 +48,7 @@ export function useWorkdayExtras(
       sprint: EMPTY_EXTRAS.sprint,
       offSprint: EMPTY_EXTRAS.offSprint,
     }));
-    fetchWorkdayStable(ctrl.signal).then((res) => {
+    fetchWorkdayStable(refreshKey, ctrl.signal).then((res) => {
       if (ctrl.signal.aborted) return;
       rememberWorkdayStable(refreshKey, res);
       setExtras((prev) => ({ ...prev, ...res }));
@@ -65,7 +68,6 @@ export function useWorkdayExtras(
     setExtras((prev) => ({
       ...prev,
       doneTickets: EMPTY_EXTRAS.doneTickets,
-      merged: EMPTY_EXTRAS.merged,
       reviewed: EMPTY_EXTRAS.reviewed,
     }));
     fetchWorkdaySince(sinceDate, ctrl.signal).then((res) => {
@@ -76,5 +78,15 @@ export function useWorkdayExtras(
     return () => ctrl.abort();
   }, [configured, sinceMs, refreshKey]);
 
-  return extras;
+  // Merged recently / Standup read my merged PRs since the lookback: a filter of
+  // the ticket list, so they cost no request and follow a lookback change at once.
+  // The ticket list keeps its last value through a refetch, so neither blinks out.
+  const merged = useMemo<Part<GitHubPR[]>>(
+    () =>
+      extras.ticketMerged.data
+        ? { data: mergedSince(extras.ticketMerged.data, new Date(sinceMs)), error: null }
+        : extras.ticketMerged,
+    [extras.ticketMerged, sinceMs],
+  );
+  return useMemo(() => ({ ...extras, merged }), [extras, merged]);
 }

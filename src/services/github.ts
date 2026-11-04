@@ -31,8 +31,17 @@ export { withThreadStatus };
  */
 const listCache = new Map<string, { at: number; value: Promise<any> }>();
 
+/**
+ * My merged PRs, loaded under a refreshKey (see fetchMyMergedPRs). Kept apart
+ * from listCache because a refreshKey bump, not a `force` flag, retires it.
+ */
+let myMerged: { at: number; refreshKey: number; value: Promise<GitHubPR[]> } | null = null;
+
 if (typeof window !== "undefined") {
-  window.addEventListener(SETTINGS_EVENT, () => listCache.clear());
+  window.addEventListener(SETTINGS_EVENT, () => {
+    listCache.clear();
+    myMerged = null;
+  });
 }
 
 function cached<T>(key: string, ttlMs: number, force: boolean, load: () => Promise<T>): Promise<T> {
@@ -49,6 +58,7 @@ function cached<T>(key: string, ttlMs: number, force: boolean, load: () => Promi
 /** Test helper: forget every cached list lookup. */
 export function clearListCache(): void {
   listCache.clear();
+  myMerged = null;
 }
 
 const MERGED_TTL_MS = 5 * 60 * 1000;
@@ -120,6 +130,41 @@ export async function fetchRecentlyMergedPRs(
     const data = await getMergedPrs({ scope, authors, repos });
     return data.prs;
   });
+}
+
+/** How far back my merged PRs are fetched: one list serves every view that shows them. */
+export const MY_MERGED_DAYS = 60;
+/** GitHub's per-search maximum. */
+const MY_MERGED_MAX = 100;
+
+/**
+ * My PRs merged in the last MY_MERGED_DAYS: Workday's PRs under tickets,
+ * Merged recently and Standup all read this one list and filter it by date
+ * (mergedSince). Whichever asks first under a refreshKey fetches it for the
+ * others; it's kept 5 minutes.
+ */
+export function fetchMyMergedPRs(refreshKey: number, now: Date = new Date()): Promise<GitHubPR[]> {
+  const hit = myMerged;
+  if (hit && hit.refreshKey === refreshKey && Date.now() - hit.at < MERGED_TTL_MS) {
+    return hit.value;
+  }
+  const since = new Date(now.getTime() - MY_MERGED_DAYS * 24 * 60 * 60 * 1000);
+  const value = getMergedPrs({ scope: "user", since, first: MY_MERGED_MAX }).then(
+    (data) => data.prs as GitHubPR[],
+  );
+  const entry = { at: Date.now(), refreshKey, value };
+  myMerged = entry;
+  // A failure isn't kept, so the next caller retries.
+  value.catch(() => {
+    if (myMerged === entry) myMerged = null;
+  });
+  return value;
+}
+
+/** The PRs in `prs` merged at or after `since`. */
+export function mergedSince(prs: GitHubPR[], since: Date): GitHubPR[] {
+  const from = since.getTime();
+  return prs.filter((pr) => !!pr.merged_at && new Date(pr.merged_at).getTime() >= from);
 }
 
 export interface OrgMember {

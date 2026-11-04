@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { GitHubPR } from "../types";
 
 vi.mock("../services/workday", async (orig) => ({
   ...(await orig<typeof import("../services/workday")>()),
@@ -24,7 +25,6 @@ beforeEach(() => {
   });
   vi.mocked(fetchWorkdaySince).mockResolvedValue({
     doneTickets: ok([]),
-    merged: ok([]),
     reviewed: ok([]),
   });
 });
@@ -66,5 +66,23 @@ describe("useWorkdayExtras", () => {
     renderHook(() => useWorkdayExtras(true, since, 1));
     await waitFor(() => expect(fetchWorkdayStable).toHaveBeenCalledTimes(2));
     expect(fetchWorkdaySince).toHaveBeenCalledTimes(2);
+  });
+
+  it("derives Merged recently from the ticket list by since, with no request of its own", async () => {
+    vi.mocked(fetchWorkdayStable).mockResolvedValue({
+      sprint: ok([]),
+      offSprint: ok([]),
+      ticketMerged: ok([
+        { number: 1, merged_at: "2026-10-28T09:00:00Z" },
+        { number: 2, merged_at: "2026-10-20T09:00:00Z" },
+      ] as GitHubPR[]),
+    });
+    const { result, rerender } = renderHook((s: Date) => useWorkdayExtras(true, s, 0), {
+      initialProps: since,
+    });
+    await waitFor(() => expect(result.current.merged.data?.map((p) => p.number)).toEqual([1]));
+    rerender(new Date("2026-10-19T00:00:00Z"));
+    expect(result.current.merged.data?.map((p) => p.number)).toEqual([1, 2]);
+    expect(fetchWorkdayStable).toHaveBeenCalledTimes(1);
   });
 });

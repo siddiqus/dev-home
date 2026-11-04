@@ -10,10 +10,15 @@ vi.mock("../api/github", async (orig) => ({
   getMergedPrs: vi.fn(),
   getReviewedSince: vi.fn(),
 }));
+vi.mock("./github", async (orig) => ({
+  ...(await orig<typeof import("./github")>()),
+  fetchMyMergedPRs: vi.fn(),
+}));
 
 import * as jira from "../api/jira/workday";
 import * as gh from "../api/github";
 import { SETTINGS_EVENT } from "./config";
+import { fetchMyMergedPRs } from "./github";
 import {
   cachedWorkdaySince,
   cachedWorkdayStable,
@@ -22,7 +27,6 @@ import {
   fetchWorkdaySince,
   rememberWorkdaySince,
   rememberWorkdayStable,
-  TICKET_MERGED_DAYS,
 } from "./workday";
 
 describe("workday service", () => {
@@ -31,45 +35,41 @@ describe("workday service", () => {
   it("isolates failures per part", async () => {
     vi.mocked(jira.getSprintTickets).mockRejectedValue(new Error("sprint boom"));
     vi.mocked(jira.getOffSprintTickets).mockResolvedValue({ issues: [] });
-    vi.mocked(gh.getMergedPrs).mockResolvedValue({ prs: [] });
-    const stable = await fetchWorkdayStable();
+    vi.mocked(fetchMyMergedPRs).mockResolvedValue([]);
+    const stable = await fetchWorkdayStable(0);
     expect(stable.sprint).toEqual({ data: null, error: "sprint boom" });
     expect(stable.offSprint).toEqual({ data: [], error: null });
     expect(stable.ticketMerged).toEqual({ data: [], error: null });
   });
 
-  it("fetches my merged PRs from the last TICKET_MERGED_DAYS for the deck's tickets", async () => {
+  it("reads the deck's merged PRs from the shared list, under the refreshKey", async () => {
     vi.mocked(jira.getSprintTickets).mockResolvedValue({ tickets: [] } as any);
     vi.mocked(jira.getOffSprintTickets).mockResolvedValue({ issues: [] });
-    vi.mocked(gh.getMergedPrs).mockRejectedValue(new Error("gh down"));
+    vi.mocked(fetchMyMergedPRs).mockRejectedValue(new Error("gh down"));
     const now = new Date("2026-10-14T12:00:00Z");
-    const stable = await fetchWorkdayStable(undefined, now);
-    expect(gh.getMergedPrs).toHaveBeenCalledWith({
-      scope: "user",
-      since: new Date(now.getTime() - TICKET_MERGED_DAYS * 86_400_000),
-      first: 100,
-    });
+    const stable = await fetchWorkdayStable(3, undefined, now);
+    expect(fetchMyMergedPRs).toHaveBeenCalledWith(3, now);
     expect(stable.ticketMerged).toEqual({ data: null, error: "gh down" });
   });
 
-  it("passes since to the since-dependent fetches", async () => {
+  it("passes since to the since-dependent fetches, and runs no merged search of its own", async () => {
     const since = new Date("2026-10-08T00:00:00Z");
     vi.mocked(jira.getDoneSince).mockResolvedValue({ tickets: [] });
-    vi.mocked(gh.getMergedPrs).mockResolvedValue({ prs: [] });
     vi.mocked(gh.getReviewedSince).mockRejectedValue(new Error("gh down"));
     const res = await fetchWorkdaySince(since);
     expect(jira.getDoneSince).toHaveBeenCalledWith(since, undefined);
-    expect(gh.getMergedPrs).toHaveBeenCalledWith({ scope: "user", since });
-    expect(res.doneTickets.data).toEqual([]);
-    expect(res.merged.data).toEqual([]);
-    expect(res.reviewed).toEqual({ data: null, error: "gh down" });
+    expect(gh.getMergedPrs).not.toHaveBeenCalled();
+    expect(res).toEqual({
+      doneTickets: { data: [], error: null },
+      reviewed: { data: null, error: "gh down" },
+    });
   });
 });
 
 describe("workday cache", () => {
   const ok = <T>(data: T) => ({ data, error: null });
   const stable = { sprint: ok([]), offSprint: ok([]), ticketMerged: ok([]) };
-  const sinceParts = { doneTickets: ok([]), merged: ok([]), reviewed: ok([]) };
+  const sinceParts = { doneTickets: ok([]), reviewed: ok([]) };
   const since = new Date("2026-10-27T00:00:00Z");
 
   beforeEach(() => {
