@@ -42,6 +42,15 @@ export interface JiraIssue {
     };
   }[];
   /**
+   * Assigned-issues list only (undefined elsewhere): the active sprint's name,
+   * else the first open one's; null when the ticket is in no open sprint.
+   */
+  openSprint?: string | null;
+  /** Story points; assigned-issues list only. */
+  points?: number | null;
+  /** Jira's Flagged field is set; assigned-issues list only. */
+  flagged?: boolean;
+  /**
    * Full issue description (ADF converted to markdown). Only populated by the
    * bulk endpoint and the JQL search's TSV export; the assigned-issues list and
    * on-screen filter search omit it and it is lazy-loaded on demand when a

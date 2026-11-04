@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../api/jira/workday", () => ({
-  getSprintTickets: vi.fn(),
-  getOffSprintTickets: vi.fn(),
   getDoneSince: vi.fn(),
 }));
 vi.mock("../api/github", async (orig) => ({
@@ -27,29 +25,27 @@ import {
   fetchWorkdaySince,
   rememberWorkdaySince,
   rememberWorkdayStable,
+  sprintParts,
 } from "./workday";
+import type { JiraIssue } from "../types";
 
 describe("workday service", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("isolates failures per part", async () => {
-    vi.mocked(jira.getSprintTickets).mockRejectedValue(new Error("sprint boom"));
-    vi.mocked(jira.getOffSprintTickets).mockResolvedValue({ issues: [] });
-    vi.mocked(fetchMyMergedPRs).mockResolvedValue([]);
-    const stable = await fetchWorkdayStable(0);
-    expect(stable.sprint).toEqual({ data: null, error: "sprint boom" });
-    expect(stable.offSprint).toEqual({ data: [], error: null });
-    expect(stable.ticketMerged).toEqual({ data: [], error: null });
+    vi.mocked(jira.getDoneSince).mockRejectedValue(new Error("jira boom"));
+    vi.mocked(gh.getReviewedSince).mockResolvedValue({ reviews: [] });
+    const res = await fetchWorkdaySince(new Date("2026-10-08T00:00:00Z"));
+    expect(res.doneTickets).toEqual({ data: null, error: "jira boom" });
+    expect(res.reviewed).toEqual({ data: [], error: null });
   });
 
-  it("reads the deck's merged PRs from the shared list, under the refreshKey", async () => {
-    vi.mocked(jira.getSprintTickets).mockResolvedValue({ tickets: [] } as any);
-    vi.mocked(jira.getOffSprintTickets).mockResolvedValue({ issues: [] });
+  it("fetches only the shared merged list for the stable group, under the refreshKey", async () => {
     vi.mocked(fetchMyMergedPRs).mockRejectedValue(new Error("gh down"));
     const now = new Date("2026-10-14T12:00:00Z");
-    const stable = await fetchWorkdayStable(3, undefined, now);
+    const stable = await fetchWorkdayStable(3, now);
     expect(fetchMyMergedPRs).toHaveBeenCalledWith(3, now);
-    expect(stable.ticketMerged).toEqual({ data: null, error: "gh down" });
+    expect(stable).toEqual({ ticketMerged: { data: null, error: "gh down" } });
   });
 
   it("passes since to the since-dependent fetches, and runs no merged search of its own", async () => {
@@ -68,7 +64,7 @@ describe("workday service", () => {
 
 describe("workday cache", () => {
   const ok = <T>(data: T) => ({ data, error: null });
-  const stable = { sprint: ok([]), offSprint: ok([]), ticketMerged: ok([]) };
+  const stable = { ticketMerged: ok([]) };
   const sinceParts = { doneTickets: ok([]), reviewed: ok([]) };
   const since = new Date("2026-10-27T00:00:00Z");
 
@@ -93,7 +89,7 @@ describe("workday cache", () => {
   });
 
   it("doesn't keep a group with a failed part, so the next visit retries it", () => {
-    rememberWorkdayStable(3, { ...stable, offSprint: { data: null, error: "jira down" } });
+    rememberWorkdayStable(3, { ticketMerged: { data: null, error: "gh down" } });
     expect(cachedWorkdayStable(3)).toBeNull();
   });
 
@@ -109,5 +105,79 @@ describe("workday cache", () => {
     window.dispatchEvent(new Event(SETTINGS_EVENT));
     expect(cachedWorkdayStable(3)).toBeNull();
     expect(cachedWorkdaySince(since, 3)).toBeNull();
+  });
+});
+
+describe("sprintParts", () => {
+  const now = new Date("2026-11-04T12:00:00Z");
+  const issue = (key: string, over: Partial<JiraIssue> = {}): JiraIssue =>
+    ({
+      key,
+      summary: key,
+      status: { name: "To Do", statusCategory: { key: "new", colorName: "blue-gray" } },
+      project: { key: "CCP", name: "CCP" },
+      created: "2026-10-01T00:00:00Z",
+      updated: "2026-11-01T00:00:00Z",
+      codeReviewers: [],
+      openSprint: null,
+      points: null,
+      flagged: false,
+      ...over,
+    }) as JiraIssue;
+
+  it("reads as loading until the assigned list has fetched this session", () => {
+    const parts = sprintParts(
+      { issues: [issue("CCP-1", { openSprint: "Sprint 42" })], loaded: false, error: null },
+      now,
+    );
+    expect(parts).toEqual({
+      sprint: { data: null, error: null },
+      offSprint: { data: null, error: null },
+    });
+  });
+
+  it("carries the source's error while it hasn't loaded", () => {
+    const parts = sprintParts({ issues: [], loaded: false, error: "jira down" }, now);
+    expect(parts.sprint).toEqual({ data: null, error: "jira down" });
+    expect(parts.offSprint).toEqual({ data: null, error: "jira down" });
+  });
+
+  it("splits tickets in an open sprint from the rest", () => {
+    const inSprint = issue("CCP-1", {
+      openSprint: "Sprint 42",
+      points: 3,
+      flagged: true,
+      status: {
+        name: "In Progress",
+        statusCategory: { key: "indeterminate", colorName: "yellow" },
+      },
+    });
+    const { sprint, offSprint } = sprintParts(
+      { issues: [inSprint, issue("CCP-2")], loaded: true, error: null },
+      now,
+    );
+    expect(sprint.data).toEqual([
+      {
+        key: "CCP-1",
+        summary: "CCP-1",
+        status: { name: "In Progress", categoryKey: "indeterminate" },
+        sprintName: "Sprint 42",
+        points: 3,
+        flagged: true,
+      },
+    ]);
+    expect(offSprint.data?.map((t) => [t.key, t.flagged])).toEqual([["CCP-2", false]]);
+  });
+
+  it("leaves out off-sprint tickets untouched for 60 days", () => {
+    const { offSprint } = sprintParts(
+      { issues: [issue("CCP-3", { updated: "2026-09-01T00:00:00Z" })], loaded: true, error: null },
+      now,
+    );
+    expect(offSprint.data).toEqual([]);
+  });
+
+  it("reads as loading with no assigned source at all", () => {
+    expect(sprintParts(undefined, now).sprint).toEqual({ data: null, error: null });
   });
 });

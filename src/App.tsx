@@ -787,6 +787,7 @@ export default function App() {
                           loadedSources.has("jiraIssues")
                         }
                         sourceError={error}
+                        assignedLoaded={loadedSources.has("jiraIssues")}
                         jiraBaseUrl={jiraBaseUrl}
                         githubUsername={githubUsername}
                         weekendDays={weekendDays}

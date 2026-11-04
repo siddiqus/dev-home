@@ -12,7 +12,7 @@ import {
   getBoardSprints,
 } from "./index";
 import { ApiError } from "../http/errors";
-import { resetMyselfCache } from "./issues";
+import { mapIssue, resetMyselfCache } from "./issues";
 import { clearSprintCache } from "./teams";
 
 useFetchAdapter();
@@ -149,6 +149,58 @@ describe("Jira API", () => {
       }));
       const { issues } = await getIssues();
       expect(issues[0].status.statusCategory).toEqual({ key: "new", colorName: "blue-gray" });
+    });
+
+    it("asks for open-sprint tickets however old, with sprint, points and flagged", async () => {
+      const adapter = vi.fn(async () => ({ data: { issues: [] } }));
+      httpMock.adapter = adapter as any;
+      await getIssues();
+      const data = JSON.parse((adapter as any).mock.calls[0][0].data);
+      expect(data.jql).toBe(
+        "assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND (updated >= -90d OR sprint in openSprints()) ORDER BY updated DESC",
+      );
+      expect(data.fields).toEqual(
+        expect.arrayContaining(["customfield_10020", "customfield_10127", "customfield_10021"]),
+      );
+    });
+
+    it("maps each ticket's open sprint, points and flagged", async () => {
+      httpMock.adapter = vi.fn(async () => ({
+        data: {
+          issues: [
+            {
+              key: "CCP-1",
+              fields: {
+                summary: "One",
+                customfield_10020: [
+                  { name: "Sprint 41", state: "closed" },
+                  { name: "Sprint 42", state: "active" },
+                ],
+                customfield_10127: 3,
+                customfield_10021: [{ value: "Impediment" }],
+              },
+            },
+            {
+              key: "CCP-2",
+              fields: {
+                summary: "Two",
+                customfield_10020: [{ name: "Sprint 41", state: "closed" }],
+              },
+            },
+            { key: "CCP-3", fields: { summary: "Three" } },
+          ],
+        },
+      })) as any;
+      const { issues } = await getIssues();
+      expect(issues.map((i: any) => [i.key, i.openSprint, i.points, i.flagged])).toEqual([
+        ["CCP-1", "Sprint 42", 3, true],
+        ["CCP-2", null, null, false],
+        ["CCP-3", null, null, false],
+      ]);
+    });
+
+    it("leaves the sprint fields off lists that didn't ask for them", () => {
+      expect(mapIssue({ key: "X-1", fields: {} })).not.toHaveProperty("openSprint");
     });
   });
 

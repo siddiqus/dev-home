@@ -1,5 +1,12 @@
-import type { DoneTicket, GitHubPR, OffSprintTicket, ReviewedPR, SprintTicket } from "../types";
-import { getDoneSince, getOffSprintTickets, getSprintTickets } from "../api/jira/workday";
+import type {
+  DoneTicket,
+  GitHubPR,
+  JiraIssue,
+  OffSprintTicket,
+  ReviewedPR,
+  SprintTicket,
+} from "../types";
+import { getDoneSince } from "../api/jira/workday";
 import { getReviewedSince } from "../api/github";
 import { SETTINGS_EVENT } from "./config";
 import { fetchMyMergedPRs } from "./github";
@@ -33,7 +40,7 @@ export const EMPTY_EXTRAS: WorkdayExtras = {
   ticketMerged: LOADING,
 };
 
-type StableParts = Pick<WorkdayExtras, "sprint" | "offSprint" | "ticketMerged">;
+type StableParts = Pick<WorkdayExtras, "ticketMerged">;
 type SinceParts = Pick<WorkdayExtras, "doneTickets" | "reviewed">;
 
 /**
@@ -92,21 +99,15 @@ async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
 }
 
 /**
- * Sprint membership, off-sprint tickets and my merged PRs for the deck's open
- * tickets; independent of the lookback. The merged PRs are the shared list
- * (fetchMyMergedPRs) that Merged recently and Standup filter too.
+ * My merged PRs for the deck's open tickets: the shared list My PRs reads too
+ * (fetchMyMergedPRs). Not aborted with the view, since another view may share
+ * the request. Sprint and off-sprint come from sprintParts, not a fetch.
  */
 export async function fetchWorkdayStable(
   refreshKey: number,
-  signal?: AbortSignal,
   now: Date = new Date(),
 ): Promise<StableParts> {
-  const [sprint, offSprint, ticketMerged] = await Promise.all([
-    part(async () => (await getSprintTickets(signal)).tickets),
-    part(async () => (await getOffSprintTickets(signal)).issues),
-    part(() => fetchMyMergedPRs(refreshKey, now)),
-  ]);
-  return { sprint, offSprint, ticketMerged };
+  return { ticketMerged: await part(() => fetchMyMergedPRs(refreshKey, now)) };
 }
 
 /** "Done since" pieces; refetched when the lookback changes. Merged PRs are derived, not fetched. */
@@ -116,4 +117,50 @@ export async function fetchWorkdaySince(since: Date, signal?: AbortSignal): Prom
     part(async () => (await getReviewedSince(since)).reviews),
   ]);
   return { doneTickets, reviewed };
+}
+
+/** Off-sprint tickets are the ones touched in this window. */
+const OFF_SPRINT_DAYS = 60;
+
+/** The assigned-issues source, which sprint and off-sprint are split from. */
+export interface AssignedIssues {
+  issues: JiraIssue[];
+  /**
+   * The source has fetched this session. A list cached from before the sprint
+   * fields were requested would otherwise split every ticket off-sprint.
+   */
+  loaded: boolean;
+  error: string | null;
+}
+
+/**
+ * Workday's sprint and off-sprint parts, split from the assigned-issues list
+ * (each ticket carries its open sprint) rather than two queries of their own.
+ */
+export function sprintParts(
+  assigned: AssignedIssues | undefined,
+  now: Date,
+): Pick<WorkdayExtras, "sprint" | "offSprint"> {
+  if (!assigned?.loaded) {
+    const pending = { data: null, error: assigned?.error ?? null };
+    return { sprint: pending, offSprint: pending };
+  }
+  const cutoff = now.getTime() - OFF_SPRINT_DAYS * 24 * 60 * 60 * 1000;
+  const sprint: SprintTicket[] = [];
+  const offSprint: OffSprintTicket[] = [];
+  for (const i of assigned.issues) {
+    if (i.openSprint) {
+      sprint.push({
+        key: i.key,
+        summary: i.summary,
+        status: { name: i.status.name, categoryKey: i.status.statusCategory.key ?? "new" },
+        sprintName: i.openSprint,
+        points: i.points ?? null,
+        flagged: i.flagged ?? false,
+      });
+    } else if (new Date(i.updated).getTime() >= cutoff) {
+      offSprint.push({ ...i, flagged: i.flagged ?? false });
+    }
+  }
+  return { sprint: { data: sprint, error: null }, offSprint: { data: offSprint, error: null } };
 }

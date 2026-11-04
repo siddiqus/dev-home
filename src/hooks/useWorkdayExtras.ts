@@ -9,6 +9,8 @@ import {
   fetchWorkdayStable,
   rememberWorkdaySince,
   rememberWorkdayStable,
+  sprintParts,
+  type AssignedIssues,
   type Part,
   type WorkdayExtras,
 } from "../services/workday";
@@ -16,6 +18,8 @@ import {
 export interface WorkdayExtrasOptions {
   /** List or Standup is showing: load the done-since parts (Focus doesn't read them). */
   needsDone: boolean;
+  /** The assigned-issues source; sprint and off-sprint are split from it, not fetched. */
+  assigned?: AssignedIssues;
 }
 
 /**
@@ -33,7 +37,7 @@ export function useWorkdayExtras(
   refreshKey: number,
   opts: WorkdayExtrasOptions,
 ): WorkdayExtras {
-  const { needsDone } = opts;
+  const { needsDone, assigned } = opts;
   const [extras, setExtras] = useState<WorkdayExtras>(() => ({
     ...EMPTY_EXTRAS,
     ...cachedWorkdayStable(refreshKey),
@@ -49,14 +53,7 @@ export function useWorkdayExtras(
       return;
     }
     const ctrl = new AbortController();
-    // `ticketMerged` keeps its last list until the refetch lands, so the deck's
-    // merged rows don't blink out on every refresh.
-    setExtras((prev) => ({
-      ...prev,
-      sprint: EMPTY_EXTRAS.sprint,
-      offSprint: EMPTY_EXTRAS.offSprint,
-    }));
-    fetchWorkdayStable(refreshKey, ctrl.signal).then((res) => {
+    fetchWorkdayStable(refreshKey).then((res) => {
       if (ctrl.signal.aborted) return;
       rememberWorkdayStable(refreshKey, res);
       setExtras((prev) => ({ ...prev, ...res }));
@@ -96,5 +93,6 @@ export function useWorkdayExtras(
         : extras.ticketMerged,
     [extras.ticketMerged, sinceMs],
   );
-  return useMemo(() => ({ ...extras, merged }), [extras, merged]);
+  const sprint = useMemo(() => sprintParts(assigned, new Date()), [assigned]);
+  return useMemo(() => ({ ...extras, merged, ...sprint }), [extras, merged, sprint]);
 }

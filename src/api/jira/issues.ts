@@ -29,8 +29,35 @@ export const BASE_ISSUE_FIELDS = [
 /** Base fields plus description + issue type, for callers that pass `withDetail`. */
 export const DETAIL_ISSUE_FIELDS = [...BASE_ISSUE_FIELDS, "description", "issuetype"];
 
+/**
+ * The assigned list also carries what Workday splits sprint / off-sprint on
+ * (services/workday sprintParts), so neither needs a query of its own.
+ */
+const ASSIGNED_ISSUE_FIELDS = [
+  ...BASE_ISSUE_FIELDS,
+  SPRINT_FIELD,
+  STORY_POINTS_FIELD,
+  FLAGGED_FIELD,
+];
+
+/** Active sprint's name, else the first non-closed one, else null. */
+export function sprintNameOf(f: any): string | null {
+  const sprints: any[] = Array.isArray(f[SPRINT_FIELD]) ? f[SPRINT_FIELD] : [];
+  const active = sprints.find((s) => s?.state === "active");
+  const open = active ?? sprints.find((s) => s?.state !== "closed");
+  return open?.name ?? null;
+}
+
+/** Jira's Flagged field holds e.g. [{ value: "Impediment" }] when set. */
+export function isFlagged(f: any): boolean {
+  return Array.isArray(f[FLAGGED_FIELD]) && f[FLAGGED_FIELD].length > 0;
+}
+
 /** Map a raw Jira search issue to the app's JiraIssue shape. */
-export function mapIssue(issue: any, opts: { withDetail?: boolean } = {}): any {
+export function mapIssue(
+  issue: any,
+  opts: { withDetail?: boolean; withSprint?: boolean } = {},
+): any {
   const f = issue.fields ?? {};
   const mapped: any = {
     key: issue.key,
@@ -66,6 +93,11 @@ export function mapIssue(issue: any, opts: { withDetail?: boolean } = {}): any {
       iconUrl: f.issuetype?.iconUrl || null,
     };
   }
+  if (opts.withSprint) {
+    mapped.openSprint = sprintNameOf(f);
+    mapped.points = typeof f[STORY_POINTS_FIELD] === "number" ? f[STORY_POINTS_FIELD] : null;
+    mapped.flagged = isFlagged(f);
+  }
   return mapped;
 }
 
@@ -82,18 +114,20 @@ const KEY_BATCH_SIZE = 50;
 export async function getIssues(signal?: AbortSignal): Promise<{ issues: any[] }> {
   const jira = jiraClient();
 
-  const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND updated >= -90d ORDER BY updated DESC`;
+  // One query for every "assigned to me" list: My Issues, and Workday's sprint
+  // and off-sprint split. Open-sprint tickets count however long ago they were touched.
+  const jql = `assignee = currentUser() AND resolution = Unresolved AND statusCategory != Done AND (updated >= -90d OR sprint in openSprints()) ORDER BY updated DESC`;
   const raw: any[] = [];
   let nextPageToken: string | undefined;
   do {
-    const payload: Record<string, any> = { jql, fields: BASE_ISSUE_FIELDS, maxResults: 100 };
+    const payload: Record<string, any> = { jql, fields: ASSIGNED_ISSUE_FIELDS, maxResults: 100 };
     if (nextPageToken) payload.nextPageToken = nextPageToken;
     const { data } = await jira.post("/search/jql", payload, { signal });
     raw.push(...(data.issues || []));
     nextPageToken = data.nextPageToken || undefined;
   } while (nextPageToken && raw.length < MAX_ASSIGNED_ISSUES);
 
-  return { issues: raw.map((issue) => mapIssue(issue)) };
+  return { issues: raw.map((issue) => mapIssue(issue, { withSprint: true })) };
 }
 
 /** Issue keys Jira rejected in a 400 error (e.g. "An issue with key 'UTF-8' does not exist"). */

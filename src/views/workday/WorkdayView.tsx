@@ -76,6 +76,11 @@ export interface WorkdayViewProps {
   sourcesLoaded?: boolean;
   /** A dashboard source failed; deck state updates are held back while set. */
   sourceError?: string | null;
+  /**
+   * The assigned-issues source has fetched this session; the sprint /
+   * off-sprint split waits for it. Defaults to true.
+   */
+  assignedLoaded?: boolean;
   /** Phone layout: Focus only, full-width card, the rail as a drawer. */
   phone?: boolean;
 }
@@ -225,6 +230,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     mentionsLoading = false,
     sourcesLoaded = true,
     sourceError = null,
+    assignedLoaded = true,
     jiraBaseUrl,
     weekendDays,
     refreshKey,
@@ -279,9 +285,16 @@ export function WorkdayView(props: WorkdayViewProps) {
     () => sinceFor(lookback, now, weekendKey ? weekendKey.split(",").map(Number) : []),
     [lookback, now, weekendKey],
   );
-  // Done tickets and reviewed PRs feed List and Standup only; Focus (and the
-  // phone, which is always Focus) doesn't fetch them.
-  const extras = useWorkdayExtras(configured, since, refreshKey, { needsDone: mode !== "focus" });
+  // Sprint and off-sprint are split from the assigned list (no Jira call of
+  // their own). Done tickets and reviewed PRs feed List and Standup only.
+  const assigned = useMemo(
+    () => ({ issues: assignedIssues, loaded: assignedLoaded, error: sourceError }),
+    [assignedIssues, assignedLoaded, sourceError],
+  );
+  const extras = useWorkdayExtras(configured, since, refreshKey, {
+    needsDone: mode !== "focus",
+    assigned,
+  });
   // The merged list as last loaded: a refresh or lookback change refetches it
   // from empty, which would otherwise drop the Merged recently group until it lands.
   const lastMerged = useRef<GitHubPR[] | null>(null);
