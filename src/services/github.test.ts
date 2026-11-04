@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GitHubPR, PRComments, PRReviewThread } from "../types";
 import {
+  approvePr,
   enqueuePr,
   getMergeOptions,
   getPrComments,
@@ -8,10 +9,17 @@ import {
   setReviewThreadResolved,
   type MergeOptions,
 } from "../api/github";
-import { fetchMergeOptions, fetchPRComments, mergePR, setPRThreadResolved } from "./github";
+import {
+  approvePR,
+  fetchMergeOptions,
+  fetchPRComments,
+  mergePR,
+  setPRThreadResolved,
+} from "./github";
 import { SETTINGS_EVENT } from "./config";
 
 vi.mock("../api/github", () => ({
+  approvePr: vi.fn(),
   getMergeOptions: vi.fn(),
   mergePr: vi.fn(),
   enqueuePr: vi.fn(),
@@ -155,5 +163,17 @@ describe("mergePR", () => {
     await mergePR(pr(), { ...OPTIONS, queue: true }, "SQUASH");
     expect(enqueuePr).toHaveBeenCalledWith({ pullRequestId: "PR_node", expectedHeadOid: "abc123" });
     expect(mergePr).not.toHaveBeenCalled();
+  });
+});
+
+describe("approvePR", () => {
+  it("approves the PR at the head the list loaded", async () => {
+    await approvePR(pr({ user: { login: "author", avatar_url: "" } }));
+    expect(approvePr).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "app",
+      number: 12,
+      commitId: "abc123",
+    });
   });
 });

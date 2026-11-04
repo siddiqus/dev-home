@@ -293,6 +293,7 @@ export default function App() {
   // A Merge button merged or queued a PR: refetch the open PRs so its row drops
   // out (refreshKey also reloads Workday's and My PRs' merged lists).
   const refreshOpenPRs = useCallback(() => refresh(["openPRs"]), [refresh]);
+  const refreshReviews = useCallback(() => refresh(["reviewRequests"]), [refresh]);
 
   // Top-bar refresh for pages whose data can be fetched on its own: refetches
   // only that page's primary source(s), skipping enrichment deps (e.g. Jira for
@@ -466,6 +467,7 @@ export default function App() {
       jiraBaseUrl={jiraBaseUrl}
       githubUsername={githubUsername}
       onMerged={refreshOpenPRs}
+      onApproved={refreshReviews}
     >
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">

@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useMemo, useRef, useState, type ReactNo
 import type { GitHubPR } from "../types";
 import type { MergeMethod, MergeOptions } from "../api/github";
 import { toApiError } from "../api/http/errors";
-import { fetchMergeOptions, mergePR } from "../services/github";
+import { approvePR, fetchMergeOptions, mergePR } from "../services/github";
 import { Toast, useToast } from "../components/Toast";
 import { readyToMerge } from "../utils/prAction";
 import { repoRef } from "../views/workday/prState";
@@ -17,6 +17,10 @@ interface MergeApi {
   prepare(pr: GitHubPR): Promise<MergeOptions | null>;
   /** Merge (or enqueue) a PR, toasting the outcome; true once GitHub took it. */
   merge(pr: GitHubPR, options: MergeOptions, method: MergeMethod): Promise<boolean>;
+  /** PRs approved from here this session, by URL, until a refresh shows the approval. */
+  approved: ReadonlySet<string>;
+  /** Approve a PR, toasting the outcome; true once GitHub took it. */
+  approve(pr: GitHubPR): Promise<boolean>;
 }
 
 export const MergeContext = React.createContext<MergeApi | null>(null);
@@ -30,23 +34,37 @@ function failureReason(err: unknown): string {
   return toApiError(err).message;
 }
 
+/** Why GitHub refused a review, except a token without the permission gets pointed at Settings. */
+function approveFailureReason(err: unknown): string {
+  const apiError = toApiError(err);
+  if (apiError.status === 403 && /not accessible/i.test(apiError.message))
+    return "your GitHub token can't review here. It needs Pull requests: write (see Settings)";
+  return apiError.message;
+}
+
 /**
- * Merging for every Merge button: one session record of what was merged (so a
- * row that re-renders before the refresh can't merge twice), one bottom toast,
- * and `onMerged` (refresh the open PRs) after each success.
+ * GitHub writes for every Merge and Approve button: one session record of what
+ * was merged or approved (so a button that re-renders before the refresh can't
+ * do it twice), one bottom toast, and a refresh after each success: `onMerged`
+ * (the open PRs) or `onApproved` (the reviews).
  */
 export function MergeProvider({
   onMerged,
+  onApproved,
   children,
 }: {
   onMerged?: () => void;
+  onApproved?: () => void;
   children: ReactNode;
 }) {
   const [done, setDone] = useState<ReadonlyMap<string, MergeOutcome>>(() => new Map());
+  const [approved, setApproved] = useState<ReadonlySet<string>>(() => new Set());
   const toast = useToast(3000);
   const { show } = toast;
   const onMergedRef = useRef(onMerged);
   onMergedRef.current = onMerged;
+  const onApprovedRef = useRef(onApproved);
+  onApprovedRef.current = onApproved;
 
   const fail = useCallback(
     (pr: GitHubPR, err: unknown) =>
@@ -85,7 +103,29 @@ export function MergeProvider({
     [fail, show],
   );
 
-  const api = useMemo(() => ({ done, prepare, merge }), [done, prepare, merge]);
+  const approve = useCallback(
+    async (pr: GitHubPR) => {
+      try {
+        await approvePR(pr);
+      } catch (err) {
+        show(`Couldn't approve ${repoRef(pr)}: ${approveFailureReason(err)}`, {
+          tone: "danger",
+          durationMs: 6000,
+        });
+        return false;
+      }
+      setApproved((prev) => new Set(prev).add(pr.html_url));
+      show(`Approved ${repoRef(pr)}`);
+      onApprovedRef.current?.();
+      return true;
+    },
+    [show],
+  );
+
+  const api = useMemo(
+    () => ({ done, prepare, merge, approved, approve }),
+    [done, prepare, merge, approved, approve],
+  );
   return (
     <MergeContext.Provider value={api}>
       {children}
@@ -105,5 +145,24 @@ export function useCanMerge(pr: GitHubPR): boolean {
     pr.state === "open" &&
     !pr.merged_at &&
     readyToMerge(pr)
+  );
+}
+
+/**
+ * Whether a PR gets the Approve button: someone else's open, non-draft PR that
+ * my latest review hasn't approved, under a MergeProvider. Not limited to PRs
+ * naming me as reviewer: a request to one of my teams names only the team.
+ */
+export function useCanApprove(pr: GitHubPR): boolean {
+  const api = useContext(MergeContext);
+  const viewer = useContext(ViewerLoginContext);
+  return (
+    !!api &&
+    !!viewer &&
+    pr.user.login.toLowerCase() !== viewer.toLowerCase() &&
+    pr.state === "open" &&
+    !pr.merged_at &&
+    !pr.draft &&
+    pr.viewer_review_state !== "APPROVED"
   );
 }

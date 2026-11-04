@@ -12,6 +12,7 @@ import { IconChevronRight, IconCopy, IconExternalLink, IconX } from "@tabler/ico
 import { CheckRunInfo } from "../types";
 import type { GitHubPR, PRComments as PRCommentsData } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
+import { ApproveButton } from "./ApproveButton";
 import { MergeButton } from "./MergeButton";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { PRComments } from "./PRComments";
@@ -404,6 +405,8 @@ function PrModalHeader({
             />
           )}
           {!isMerged && !isNeedsAction && !action && <StatusPill pr={pr} />}
+          {/* On a PR I review that I haven't approved: Approve, after its pill. */}
+          <ApproveButton pr={pr} />
           {!isMerged && <ReasonChips pr={pr} except={restatedReasons(action)} />}
           {hasLabels && <PRLabels labels={pr.labels!} />}
         </div>

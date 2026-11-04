@@ -1,6 +1,7 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest, PRComments, PRThreadStatus } from "../types";
 import { SETTINGS_EVENT } from "./config";
 import {
+  approvePr,
   enqueuePr,
   getGithubMentions,
   getMergeOptions,
@@ -248,4 +249,10 @@ export async function mergePR(
   const args = { pullRequestId: options.pullRequestId, expectedHeadOid: pr.head.sha };
   if (options.queue) await enqueuePr(args);
   else await mergePr({ ...args, method });
+}
+
+/** Approve a PR, pinned to the head the list loaded (GitHub's latest when it didn't load one). */
+export async function approvePR(pr: GitHubPR): Promise<void> {
+  const [owner, repo] = pr.repo_full_name.split("/");
+  await approvePr({ owner, repo, number: pr.number, commitId: pr.head.sha });
 }

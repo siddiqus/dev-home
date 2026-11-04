@@ -212,6 +212,36 @@ describe("DescriptionModal PR header", () => {
     expect(screen.queryByText("Ready to merge")).not.toBeInTheDocument();
   });
 
+  it("puts the Approve button after the reviewer pill on a PR I review", () => {
+    render(
+      <ViewerLoginContext.Provider value="me">
+        <MergeProvider>
+          <DescriptionModal
+            {...baseProps}
+            pr={makePR({ requested_reviewers: ["me"], head: { ref: "feature", sha: "abc123" } })}
+          />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+
+    const pill = screen.getByText("Review requested");
+    const approve = screen.getByRole("button", { name: "Approve" });
+    expect(pill.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
+  });
+
+  it("shows no Approve button on my own PR", () => {
+    render(
+      <ViewerLoginContext.Provider value="octocat">
+        <MergeProvider>
+          <DescriptionModal {...baseProps} pr={makePR()} />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+
+    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+  });
+
   it("shows needs-action reason chips instead of the status pill", () => {
     render(
       <DescriptionModal
