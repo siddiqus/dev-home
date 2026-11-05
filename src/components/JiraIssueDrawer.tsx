@@ -9,6 +9,7 @@ import { useIssueDescription } from "../hooks/useIssueDescription";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { useBackClose } from "../hooks/useBackClose";
 import { Avatar } from "./primitives/Avatar";
+import { IssueTypeIcon } from "./IssueTypeIcon";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import { Markdown } from "./Markdown";
 import "./JiraIssueDrawer.css";
@@ -77,14 +78,7 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
           ) : (
             issue?.issueType?.name && (
               <div className="jira-drawer-type">
-                {issue.issueType.iconUrl && (
-                  <img
-                    src={issue.issueType.iconUrl}
-                    alt={issue.issueType.name}
-                    width={14}
-                    height={14}
-                  />
-                )}
+                <IssueTypeIcon type={issue.issueType} />
                 <span>{issue.issueType.name}</span>
               </div>
             )

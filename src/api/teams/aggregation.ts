@@ -81,6 +81,7 @@ export interface RawIssue {
   assigneeName: string | null;
   epicKey: string | null;
   epicName: string | null;
+  issueType?: { name: string; iconUrl: string | null } | null;
   // --- cockpit enrichment (populated by the fetch layer) ---
   createdAt?: string | null;
   updatedAt?: string | null;

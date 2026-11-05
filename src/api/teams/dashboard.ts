@@ -147,11 +147,18 @@ function agileEpic(fields: any): { epicKey: string | null; epicName: string | nu
   return { epicKey: null, epicName: null };
 }
 
+/** Issue type (Bug, Task…) with Jira's icon; null when Jira sends none. */
+function issueTypeOf(fields: any): { name: string; iconUrl: string | null } | null {
+  const type = fields?.issuetype;
+  return type?.name ? { name: type.name, iconUrl: type.iconUrl || null } : null;
+}
+
 /** Map Agile-API issues (which carry a dedicated `epic` field). */
 export function mapAgileIssues(rawIssues: any[]): RawIssue[] {
   return rawIssues.map((issue: any) => ({
     key: issue.key,
     summary: issue.fields?.summary || "",
+    issueType: issueTypeOf(issue.fields),
     status: issue.fields?.status?.name || "",
     statusCategory: issue.fields?.status?.statusCategory?.key || "new",
     assigneeAccountId: issue.fields?.assignee?.accountId || null,
@@ -171,6 +178,7 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
     return {
       key: issue.key,
       summary: issue.fields?.summary || "",
+      issueType: issueTypeOf(issue.fields),
       status: issue.fields?.status?.name || "",
       statusCategory: issue.fields?.status?.statusCategory?.key || "new",
       assigneeAccountId: issue.fields?.assignee?.accountId || null,
@@ -186,7 +194,7 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
 
 /** All issues in a sprint, paging past the Agile API's per-request limit. */
 async function fetchSprintIssues(agile: any, boardId: number, sprintId: number): Promise<any[]> {
-  const fields = "summary,status,assignee,epic,parent,created,updated,duedate";
+  const fields = "summary,issuetype,status,assignee,epic,parent,created,updated,duedate";
   const maxResults = 100;
   const all: any[] = [];
   for (let startAt = 0; all.length < 1000; startAt += maxResults) {
@@ -269,6 +277,7 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
         const jql = `assignee IN (${idList}) AND statusCategory != Done ORDER BY updated DESC`;
         const fieldsArray = [
           "summary",
+          "issuetype",
           "status",
           "assignee",
           "parent",

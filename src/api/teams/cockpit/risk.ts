@@ -138,6 +138,7 @@ export function enrichIssue(
   return {
     key: issue.key,
     summary: issue.summary,
+    issueType: issue.issueType ?? null,
     status: issue.status,
     statusCategory: issue.statusCategory,
     assigneeAccountId: issue.assigneeAccountId,

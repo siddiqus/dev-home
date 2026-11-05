@@ -44,6 +44,7 @@ export function DeliveryHygiene({ hygiene, lookup, onOpenRef }: Props) {
     if (!issue) return {};
     return {
       title: issue.summary,
+      issueType: issue.issueType,
       meta: issue.assigneeName ? <Who name={issue.assigneeName} /> : issue.status,
     };
   };

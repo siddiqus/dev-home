@@ -94,9 +94,17 @@ export interface IssueFlags {
   inProgressNoPR: boolean;
 }
 
+/** A Jira issue type (Bug, Task, Story…) and Jira's icon for it. */
+export interface IssueTypeInfo {
+  name: string;
+  iconUrl: string | null;
+}
+
 export interface DashboardIssue {
   key: string;
   summary: string;
+  /** Optional: payloads cached before the field existed lack it. */
+  issueType?: IssueTypeInfo | null;
   status: string;
   statusCategory: string;
   assigneeAccountId: string | null;

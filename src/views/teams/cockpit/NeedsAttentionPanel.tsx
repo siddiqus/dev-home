@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { NeedsAttention, Ref } from "../../../types/teams";
+import type { IssueTypeInfo, NeedsAttention, Ref } from "../../../types/teams";
 import { RefRow, Who } from "./RefRow";
 import { refKey, type RefLookup } from "./refLookup";
 import { staleTone } from "./staleTone";
@@ -32,7 +32,10 @@ export function NeedsAttentionPanel({ needsAttention, lookup, onOpenRef }: Props
 
   // Stale → who and days since the last update; waiting review → the PR
   // author and its age.
-  const describe = (group: Group["key"], ref: Ref): { title?: string; meta?: ReactNode } => {
+  const describe = (
+    group: Group["key"],
+    ref: Ref,
+  ): { title?: string; meta?: ReactNode; issueType?: IssueTypeInfo | null } => {
     if (ref.kind === "pr") {
       const pr = lookup.pr(ref.repo, ref.number);
       if (!pr) return {};
@@ -53,6 +56,7 @@ export function NeedsAttentionPanel({ needsAttention, lookup, onOpenRef }: Props
     if (group === "stale") {
       return {
         title: issue.summary,
+        issueType: issue.issueType,
         meta: (
           <>
             {issue.assigneeName && <Who name={issue.assigneeName} />}
@@ -63,7 +67,7 @@ export function NeedsAttentionPanel({ needsAttention, lookup, onOpenRef }: Props
         ),
       };
     }
-    return { title: issue.summary, meta: issue.status };
+    return { title: issue.summary, issueType: issue.issueType, meta: issue.status };
   };
 
   return (

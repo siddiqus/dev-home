@@ -44,6 +44,7 @@ export interface LinkedPR {
 export interface EnrichedIssue {
   key: string;
   summary: string;
+  issueType?: { name: string; iconUrl: string | null } | null;
   status: string;
   statusCategory: string;
   assigneeAccountId: string | null;

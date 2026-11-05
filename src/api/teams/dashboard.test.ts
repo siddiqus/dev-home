@@ -58,6 +58,29 @@ describe("mapAgileIssues — epic name resolution", () => {
   });
 });
 
+describe("mapAgileIssues — issue type", () => {
+  it("carries the issue type name and Jira's icon for it", () => {
+    const [mapped] = mapAgileIssues([
+      {
+        key: "CHD-1",
+        fields: {
+          summary: "broken",
+          status: { name: "To Do", statusCategory: { key: "new" } },
+          issuetype: { name: "Bug", iconUrl: "https://jira.example/bug.svg" },
+        },
+      },
+    ]);
+    expect(mapped.issueType).toEqual({ name: "Bug", iconUrl: "https://jira.example/bug.svg" });
+  });
+
+  it("leaves the issue type null when Jira sends none", () => {
+    const [mapped] = mapAgileIssues([
+      { key: "CHD-2", fields: { summary: "x", status: { name: "To Do" } } },
+    ]);
+    expect(mapped.issueType).toBeNull();
+  });
+});
+
 describe("postTeamDashboard — input validation", () => {
   it("rejects when team is null", async () => {
     await expect(postTeamDashboard({ team: null, members: [] })).rejects.toThrow(ApiError);

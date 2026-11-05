@@ -40,6 +40,19 @@ describe("NeedsAttentionPanel", () => {
     expect(within(row).getByText("4d")).toBeInTheDocument();
   });
 
+  it("shows the issue type icon before a ticket's key", () => {
+    renderPanel();
+    const row = screen.getByText("PLAT-101").closest("button")!;
+    const icon = within(row).getByRole("img", { name: "Story" });
+    expect(icon).toHaveAttribute("src", "https://jira.example/story.svg");
+  });
+
+  it("shows no type icon on a PR row", () => {
+    renderPanel();
+    const row = screen.getByText("web#12").closest("button")!;
+    expect(within(row).queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("opens the item that was clicked", () => {
     const onOpenRef = renderPanel();
     fireEvent.click(screen.getByText("web#12"));

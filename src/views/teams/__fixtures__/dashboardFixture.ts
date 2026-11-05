@@ -54,6 +54,7 @@ export const dashboardFixture: TeamDashboard = {
     {
       key: "PLAT-101",
       summary: "Sprint health strip",
+      issueType: { name: "Story", iconUrl: "https://jira.example/story.svg" },
       status: "In Progress",
       statusCategory: "indeterminate",
       assigneeAccountId: "u1",

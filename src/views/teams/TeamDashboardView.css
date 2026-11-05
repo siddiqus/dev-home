@@ -180,6 +180,10 @@
   color: var(--color-accent);
   white-space: nowrap;
 }
+.cockpit-ref-row__type {
+  margin-right: 6px;
+  vertical-align: -2px;
+}
 .cockpit-ref-row__title {
   overflow: hidden;
   text-overflow: ellipsis;
