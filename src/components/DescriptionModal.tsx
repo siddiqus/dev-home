@@ -18,7 +18,7 @@ import { PrNotesPanel } from "./PrNotesPanel";
 import { PRComments } from "./PRComments";
 import { NewPill, newLabel, totalLabel } from "./CommentCountChip";
 import { SegmentedTabs } from "./SegmentedTabs";
-import { Toast, toastProps, useToast } from "./Toast";
+import { Toast, toastProps, useToast, type ToastState } from "./Toast";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { useBackClose } from "../hooks/useBackClose";
 import { usePRCopyActions } from "../hooks/usePRCopyActions";
@@ -327,16 +327,24 @@ function PhoneTopBar({
  * their reason chips; the rest get the status pill plus any softer reasons
  * (unresolved threads, no reviewer). On a merged PR those flags are stale,
  * matching the row's merged variant which hides them too.
+ *
+ * On a desktop, Copy link sits beside the repo#number link and confirms in the
+ * modal's toast; a phone has it in the top bar instead.
  */
 function PrModalHeader({
   pr,
   jiraBaseUrl,
   url,
+  toast,
+  copyLink,
 }: {
   pr: GitHubPR;
   jiraBaseUrl?: string;
   url?: string;
+  toast: ToastState;
+  copyLink: boolean;
 }) {
+  const { onCopyLink } = usePRCopyActions(toast);
   const ticket = ticketKeyOf(pr);
   const isMerged = !!pr.merged_at;
   const isNeedsAction = !isMerged && categorizeOpenPR(pr) === "needs-action";
@@ -362,6 +370,17 @@ function PrModalHeader({
           <a href={url} target="_blank" rel="noopener noreferrer" title={url}>
             {pr.repo_full_name}#{pr.number}
           </a>
+          {copyLink && url && (
+            <button
+              type="button"
+              className="pr-modal-copy-link"
+              title="Copy PR link"
+              aria-label="Copy PR link"
+              onClick={() => onCopyLink(url)}
+            >
+              <IconCopy size={12} stroke={1.8} aria-hidden="true" />
+            </button>
+          )}
         </span>
         <span className="pr-modal-sep">{"·"}</span>
         <span>{pr.user.login}</span>
@@ -493,15 +512,15 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
   // Fetched on demand, when the Comments tab opens.
   const prComments = usePRComments(pr, !!pr && tab === "comments");
-  // The comments' toast lives here, not in the tab, so an Undo or a refused
-  // resolve still shows after switching tabs.
-  const commentsToast = useToast();
+  // The modal's one toast (comments' Undo, copy link). It lives here, not in the
+  // tab, so an Undo or a refused resolve still shows after switching tabs.
+  const toast = useToast();
   // Closing the modal or opening another PR drops it, so one PR's Undo can't
   // show up (and act) in the next PR's modal.
-  const hideCommentsToast = commentsToast.hide;
+  const hideToast = toast.hide;
   useEffect(() => {
-    hideCommentsToast();
-  }, [openKey, hideCommentsToast]);
+    hideToast();
+  }, [openKey, hideToast]);
   // Only opening the Comments tab counts as a look, and only once its comments
   // have loaded, so a failed load leaves them unread. Once per open.
   const loadedComments = prComments.comments;
@@ -548,7 +567,13 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
     >
       <div style={{ minWidth: 0, flex: 1 }}>
         {pr ? (
-          <PrModalHeader pr={pr} jiraBaseUrl={jiraBaseUrl} url={url} />
+          <PrModalHeader
+            pr={pr}
+            jiraBaseUrl={jiraBaseUrl}
+            url={url}
+            toast={toast}
+            copyLink={!phone}
+          />
         ) : (
           <>
             <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
@@ -620,7 +645,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                   layout="phone"
                   pr={pr}
                   {...prComments}
-                  toast={commentsToast}
+                  toast={toast}
                   readSince={tabState.readSince}
                 />
               </div>
@@ -663,7 +688,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
                       layout="desktop"
                       pr={pr}
                       {...prComments}
-                      toast={commentsToast}
+                      toast={toast}
                       readSince={tabState.readSince}
                     />
                   ) : (
@@ -696,7 +721,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         )}
       </Modal.Body>
 
-      {pr && <Toast {...toastProps(commentsToast)} />}
+      {pr && <Toast {...toastProps(toast)} />}
 
       {!phone && (
         <Modal.Footer>

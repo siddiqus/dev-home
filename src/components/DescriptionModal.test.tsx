@@ -552,6 +552,13 @@ describe("DescriptionModal on a phone", () => {
     expect(onHide).toHaveBeenCalledTimes(1);
   });
 
+  it("shows Copy link only in the top bar, not beside repo#number", () => {
+    const pr = makePR();
+    render(<DescriptionModal {...baseProps} pr={pr} url={pr.html_url} />);
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy PR link" })).toBeNull();
+  });
+
   it("copies the PR link from the top bar", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
@@ -644,6 +651,16 @@ describe("DescriptionModal on a desktop", () => {
     render(<DescriptionModal {...baseProps} pr={makePR()} />);
     expect(screen.getByText("Close")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+  });
+
+  it("copies the PR link from beside repo#number", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const pr = makePR();
+    render(<DescriptionModal {...baseProps} pr={pr} url={pr.html_url} />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy PR link" }));
+    expect(writeText).toHaveBeenCalledWith("https://github.com/o/r/pull/42");
+    expect(await screen.findByText("Copied PR link to clipboard")).toBeInTheDocument();
   });
 });
 

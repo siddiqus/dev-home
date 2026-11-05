@@ -101,8 +101,32 @@
 }
 
 .description-modal .pr-modal-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--font-mono);
   flex-shrink: 0;
+}
+
+/* Copy link beside repo#number: muted icon, accent on hover (as in PR rows). */
+.description-modal .pr-modal-copy-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+  transition: color 120ms ease;
+}
+
+.description-modal .pr-modal-copy-link:hover {
+  color: var(--color-accent);
+}
+
+.description-modal .pr-modal-copy-link:active {
+  transform: scale(0.9);
 }
 
 .description-modal .pr-modal-sep {
