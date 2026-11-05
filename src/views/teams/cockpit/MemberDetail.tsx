@@ -93,10 +93,10 @@ function StatusSquare({ bucket }: { bucket: StatusBucket }) {
 }
 
 /**
- * One ticket: key and title, then its status line (Jira status, last update,
- * every PR with its state). A flagged ticket adds a callout: its level, then
- * each warning sign in words. Only the key (Jira drawer) and PRs (PR modal)
- * open anything; the rest is plain text.
+ * One ticket: key and title, then its status line (Jira status, time in
+ * progress, last update, every PR with its state). A flagged ticket adds a
+ * callout: its level, then each warning sign in words. Only the key (Jira
+ * drawer) and PRs (PR modal) open anything; the rest is plain text.
  */
 function TicketCard({
   issue,
@@ -128,6 +128,9 @@ function TicketCard({
           <StatusSquare bucket={statusBucket(issue)} />
           {issue.status}
         </span>
+        {issue.daysInProgress != null && (
+          <span>in progress {issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}</span>
+        )}
         <span style={issue.flags.stale ? { color: staleTone(issue.daysSinceUpdate) } : undefined}>
           updated {ageLabel(issue.daysSinceUpdate)}
         </span>

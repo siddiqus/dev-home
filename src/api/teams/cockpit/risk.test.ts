@@ -125,6 +125,57 @@ describe("enrichIssue", () => {
     expect(enriched.daysSinceUpdate).toBe(3);
   });
 
+  it("counts days in progress from the move into the In Progress category", () => {
+    const issue: RawIssue = {
+      key: "ABC-123",
+      summary: "test",
+      status: "Code Review",
+      statusCategory: "indeterminate",
+      assigneeAccountId: "user1",
+      assigneeName: "Alice",
+      epicKey: null,
+      epicName: null,
+      createdAt: "2026-06-01T12:00:00Z",
+      statusCategoryChangedAt: "2026-06-23T12:00:00Z", // 9 days ago
+    };
+    const enriched = enrichIssue(issue, [], SPRINT, NOW, DEFAULT_COCKPIT_CONFIG);
+    expect(enriched.inProgressSince).toBe("2026-06-23T12:00:00Z");
+    expect(enriched.daysInProgress).toBe(9);
+  });
+
+  it("has no days in progress for To Do, Done, or a missing date", () => {
+    const base: RawIssue = {
+      key: "ABC-123",
+      summary: "test",
+      status: "To Do",
+      statusCategory: "new",
+      assigneeAccountId: "user1",
+      assigneeName: "Alice",
+      epicKey: null,
+      epicName: null,
+      statusCategoryChangedAt: "2026-06-23T12:00:00Z",
+    };
+    const todo = enrichIssue(base, [], SPRINT, NOW, DEFAULT_COCKPIT_CONFIG);
+    const done = enrichIssue(
+      { ...base, status: "Done", statusCategory: "done" },
+      [],
+      SPRINT,
+      NOW,
+      DEFAULT_COCKPIT_CONFIG,
+    );
+    const missing = enrichIssue(
+      { ...base, statusCategory: "indeterminate", statusCategoryChangedAt: undefined },
+      [],
+      SPRINT,
+      NOW,
+      DEFAULT_COCKPIT_CONFIG,
+    );
+    for (const e of [todo, done, missing]) {
+      expect(e.inProgressSince).toBeNull();
+      expect(e.daysInProgress).toBeNull();
+    }
+  });
+
   it("flags unassigned when assigneeAccountId is null", () => {
     const issue: RawIssue = {
       key: "ABC-123",

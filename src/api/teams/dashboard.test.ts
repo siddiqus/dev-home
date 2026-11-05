@@ -238,6 +238,63 @@ describe("postTeamDashboard — fetching", () => {
     });
   });
 
+  it("asks for when each sprint ticket last changed status category", async () => {
+    let sprintIssueFields = "";
+    httpMock.adapter = vi.fn(async (config: any) => {
+      if (config.url?.includes("graphql")) return ok(config, { data: {} });
+      if (config.url?.endsWith("/sprint")) {
+        return ok(config, { values: sprintValues, isLast: true });
+      }
+      sprintIssueFields = config.params?.fields ?? "";
+      return ok(config, {
+        issues: [
+          {
+            key: "AA-1",
+            fields: {
+              summary: "x",
+              status: { name: "In Progress", statusCategory: { key: "indeterminate" } },
+              statuscategorychangedate: "2026-09-30T05:06:48.567-0400",
+            },
+          },
+        ],
+        total: 1,
+      });
+    }) as any;
+
+    const result = await postTeamDashboard({ team: TEAM, members: MEMBERS });
+
+    expect(sprintIssueFields.split(",")).toContain("statuscategorychangedate");
+    expect(result.issues[0]!.inProgressSince).toBe("2026-09-30T05:06:48.567-0400");
+  });
+
+  it("asks for it on the board-less ticket search too", async () => {
+    let searchBody: any = null;
+    httpMock.adapter = vi.fn(async (config: any) => {
+      if (config.url?.includes("graphql")) return ok(config, { data: {} });
+      searchBody = JSON.parse(config.data);
+      return ok(config, {
+        issues: [
+          {
+            key: "AA-2",
+            fields: {
+              summary: "y",
+              status: { name: "Code Review", statusCategory: { key: "indeterminate" } },
+              statuscategorychangedate: "2026-10-27T04:06:52.519-0400",
+            },
+          },
+        ],
+      });
+    }) as any;
+
+    const result = await postTeamDashboard({
+      team: { ...TEAM, jira_board_id: null },
+      members: MEMBERS,
+    });
+
+    expect(searchBody.fields).toContain("statuscategorychangedate");
+    expect(result.issues[0]!.inProgressSince).toBe("2026-10-27T04:06:52.519-0400");
+  });
+
   it("defaults to the active sprint and honours an explicit sprintId", async () => {
     const active = await postTeamDashboard({ team: TEAM, members: MEMBERS });
     expect(active.sprint.id).toBe(6);

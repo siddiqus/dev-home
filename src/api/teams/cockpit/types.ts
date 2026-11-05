@@ -58,6 +58,9 @@ export interface EnrichedIssue {
   storyPoints: number | null;
   ageDays: number;
   daysSinceUpdate: number;
+  /** When an in-progress issue entered the In Progress category; null otherwise. */
+  inProgressSince?: string | null;
+  daysInProgress?: number | null;
   flags: IssueFlags;
   risk: RiskResult;
 }

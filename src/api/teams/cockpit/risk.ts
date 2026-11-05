@@ -86,6 +86,12 @@ export function enrichIssue(
   const daysSinceUpdate = issue.updatedAt
     ? Math.max(0, Math.floor((now.getTime() - new Date(issue.updatedAt).getTime()) / DAY_MS))
     : 0;
+  // Moves within the In Progress category (e.g. into Code Review) don't reset this.
+  const inProgressSince =
+    issue.statusCategory === "indeterminate" ? (issue.statusCategoryChangedAt ?? null) : null;
+  const daysInProgress = inProgressSince
+    ? Math.max(0, Math.floor((now.getTime() - new Date(inProgressSince).getTime()) / DAY_MS))
+    : null;
 
   // Map linked PRs with waitingReview computation
   const linkedPRs = linkedRawPRs.map((pr) => mapLinkedPR(pr, now, config));
@@ -152,6 +158,8 @@ export function enrichIssue(
     storyPoints: issue.storyPoints ?? null,
     ageDays,
     daysSinceUpdate,
+    inProgressSince,
+    daysInProgress,
     flags,
     risk: { score, level: riskLevelFor(score), reasons },
   };

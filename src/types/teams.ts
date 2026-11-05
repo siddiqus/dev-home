@@ -119,6 +119,12 @@ export interface DashboardIssue {
   storyPoints: number | null;
   ageDays: number;
   daysSinceUpdate: number;
+  /**
+   * When an in-progress issue entered the In Progress category (Code Review
+   * and the like count too); null otherwise. Optional: older cached payloads lack it.
+   */
+  inProgressSince?: string | null;
+  daysInProgress?: number | null;
   flags: IssueFlags;
   risk: RiskResult;
 }

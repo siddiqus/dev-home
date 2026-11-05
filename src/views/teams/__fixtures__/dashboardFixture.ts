@@ -82,6 +82,8 @@ export const dashboardFixture: TeamDashboard = {
       storyPoints: 3,
       ageDays: 5,
       daysSinceUpdate: 4,
+      inProgressSince: "2026-06-23T00:00:00.000Z",
+      daysInProgress: 9,
       flags: {
         unassigned: false,
         noEpic: false,

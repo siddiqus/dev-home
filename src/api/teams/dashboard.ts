@@ -166,6 +166,7 @@ export function mapAgileIssues(rawIssues: any[]): RawIssue[] {
     ...agileEpic(issue.fields),
     createdAt: issue.fields?.created || null,
     updatedAt: issue.fields?.updated || null,
+    statusCategoryChangedAt: issue.fields?.statuscategorychangedate || null,
     dueDate: issue.fields?.duedate || null,
   }));
 }
@@ -187,6 +188,7 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
       epicName: parentIsEpic ? parent.fields?.summary || parent.key : null,
       createdAt: issue.fields?.created || null,
       updatedAt: issue.fields?.updated || null,
+      statusCategoryChangedAt: issue.fields?.statuscategorychangedate || null,
       dueDate: issue.fields?.duedate || null,
     };
   });
@@ -194,7 +196,8 @@ function mapJqlIssues(rawIssues: any[]): RawIssue[] {
 
 /** All issues in a sprint, paging past the Agile API's per-request limit. */
 async function fetchSprintIssues(agile: any, boardId: number, sprintId: number): Promise<any[]> {
-  const fields = "summary,issuetype,status,assignee,epic,parent,created,updated,duedate";
+  const fields =
+    "summary,issuetype,status,assignee,epic,parent,created,updated,statuscategorychangedate,duedate";
   const maxResults = 100;
   const all: any[] = [];
   for (let startAt = 0; all.length < 1000; startAt += maxResults) {
@@ -283,6 +286,7 @@ export async function postTeamDashboard(args: PostTeamDashboardArgs) {
           "parent",
           "created",
           "updated",
+          "statuscategorychangedate",
           "duedate",
         ];
         const raw: any[] = [];

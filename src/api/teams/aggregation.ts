@@ -85,6 +85,8 @@ export interface RawIssue {
   // --- cockpit enrichment (populated by the fetch layer) ---
   createdAt?: string | null;
   updatedAt?: string | null;
+  /** Jira's `statuscategorychangedate`: last move between To Do / In Progress / Done. */
+  statusCategoryChangedAt?: string | null;
   dueDate?: string | null;
   storyPoints?: number | null;
 }

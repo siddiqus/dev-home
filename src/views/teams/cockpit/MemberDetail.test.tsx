@@ -24,6 +24,7 @@ describe("MemberDetail", () => {
     const inProgress = screen.getByRole("region", { name: "In Progress tickets" });
     expect(within(inProgress).getByText("At risk")).toBeInTheDocument();
     expect(within(inProgress).getByText("updated 4d ago")).toBeInTheDocument();
+    expect(within(inProgress).getByText("in progress 9d")).toBeInTheDocument();
     expect(within(inProgress).getByText("No update for 4 days")).toBeInTheDocument();
     expect(within(inProgress).getByText("web#12 is failing CI")).toBeInTheDocument();
     expect(
@@ -56,6 +57,21 @@ describe("MemberDetail", () => {
     expect(within(inProgress).getByText("Sprint health strip")).toBeInTheDocument();
     // Other members' tickets stay out.
     expect(screen.queryByText("Token refresh")).not.toBeInTheDocument();
+  });
+
+  it("shows time in progress only when it's known", () => {
+    // PLAT-201 is done: no in-progress time.
+    render(<MemberDetail member={nadman} issues={dashboardFixture.issues} prs={[]} />);
+    expect(screen.getByText("updated 1d ago")).toBeInTheDocument();
+    expect(screen.queryByText(/in progress \d/)).not.toBeInTheDocument();
+  });
+
+  it("says under a day for a ticket started today", () => {
+    const issues = dashboardFixture.issues.map((i) =>
+      i.key === "PLAT-101" ? { ...i, daysInProgress: 0 } : i,
+    );
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
+    expect(screen.getByText("in progress <1d")).toBeInTheDocument();
   });
 
   it("gives an unflagged ticket no level label", () => {
