@@ -655,51 +655,36 @@
   line-height: 17px;
 }
 
-/* A ticket's PRs hang off it on a tree line; the Other PRs list goes without. */
+/* A ticket's PRs sit in a light inset box inside its card, one line each;
+   their columns still line up from card to card. The Other PRs list, with
+   no ticket above it, goes without the box. */
 .member-prs {
   row-gap: 0;
-  margin-top: 2px;
+  margin-top: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-hover);
 }
 .member-pr {
-  position: relative;
   align-items: center;
-  padding: 1px 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--color-border-subtle);
   font-size: 0.75rem;
 }
-.member-pr::before {
-  position: absolute;
-  top: 0;
-  left: 5px;
-  width: 9px;
-  height: 50%;
-  border-bottom: 1px solid var(--color-border);
-  border-left: 1px solid var(--color-border);
-  border-bottom-left-radius: 4px;
-  content: "";
-}
-.member-pr:not(:last-child)::after {
-  position: absolute;
-  top: 50%;
-  bottom: 0;
-  left: 5px;
-  border-left: 1px solid var(--color-border);
-  content: "";
+.member-pr:first-child {
+  border-top: 0;
 }
 .member-prs--flat {
   margin-top: 0;
-}
-.member-prs--flat .member-pr::before,
-.member-prs--flat .member-pr::after {
-  display: none;
+  padding: 0;
+  border: 0;
+  background: none;
 }
 .member-pr__ref {
   grid-column: ref;
-  padding-left: 18px;
   font-weight: 600;
   white-space: nowrap;
-}
-.member-prs--flat .member-pr__ref {
-  padding-left: 0;
 }
 .member-pr__title {
   grid-column: title;
@@ -740,11 +725,7 @@
   .member-pr__title {
     flex-basis: 100%;
     order: 1;
-    padding-left: 18px;
     color: var(--color-text-secondary);
-  }
-  .member-prs--flat .member-pr__title {
-    padding-left: 0;
   }
   .member-pr__diff {
     display: none;
