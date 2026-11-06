@@ -92,6 +92,9 @@ describe("MemberDetail", () => {
 
     const details = card("Token refresh").querySelector(".member-card__details")!;
     expect(details).toHaveTextContent(/^updated 1d ago\s*due Jul 10$/);
+    // Separate items, so CSS can put a dot between them.
+    const items = Array.from(details.querySelector(".member-card__meta")!.children);
+    expect(items.map((i) => i.textContent)).toEqual(["updated 1d ago", "due Jul 10"]);
   });
 
   it("shows time in progress only when it's known", () => {

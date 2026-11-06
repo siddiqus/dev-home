@@ -171,6 +171,14 @@ function TicketCard({
   const signals = tone ? describeSignals(issue, now) : [];
   // Leave out timing a reason already gives ("No update for 4 days", "Due tomorrow").
   const says = (key: keyof IssueFlags) => signals.some((s) => s.key === key);
+  // Timing and context, dot-separated: "in progress 3d · updated today · added mid-sprint".
+  const meta = [
+    issue.daysInProgress != null &&
+      `in progress ${issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}`,
+    !says("stale") && `updated ${ageLabel(issue.daysSinceUpdate)}`,
+    issue.dueDate && !says("dueSoon") && `due ${dueDate(issue.dueDate)}`,
+    issue.flags.addedAfterStart && "added mid-sprint",
+  ].filter((t): t is string => typeof t === "string");
   return (
     <div className="member-card">
       {/* Key and title as one cell, so the title follows the key instead of
@@ -207,12 +215,13 @@ function TicketCard({
             })}
           </span>
         )}
-        {issue.daysInProgress != null && (
-          <span>in progress {issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}</span>
+        {meta.length > 0 && (
+          <span className="member-card__meta">
+            {meta.map((text) => (
+              <span key={text}>{text}</span>
+            ))}
+          </span>
         )}
-        {!says("stale") && <span>updated {ageLabel(issue.daysSinceUpdate)}</span>}
-        {issue.dueDate && !says("dueSoon") && <span>due {dueDate(issue.dueDate)}</span>}
-        {issue.flags.addedAfterStart && <span>added mid-sprint</span>}
       </div>
       {prs.length > 0 && (
         <div className="member-prs">

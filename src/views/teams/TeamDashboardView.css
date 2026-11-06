@@ -621,6 +621,17 @@
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
+/* Timing and context: one run of text items with a dot between each. */
+.member-card__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+.member-card__meta > * + *::before {
+  margin: 0 6px;
+  color: var(--color-text-muted);
+  content: "·";
+}
 /* A flagged ticket's reasons, tinted by its group: the color sits in one spot
    instead of banding the card. */
 .member-why {
