@@ -11,6 +11,7 @@ export function AppProviders({
   githubUsername,
   onMerged,
   onApproved,
+  onReviewRequested,
   children,
 }: {
   notesApi: NotesApi;
@@ -20,13 +21,19 @@ export function AppProviders({
   onMerged?: () => void;
   /** After an Approve button approves a PR: refresh the reviews. */
   onApproved?: () => void;
+  /** After a Request review button asks for reviews: refresh the open PRs. */
+  onReviewRequested?: () => void;
   children: ReactNode;
 }) {
   return (
     <NotesProvider value={notesApi}>
       <JiraDrawerProvider baseUrl={jiraBaseUrl}>
         <ViewerLoginContext.Provider value={githubUsername ?? ""}>
-          <MergeProvider onMerged={onMerged} onApproved={onApproved}>
+          <MergeProvider
+            onMerged={onMerged}
+            onApproved={onApproved}
+            onReviewRequested={onReviewRequested}
+          >
             {children}
           </MergeProvider>
         </ViewerLoginContext.Provider>

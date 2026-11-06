@@ -4,6 +4,7 @@ import { Avatar } from "../../components/primitives/Avatar";
 import { Badge } from "../../components/primitives/Badge";
 import { CommentCountChip, useCommentCounts } from "../../components/CommentCountChip";
 import { MergeButton } from "../../components/MergeButton";
+import { RequestReviewButton } from "../../components/RequestReviewButton";
 import { Participants } from "../../components/prIndicators";
 import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
 import { compactAge } from "./dates";
@@ -130,9 +131,14 @@ export function DeckPRRow({
                   {s.label}
                 </Badge>
               );
-              // My PR's first chip is its next step; "Ready to merge" becomes the Merge button.
+              // My PR's first chip is its next step: "Ready to merge" becomes the Merge
+              // button, "Request a review" / "Re-request review" the Request review button.
               return i === 0 ? (
-                <MergeButton key={s.label} pr={pr} fallback={chip} />
+                <MergeButton
+                  key={s.label}
+                  pr={pr}
+                  fallback={<RequestReviewButton pr={pr} fallback={chip} />}
+                />
               ) : (
                 <Fragment key={s.label}>{chip}</Fragment>
               );

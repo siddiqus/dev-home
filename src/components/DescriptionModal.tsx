@@ -14,6 +14,7 @@ import type { GitHubPR, PRComments as PRCommentsData } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { ApproveButton } from "./ApproveButton";
 import { MergeButton } from "./MergeButton";
+import { RequestReviewButton } from "./RequestReviewButton";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { PRComments } from "./PRComments";
 import { NewPill, newLabel, totalLabel } from "./CommentCountChip";
@@ -416,11 +417,17 @@ function PrModalHeader({
 
       {(!isMerged || hasLabels) && (
         <div className="pr-modal-indicators">
-          {/* On my own ready PR, "Ready to merge" becomes the Merge button. */}
+          {/* On my own PR, "Ready to merge" becomes the Merge button and
+              "Request a review" / "Re-request review" the Request review button. */}
           {action && (
             <MergeButton
               pr={pr}
-              fallback={<ActionPill label={action.label} tone={action.tone} />}
+              fallback={
+                <RequestReviewButton
+                  pr={pr}
+                  fallback={<ActionPill label={action.label} tone={action.tone} />}
+                />
+              }
             />
           )}
           {!isMerged && !isNeedsAction && !action && <StatusPill pr={pr} />}

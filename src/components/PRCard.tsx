@@ -5,6 +5,7 @@ import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { CommentCountChip, useCommentCounts } from "./CommentCountChip";
 import { MergeButton } from "./MergeButton";
+import { RequestReviewButton } from "./RequestReviewButton";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { prAction } from "../utils/prAction";
 import type { StateBadge } from "../views/workday/prState";
@@ -231,8 +232,18 @@ export function PRCard({
 
       <div className="pr-card-side">
         <div className="pr-card-side-top">
-          {next && <MergeButton pr={pr} fallback={<SignalChip signal={next} />} />}
-          {action && <ActionPill label={action.label} tone={action.tone} />}
+          {next && (
+            <MergeButton
+              pr={pr}
+              fallback={<RequestReviewButton pr={pr} fallback={<SignalChip signal={next} />} />}
+            />
+          )}
+          {action && (
+            <RequestReviewButton
+              pr={pr}
+              fallback={<ActionPill label={action.label} tone={action.tone} />}
+            />
+          )}
           {showStatusPill && <StatusPill pr={pr} />}
           {fields.showChecks && (
             <ChecksStatusIcon

@@ -93,6 +93,8 @@ interface UseDashboardReturn {
   reviewingPRs: GitHubPR[];
   /** Remote sources that have completed a fetch (cache-seeded data doesn't count). */
   loadedSources: ReadonlySet<DataSource>;
+  /** When each source last completed a fetch (ms since epoch). */
+  fetchedAt: ReadonlyMap<DataSource, number>;
   loading: boolean;
   jiraIssuesLoading: boolean;
   jiraCommentsLoading: boolean;
@@ -124,6 +126,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   );
   const [reviewingPRs, setReviewingPRs] = useState<GitHubPR[]>(initial.reviewingPRs);
   const [loadedSources, setLoadedSources] = useState<ReadonlySet<DataSource>>(() => new Set());
+  const [fetchedAt, setFetchedAt] = useState<ReadonlyMap<DataSource, number>>(() => new Map());
   const [loading, setLoading] = useState<boolean>(false);
   const [jiraIssuesLoading, setJiraIssuesLoading] = useState<boolean>(false);
   const [jiraCommentsLoading, setJiraCommentsLoading] = useState<boolean>(false);
@@ -188,6 +191,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
   const markLoaded = useCallback((source: DataSource) => {
     lastFetchedRef.current.set(source, Date.now());
+    setFetchedAt(new Map(lastFetchedRef.current));
     if (loadedRef.current.has(source)) return;
     loadedRef.current.add(source);
     setLoadedSources(new Set(loadedRef.current));
@@ -491,6 +495,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
       inFlightRef.current.clear();
       loadedRef.current.clear();
       lastFetchedRef.current.clear();
+      setFetchedAt(new Map());
       enrichingRef.current.clear();
       errorsRef.current.clear();
       notificationMentionsRef.current = null;
@@ -547,6 +552,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     reviewRequests,
     reviewingPRs,
     loadedSources,
+    fetchedAt,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,

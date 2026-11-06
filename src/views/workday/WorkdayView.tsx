@@ -4,6 +4,7 @@ import Spinner from "react-bootstrap/Spinner";
 import { IconCopy, IconFold, IconFoldDown, IconRefresh, IconSun } from "@tabler/icons-react";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
+import { LastUpdated } from "../../components/LastUpdated";
 import { PRDetailModal } from "../../components/PRDetailModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
@@ -59,6 +60,8 @@ export interface WorkdayViewProps {
   weekendDays: number[];
   refreshKey: number;
   onRefresh: () => void;
+  /** When Workday's data was last fetched (ISO), for "Last updated 5m ago" beside Refresh. */
+  updatedAt?: string;
   notes: Note[];
   /** useNotes().loaded — today's standup note is only created once Notes have loaded. */
   notesLoaded: boolean;
@@ -1117,6 +1120,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                     </Button>
                   </>
                 )}
+                <LastUpdated at={props.updatedAt} updating={loading && hasLoadedOnce} />
                 {/* The spinner takes the icon's place, so nothing in the row moves. */}
                 <Button variant="outline-secondary" size="sm" onClick={onRefresh}>
                   {loading && hasLoadedOnce ? (

@@ -2,9 +2,10 @@ import React, { useCallback, useContext, useMemo, useRef, useState, type ReactNo
 import type { GitHubPR } from "../types";
 import type { MergeMethod, MergeOptions } from "../api/github";
 import { toApiError } from "../api/http/errors";
-import { approvePR, fetchMergeOptions, mergePR } from "../services/github";
+import { approvePR, fetchMergeOptions, mergePR, requestPRReviewers } from "../services/github";
 import { Toast, useToast } from "../components/Toast";
-import { readyToMerge } from "../utils/prAction";
+import { RequestReviewModal, type PickedReviewer } from "../components/RequestReviewModal";
+import { readyToMerge, reviewStep, type ReviewStep } from "../utils/prAction";
 import { repoRef } from "../views/workday/prState";
 import { ViewerLoginContext } from "./ViewerLoginContext";
 
@@ -21,6 +22,13 @@ interface MergeApi {
   approved: ReadonlySet<string>;
   /** Approve a PR, toasting the outcome; true once GitHub took it. */
   approve(pr: GitHubPR): Promise<boolean>;
+  /**
+   * PRs with reviews requested from here this session: URL → the PR's
+   * `updated_at` then, so "Requested" only shows until fresh data arrives.
+   */
+  reviewRequested: ReadonlyMap<string, string>;
+  /** Opens the reviewer picker for one of my PRs. */
+  openReviewRequest(pr: GitHubPR): void;
 }
 
 export const MergeContext = React.createContext<MergeApi | null>(null);
@@ -34,37 +42,54 @@ function failureReason(err: unknown): string {
   return toApiError(err).message;
 }
 
-/** Why GitHub refused a review, except a token without the permission gets pointed at Settings. */
-function approveFailureReason(err: unknown): string {
+/** Why GitHub refused a review write, except a token without the permission gets pointed at Settings. */
+function reviewFailureReason(err: unknown, cant: string): string {
   const apiError = toApiError(err);
   if (apiError.status === 403 && /not accessible/i.test(apiError.message))
-    return "your GitHub token can't review here. It needs Pull requests: write (see Settings)";
+    return `your GitHub token can't ${cant} here. It needs Pull requests: write (see Settings)`;
   return apiError.message;
 }
 
+/** "abu", "abu and Frontend", "abu, rkhan and Frontend", "abu, rkhan and 2 others". */
+export function nameList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length <= 3) return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} others`;
+}
+
 /**
- * GitHub writes for every Merge and Approve button: one session record of what
- * was merged or approved (so a button that re-renders before the refresh can't
- * do it twice), one bottom toast, and a refresh after each success: `onMerged`
- * (the open PRs) or `onApproved` (the reviews).
+ * GitHub writes for every Merge, Approve and Request review button: one session
+ * record of what was done (so a button that re-renders before the refresh can't
+ * do it twice), one bottom toast, one reviewer picker, and a refresh after each
+ * success: `onMerged` (the open PRs), `onApproved` (the reviews) or
+ * `onReviewRequested` (the open PRs).
  */
 export function MergeProvider({
   onMerged,
   onApproved,
+  onReviewRequested,
   children,
 }: {
   onMerged?: () => void;
   onApproved?: () => void;
+  onReviewRequested?: () => void;
   children: ReactNode;
 }) {
   const [done, setDone] = useState<ReadonlyMap<string, MergeOutcome>>(() => new Map());
   const [approved, setApproved] = useState<ReadonlySet<string>>(() => new Set());
+  const [reviewRequested, setReviewRequested] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
+  // The PR the reviewer picker is for; `seq` remounts the picker per open, so it starts fresh.
+  const [picker, setPicker] = useState<{ pr: GitHubPR; open: boolean; seq: number } | null>(null);
   const toast = useToast(3000);
   const { show } = toast;
   const onMergedRef = useRef(onMerged);
   onMergedRef.current = onMerged;
   const onApprovedRef = useRef(onApproved);
   onApprovedRef.current = onApproved;
+  const onReviewRequestedRef = useRef(onReviewRequested);
+  onReviewRequestedRef.current = onReviewRequested;
 
   const fail = useCallback(
     (pr: GitHubPR, err: unknown) =>
@@ -108,7 +133,7 @@ export function MergeProvider({
       try {
         await approvePR(pr);
       } catch (err) {
-        show(`Couldn't approve ${repoRef(pr)}: ${approveFailureReason(err)}`, {
+        show(`Couldn't approve ${repoRef(pr)}: ${reviewFailureReason(err, "review")}`, {
           tone: "danger",
           durationMs: 6000,
         });
@@ -122,13 +147,49 @@ export function MergeProvider({
     [show],
   );
 
+  const requestReview = useCallback(
+    async (pr: GitHubPR, picked: PickedReviewer[]) => {
+      const ids = (kind: PickedReviewer["kind"]) =>
+        picked.filter((p) => p.kind === kind).map((p) => p.id);
+      try {
+        await requestPRReviewers(pr, { users: ids("user"), teams: ids("team") });
+      } catch (err) {
+        // The picker stays open and says why: a toast behind a modal is hidden from screen readers.
+        return reviewFailureReason(err, "request reviews");
+      }
+      setReviewRequested((prev) => new Map(prev).set(pr.html_url, pr.updated_at));
+      show(`Requested a review from ${nameList(picked.map((p) => p.label))} on ${repoRef(pr)}`);
+      onReviewRequestedRef.current?.();
+      return null;
+    },
+    [show],
+  );
+
+  const openReviewRequest = useCallback(
+    (pr: GitHubPR) => setPicker((prev) => ({ pr, open: true, seq: (prev?.seq ?? 0) + 1 })),
+    [],
+  );
+  const closeReviewRequest = useCallback(
+    () => setPicker((prev) => prev && { ...prev, open: false }),
+    [],
+  );
+
   const api = useMemo(
-    () => ({ done, prepare, merge, approved, approve }),
-    [done, prepare, merge, approved, approve],
+    () => ({ done, prepare, merge, approved, approve, reviewRequested, openReviewRequest }),
+    [done, prepare, merge, approved, approve, reviewRequested, openReviewRequest],
   );
   return (
     <MergeContext.Provider value={api}>
       {children}
+      {picker && (
+        <RequestReviewModal
+          key={picker.seq}
+          pr={picker.pr}
+          show={picker.open}
+          onHide={closeReviewRequest}
+          onSubmit={(picked) => requestReview(picker.pr, picked)}
+        />
+      )}
       <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
     </MergeContext.Provider>
   );
@@ -165,4 +226,17 @@ export function useCanApprove(pr: GitHubPR): boolean {
     !pr.draft &&
     pr.viewer_review_state !== "APPROVED"
   );
+}
+
+/**
+ * Whether my PR's next step is asking for a review, so its chip becomes the
+ * Request review button: "request" (nobody asked yet) or "rerequest" (reviewed
+ * and nobody asked now). Null otherwise, and outside a MergeProvider.
+ */
+export function useReviewStep(pr: GitHubPR): ReviewStep | null {
+  const api = useContext(MergeContext);
+  const viewer = useContext(ViewerLoginContext);
+  if (!api || !viewer || pr.user.login.toLowerCase() !== viewer.toLowerCase()) return null;
+  if (pr.state !== "open" || pr.merged_at) return null;
+  return reviewStep(pr);
 }

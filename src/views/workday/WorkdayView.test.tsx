@@ -206,6 +206,19 @@ describe("WorkdayView", () => {
     expect(screen.queryByLabelText("Refreshing")).toBeNull();
   });
 
+  it("says when the data was last fetched beside Refresh, and Updating… during a refresh", () => {
+    const { rerender } = renderView();
+    // No fetch has finished yet: nothing to quote.
+    expect(screen.queryByText(/Last updated/)).toBeNull();
+
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    rerender({ updatedAt: fiveMinAgo });
+    expect(screen.getByText("Last updated 5m ago")).toBeTruthy();
+
+    rerender({ updatedAt: fiveMinAgo, loading: true });
+    expect(screen.getByText("Updating…")).toBeTruthy();
+  });
+
   it("passes needsDone: false in Focus and List, needsDone: true in Standup", () => {
     renderView();
     // Focus mode: needsDone should be false

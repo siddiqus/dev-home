@@ -11,6 +11,7 @@ import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
 import { MergeButton } from "../../components/MergeButton";
+import { RequestReviewButton } from "../../components/RequestReviewButton";
 import { Participants } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
 import { blurOnPointer } from "./pointer";
@@ -368,7 +369,12 @@ export function WorkdayItemRow({
         </div>
       </div>
       <div className="workday-item-side">
-        {badgeEl && (pr ? <MergeButton pr={pr} fallback={badgeEl} /> : badgeEl)}
+        {badgeEl &&
+          (pr ? (
+            <MergeButton pr={pr} fallback={<RequestReviewButton pr={pr} fallback={badgeEl} />} />
+          ) : (
+            badgeEl
+          ))}
         <span className="workday-item-time">{time}</span>
       </div>
     </div>

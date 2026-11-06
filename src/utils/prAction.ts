@@ -104,6 +104,17 @@ export function authorAction(pr: GitHubPR): PRAction {
   return { key: "waiting", label: "Waiting for review", tone: "neutral", rank: 10 };
 }
 
+/** Asking for a review: nobody has been asked yet, or a review came back and nobody is asked now. */
+export type ReviewStep = "request" | "rerequest";
+
+/** Whether my PR's next step (authorAction) is asking for a review, and which kind. */
+export function reviewStep(pr: GitHubPR): ReviewStep | null {
+  const { key } = authorAction(pr);
+  if (key === "no_reviewer") return "request";
+  if (key === "reviewed") return "rerequest";
+  return null;
+}
+
 /**
  * The next step on a PR I review. `requested`: my review is currently requested.
  * "New commits since your review" only counts after a non-approving review.

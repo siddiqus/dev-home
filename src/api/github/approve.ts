@@ -1,8 +1,8 @@
 import { ApiError } from "../http/errors";
 import { githubRest } from "../http/github";
 
-/** GitHub's reason for refusing a review: its `errors` (e.g. "Can not approve your own pull request"), else its message. */
-function refusal(body: any): string {
+/** GitHub's reason for refusing a write: its `errors` (e.g. "Can not approve your own pull request"), else its message. */
+export function refusal(body: any): string {
   const errors: unknown[] = Array.isArray(body?.errors) ? body.errors : [];
   const reasons = errors
     .map((e) => (typeof e === "string" ? e : (e as { message?: string })?.message))

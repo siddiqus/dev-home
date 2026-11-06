@@ -9,12 +9,14 @@ import {
   getOrgMembers,
   getOrgPrs,
   getOrgRepos,
+  getOrgTeams,
   getPrBody,
   getPrComments,
   getPrDetail,
   getPrs,
   getReviews,
   mergePr,
+  requestReviewers,
   setReviewThreadResolved,
   type MergeMethod,
   type MergeOptions,
@@ -180,6 +182,19 @@ export async function fetchOrgMembers(opts: { force?: boolean } = {}): Promise<O
   });
 }
 
+export interface OrgTeam {
+  slug: string;
+  name: string;
+}
+
+/** Org teams for the review picker (paged REST, so cached like members). */
+export async function fetchOrgTeams(opts: { force?: boolean } = {}): Promise<OrgTeam[]> {
+  return cached("org-teams", ORG_LIST_TTL_MS, !!opts.force, async () => {
+    const data = await getOrgTeams();
+    return data.teams;
+  });
+}
+
 export interface OrgRepo {
   full_name: string;
   name: string;
@@ -300,4 +315,19 @@ export async function mergePR(
 export async function approvePR(pr: GitHubPR): Promise<void> {
   const [owner, repo] = pr.repo_full_name.split("/");
   await approvePr({ owner, repo, number: pr.number, commitId: pr.head.sha });
+}
+
+/** Request (or re-request) reviews on a PR from people (logins) and teams (slugs). */
+export async function requestPRReviewers(
+  pr: GitHubPR,
+  reviewers: { users: string[]; teams: string[] },
+): Promise<void> {
+  const [owner, repo] = pr.repo_full_name.split("/");
+  await requestReviewers({
+    owner,
+    repo,
+    number: pr.number,
+    reviewers: reviewers.users,
+    teamReviewers: reviewers.teams,
+  });
 }

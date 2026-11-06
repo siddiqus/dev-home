@@ -218,6 +218,7 @@ export default function App() {
     reviewRequests,
     reviewingPRs,
     loadedSources,
+    fetchedAt,
     loading,
     jiraIssuesLoading,
     jiraCommentsLoading,
@@ -229,6 +230,14 @@ export default function App() {
     refresh,
     refreshKey,
   } = useDashboard(configured);
+  // Workday's "Last updated": its least recently fetched source, so the label
+  // never claims fresher data than is on screen. A source that never fetched is skipped.
+  const workdayUpdatedAt = useMemo(() => {
+    const times = PAGE_REFRESH.workday.sources
+      .map((s) => fetchedAt.get(s))
+      .filter((t): t is number => t !== undefined);
+    return times.length > 0 ? new Date(Math.min(...times)).toISOString() : undefined;
+  }, [fetchedAt]);
   const notesApi = useNotes(configured);
   const {
     notes,
@@ -468,6 +477,7 @@ export default function App() {
       githubUsername={githubUsername}
       onMerged={refreshOpenPRs}
       onApproved={refreshReviews}
+      onReviewRequested={refreshOpenPRs}
     >
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">
@@ -793,6 +803,7 @@ export default function App() {
                         weekendDays={weekendDays}
                         refreshKey={refreshKey}
                         onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
+                        updatedAt={workdayUpdatedAt}
                         notes={notes}
                         notesLoaded={notesLoaded}
                         addNote={addNote}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubPR } from "../types";
-import { authorAction, prAction, restatedReasons, reviewerAction } from "./prAction";
+import { authorAction, prAction, restatedReasons, reviewerAction, reviewStep } from "./prAction";
 
 function pr(o: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -103,5 +103,24 @@ describe("restatedReasons", () => {
       restatedReasons(authorAction(pr({ review_status: "REVIEWED", your_turn: true }))),
     ).toEqual(["your_turn", "reviewed", "unresolved"]);
     expect(restatedReasons(null)).toEqual([]);
+  });
+});
+
+describe("reviewStep", () => {
+  it("is a request when nobody has been asked and nobody reviewed", () => {
+    expect(reviewStep(pr({ checks_status: "SUCCESS" }))).toBe("request");
+  });
+
+  it("is a re-request when a review came back and nobody is asked now", () => {
+    expect(reviewStep(pr({ review_status: "REVIEWED", checks_status: "SUCCESS" }))).toBe(
+      "rerequest",
+    );
+  });
+
+  it("is nothing while someone is asked, or a blocker comes first", () => {
+    expect(reviewStep(pr({ requested_reviewers: ["abu"] }))).toBeNull();
+    expect(reviewStep(pr({ checks_status: "FAILURE" }))).toBeNull();
+    expect(reviewStep(pr({ draft: true }))).toBeNull();
+    expect(reviewStep(pr({ review_status: "REVIEWED", your_turn: true }))).toBeNull();
   });
 });
