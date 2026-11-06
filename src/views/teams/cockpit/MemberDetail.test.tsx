@@ -39,17 +39,19 @@ describe("MemberDetail", () => {
     const flagged = card("Sprint health strip");
     expect(flagged).not.toHaveTextContent("At risk");
     expect(within(flagged).getByText("No update for 4 days")).toBeInTheDocument();
-    expect(within(flagged).getByText("web#12 is failing CI")).toBeInTheDocument();
+    // Failing CI isn't a reason: the PR's own line says it.
+    expect(flagged.querySelector(".member-why")).not.toHaveTextContent("failing CI");
     expect(
       within(flagged).getByText(/^web#12 has waited \d+ days for a first review$/),
     ).toBeInTheDocument();
   });
 
-  it("labels a ticket added mid-sprint instead of warning about it", () => {
+  it("says a ticket was added mid-sprint in plain text, not as a warning", () => {
     render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
     const flagged = card("Sprint health strip");
-    expect(within(flagged).getByText("added mid-sprint")).toHaveClass("member-label");
+    const details = flagged.querySelector(".member-card__details")!;
+    expect(within(details as HTMLElement).getByText("added mid-sprint").className).toBe("");
     expect(flagged).not.toHaveTextContent("Added after the sprint started");
   });
 

@@ -88,15 +88,15 @@ describe("describeSignals", () => {
     expect(signals).toEqual([{ key: "stale", tone: "warning", text: "No update for 4 days" }]);
   });
 
-  it("names the PR that is failing CI", () => {
+  it("leaves failing CI out: the PR's own line says it", () => {
     const signals = describeSignals(
       issue({
-        linkedPRs: [pr({ number: 7 }), pr({ number: 12, checks_status: "FAILURE" })],
+        linkedPRs: [pr({ number: 12, checks_status: "FAILURE" })],
         flags: { ...NO_FLAGS, prFailingCI: true },
       }),
       NOW,
     );
-    expect(signals).toEqual([{ key: "prFailingCI", tone: "danger", text: "web#12 is failing CI" }]);
+    expect(signals).toEqual([]);
   });
 
   it("says how long the PR has waited for a first review", () => {
@@ -172,7 +172,7 @@ describe("describeSignals", () => {
       }),
       NOW,
     );
-    expect(signals.map((s) => s.key)).toEqual(["prFailingCI", "stale", "dueSoon"]);
+    expect(signals.map((s) => s.key)).toEqual(["stale", "dueSoon"]);
   });
 });
 

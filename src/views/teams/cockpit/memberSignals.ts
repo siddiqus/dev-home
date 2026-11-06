@@ -68,22 +68,15 @@ function dueText(dueDate: string | null, now: Date): string {
 
 /**
  * The flags that count toward a ticket's risk level, in display order: blocking
- * first, context last. noEpic and addedAfterStart are deliberately absent:
- * neither is a risk, and a ticket added mid-sprint gets a label instead.
+ * first, context last. noEpic, addedAfterStart and prFailingCI are deliberately
+ * absent: none is a risk. A ticket added mid-sprint says so on its card, and a
+ * failing PR says "failing CI" on its own line.
  */
 const SIGNALS: {
   key: keyof IssueFlags;
   tone: SignalTone;
   text: (issue: DashboardIssue, now: Date) => string;
 }[] = [
-  {
-    key: "prFailingCI",
-    tone: "danger",
-    text: (i) => {
-      const pr = i.linkedPRs.find((p) => p.checks_status === "FAILURE");
-      return pr ? `${prLabel(pr)} is failing CI` : "A linked PR is failing CI";
-    },
-  },
   { key: "stale", tone: "warning", text: (i) => `No update for ${days(i.daysSinceUpdate)}` },
   {
     key: "prWaitingReview",

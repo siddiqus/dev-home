@@ -22,12 +22,13 @@ export const DEFAULT_COCKPIT_CONFIG: CockpitConfig = {
 
 /**
  * Risk weights (blocked intentionally omitted for v1; stalled is the heavy term).
- * noEpic and addedAfterStart are not risks: noEpic stays a flag for Delivery
- * Hygiene, and a ticket added mid-sprint shows as a label on its card.
+ * noEpic, addedAfterStart and prFailingCI are not risks: noEpic stays a flag for
+ * Delivery Hygiene, a ticket added mid-sprint says so on its card, and a failing
+ * PR shows "failing CI" on its own line (red CI is the author's to fix, not a
+ * sign the ticket is in trouble).
  */
 export const RISK_WEIGHTS = {
   stale: 3,
-  prFailingCI: 2,
   prWaitingReview: 2,
   unassigned: 1,
   inProgressNoPR: 1,

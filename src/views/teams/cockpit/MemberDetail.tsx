@@ -2,8 +2,6 @@ import type { ReactNode } from "react";
 import {
   IconAlertTriangle,
   IconCalendar,
-  IconCirclePlus,
-  IconCircleX,
   IconClock,
   IconGitPullRequest,
   IconHourglass,
@@ -45,7 +43,6 @@ interface Props {
 type OpenRef = ((ref: Ref) => void) | undefined;
 
 const SIGNAL_ICONS: Partial<Record<keyof IssueFlags, Icon>> = {
-  prFailingCI: IconCircleX,
   stale: IconHourglass,
   prWaitingReview: IconClock,
   dueSoon: IconCalendar,
@@ -215,12 +212,7 @@ function TicketCard({
         )}
         {!says("stale") && <span>updated {ageLabel(issue.daysSinceUpdate)}</span>}
         {issue.dueDate && !says("dueSoon") && <span>due {dueDate(issue.dueDate)}</span>}
-        {issue.flags.addedAfterStart && (
-          <span className="member-label">
-            <IconCirclePlus size={12} />
-            added mid-sprint
-          </span>
-        )}
+        {issue.flags.addedAfterStart && <span>added mid-sprint</span>}
       </div>
       {prs.length > 0 && (
         <div className="member-prs">

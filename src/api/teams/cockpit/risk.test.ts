@@ -565,7 +565,7 @@ describe("enrichIssue", () => {
     expect(enriched.risk.reasons).toEqual([]);
   });
 
-  it("computes high-risk stale issue with failing CI and waiting review", () => {
+  it("scores a stale issue waiting for review, but not its failing CI", () => {
     const issue: RawIssue = {
       key: "ABC-123",
       summary: "test",
@@ -584,19 +584,18 @@ describe("enrichIssue", () => {
         repo_full_name: "org/repo",
         html_url: "https://github.com/org/repo/pull/1",
         state: "open",
-        checks_status: "FAILURE", // +2
+        checks_status: "FAILURE", // flagged, but not a risk
         author: "alice",
         created_at: "2026-07-01T10:00:00Z", // 26 hours ago -> waiting review +2
         first_review_at: null,
       },
     ];
-    // stale (3) + prFailingCI (2) + prWaitingReview (2) = 7 -> high
+    // stale (3) + prWaitingReview (2) = 5 -> high; failing CI adds nothing.
     const enriched = enrichIssue(issue, prs, null, NOW, DEFAULT_COCKPIT_CONFIG);
-    expect(enriched.risk.score).toBe(7);
+    expect(enriched.flags.prFailingCI).toBe(true);
+    expect(enriched.risk.score).toBe(5);
     expect(enriched.risk.level).toBe("high");
-    expect(enriched.risk.reasons).toContain("stale");
-    expect(enriched.risk.reasons).toContain("prFailingCI");
-    expect(enriched.risk.reasons).toContain("prWaitingReview");
+    expect(enriched.risk.reasons).toEqual(["stale", "prWaitingReview"]);
   });
 
   it("assigns attention level for score 3-4", () => {
