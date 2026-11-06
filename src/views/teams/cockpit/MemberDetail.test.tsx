@@ -50,6 +50,16 @@ describe("MemberDetail", () => {
     expect(callout("Token refresh")).toBeNull();
   });
 
+  it("lays a ticket out as key and status, then title, then timing and PRs", () => {
+    render(<MemberDetail member={tashfia} issues={dashboardFixture.issues} prs={[]} />);
+
+    const card = screen.getByText("Sprint health strip").closest(".member-ticket")!;
+    const [top, title, meta] = Array.from(card.children);
+    expect(top).toHaveTextContent(/^PLAT-101\s*In Progress$/);
+    expect(title).toHaveTextContent(/^Sprint health strip$/);
+    expect(meta).toHaveTextContent(/^in progress 9d\s*updated 4d ago.*web#12 failing CI/);
+  });
+
   it("lists every ticket of the member grouped by status", () => {
     render(<MemberDetail member={tashfia} issues={dashboardFixture.issues} prs={[]} />);
 
@@ -140,17 +150,20 @@ describe("MemberDetail", () => {
     // Other members' PRs stay out.
     expect(within(list).queryByText("hotfix: logging")).not.toBeInTheDocument();
 
-    const row = (title: string) => within(list).getByText(title).closest(".member-ticket")!;
+    // Each card: state icon, link and lines changed; then the title; then the dates.
+    const row = (title: string) =>
+      within(list).getByText(title).closest<HTMLElement>(".member-ticket")!;
     const open = row("PLAT-101 health strip");
-    expect(open).toHaveTextContent("open");
-    expect(open).toHaveTextContent("+12−3");
-    expect(open).toHaveTextContent("opened Jun 30");
-    expect(open).not.toHaveTextContent("merged");
+    const [openTop, openTitle, openMeta] = Array.from(open.children);
+    expect(within(open).getByRole("img", { name: "open" })).toBeInTheDocument();
+    expect(openTop).toHaveTextContent(/^web#12\s*\+12−3$/);
+    expect(openTitle).toHaveTextContent(/^PLAT-101 health strip$/);
+    expect(openMeta).toHaveTextContent(/^opened Jun 30$/);
 
     const merged = row("PLAT-201 rotate refresh tokens");
-    expect(merged).toHaveTextContent("+120−30");
-    expect(merged).toHaveTextContent("opened Jun 24");
-    expect(merged).toHaveTextContent("merged Jun 27 by nadman");
+    expect(within(merged).getByRole("img", { name: "merged" })).toBeInTheDocument();
+    expect(merged.children[0]).toHaveTextContent(/^api#40\s*\+120−30$/);
+    expect(merged.children[2]).toHaveTextContent(/^opened Jun 24\s*merged Jun 27 by nadman$/);
   });
 
   it("calls a PR closed without merging closed", () => {
@@ -163,7 +176,7 @@ describe("MemberDetail", () => {
       />,
     );
     const list = screen.getByRole("region", { name: "PRs" });
-    expect(within(list).getByText("closed")).toBeInTheDocument();
+    expect(within(list).getByRole("img", { name: "closed" })).toBeInTheDocument();
     expect(list).not.toHaveTextContent("+");
   });
 

@@ -93,10 +93,10 @@ function StatusSquare({ bucket }: { bucket: StatusBucket }) {
 }
 
 /**
- * One ticket: key and title, then its status line (Jira status, time in
- * progress, last update, every PR with its state). A flagged ticket adds a
- * callout: its level, then each warning sign in words. Only the key (Jira
- * drawer) and PRs (PR modal) open anything; the rest is plain text.
+ * One ticket: key, with its Jira status on the right; the title; then time in
+ * progress, last update, and every PR with its state. A flagged ticket
+ * adds a callout: its level, then each warning sign in words. Only the key
+ * (Jira drawer) and PRs (PR modal) open anything; the rest is plain text.
  */
 function TicketCard({
   issue,
@@ -119,15 +119,17 @@ function TicketCard({
         >
           {issue.key}
         </button>
-        <span className="member-ticket__title" title={issue.summary}>
-          {issue.summary}
+        <span className="member-ticket__aside">
+          <span className="member-status">
+            <StatusSquare bucket={statusBucket(issue)} />
+            {issue.status}
+          </span>
         </span>
       </div>
+      <div className="member-ticket__title" title={issue.summary}>
+        {issue.summary}
+      </div>
       <div className="member-ticket__meta">
-        <span className="member-status">
-          <StatusSquare bucket={statusBucket(issue)} />
-          {issue.status}
-        </span>
         {issue.daysInProgress != null && (
           <span>in progress {issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}</span>
         )}
@@ -180,8 +182,9 @@ const PR_STATES: Record<string, { tone: string; icon: Icon }> = {
 };
 
 /**
- * One PR: link and title, then its state, lines changed, and when it was
- * opened and merged (and by whom). Only the link opens anything.
+ * One PR: its state as an icon, the link, and lines changed on the right; the
+ * title; then when it was opened and merged (and by whom). Only the link
+ * opens anything.
  */
 function MemberPRCard({ pr, onOpenRef }: { pr: AuthoredPR; onOpenRef?: (ref: Ref) => void }) {
   const ref = { kind: "pr" as const, repo: pr.repo_full_name, number: pr.number };
@@ -191,6 +194,14 @@ function MemberPRCard({ pr, onOpenRef }: { pr: AuthoredPR; onOpenRef?: (ref: Ref
   return (
     <div className="member-ticket">
       <div className="member-ticket__top">
+        <span
+          className={`member-ticket__state member-tone--${tone}`}
+          role="img"
+          aria-label={pr.state}
+          title={pr.state}
+        >
+          <StateIcon size={14} />
+        </span>
         <button
           type="button"
           className="member-link member-ticket__key"
@@ -198,24 +209,24 @@ function MemberPRCard({ pr, onOpenRef }: { pr: AuthoredPR; onOpenRef?: (ref: Ref
         >
           {refLabel(ref)}
         </button>
-        <span className="member-ticket__title" title={pr.title}>
-          {pr.title}
+        <span className="member-ticket__aside">
+          <DiffStat pr={pr} />
         </span>
       </div>
-      <div className="member-ticket__meta">
-        <span className={`member-pr member-tone--${tone}`}>
-          <StateIcon size={13} />
-          {pr.state}
-        </span>
-        <DiffStat pr={pr} />
-        {opened && <span>opened {opened}</span>}
-        {merged && (
-          <span>
-            merged {merged}
-            {pr.mergedBy && ` by ${pr.mergedBy}`}
-          </span>
-        )}
+      <div className="member-ticket__title" title={pr.title}>
+        {pr.title}
       </div>
+      {(opened || merged) && (
+        <div className="member-ticket__meta">
+          {opened && <span>opened {opened}</span>}
+          {merged && (
+            <span>
+              merged {merged}
+              {pr.mergedBy && ` by ${pr.mergedBy}`}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -564,8 +564,9 @@
   outline-offset: 1px;
 }
 
-/* Every ticket, grouped by status. Each one: key · title, its status line,
-   then (flagged) a callout with its level and warning signs. */
+/* Every ticket, grouped by status. Each one: key with its Jira status on the
+   right, the title, its timing and PRs, then (flagged) a callout with its
+   level and warning signs. PR cards follow the same three lines. */
 .member-group {
   margin-top: var(--space-3);
 }
@@ -590,8 +591,9 @@
 }
 .member-ticket__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 2px 6px;
   min-width: 0;
 }
 .member-ticket__key {
@@ -600,8 +602,23 @@
   font-weight: 600;
   white-space: nowrap;
 }
+/* A PR's state, as its icon, ahead of the link. */
+.member-ticket__state {
+  display: inline-flex;
+  align-self: center;
+}
+/* Jira status (tickets) or lines changed (PRs), pushed to the right of the key. */
+.member-ticket__aside {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-left: auto;
+  padding-left: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
 .member-ticket__title {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
