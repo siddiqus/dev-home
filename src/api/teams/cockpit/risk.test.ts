@@ -617,7 +617,7 @@ describe("enrichIssue", () => {
     expect(enriched.risk.level).toBe("attention");
   });
 
-  it("includes human-readable reasons for each flag", () => {
+  it("flags a ticket added mid-sprint without counting it toward risk", () => {
     const issue: RawIssue = {
       key: "ABC-123",
       summary: "test",
@@ -627,14 +627,44 @@ describe("enrichIssue", () => {
       assigneeName: "Alice",
       epicKey: "ABC-100",
       epicName: "Epic",
-      createdAt: "2026-06-26T00:00:01Z", // after sprint start +1
+      createdAt: "2026-06-26T00:00:01Z", // after sprint start: a label, not a risk
     };
     const enriched = enrichIssue(issue, [], SPRINT, NOW, DEFAULT_COCKPIT_CONFIG);
     expect(enriched.flags.addedAfterStart).toBe(true);
     expect(enriched.flags.inProgressNoPR).toBe(true);
-    expect(enriched.risk.score).toBe(2);
-    expect(enriched.risk.reasons).toContain("addedAfterStart");
-    expect(enriched.risk.reasons).toContain("inProgressNoPR");
+    expect(enriched.risk.score).toBe(1);
+    expect(enriched.risk.reasons).toEqual(["inProgressNoPR"]);
+  });
+
+  it("carries who merged a linked PR and its lines changed", () => {
+    const issue: RawIssue = {
+      key: "ABC-123",
+      summary: "test",
+      status: "Done",
+      statusCategory: "done",
+      assigneeAccountId: "user1",
+      assigneeName: "Alice",
+      epicKey: "ABC-100",
+      epicName: "Epic",
+    };
+    const prs: RawPR[] = [
+      {
+        number: 1,
+        title: "ABC-123 fix",
+        repo_full_name: "org/repo",
+        html_url: "https://github.com/org/repo/pull/1",
+        state: "merged",
+        checks_status: null,
+        author: "alice",
+        created_at: "2026-06-30T10:00:00Z",
+        merged_at: "2026-07-01T10:00:00Z",
+        merged_by: "bob",
+        additions: 40,
+        deletions: 7,
+      },
+    ];
+    const [linked] = enrichIssue(issue, prs, null, NOW, DEFAULT_COCKPIT_CONFIG).linkedPRs;
+    expect(linked).toMatchObject({ mergedBy: "bob", additions: 40, deletions: 7 });
   });
 
   it("handles multiple PRs with mixed states", () => {

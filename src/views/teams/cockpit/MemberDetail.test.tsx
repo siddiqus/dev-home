@@ -2,202 +2,191 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { MemberDetail } from "./MemberDetail";
 import dashboardFixture from "../__fixtures__/dashboardFixture";
+import type { DashboardIssue } from "../../../types/teams";
 
 const tashfia = dashboardFixture.workload.find((w) => w.accountId === "u1")!;
 const nadman = dashboardFixture.workload.find((w) => w.accountId === "u2")!;
+const { issues, authoredPRs } = dashboardFixture;
+const plat201 = issues.find((i) => i.key === "PLAT-201")!;
+
+const card = (text: string) => screen.getByText(text).closest<HTMLElement>(".member-card")!;
+const prRow = (title: string) => screen.getByText(title).closest<HTMLElement>(".member-pr")!;
+
+/** A plain done ticket of Nadman's, varied by `over`. */
+function doneTicket(over: Partial<DashboardIssue>): DashboardIssue {
+  return { ...plat201, ...over };
+}
 
 describe("MemberDetail", () => {
-  it("shows stat chips, ticket titles and plain-language signals", () => {
-    render(<MemberDetail member={tashfia} issues={dashboardFixture.issues} prs={[]} />);
+  it("shows the member's stat chips", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
     const head = screen.getByRole("heading", { name: "Tashfia" }).parentElement!;
     expect(head).toHaveTextContent("7 tickets");
     expect(head).toHaveTextContent("4 in flight");
     expect(head).toHaveTextContent("2 stalled");
     expect(head).toHaveTextContent("3 open PRs · 1 waiting on reviewers · 1 merged");
+  });
 
-    // Flagged tickets stay in the full list; the header shows only the count.
-    expect(screen.queryByRole("region", { name: "At risk tickets" })).not.toBeInTheDocument();
-    expect(screen.getByText("All tickets")).toHaveTextContent(/^All tickets\s*1$/);
+  it("puts a flagged ticket on top, whatever its status, and says why without a level label", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
-    // The flagged ticket says why, in its own row: level, status line, each warning sign.
-    const inProgress = screen.getByRole("region", { name: "In Progress tickets" });
-    expect(within(inProgress).getByText("At risk")).toBeInTheDocument();
-    expect(within(inProgress).getByText("updated 4d ago")).toBeInTheDocument();
-    expect(within(inProgress).getByText("in progress 9d")).toBeInTheDocument();
-    expect(within(inProgress).getByText("No update for 4 days")).toBeInTheDocument();
-    expect(within(inProgress).getByText("web#12 is failing CI")).toBeInTheDocument();
+    const atRisk = screen.getByRole("region", { name: "At risk tickets" });
+    expect(within(atRisk).getByText("Sprint health strip")).toBeInTheDocument();
+    // Not repeated in its status group.
+    expect(screen.queryByRole("region", { name: "In Progress tickets" })).not.toBeInTheDocument();
+
+    const flagged = card("Sprint health strip");
+    expect(flagged).not.toHaveTextContent("At risk");
+    expect(within(flagged).getByText("No update for 4 days")).toBeInTheDocument();
+    expect(within(flagged).getByText("web#12 is failing CI")).toBeInTheDocument();
     expect(
-      within(inProgress).getByText(/^web#12 has waited \d+ days for a first review$/),
-    ).toBeInTheDocument();
-    expect(within(inProgress).getByText("Added after the sprint started")).toBeInTheDocument();
-    expect(
-      within(inProgress).getByRole("button", { name: "web#12 failing CI" }),
+      within(flagged).getByText(/^web#12 has waited \d+ days for a first review$/),
     ).toBeInTheDocument();
   });
 
-  it("puts a flagged ticket's reasons in a callout led by its level", () => {
+  it("labels a ticket added mid-sprint instead of warning about it", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
+
+    const flagged = card("Sprint health strip");
+    expect(within(flagged).getByText("added mid-sprint")).toHaveClass("member-label");
+    expect(flagged).not.toHaveTextContent("Added after the sprint started");
+  });
+
+  it("tints a flagged ticket's reasons by its group", () => {
     // PLAT-101 is at risk, PLAT-301 needs a look, PLAT-201 is fine; all given to one person.
-    const issues = dashboardFixture.issues.map((i) => ({ ...i, assigneeAccountId: "u2" }));
-    render(<MemberDetail member={nadman} issues={issues} prs={[]} />);
+    const mine = issues.map((i) => ({ ...i, assigneeAccountId: "u2" }));
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
 
-    const callout = (text: string) =>
-      screen.getByText(text).closest(".member-ticket")!.querySelector(".member-callout");
-    expect(callout("Sprint health strip")).toHaveClass("member-callout--danger");
-    expect(callout("Sprint health strip")).toHaveTextContent(/^At risk.*web#12 is failing CI/);
-    expect(callout("Unassigned cleanup")).toHaveClass("member-callout--warning");
-    expect(callout("Unassigned cleanup")).toHaveTextContent(/^Needs a look.*Nobody is assigned/);
-    expect(callout("Token refresh")).toBeNull();
+    const why = (text: string) => card(text).querySelector(".member-why");
+    expect(why("Sprint health strip")).toHaveClass("member-why--danger");
+    expect(why("Unassigned cleanup")).toHaveClass("member-why--warning");
+    expect(why("Unassigned cleanup")).toHaveTextContent("Nobody is assigned");
+    expect(why("Token refresh")).toBeNull();
+    expect(
+      within(screen.getByRole("region", { name: "Needs a look tickets" })).getByText(
+        "Unassigned cleanup",
+      ),
+    ).toBeInTheDocument();
   });
 
-  it("lays a ticket out as key and status, then title, then timing and PRs", () => {
-    render(<MemberDetail member={tashfia} issues={dashboardFixture.issues} prs={[]} />);
+  it("puts the title beside the key, the status on the right, and the timing below", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
-    const card = screen.getByText("Sprint health strip").closest(".member-ticket")!;
-    const [top, title, meta] = Array.from(card.children);
-    expect(top).toHaveTextContent(/^PLAT-101\s*In Progress$/);
+    const [key, title, status, details] = Array.from(card("Sprint health strip").children);
+    expect(key).toHaveTextContent(/^PLAT-101$/);
     expect(title).toHaveTextContent(/^Sprint health strip$/);
-    expect(meta).toHaveTextContent(/^in progress 9d\s*updated 4d ago.*web#12 failing CI/);
+    expect(status).toHaveTextContent(/^In Progress$/);
+    // "No update for 4 days" already says it, so no "updated 4d ago".
+    expect(details).toHaveTextContent("in progress 9d");
+    expect(details).not.toHaveTextContent("updated");
   });
 
-  it("lists every ticket of the member grouped by status", () => {
-    render(<MemberDetail member={tashfia} issues={dashboardFixture.issues} prs={[]} />);
+  it("says when an unflagged ticket was updated and when it's due", () => {
+    const mine = [doneTicket({ dueDate: "2026-07-10" })];
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
 
-    const inProgress = screen.getByRole("region", { name: "In Progress tickets" });
-    expect(within(inProgress).getByText("Sprint health strip")).toBeInTheDocument();
-    // Other members' tickets stay out.
-    expect(screen.queryByText("Token refresh")).not.toBeInTheDocument();
+    const details = card("Token refresh").querySelector(".member-card__details")!;
+    expect(details).toHaveTextContent(/^updated 1d ago\s*due Jul 10$/);
   });
 
   it("shows time in progress only when it's known", () => {
-    // PLAT-201 is done: no in-progress time.
-    render(<MemberDetail member={nadman} issues={dashboardFixture.issues} prs={[]} />);
+    render(<MemberDetail member={nadman} issues={issues} prs={[]} />);
     expect(screen.getByText("updated 1d ago")).toBeInTheDocument();
     expect(screen.queryByText(/in progress \d/)).not.toBeInTheDocument();
   });
 
   it("says under a day for a ticket started today", () => {
-    const issues = dashboardFixture.issues.map((i) =>
-      i.key === "PLAT-101" ? { ...i, daysInProgress: 0 } : i,
-    );
-    render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
+    const started = issues.map((i) => (i.key === "PLAT-101" ? { ...i, daysInProgress: 0 } : i));
+    render(<MemberDetail member={tashfia} issues={started} prs={[]} />);
     expect(screen.getByText("in progress <1d")).toBeInTheDocument();
   });
 
-  it("gives an unflagged ticket no level label", () => {
-    render(<MemberDetail member={nadman} issues={dashboardFixture.issues} prs={[]} />);
+  it("hangs a ticket's PRs under it: link, title, lines changed, then state and date", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={authoredPRs} />);
 
-    expect(screen.queryByText("On track")).not.toBeInTheDocument();
-    const done = screen.getByRole("region", { name: "Done tickets" });
-    expect(within(done).getByText("Token refresh")).toBeInTheDocument();
+    const row = prRow("PLAT-101 health strip");
+    expect(card("Sprint health strip")).toContainElement(row);
+    const [ref, title, diff, state] = Array.from(row.children);
+    expect(ref).toHaveTextContent(/^web#12$/);
+    expect(title).toHaveTextContent(/^PLAT-101 health strip$/);
+    // The ticket's copy lacks lines changed (older cache); the member's own copy fills it.
+    expect(diff).toHaveTextContent(/^\+12−3$/);
+    expect(state).toHaveTextContent(/^failing CI\s*· opened \w{3} \d+$/);
   });
 
-  it("shows three done tickets and folds the rest behind a button", () => {
-    const base = dashboardFixture.issues.find((i) => i.key === "PLAT-201")!;
-    const done = [1, 2, 3, 4, 5].map((n) => ({
-      ...base,
-      key: `PLAT-90${n}`,
-      summary: `Done thing ${n}`,
-      daysSinceUpdate: n,
-    }));
+  it("names the author of a teammate's PR on the ticket", () => {
+    const withTeammatePR = issues.map((i) =>
+      i.key === "PLAT-101"
+        ? { ...i, linkedPRs: [{ ...i.linkedPRs[0]!, author: "mchen", title: "Helper PR" }] }
+        : i,
+    );
+    render(<MemberDetail member={tashfia} issues={withTeammatePR} prs={[]} />);
+    expect(prRow("Helper PR")).toHaveTextContent("Helper PR by mchen");
+  });
+
+  it("lists the member's other PRs, saying when each merged and who merged it", () => {
+    render(<MemberDetail member={tashfia} issues={issues} prs={authoredPRs} />);
+
+    const other = screen.getByRole("region", { name: "Other PRs" });
+    // web#12 sits under its ticket; nadman's hotfix isn't Tashfia's.
+    expect(
+      within(other)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["api#40"]);
+    const [, , diff, state] = Array.from(prRow("PLAT-201 rotate refresh tokens").children);
+    expect(diff).toHaveTextContent(/^\+120−30$/);
+    expect(state).toHaveTextContent(/^merged\s*Jun 27 by nadman$/);
+  });
+
+  it("names a teammate's ticket that one of the member's PRs is linked to", () => {
+    const onOpenRef = vi.fn();
+    const linked = issues.map((i) =>
+      i.key === "PLAT-201"
+        ? {
+            ...i,
+            linkedPRs: [{ ...issues[0]!.linkedPRs[0]!, repo_full_name: "acme/api", number: 40 }],
+          }
+        : i,
+    );
+    render(
+      <MemberDetail member={tashfia} issues={linked} prs={authoredPRs} onOpenRef={onOpenRef} />,
+    );
+
+    const row = prRow("PLAT-201 rotate refresh tokens");
+    expect(row).toHaveTextContent("for PLAT-201");
+    fireEvent.click(within(row).getByRole("button", { name: "PLAT-201" }));
+    expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "issue", key: "PLAT-201" });
+  });
+
+  it("shows every done ticket, with nothing folded away", () => {
+    const done = [1, 2, 3, 4, 5].map((n) =>
+      doneTicket({ key: `PLAT-90${n}`, summary: `Done thing ${n}`, daysSinceUpdate: n }),
+    );
     render(<MemberDetail member={nadman} issues={done} prs={[]} />);
 
     const group = screen.getByRole("region", { name: "Done tickets" });
-    expect(within(group).getAllByText(/^Done thing/)).toHaveLength(3);
-    fireEvent.click(within(group).getByRole("button", { name: "Show 2 more" }));
     expect(within(group).getAllByText(/^Done thing/)).toHaveLength(5);
+    expect(screen.queryByRole("button", { name: /more/i })).not.toBeInTheDocument();
   });
 
-  it("opens the ticket from its key and the PR from its link, and stays in place", () => {
+  it("opens the ticket from its key and the PR from its link, and nothing else", () => {
     const onOpenRef = vi.fn();
-    render(
-      <MemberDetail
-        member={tashfia}
-        issues={dashboardFixture.issues}
-        prs={[]}
-        onOpenRef={onOpenRef}
-      />,
-    );
+    render(<MemberDetail member={tashfia} issues={issues} prs={[]} onOpenRef={onOpenRef} />);
 
-    // The row itself isn't a link.
     fireEvent.click(screen.getByText("Sprint health strip"));
+    fireEvent.click(screen.getByText("PLAT-101 health strip"));
     expect(onOpenRef).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "PLAT-101" }));
     expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "issue", key: "PLAT-101" });
-
-    fireEvent.click(screen.getByRole("button", { name: "web#12 failing CI" }));
+    fireEvent.click(screen.getByRole("button", { name: "web#12" }));
     expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "pr", repo: "acme/web", number: 12 });
-    expect(screen.getByRole("heading", { name: "Tashfia" })).toBeInTheDocument();
   });
 
-  it("lists the member's PRs, newest first, with lines changed, dates and who merged", () => {
-    render(
-      <MemberDetail
-        member={tashfia}
-        issues={dashboardFixture.issues}
-        prs={dashboardFixture.authoredPRs}
-      />,
-    );
-
-    expect(screen.getByText("All PRs")).toHaveTextContent(/^All PRs\s*2$/);
-    const list = screen.getByRole("region", { name: "PRs" });
-    expect(
-      within(list)
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual(["web#12", "api#40"]);
-    // Other members' PRs stay out.
-    expect(within(list).queryByText("hotfix: logging")).not.toBeInTheDocument();
-
-    // Each card: state icon, link and lines changed; then the title; then the dates.
-    const row = (title: string) =>
-      within(list).getByText(title).closest<HTMLElement>(".member-ticket")!;
-    const open = row("PLAT-101 health strip");
-    const [openTop, openTitle, openMeta] = Array.from(open.children);
-    expect(within(open).getByRole("img", { name: "open" })).toBeInTheDocument();
-    expect(openTop).toHaveTextContent(/^web#12\s*\+12−3$/);
-    expect(openTitle).toHaveTextContent(/^PLAT-101 health strip$/);
-    expect(openMeta).toHaveTextContent(/^opened Jun 30$/);
-
-    const merged = row("PLAT-201 rotate refresh tokens");
-    expect(within(merged).getByRole("img", { name: "merged" })).toBeInTheDocument();
-    expect(merged.children[0]).toHaveTextContent(/^api#40\s*\+120−30$/);
-    expect(merged.children[2]).toHaveTextContent(/^opened Jun 24\s*merged Jun 27 by nadman$/);
-  });
-
-  it("calls a PR closed without merging closed", () => {
-    const [pr] = dashboardFixture.authoredPRs;
-    render(
-      <MemberDetail
-        member={tashfia}
-        issues={[]}
-        prs={[{ ...pr!, state: "closed", additions: null, deletions: null }]}
-      />,
-    );
-    const list = screen.getByRole("region", { name: "PRs" });
-    expect(within(list).getByRole("img", { name: "closed" })).toBeInTheDocument();
-    expect(list).not.toHaveTextContent("+");
-  });
-
-  it("opens a PR from its link", () => {
-    const onOpenRef = vi.fn();
-    render(
-      <MemberDetail
-        member={tashfia}
-        issues={[]}
-        prs={dashboardFixture.authoredPRs}
-        onOpenRef={onOpenRef}
-      />,
-    );
-    fireEvent.click(screen.getByText("PLAT-201 rotate refresh tokens"));
-    expect(onOpenRef).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "api#40" }));
-    expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "pr", repo: "acme/api", number: 40 });
-  });
-
-  it("says when the member has no PRs in the sprint", () => {
+  it("says when the member has nothing in the sprint", () => {
     render(<MemberDetail member={nadman} issues={[]} prs={[]} />);
-    expect(screen.getByText("No PRs in this sprint.")).toBeInTheDocument();
+    expect(screen.getByText("No tickets or PRs in this sprint.")).toBeInTheDocument();
   });
 });

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import type { DashboardIssue, LinkedPR, WorkloadEntry } from "../../../types/teams";
+import type { AuthoredPR, DashboardIssue, LinkedPR, WorkloadEntry } from "../../../types/teams";
 import {
   describeSignals,
   flagSummary,
-  memberTickets,
-  prBadges,
+  memberWork,
   sortByNeed,
   statusBucket,
+  ticketPRs,
 } from "./memberSignals";
 
 // Local noon, so calendar-day math doesn't depend on the test machine's zone.
@@ -62,6 +62,23 @@ function pr(over: Partial<LinkedPR> = {}): LinkedPR {
   };
 }
 
+function authored(over: Partial<AuthoredPR> = {}): AuthoredPR {
+  return {
+    number: 50,
+    title: "A PR",
+    repo_full_name: "acme/web",
+    html_url: "https://github.com/acme/web/pull/50",
+    author: "shunjid",
+    state: "open",
+    createdAt: "2026-07-01T12:00:00Z",
+    mergedAt: null,
+    mergedBy: null,
+    additions: 10,
+    deletions: 2,
+    ...over,
+  };
+}
+
 describe("describeSignals", () => {
   it("says how long a stale ticket has gone without an update", () => {
     const signals = describeSignals(
@@ -113,14 +130,16 @@ describe("describeSignals", () => {
   });
 
   it("explains context-only signals in plain words", () => {
-    const signals = describeSignals(
-      issue({ flags: { ...NO_FLAGS, inProgressNoPR: true, addedAfterStart: true } }),
-      NOW,
-    );
+    const signals = describeSignals(issue({ flags: { ...NO_FLAGS, inProgressNoPR: true } }), NOW);
     expect(signals).toEqual([
       { key: "inProgressNoPR", tone: "neutral", text: "In progress, but no PR is linked yet" },
-      { key: "addedAfterStart", tone: "neutral", text: "Added after the sprint started" },
     ]);
+  });
+
+  it("leaves a ticket added mid-sprint to its label", () => {
+    expect(describeSignals(issue({ flags: { ...NO_FLAGS, addedAfterStart: true } }), NOW)).toEqual(
+      [],
+    );
   });
 
   it("says a ticket in review has no PR", () => {
@@ -153,71 +172,90 @@ describe("describeSignals", () => {
       }),
       NOW,
     );
-    expect(signals.map((s) => s.key)).toEqual([
-      "prFailingCI",
-      "stale",
-      "dueSoon",
-      "addedAfterStart",
-    ]);
+    expect(signals.map((s) => s.key)).toEqual(["prFailingCI", "stale", "dueSoon"]);
   });
 });
 
-describe("prBadges", () => {
-  const badge = (number: number, tone: string, label: string) => ({
-    repo: "acme/web",
-    number,
-    tone,
-    label,
-  });
+describe("ticketPRs", () => {
+  const states = (i: DashboardIssue) => ticketPRs(i).map((p) => [p.number, p.tone, p.label]);
 
   it("returns nothing when the ticket has no PR", () => {
-    expect(prBadges(issue())).toEqual([]);
+    expect(ticketPRs(issue())).toEqual([]);
   });
 
   it("flags an open PR failing CI first", () => {
     expect(
-      prBadges(issue({ linkedPRs: [pr({ checks_status: "FAILURE", waitingReview: true })] })),
-    ).toEqual([badge(12, "danger", "failing CI")]);
+      states(issue({ linkedPRs: [pr({ checks_status: "FAILURE", waitingReview: true })] })),
+    ).toEqual([[12, "danger", "failing CI"]]);
   });
 
   it("warns when an open PR has waited too long for review", () => {
-    expect(prBadges(issue({ linkedPRs: [pr({ waitingReview: true })] }))).toEqual([
-      badge(12, "warning", "awaiting review"),
+    expect(states(issue({ linkedPRs: [pr({ waitingReview: true })] }))).toEqual([
+      [12, "warning", "awaiting review"],
     ]);
   });
 
   it("shows a fresh review request without warning", () => {
-    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "REVIEW_REQUIRED" })] }))).toEqual([
-      badge(12, "neutral", "awaiting review"),
+    expect(states(issue({ linkedPRs: [pr({ reviewState: "REVIEW_REQUIRED" })] }))).toEqual([
+      [12, "neutral", "awaiting review"],
     ]);
   });
 
   it("shows approved and changes-requested reviews", () => {
-    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "APPROVED" })] }))).toEqual([
-      badge(12, "success", "approved"),
+    expect(states(issue({ linkedPRs: [pr({ reviewState: "APPROVED" })] }))).toEqual([
+      [12, "success", "approved"],
     ]);
-    expect(prBadges(issue({ linkedPRs: [pr({ reviewState: "CHANGES_REQUESTED" })] }))).toEqual([
-      badge(12, "warning", "changes requested"),
+    expect(states(issue({ linkedPRs: [pr({ reviewState: "CHANGES_REQUESTED" })] }))).toEqual([
+      [12, "warning", "changes requested"],
     ]);
   });
 
-  it("lists every open PR before the merged ones", () => {
+  it("lists every open PR before the merged ones and leaves out PRs closed without a merge", () => {
     const linkedPRs = [
       pr({ number: 3, state: "merged" }),
       pr({ number: 4 }),
       pr({ number: 5, state: "closed", mergedAt: "2026-07-01T10:00:00Z" }),
       pr({ number: 6, reviewState: "APPROVED" }),
+      pr({ number: 7, state: "closed" }),
     ];
-    expect(prBadges(issue({ linkedPRs }))).toEqual([
-      badge(4, "neutral", "open"),
-      badge(6, "success", "approved"),
-      badge(3, "purple", "merged"),
-      badge(5, "purple", "merged"),
+    expect(states(issue({ linkedPRs }))).toEqual([
+      [4, "neutral", "open"],
+      [6, "success", "approved"],
+      [3, "purple", "merged"],
+      [5, "purple", "merged"],
     ]);
   });
 
-  it("leaves out PRs closed without a merge", () => {
-    expect(prBadges(issue({ linkedPRs: [pr({ state: "closed" })] }))).toEqual([]);
+  it("dates an open PR by when it opened and a merged one by when it merged, and by whom", () => {
+    const [open, merged] = ticketPRs(
+      issue({
+        linkedPRs: [
+          pr({ number: 1, createdAt: "2026-06-30T12:00:00Z", additions: 5, deletions: 1 }),
+          pr({
+            number: 2,
+            state: "merged",
+            createdAt: "2026-06-28T12:00:00Z",
+            mergedAt: "2026-07-01T12:00:00Z",
+            mergedBy: "bob",
+          }),
+        ],
+      }),
+    );
+    expect(open).toMatchObject({
+      merged: false,
+      date: "2026-06-30T12:00:00Z",
+      additions: 5,
+      deletions: 1,
+    });
+    expect(merged).toMatchObject({ merged: true, date: "2026-07-01T12:00:00Z", mergedBy: "bob" });
+  });
+
+  it("fills lines changed and merger from the member's own copy when the ticket's lacks them", () => {
+    // Payloads cached before linked PRs carried these fields.
+    const linked = pr({ number: 50, state: "merged", mergedAt: "2026-07-01T12:00:00Z" });
+    const own = authored({ state: "merged", mergedBy: "bob", additions: 30, deletions: 4 });
+    const [line] = ticketPRs(issue({ linkedPRs: [linked] }), [own]);
+    expect(line).toMatchObject({ mergedBy: "bob", additions: 30, deletions: 4 });
   });
 });
 
@@ -233,17 +271,43 @@ describe("statusBucket", () => {
   });
 });
 
-describe("memberTickets", () => {
-  it("only includes the member's own tickets", () => {
-    const result = memberTickets(
-      [issue({ key: "A" }), issue({ key: "B", assigneeAccountId: "u2" })],
-      "u1",
-    );
-    expect(result.groups.flatMap((g) => g.issues.map((i) => i.key))).toEqual(["A"]);
+describe("memberWork", () => {
+  const keys = (items: { issue: DashboardIssue }[]) => items.map((t) => t.issue.key);
+  const flagged = (level: "high" | "attention", score: number) => ({
+    risk: { score, level, reasons: [] },
   });
 
-  it("groups tickets review-first, skips empty groups, and orders each group", () => {
-    const result = memberTickets(
+  it("only includes the member's own tickets", () => {
+    const work = memberWork(
+      [issue({ key: "A" }), issue({ key: "B", assigneeAccountId: "u2" })],
+      [],
+      "u1",
+      "shunjid",
+    );
+    expect(work.groups.flatMap((g) => keys(g.items))).toEqual(["A"]);
+  });
+
+  it("puts flagged tickets on top, worst first, and leaves them out of their status group", () => {
+    const work = memberWork(
+      [
+        issue({ key: "OK" }),
+        issue({ key: "LOOK", ...flagged("attention", 3) }),
+        issue({ key: "RISK-5", ...flagged("high", 5), daysSinceUpdate: 9 }),
+        issue({ key: "RISK-7", ...flagged("high", 7) }),
+        issue({ key: "LOOK-old", ...flagged("attention", 3), daysSinceUpdate: 4 }),
+        issue({ key: "REVIEW", status: "In Review", ...flagged("attention", 4) }),
+      ],
+      [],
+      "u1",
+      "shunjid",
+    );
+    expect(keys(work.atRisk)).toEqual(["RISK-7", "RISK-5"]);
+    expect(keys(work.needsLook)).toEqual(["REVIEW", "LOOK-old", "LOOK"]);
+    expect(work.groups.map((g) => [g.bucket, keys(g.items)])).toEqual([["indeterminate", ["OK"]]]);
+  });
+
+  it("groups the rest review-first, skips empty groups, and orders each group", () => {
+    const work = memberWork(
       [
         issue({ key: "D-old", status: "Done", statusCategory: "done", daysSinceUpdate: 6 }),
         issue({ key: "P-fresh", daysSinceUpdate: 0 }),
@@ -251,15 +315,45 @@ describe("memberTickets", () => {
         issue({ key: "R", status: "In Review" }),
         issue({ key: "P-stuck", daysSinceUpdate: 5 }),
       ],
+      [],
       "u1",
+      "shunjid",
     );
-    expect(result.groups.map((g) => [g.bucket, g.issues.map((i) => i.key)])).toEqual([
+    expect(work.groups.map((g) => [g.bucket, keys(g.items)])).toEqual([
       ["inReview", ["R"]],
       // Open work: longest without an update first.
       ["indeterminate", ["P-stuck", "P-fresh"]],
       // Done: most recent first.
       ["done", ["D-new", "D-old"]],
     ]);
+  });
+
+  it("hangs each ticket's PRs under it", () => {
+    const work = memberWork([issue({ linkedPRs: [pr({ number: 7 })] })], [], "u1", "shunjid");
+    expect(work.groups[0]!.items[0]!.prs.map((p) => p.number)).toEqual([7]);
+  });
+
+  it("lists the member's other PRs, newest first, naming a teammate's ticket when there is one", () => {
+    const issues = [
+      issue({ key: "MINE", linkedPRs: [pr({ number: 50 })] }),
+      issue({ key: "THEIRS", assigneeAccountId: "u2", linkedPRs: [pr({ number: 51 })] }),
+    ];
+    const prs = [
+      authored({ number: 50 }), // on the member's own ticket: shown there instead
+      authored({ number: 51, createdAt: "2026-06-29T12:00:00Z" }),
+      authored({ number: 52, author: "Shunjid", createdAt: "2026-07-01T12:00:00Z" }),
+      authored({ number: 53, author: "someone-else" }),
+      authored({ number: 54, state: "closed" }), // closed without a merge
+    ];
+    const work = memberWork(issues, prs, "u1", "shunjid");
+    expect(work.otherPRs.map((o) => [o.pr.number, o.forKey])).toEqual([
+      [52, null],
+      [51, "THEIRS"],
+    ]);
+  });
+
+  it("has no other PRs for a member without a GitHub login", () => {
+    expect(memberWork([], [authored()], "u1", "").otherPRs).toEqual([]);
   });
 });
 

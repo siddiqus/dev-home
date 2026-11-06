@@ -235,6 +235,8 @@ describe("postTeamDashboard — fetching", () => {
       mergedBy: "bob",
       additions: 120,
       deletions: 30,
+      checks_status: null,
+      reviewState: null,
     });
   });
 

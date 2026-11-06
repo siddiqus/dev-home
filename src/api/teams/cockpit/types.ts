@@ -38,6 +38,10 @@ export interface LinkedPR {
   mergedAt: string | null;
   reviewState: string | null;
   waitingReview: boolean;
+  /** GitHub login of whoever merged it. Optional, like the frontend type: older cached payloads lack it. */
+  mergedBy?: string | null;
+  additions?: number | null;
+  deletions?: number | null;
 }
 
 /** Fully enriched issue = the frontend DashboardIssue shape. */

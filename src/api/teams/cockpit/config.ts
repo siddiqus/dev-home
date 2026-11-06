@@ -22,7 +22,8 @@ export const DEFAULT_COCKPIT_CONFIG: CockpitConfig = {
 
 /**
  * Risk weights (blocked intentionally omitted for v1; stalled is the heavy term).
- * noEpic is not a risk: it stays a flag for Delivery Hygiene only.
+ * noEpic and addedAfterStart are not risks: noEpic stays a flag for Delivery
+ * Hygiene, and a ticket added mid-sprint shows as a label on its card.
  */
 export const RISK_WEIGHTS = {
   stale: 3,
@@ -31,7 +32,6 @@ export const RISK_WEIGHTS = {
   unassigned: 1,
   inProgressNoPR: 1,
   dueSoon: 1,
-  addedAfterStart: 1,
 } as const;
 
 /** score 0–2 normal · 3–4 attention · 5+ high */

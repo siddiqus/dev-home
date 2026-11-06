@@ -77,7 +77,7 @@ export function dedupePRs(prs: RawPR[]): RawPR[] {
   return [...seen.values()];
 }
 
-/** The fields the People tab's PR list shows. */
+/** The fields the People tab shows for a PR the member wrote. */
 export function toAuthoredPR(pr: RawPR): AuthoredPR {
   return {
     number: pr.number,
@@ -91,5 +91,7 @@ export function toAuthoredPR(pr: RawPR): AuthoredPR {
     mergedBy: pr.merged_by ?? null,
     additions: pr.additions ?? null,
     deletions: pr.deletions ?? null,
+    checks_status: pr.checks_status,
+    reviewState: pr.review_state ?? null,
   };
 }

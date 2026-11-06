@@ -55,6 +55,10 @@ export interface LinkedPR {
   reviewState?: string | null;
   /** True when the PR is open and has been waiting for a first review > threshold. */
   waitingReview?: boolean;
+  /** GitHub login of whoever merged it. Optional: older cached payloads lack it. */
+  mergedBy?: string | null;
+  additions?: number | null;
+  deletions?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +195,9 @@ export interface AuthoredPR {
   mergedBy: string | null;
   additions: number | null;
   deletions: number | null;
+  /** CI rollup (SUCCESS | FAILURE | …) and review rollup. Optional: older cached payloads lack them. */
+  checks_status?: string | null;
+  reviewState?: string | null;
 }
 
 // ---------------------------------------------------------------------------

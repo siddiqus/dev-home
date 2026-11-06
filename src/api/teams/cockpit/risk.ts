@@ -61,6 +61,9 @@ function mapLinkedPR(pr: RawPR, now: Date, config: CockpitConfig): LinkedPR {
     mergedAt: pr.merged_at ?? null,
     reviewState: pr.review_state ?? null,
     waitingReview,
+    mergedBy: pr.merged_by ?? null,
+    additions: pr.additions ?? null,
+    deletions: pr.deletions ?? null,
   };
 }
 

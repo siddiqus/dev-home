@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapPullRequestNode, dedupePRs } from "./prFetch";
+import { mapPullRequestNode, dedupePRs, toAuthoredPR } from "./prFetch";
 import type { RawPR } from "../aggregation";
 
 const node = {
@@ -167,5 +167,18 @@ describe("dedupePRs", () => {
     expect(out).toHaveLength(2);
     expect(out.find((p) => p.number === 1)?.title).toBe("t");
     expect(out.find((p) => p.number === 2)?.author).toBe("outsider");
+  });
+});
+
+describe("toAuthoredPR", () => {
+  it("keeps CI and review state, so an unlinked PR can say failing CI or approved", () => {
+    const pr = toAuthoredPR(mapPullRequestNode(node, "fallback"));
+    expect(pr).toMatchObject({
+      repo_full_name: "org/repo",
+      author: "carol",
+      state: "open",
+      checks_status: "FAILURE",
+      reviewState: "CHANGES_REQUESTED",
+    });
   });
 });

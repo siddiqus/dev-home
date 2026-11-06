@@ -1,5 +1,6 @@
 import type {
   AtRiskIssue,
+  AuthoredPR,
   DashboardIssue,
   IssueFlags,
   LinkedPR,
@@ -67,7 +68,8 @@ function dueText(dueDate: string | null, now: Date): string {
 
 /**
  * The flags that count toward a ticket's risk level, in display order: blocking
- * first, context last. noEpic is deliberately absent: it isn't a risk.
+ * first, context last. noEpic and addedAfterStart are deliberately absent:
+ * neither is a risk, and a ticket added mid-sprint gets a label instead.
  */
 const SIGNALS: {
   key: keyof IssueFlags;
@@ -105,7 +107,6 @@ const SIGNALS: {
     text: (i) =>
       `${statusBucket(i) === "inReview" ? "In review" : "In progress"}, but no PR is linked yet`,
   },
-  { key: "addedAfterStart", tone: "neutral", text: () => "Added after the sprint started" },
 ];
 
 /** Why a ticket is flagged, one plain sentence per warning sign. */
@@ -119,15 +120,40 @@ export function describeSignals(issue: DashboardIssue, now: Date): Signal[] {
 
 export type PRTone = "danger" | "warning" | "success" | "purple" | "neutral";
 
-export interface PRBadge {
+/** What a PR line needs, whether it came linked to a ticket or from the member's own PRs. */
+type PRLike = Pick<LinkedPR, "number" | "title" | "repo_full_name" | "state" | "author"> &
+  Partial<
+    Pick<
+      LinkedPR,
+      | "checks_status"
+      | "createdAt"
+      | "mergedAt"
+      | "reviewState"
+      | "waitingReview"
+      | "mergedBy"
+      | "additions"
+      | "deletions"
+    >
+  >;
+
+/** One PR as the People tab lists it: under its ticket, or among the member's other PRs. */
+export interface PRLine {
   repo: string;
   number: number;
+  title: string;
+  author: string;
   tone: PRTone;
   label: string;
+  merged: boolean;
+  /** When it merged, or when it opened while it's still open (ISO). */
+  date: string | null;
+  mergedBy: string | null;
+  additions: number | null;
+  deletions: number | null;
 }
 
 /** An open PR's state, by CI first, then review. */
-function openBadge(pr: LinkedPR): Pick<PRBadge, "tone" | "label"> {
+function openState(pr: PRLike): Pick<PRLine, "tone" | "label"> {
   if (pr.checks_status === "FAILURE") return { tone: "danger", label: "failing CI" };
   if (pr.reviewState === "APPROVED") return { tone: "success", label: "approved" };
   if (pr.reviewState === "CHANGES_REQUESTED")
@@ -137,21 +163,36 @@ function openBadge(pr: LinkedPR): Pick<PRBadge, "tone" | "label"> {
   return { tone: "neutral", label: "open" };
 }
 
-/** The ticket's open PRs, then its merged ones, each with its state. PRs closed unmerged are left out. */
-export function prBadges(issue: DashboardIssue): PRBadge[] {
-  const badge = (pr: LinkedPR, state: Pick<PRBadge, "tone" | "label">): PRBadge => ({
+const isMerged = (pr: PRLike) => pr.state === "merged" || !!pr.mergedAt;
+const prId = (pr: Pick<PRLike, "repo_full_name" | "number">) => `${pr.repo_full_name}#${pr.number}`;
+
+/** `own` is the member's copy of the same PR: it fills fields an older cached ticket lacks. */
+function toLine(pr: PRLike, own?: AuthoredPR): PRLine {
+  const merged = isMerged(pr);
+  return {
     repo: pr.repo_full_name,
     number: pr.number,
-    ...state,
-  });
-  const open = issue.linkedPRs.filter((p) => p.state === "open");
-  const merged = issue.linkedPRs.filter(
-    (p) => p.state !== "open" && (p.state === "merged" || p.mergedAt),
+    title: pr.title,
+    author: pr.author,
+    ...(merged ? { tone: "purple" as const, label: "merged" } : openState(pr)),
+    merged,
+    date: (merged ? pr.mergedAt : pr.createdAt) ?? null,
+    mergedBy: pr.mergedBy ?? own?.mergedBy ?? null,
+    additions: pr.additions ?? own?.additions ?? null,
+    deletions: pr.deletions ?? own?.deletions ?? null,
+  };
+}
+
+/**
+ * A ticket's PRs, open ones first, then merged; PRs closed without a merge are
+ * left out. `own` is the member's PRs, used to fill gaps in older cached data.
+ */
+export function ticketPRs(issue: DashboardIssue, own: AuthoredPR[] = []): PRLine[] {
+  const byId = new Map(own.map((p) => [prId(p), p]));
+  const live = issue.linkedPRs.filter((p) => p.state === "open" || isMerged(p));
+  return [...live.filter((p) => !isMerged(p)), ...live.filter(isMerged)].map((p) =>
+    toLine(p, byId.get(prId(p))),
   );
-  return [
-    ...open.map((p) => badge(p, openBadge(p))),
-    ...merged.map((p) => badge(p, { tone: "purple", label: "merged" })),
-  ];
 }
 
 export type StatusBucket = "new" | "indeterminate" | "inReview" | "done";
@@ -183,29 +224,74 @@ export function statusBucket(
   return issue.statusCategory === "indeterminate" ? "indeterminate" : "new";
 }
 
-export interface MemberTickets {
-  /** Every ticket by status, review first; empty groups are left out. */
-  groups: { bucket: StatusBucket; issues: DashboardIssue[] }[];
+/** A ticket with its PRs hung under it. */
+export interface TicketItem {
+  issue: DashboardIssue;
+  prs: PRLine[];
+}
+
+export interface MemberWork {
+  /** Flagged tickets, whatever their status, worst first. */
+  atRisk: TicketItem[];
+  needsLook: TicketItem[];
+  /** The rest by status, review first; empty groups are left out. */
+  groups: { bucket: StatusBucket; items: TicketItem[] }[];
+  /**
+   * PRs the member wrote that aren't on one of their tickets, newest first;
+   * `forKey` names the teammate's sprint ticket a PR is linked to, if any.
+   */
+  otherPRs: { pr: PRLine; forKey: string | null }[];
 }
 
 const GROUP_ORDER: StatusBucket[] = ["inReview", "indeterminate", "new", "done"];
 
-export function memberTickets(issues: DashboardIssue[], accountId: string): MemberTickets {
+/** Worst first: risk score, then longest without an update. */
+function byRisk(a: DashboardIssue, b: DashboardIssue): number {
+  return b.risk.score - a.risk.score || b.daysSinceUpdate - a.daysSinceUpdate;
+}
+
+/**
+ * Everything one member has in the sprint, as the People tab lists it: flagged
+ * tickets on top, the rest by status, each with its PRs, then the PRs they
+ * wrote that sit on no ticket of theirs. `login` is their GitHub username.
+ */
+export function memberWork(
+  issues: DashboardIssue[],
+  prs: AuthoredPR[],
+  accountId: string,
+  login: string,
+): MemberWork {
+  const me = login.toLowerCase();
+  const own = me ? prs.filter((p) => p.author.toLowerCase() === me) : [];
   const mine = issues.filter((i) => i.assigneeAccountId === accountId);
+  const item = (issue: DashboardIssue): TicketItem => ({ issue, prs: ticketPRs(issue, own) });
+  const flaggedAt = (level: RiskLevel) =>
+    mine
+      .filter((i) => i.risk.level === level)
+      .sort(byRisk)
+      .map(item);
 
   const groups = GROUP_ORDER.map((bucket) => ({
     bucket,
-    issues: mine
-      .filter((i) => statusBucket(i) === bucket)
+    items: mine
+      .filter((i) => i.risk.level === "normal" && statusBucket(i) === bucket)
       // Open work: longest without an update first. Done: most recent first.
       .sort((a, b) =>
         bucket === "done"
           ? a.daysSinceUpdate - b.daysSinceUpdate
           : b.daysSinceUpdate - a.daysSinceUpdate,
-      ),
-  })).filter((g) => g.issues.length > 0);
+      )
+      .map(item),
+  })).filter((g) => g.items.length > 0);
 
-  return { groups };
+  const onMine = new Set(mine.flatMap((i) => i.linkedPRs.map(prId)));
+  const ticketOf = new Map(issues.flatMap((i) => i.linkedPRs.map((p) => [prId(p), i.key])));
+  const otherPRs = own
+    .filter((p) => !onMine.has(prId(p)) && (p.state === "open" || isMerged(p)))
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .map((p) => ({ pr: toLine(p), forKey: ticketOf.get(prId(p)) ?? null }));
+
+  return { atRisk: flaggedAt("high"), needsLook: flaggedAt("attention"), groups, otherPRs };
 }
 
 const NEED: Record<RiskLevel, number> = { high: 3, attention: 2, normal: 1 };

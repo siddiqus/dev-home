@@ -483,38 +483,12 @@
 .member-detail__chip--stalled b {
   color: inherit;
 }
-.member-detail__section {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: var(--space-4) 0 var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-/* Tickets, then PRs. The pane scrolls them as one until it's wide enough
-   for two columns (below). */
+/* The member's sprint as one list. Pinned and wide, the name and chips stay put
+   and the list scrolls under them; otherwise it scrolls with the pane. */
 .member-detail {
   padding-bottom: var(--space-4);
 }
-.member-detail__body {
-  display: grid;
-  gap: var(--space-4) var(--space-5);
-}
-.member-detail__col {
-  min-width: 0;
-}
-.member-detail__col > .member-detail__section {
-  margin-top: 0;
-}
-/* Wide pane: tickets and PRs side by side. The name and chips stay put, and
-   each list scrolls on its own under its header. */
 @container (min-width: 700px) {
-  .member-detail__body {
-    grid-template-columns: 1fr 1fr;
-  }
   .team-dashboard--pinned .member-detail {
     display: flex;
     flex-direction: column;
@@ -523,16 +497,6 @@
   }
   .team-dashboard--pinned .member-detail__head {
     flex-shrink: 0;
-  }
-  .team-dashboard--pinned .member-detail__body {
-    flex: 1;
-    min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .team-dashboard--pinned .member-detail__col {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
   }
   .team-dashboard--pinned .member-detail__list {
     flex: 1;
@@ -546,12 +510,13 @@
   font-weight: 500;
 }
 
-/* The key and PR links: buttons that read as links, the only clickable parts of a ticket. */
+/* The key and PR links: buttons that read as links, the only clickable parts of a card. */
 .member-link {
   padding: 0;
   border: 0;
   border-radius: 3px;
   background: none;
+  color: var(--color-accent);
   font: inherit;
   text-align: left;
 }
@@ -564,111 +529,76 @@
   outline-offset: 1px;
 }
 
-/* Every ticket, grouped by status. Each one: key with its Jira status on the
-   right, the title, its timing and PRs, then (flagged) a callout with its
-   level and warning signs. PR cards follow the same three lines. */
+/* One grid for the whole list; every group, card and PR line is a subgrid row
+   of it, so keys and PR links, titles, lines changed and PR states line up
+   from the first card to the last. */
+.member-work {
+  display: grid;
+  grid-template-columns:
+    [ref] max-content
+    [title] minmax(0, 1fr)
+    [diff] max-content
+    [state] max-content;
+  column-gap: var(--space-3);
+}
+.member-group,
+.member-rows,
+.member-card,
+.member-prs,
+.member-pr {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
 .member-group {
   margin-top: var(--space-3);
 }
-.member-group .cockpit-group-head {
-  margin-bottom: 6px;
+.member-group:first-child {
+  margin-top: 0;
+}
+.member-group > .cockpit-group-head {
+  grid-column: 1 / -1;
+  margin-bottom: 5px;
 }
 .member-rows {
-  overflow: hidden;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
-.member-ticket {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 9px 12px;
+
+/* A ticket: key, title and status on one line; then why, timing and labels;
+   then its PRs. */
+.member-card {
+  align-items: baseline;
+  row-gap: 3px;
+  padding: 7px 12px 8px;
   border-top: 1px solid var(--color-border-subtle);
   font-size: 0.8125rem;
 }
-.member-ticket:first-child {
+.member-card:first-child {
   border-top: 0;
 }
-.member-ticket__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
-  min-width: 0;
-}
-.member-ticket__key {
-  flex-shrink: 0;
-  color: var(--color-accent);
+.member-card__key {
+  grid-column: ref;
   font-weight: 600;
   white-space: nowrap;
 }
-/* A PR's state, as its icon, ahead of the link. */
-.member-ticket__state {
-  display: inline-flex;
-  align-self: center;
-}
-/* Jira status (tickets) or lines changed (PRs), pushed to the right of the key. */
-.member-ticket__aside {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin-left: auto;
-  padding-left: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-.member-ticket__title {
+.member-card__title {
+  grid-column: title;
   min-width: 0;
   overflow: hidden;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.member-ticket__meta {
-  display: flex;
-  flex-wrap: wrap;
+.member-card__status {
+  display: inline-flex;
+  grid-column: diff / -1;
+  justify-self: end;
   align-items: center;
-  gap: 2px var(--space-3);
+  gap: 5px;
   color: var(--color-text-secondary);
   font-size: 0.75rem;
-}
-/* A flagged ticket's why: a tinted box only as wide as its text, so the color
-   sits in one spot instead of banding the card. */
-.member-callout {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-self: flex-start;
-  gap: 3px var(--space-3);
-  margin-top: 4px;
-  padding: 4px 10px;
-  border-radius: var(--radius-md);
-  font-size: 0.75rem;
-}
-.member-callout--danger {
-  --member-callout-tone: var(--color-status-danger);
-  background: var(--color-status-danger-bg);
-}
-.member-callout--warning {
-  --member-callout-tone: var(--color-status-warning);
-  background: var(--color-status-warning-bg);
-}
-.member-callout__level {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--member-callout-tone);
-  font-weight: 600;
-}
-.member-signal {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.member-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  white-space: nowrap;
 }
 .member-status-square {
   width: 8px;
@@ -676,25 +606,143 @@
   border-radius: 2px;
   flex-shrink: 0;
 }
-.member-pr {
+.member-card__details {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+/* A flagged ticket's reasons, tinted by its group: the color sits in one spot
+   instead of banding the card. */
+.member-why {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-3);
+  padding: 2px 9px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+.member-why--danger {
+  background: var(--color-status-danger-bg);
+}
+.member-why--warning {
+  background: var(--color-status-warning-bg);
+}
+.member-signal {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
+}
+/* Context that isn't a warning, like "added mid-sprint". */
+.member-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  line-height: 17px;
+}
+
+/* A ticket's PRs hang off it on a tree line; the Other PRs list goes without. */
+.member-prs {
+  row-gap: 0;
+  margin-top: 2px;
+}
+.member-pr {
+  position: relative;
+  align-items: center;
+  padding: 1px 0;
+  font-size: 0.75rem;
+}
+.member-pr::before {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  width: 9px;
+  height: 50%;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  border-bottom-left-radius: 4px;
+  content: "";
+}
+.member-pr:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: 5px;
+  border-left: 1px solid var(--color-border);
+  content: "";
+}
+.member-prs--flat {
+  margin-top: 0;
+}
+.member-prs--flat .member-pr::before,
+.member-prs--flat .member-pr::after {
+  display: none;
+}
+.member-pr__ref {
+  grid-column: ref;
+  padding-left: 18px;
+  font-weight: 600;
   white-space: nowrap;
 }
-.member-more {
-  display: block;
-  width: 100%;
-  padding: 7px 12px;
-  border: 0;
-  border-top: 1px solid var(--color-border-subtle);
-  background: none;
-  color: var(--color-accent);
-  font-size: 0.75rem;
-  text-align: left;
+.member-prs--flat .member-pr__ref {
+  padding-left: 0;
 }
-.member-more:hover {
-  background: var(--color-bg-hover);
+.member-pr__title {
+  grid-column: title;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-pr__muted,
+.member-pr__when {
+  color: var(--color-text-secondary);
+}
+.member-pr__diff {
+  grid-column: diff;
+  justify-self: end;
+}
+.member-pr__state {
+  display: inline-flex;
+  grid-column: state;
+  justify-self: end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* Narrow pane: a PR's title drops under its link and lines changed hide. */
+@container (max-width: 559px) {
+  .member-work {
+    column-gap: var(--space-2);
+  }
+  .member-pr {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-2);
+  }
+  .member-pr__state {
+    margin-left: auto;
+  }
+  .member-pr__title {
+    flex-basis: 100%;
+    order: 1;
+    padding-left: 18px;
+    color: var(--color-text-secondary);
+  }
+  .member-prs--flat .member-pr__title {
+    padding-left: 0;
+  }
+  .member-pr__diff {
+    display: none;
+  }
 }
 
 /* --- Review Queue: card + See-all modal ---

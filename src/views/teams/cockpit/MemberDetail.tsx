@@ -1,13 +1,11 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
 import {
   IconAlertTriangle,
   IconCalendar,
   IconCirclePlus,
   IconCircleX,
   IconClock,
-  IconGitMerge,
   IconGitPullRequest,
-  IconGitPullRequestClosed,
   IconHourglass,
   IconUserQuestion,
   type Icon,
@@ -18,7 +16,6 @@ import type {
   DashboardIssue,
   IssueFlags,
   Ref,
-  RiskLevel,
   WorkloadEntry,
 } from "../../../types/teams";
 import {
@@ -26,13 +23,14 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
   describeSignals,
-  memberTickets,
-  prBadges,
+  memberWork,
   statusBucket,
+  type PRLine,
   type StatusBucket,
+  type TicketItem,
 } from "./memberSignals";
 import { refLabel } from "./refLookup";
-import { STALLED_CHIP_STYLE, staleTone } from "./staleTone";
+import { STALLED_CHIP_STYLE } from "./staleTone";
 
 interface Props {
   member: WorkloadEntry;
@@ -43,8 +41,7 @@ interface Props {
   onOpenRef?: (ref: Ref) => void;
 }
 
-/** Done tickets shown before the "Show N more" button. */
-const DONE_PREVIEW = 3;
+type OpenRef = ((ref: Ref) => void) | undefined;
 
 const SIGNAL_ICONS: Partial<Record<keyof IssueFlags, Icon>> = {
   prFailingCI: IconCircleX,
@@ -53,13 +50,6 @@ const SIGNAL_ICONS: Partial<Record<keyof IssueFlags, Icon>> = {
   dueSoon: IconCalendar,
   unassigned: IconUserQuestion,
   inProgressNoPR: IconGitPullRequest,
-  addedAfterStart: IconCirclePlus,
-};
-
-const LEVEL_TONES: Record<RiskLevel, string> = {
-  high: "danger",
-  attention: "warning",
-  normal: "success",
 };
 
 function plural(n: number, word: string): string {
@@ -79,13 +69,21 @@ function ageLabel(days: number): string {
   return days === 0 ? "today" : `${days}d ago`;
 }
 
-/** "Jun 27", or "" when there's no date. */
-function shortDate(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function monthDay(d: Date): string {
   return Number.isNaN(d.getTime())
     ? ""
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** "Jun 27" for an ISO timestamp, or "" when there's none. */
+function shortDate(iso: string | null): string {
+  return iso ? monthDay(new Date(iso)) : "";
+}
+
+/** A Jira due date ("YYYY-MM-DD") read as a local calendar day, so it doesn't shift a day west of UTC. */
+function dueDate(due: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(due);
+  return monthDay(m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(due));
 }
 
 function StatusSquare({ bucket }: { bucket: StatusBucket }) {
@@ -93,163 +91,195 @@ function StatusSquare({ bucket }: { bucket: StatusBucket }) {
 }
 
 /**
- * One ticket: key, with its Jira status on the right; the title; then time in
- * progress, last update, and every PR with its state. A flagged ticket
- * adds a callout: its level, then each warning sign in words. Only the key
- * (Jira drawer) and PRs (PR modal) open anything; the rest is plain text.
+ * One PR line: the repo#number link, its title (with its author when it isn't
+ * the member, and the teammate's ticket it's for), lines changed, then its state
+ * and date on the right: "merged Jun 27 by nadman", "failing CI · opened Jun 30".
+ */
+function PRRow({
+  pr,
+  me,
+  forKey,
+  onOpenRef,
+}: {
+  pr: PRLine;
+  /** The member's GitHub login, lowercased. */
+  me: string;
+  forKey?: string | null;
+  onOpenRef: OpenRef;
+}) {
+  const ref = { kind: "pr" as const, repo: pr.repo, number: pr.number };
+  const date = shortDate(pr.date);
+  const author = pr.author.toLowerCase() === me ? null : pr.author;
+  return (
+    <div className="member-pr">
+      <span className="member-pr__ref">
+        <button type="button" className="member-link" onClick={() => onOpenRef?.(ref)}>
+          {refLabel(ref)}
+        </button>
+      </span>
+      <span className="member-pr__title" title={pr.title}>
+        {pr.title}
+        {author && <span className="member-pr__muted"> by {author}</span>}
+        {forKey && (
+          <>
+            <span className="member-pr__muted"> for </span>
+            <button
+              type="button"
+              className="member-link member-pr__for"
+              onClick={() => onOpenRef?.({ kind: "issue", key: forKey })}
+            >
+              {forKey}
+            </button>
+          </>
+        )}
+      </span>
+      <span className="member-pr__diff">
+        <DiffStat pr={pr} />
+      </span>
+      <span className="member-pr__state">
+        <span className={`member-tone--${pr.tone}`}>{pr.label}</span>
+        {date && (
+          <span className="member-pr__when">
+            {pr.merged ? `${date}${pr.mergedBy ? ` by ${pr.mergedBy}` : ""}` : `· opened ${date}`}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One ticket: key, title and Jira status on one line; then why it's flagged
+ * (tinted by its group), its timing and labels; then its PRs on a tree line.
+ * Only the key and PR links open anything.
  */
 function TicketCard({
-  issue,
+  item: { issue, prs },
+  tone,
+  me,
   now,
   onOpenRef,
 }: {
-  issue: DashboardIssue;
+  item: TicketItem;
+  /** Set for flagged tickets: the tint of their reasons. */
+  tone?: "danger" | "warning";
+  me: string;
   now: Date;
-  onOpenRef?: (ref: Ref) => void;
+  onOpenRef: OpenRef;
 }) {
-  const level = issue.risk.level;
-  const flagged = level !== "normal";
+  const signals = tone ? describeSignals(issue, now) : [];
+  // Leave out timing a reason already gives ("No update for 4 days", "Due tomorrow").
+  const says = (key: keyof IssueFlags) => signals.some((s) => s.key === key);
   return (
-    <div className="member-ticket">
-      <div className="member-ticket__top">
-        <button
-          type="button"
-          className="member-link member-ticket__key"
-          onClick={() => onOpenRef?.({ kind: "issue", key: issue.key })}
-        >
-          {issue.key}
-        </button>
-        <span className="member-ticket__aside">
-          <span className="member-status">
-            <StatusSquare bucket={statusBucket(issue)} />
-            {issue.status}
-          </span>
-        </span>
-      </div>
-      <div className="member-ticket__title" title={issue.summary}>
+    <div className="member-card">
+      <button
+        type="button"
+        className="member-link member-card__key"
+        onClick={() => onOpenRef?.({ kind: "issue", key: issue.key })}
+      >
+        {issue.key}
+      </button>
+      <span className="member-card__title" title={issue.summary}>
         {issue.summary}
-      </div>
-      <div className="member-ticket__meta">
+      </span>
+      <span className="member-card__status">
+        <StatusSquare bucket={statusBucket(issue)} />
+        {issue.status}
+      </span>
+      <div className="member-card__details">
+        {signals.length > 0 && (
+          <span className={`member-why member-why--${tone}`}>
+            {signals.map((s) => {
+              const SignalIcon = SIGNAL_ICONS[s.key] ?? IconAlertTriangle;
+              return (
+                <span key={s.key} className="member-signal">
+                  <span className={`member-tone--${s.tone}`}>
+                    <SignalIcon size={14} />
+                  </span>
+                  {s.text}
+                </span>
+              );
+            })}
+          </span>
+        )}
         {issue.daysInProgress != null && (
           <span>in progress {issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}</span>
         )}
-        <span style={issue.flags.stale ? { color: staleTone(issue.daysSinceUpdate) } : undefined}>
-          updated {ageLabel(issue.daysSinceUpdate)}
-        </span>
-        {prBadges(issue).map((pr) => {
-          const ref = { kind: "pr" as const, repo: pr.repo, number: pr.number };
-          const PRIcon = pr.tone === "purple" ? IconGitMerge : IconGitPullRequest;
-          return (
-            <button
-              key={`${pr.repo}#${pr.number}`}
-              type="button"
-              className={`member-link member-pr member-tone--${pr.tone}`}
-              onClick={() => onOpenRef?.(ref)}
-            >
-              <PRIcon size={13} />
-              {refLabel(ref)} {pr.label}
-            </button>
-          );
-        })}
-      </div>
-      {flagged && (
-        <div className={`member-callout member-callout--${LEVEL_TONES[level]}`}>
-          <span className="member-callout__level">
-            <IconAlertTriangle size={14} />
-            {LEVEL_LABELS[level]}
+        {!says("stale") && <span>updated {ageLabel(issue.daysSinceUpdate)}</span>}
+        {issue.dueDate && !says("dueSoon") && <span>due {dueDate(issue.dueDate)}</span>}
+        {issue.flags.addedAfterStart && (
+          <span className="member-label">
+            <IconCirclePlus size={12} />
+            added mid-sprint
           </span>
-          {describeSignals(issue, now).map((s) => {
-            const SignalIcon = SIGNAL_ICONS[s.key] ?? IconAlertTriangle;
-            return (
-              <span key={s.key} className="member-signal">
-                <span className={`member-tone--${s.tone}`}>
-                  <SignalIcon size={14} />
-                </span>
-                <span>{s.text}</span>
-              </span>
-            );
-          })}
+        )}
+      </div>
+      {prs.length > 0 && (
+        <div className="member-prs">
+          {prs.map((pr) => (
+            <PRRow key={`${pr.repo}#${pr.number}`} pr={pr} me={me} onOpenRef={onOpenRef} />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-const PR_STATES: Record<string, { tone: string; icon: Icon }> = {
-  open: { tone: "neutral", icon: IconGitPullRequest },
-  merged: { tone: "purple", icon: IconGitMerge },
-  closed: { tone: "neutral", icon: IconGitPullRequestClosed },
-};
-
-/**
- * One PR: its state as an icon, the link, and lines changed on the right; the
- * title; then when it was opened and merged (and by whom). Only the link
- * opens anything.
- */
-function MemberPRCard({ pr, onOpenRef }: { pr: AuthoredPR; onOpenRef?: (ref: Ref) => void }) {
-  const ref = { kind: "pr" as const, repo: pr.repo_full_name, number: pr.number };
-  const { tone, icon: StateIcon } = PR_STATES[pr.state] ?? PR_STATES.open!;
-  const opened = shortDate(pr.createdAt);
-  const merged = shortDate(pr.mergedAt);
+function WorkGroup({
+  label,
+  region,
+  icon,
+  count,
+  children,
+}: {
+  label: string;
+  region: string;
+  icon: ReactNode;
+  count: number;
+  children: ReactNode;
+}) {
   return (
-    <div className="member-ticket">
-      <div className="member-ticket__top">
-        <span
-          className={`member-ticket__state member-tone--${tone}`}
-          role="img"
-          aria-label={pr.state}
-          title={pr.state}
-        >
-          <StateIcon size={14} />
-        </span>
-        <button
-          type="button"
-          className="member-link member-ticket__key"
-          onClick={() => onOpenRef?.(ref)}
-        >
-          {refLabel(ref)}
-        </button>
-        <span className="member-ticket__aside">
-          <DiffStat pr={pr} />
-        </span>
+    <section className="member-group" aria-label={region}>
+      <div className="cockpit-group-head">
+        {icon}
+        {label}
+        <span className="member-detail__count">{count}</span>
       </div>
-      <div className="member-ticket__title" title={pr.title}>
-        {pr.title}
-      </div>
-      {(opened || merged) && (
-        <div className="member-ticket__meta">
-          {opened && <span>opened {opened}</span>}
-          {merged && (
-            <span>
-              merged {merged}
-              {pr.mergedBy && ` by ${pr.mergedBy}`}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
+      <div className="member-rows">{children}</div>
+    </section>
   );
 }
 
-/** Newest first. */
-function byOpenedDesc(a: AuthoredPR, b: AuthoredPR): number {
-  return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
-}
+const FLAGGED = [
+  { level: "high", tone: "danger" },
+  { level: "attention", tone: "warning" },
+] as const;
 
 /**
- * One member on the People tab: their numbers, then every ticket they hold,
- * each flagged one saying why. Key it by member so the done fold resets
- * between people.
+ * One member on the People tab: their numbers, then one list of everything
+ * they have in the sprint. Flagged tickets come first whatever their status,
+ * then the rest by status, each ticket with its PRs under it, then the PRs
+ * they wrote that sit on no ticket of theirs. Nothing is folded away.
  */
 export function MemberDetail({ member, issues, prs, onOpenRef }: Props) {
-  const [showAllDone, setShowAllDone] = useState(false);
   const now = new Date();
-  const { groups } = memberTickets(issues, member.accountId);
-  const total = groups.reduce((n, g) => n + g.issues.length, 0);
-  const login = member.githubUsername.toLowerCase();
-  const memberPRs = login
-    ? prs.filter((p) => p.author.toLowerCase() === login).sort(byOpenedDesc)
-    : [];
+  const me = member.githubUsername.toLowerCase();
+  const work = memberWork(issues, prs, member.accountId, member.githubUsername);
+  const flagged = { high: work.atRisk, attention: work.needsLook };
+  const empty =
+    work.atRisk.length + work.needsLook.length + work.groups.length + work.otherPRs.length === 0;
+  const cards = (items: TicketItem[], tone?: "danger" | "warning") =>
+    items.map((item) => (
+      <TicketCard
+        key={item.issue.key}
+        item={item}
+        tone={tone}
+        me={me}
+        now={now}
+        onOpenRef={onOpenRef}
+      />
+    ));
+
   return (
     <div className="member-detail">
       <div className="member-detail__head">
@@ -289,69 +319,68 @@ export function MemberDetail({ member, issues, prs, onOpenRef }: Props) {
         </div>
       </div>
 
-      {/* Tickets and PRs side by side, each list scrolling under its header;
-          on a narrow pane they stack and scroll with the pane. */}
-      <div className="member-detail__body">
-        <div className="member-detail__col">
-          <div className="member-detail__section">
-            All tickets <span className="member-detail__count">{total}</span>
-          </div>
-          <div className="member-detail__list">
-            {total === 0 && <div className="text-muted small">No tickets in this sprint.</div>}
-            {groups.map(({ bucket, issues: list }) => {
-              const folded = bucket === "done" && !showAllDone && list.length > DONE_PREVIEW;
-              const visible = folded ? list.slice(0, DONE_PREVIEW) : list;
-              return (
-                <section
-                  key={bucket}
-                  className="member-group"
-                  aria-label={`${STATUS_LABELS[bucket]} tickets`}
-                >
-                  <div className="cockpit-group-head">
-                    <StatusSquare bucket={bucket} />
-                    {STATUS_LABELS[bucket]}
-                    <span className="member-detail__count">{list.length}</span>
-                  </div>
-                  <div className="member-rows">
-                    {visible.map((issue) => (
-                      <TicketCard key={issue.key} issue={issue} now={now} onOpenRef={onOpenRef} />
+      <div className="member-detail__list">
+        {empty ? (
+          <div className="text-muted small">No tickets or PRs in this sprint.</div>
+        ) : (
+          <div className="member-work">
+            {FLAGGED.map(
+              ({ level, tone }) =>
+                flagged[level].length > 0 && (
+                  <WorkGroup
+                    key={level}
+                    label={LEVEL_LABELS[level]}
+                    region={`${LEVEL_LABELS[level]} tickets`}
+                    icon={
+                      <span className={`member-tone--${tone}`}>
+                        <IconAlertTriangle size={13} />
+                      </span>
+                    }
+                    count={flagged[level].length}
+                  >
+                    {cards(flagged[level], tone)}
+                  </WorkGroup>
+                ),
+            )}
+            {work.groups.map(({ bucket, items }) => (
+              <WorkGroup
+                key={bucket}
+                label={STATUS_LABELS[bucket]}
+                region={`${STATUS_LABELS[bucket]} tickets`}
+                icon={<StatusSquare bucket={bucket} />}
+                count={items.length}
+              >
+                {cards(items)}
+              </WorkGroup>
+            ))}
+            {work.otherPRs.length > 0 && (
+              <WorkGroup
+                label="Other PRs"
+                region="Other PRs"
+                icon={
+                  <span className="member-tone--neutral">
+                    <IconGitPullRequest size={13} />
+                  </span>
+                }
+                count={work.otherPRs.length}
+              >
+                <div className="member-card">
+                  <div className="member-prs member-prs--flat">
+                    {work.otherPRs.map(({ pr, forKey }) => (
+                      <PRRow
+                        key={`${pr.repo}#${pr.number}`}
+                        pr={pr}
+                        me={me}
+                        forKey={forKey}
+                        onOpenRef={onOpenRef}
+                      />
                     ))}
-                    {folded && (
-                      <button
-                        type="button"
-                        className="member-more"
-                        onClick={() => setShowAllDone(true)}
-                      >
-                        Show {list.length - DONE_PREVIEW} more
-                      </button>
-                    )}
                   </div>
-                </section>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="member-detail__col">
-          <div className="member-detail__section">
-            All PRs <span className="member-detail__count">{memberPRs.length}</span>
-          </div>
-          <div className="member-detail__list">
-            {memberPRs.length === 0 ? (
-              <div className="text-muted small">No PRs in this sprint.</div>
-            ) : (
-              <section className="member-rows" aria-label="PRs">
-                {memberPRs.map((pr) => (
-                  <MemberPRCard
-                    key={`${pr.repo_full_name}#${pr.number}`}
-                    pr={pr}
-                    onOpenRef={onOpenRef}
-                  />
-                ))}
-              </section>
+                </div>
+              </WorkGroup>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
