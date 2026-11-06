@@ -29,6 +29,7 @@ import {
   type StatusBucket,
   type TicketItem,
 } from "./memberSignals";
+import { titleWithoutKey } from "../../workday/prState";
 import { refLabel } from "./refLookup";
 import { STALLED_CHIP_STYLE } from "./staleTone";
 
@@ -98,12 +99,15 @@ function StatusSquare({ bucket }: { bucket: StatusBucket }) {
 function PRRow({
   pr,
   me,
+  ticketKey,
   forKey,
   onOpenRef,
 }: {
   pr: PRLine;
   /** The member's GitHub login, lowercased. */
   me: string;
+  /** The ticket the PR sits under: a leading "KEY:" in its title would repeat it. */
+  ticketKey?: string;
   forKey?: string | null;
   onOpenRef: OpenRef;
 }) {
@@ -118,7 +122,7 @@ function PRRow({
         </button>
       </span>
       <span className="member-pr__title" title={pr.title}>
-        {pr.title}
+        {titleWithoutKey(pr.title, ticketKey ?? forKey ?? null)}
         {author && <span className="member-pr__muted"> by {author}</span>}
         {forKey && (
           <>
@@ -172,15 +176,19 @@ function TicketCard({
   const says = (key: keyof IssueFlags) => signals.some((s) => s.key === key);
   return (
     <div className="member-card">
-      <button
-        type="button"
-        className="member-link member-card__key"
-        onClick={() => onOpenRef?.({ kind: "issue", key: issue.key })}
-      >
-        {issue.key}
-      </button>
-      <span className="member-card__title" title={issue.summary}>
-        {issue.summary}
+      {/* Key and title as one cell, so the title follows the key instead of
+          starting at the PR titles' column. */}
+      <span className="member-card__head">
+        <button
+          type="button"
+          className="member-link member-card__key"
+          onClick={() => onOpenRef?.({ kind: "issue", key: issue.key })}
+        >
+          {issue.key}
+        </button>
+        <span className="member-card__title" title={issue.summary}>
+          {issue.summary}
+        </span>
       </span>
       <span className="member-card__status">
         <StatusSquare bucket={statusBucket(issue)} />
@@ -217,7 +225,13 @@ function TicketCard({
       {prs.length > 0 && (
         <div className="member-prs">
           {prs.map((pr) => (
-            <PRRow key={`${pr.repo}#${pr.number}`} pr={pr} me={me} onOpenRef={onOpenRef} />
+            <PRRow
+              key={`${pr.repo}#${pr.number}`}
+              pr={pr}
+              me={me}
+              ticketKey={issue.key}
+              onOpenRef={onOpenRef}
+            />
           ))}
         </div>
       )}

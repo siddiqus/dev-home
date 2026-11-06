@@ -73,7 +73,9 @@ describe("MemberDetail", () => {
   it("puts the title beside the key, the status on the right, and the timing below", () => {
     render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
-    const [key, title, status, details] = Array.from(card("Sprint health strip").children);
+    const [head, status, details] = Array.from(card("Sprint health strip").children);
+    // Key and title share one cell, so the title follows the key directly.
+    const [key, title] = Array.from(head!.children);
     expect(key).toHaveTextContent(/^PLAT-101$/);
     expect(title).toHaveTextContent(/^Sprint health strip$/);
     expect(status).toHaveTextContent(/^In Progress$/);
@@ -105,11 +107,13 @@ describe("MemberDetail", () => {
   it("hangs a ticket's PRs under it: link, title, lines changed, then state and date", () => {
     render(<MemberDetail member={tashfia} issues={issues} prs={authoredPRs} />);
 
-    const row = prRow("PLAT-101 health strip");
+    // The PR title's leading "PLAT-101" would repeat the ticket it sits under.
+    const row = prRow("health strip");
     expect(card("Sprint health strip")).toContainElement(row);
     const [ref, title, diff, state] = Array.from(row.children);
     expect(ref).toHaveTextContent(/^web#12$/);
-    expect(title).toHaveTextContent(/^PLAT-101 health strip$/);
+    expect(title).toHaveTextContent(/^health strip$/);
+    expect(title).toHaveAttribute("title", "PLAT-101 health strip");
     // The ticket's copy lacks lines changed (older cache); the member's own copy fills it.
     expect(diff).toHaveTextContent(/^\+12−3$/);
     expect(state).toHaveTextContent(/^failing CI\s*· opened \w{3} \d+$/);
@@ -154,8 +158,9 @@ describe("MemberDetail", () => {
       <MemberDetail member={tashfia} issues={linked} prs={authoredPRs} onOpenRef={onOpenRef} />,
     );
 
-    const row = prRow("PLAT-201 rotate refresh tokens");
-    expect(row).toHaveTextContent("for PLAT-201");
+    // "for PLAT-201" names the ticket, so the title drops its leading key.
+    const row = prRow("rotate refresh tokens");
+    expect(row).toHaveTextContent(/^api#40rotate refresh tokens for PLAT-201/);
     fireEvent.click(within(row).getByRole("button", { name: "PLAT-201" }));
     expect(onOpenRef).toHaveBeenLastCalledWith({ kind: "issue", key: "PLAT-201" });
   });
@@ -176,7 +181,7 @@ describe("MemberDetail", () => {
     render(<MemberDetail member={tashfia} issues={issues} prs={[]} onOpenRef={onOpenRef} />);
 
     fireEvent.click(screen.getByText("Sprint health strip"));
-    fireEvent.click(screen.getByText("PLAT-101 health strip"));
+    fireEvent.click(screen.getByText("health strip"));
     expect(onOpenRef).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "PLAT-101" }));

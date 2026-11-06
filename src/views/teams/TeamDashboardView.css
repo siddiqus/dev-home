@@ -577,13 +577,19 @@
 .member-card:first-child {
   border-top: 0;
 }
+.member-card__head {
+  display: flex;
+  grid-column: ref / diff;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
 .member-card__key {
-  grid-column: ref;
+  flex: none;
   font-weight: 600;
   white-space: nowrap;
 }
 .member-card__title {
-  grid-column: title;
   min-width: 0;
   overflow: hidden;
   font-weight: 500;
