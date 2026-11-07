@@ -142,7 +142,7 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
       centered
       scrollable
       fullscreen={phone ? true : undefined}
-      className="rr-modal"
+      className={`rr-modal${phone ? " rr-modal--phone" : ""}`}
       backdropClassName="rr-backdrop"
       aria-labelledby="rr-title"
     >

@@ -46,6 +46,13 @@
   color: var(--color-text-primary);
 }
 
+/* Edge to edge on phones. The 6px ::-webkit-scrollbar in reset.css makes
+   React-Bootstrap measure a scrollbar phones don't show, and it pads the modal
+   inline on the left for it. */
+.rr-modal--phone {
+  padding: 0 !important;
+}
+
 /* Desktop: the list scrolls inside a modal no taller than it needs, up to 640px. */
 .rr-modal .modal-dialog:not(.modal-fullscreen) .modal-content {
   max-height: min(640px, 100%);
