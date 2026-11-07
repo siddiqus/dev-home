@@ -83,7 +83,7 @@ export function PRCard({
   // pill; PRs I'm not involved in keep it. The CI status icon stays on every row.
   const viewer = useContext(ViewerLoginContext);
   const [next, ...facts] = showSignals ? mySignals(pr, new Date()) : [];
-  // The comment count ends the signals line on every row, so it can carry the line alone.
+  // The comment count follows the title's GitHub link, so it never needs a line of its own.
   const comments = useCommentCounts(pr);
   const action = next ? null : actionPill === undefined ? prAction(pr, viewer) : actionPill;
   const showStatusPill =
@@ -150,6 +150,7 @@ export function PRCard({
           >
             <IconExternalLink size={14} stroke={1.8} />
           </a>
+          <CommentCountChip counts={comments} />
         </div>
 
         <div className="pr-card-meta">
@@ -220,12 +221,11 @@ export function PRCard({
           ) : null}
           {pr.labels && pr.labels.length > 0 && <PRLabels labels={pr.labels} />}
         </div>
-        {(facts.length > 0 || comments) && (
+        {facts.length > 0 && (
           <div className="pr-card-signals">
             {facts.map((signal) => (
               <SignalChip key={signal.label} signal={signal} />
             ))}
-            <CommentCountChip counts={comments} />
           </div>
         )}
       </div>

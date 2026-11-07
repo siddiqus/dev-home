@@ -129,6 +129,11 @@
   color: var(--color-accent);
 }
 
+/* The comment count after the title's icons: the title truncates, not the chip. */
+.pr-card-title .comment-count-chip {
+  flex-shrink: 0;
+}
+
 .pr-card-copy-link {
   flex-shrink: 0;
   display: inline-flex;

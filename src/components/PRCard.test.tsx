@@ -408,10 +408,12 @@ describe("PRCard signals", () => {
 });
 
 describe("PRCard comment count", () => {
-  const rowTexts = (container: HTMLElement) =>
+  const titleChip = (container: HTMLElement) =>
+    container.querySelector(".pr-card-title .comment-count-chip")?.textContent;
+  const signalTexts = (container: HTMLElement) =>
     [...container.querySelectorAll(".pr-card-signals > *")].map((c) => c.textContent);
 
-  it("follows my PR's signals on the line under the meta", () => {
+  it("sits after the title's GitHub link, leaving my PR's signals their own line", () => {
     mockCounts.mockReturnValue({ total: 12, unread: 3, unreadAtLeast: false });
     const { container } = render(
       <PRCard
@@ -425,16 +427,20 @@ describe("PRCard comment count", () => {
         onOpen={noop}
       />,
     );
-    expect(rowTexts(container)).toEqual(["✗ Conflict with main", "12 · 3 new"]);
+    expect(titleChip(container)).toBe("12 · 3 new");
+    const chip = container.querySelector(".pr-card-title .comment-count-chip");
+    expect(chip?.previousElementSibling).toHaveClass("pr-card-ext");
+    expect(signalTexts(container)).toEqual(["✗ Conflict with main"]);
   });
 
-  it("gets a line of its own on a review row, which has no signals", () => {
+  it("doesn't add a line on a review row, which has no signals", () => {
     mockCounts.mockReturnValue({ total: 4, unread: 0, unreadAtLeast: false });
     const { container } = render(<PRCard pr={makePR()} fields={FIELDS.reviews} onOpen={noop} />);
-    expect(rowTexts(container)).toEqual(["4"]);
+    expect(titleChip(container)).toBe("4");
+    expect(container.querySelector(".pr-card-signals")).toBeNull();
   });
 
-  it("leaves the line out without comment data", () => {
+  it("is left out without comment data", () => {
     const { container } = render(
       <PRCard
         pr={makePR({ merged_at: "2026-07-11T00:00:00Z" })}
@@ -442,6 +448,7 @@ describe("PRCard comment count", () => {
         onOpen={noop}
       />,
     );
+    expect(container.querySelector(".comment-count-chip")).toBeNull();
     expect(container.querySelector(".pr-card-signals")).toBeNull();
   });
 });
