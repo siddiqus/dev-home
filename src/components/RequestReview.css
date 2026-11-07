@@ -53,9 +53,10 @@
   padding: 0 !important;
 }
 
-/* Desktop: the list scrolls inside a modal no taller than it needs, up to 640px. */
+/* Desktop: a fixed 640px (or the viewport, if shorter), so searching doesn't
+   resize the modal; the list scrolls inside it. */
 .rr-modal .modal-dialog:not(.modal-fullscreen) .modal-content {
-  max-height: min(640px, 100%);
+  height: min(640px, 100%);
 }
 
 .rr-modal .modal-header {
