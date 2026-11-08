@@ -106,42 +106,59 @@ export function useOrgPRSearch({
     loadMergedPRs();
   }, [loadMergedPRs]);
 
-  // Load org members
+  // Load org members. The loading flag drives the author dropdown's spinner; a
+  // request id keeps an older fetch from clearing it while a newer one runs.
+  const [membersLoading, setMembersLoading] = useState(false);
+  const membersRequestRef = useRef(0);
   const loadMembers = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
       if (!skipCache && members.length > 0) return;
+      const requestId = ++membersRequestRef.current;
+      setMembersLoading(true);
       try {
         const data = await fetchOrgMembers({ force: skipCache });
         setMembers(data);
         saveCache(MEMBERS_CACHE_KEY, data);
       } catch (err) {
         console.error("Failed to fetch org members:", err);
+      } finally {
+        if (requestId === membersRequestRef.current) setMembersLoading(false);
       }
     },
     [configured, members.length],
   );
 
-  // Load org repos
+  // Load org repos (same loading pattern, for the repo dropdown).
+  const [reposLoading, setReposLoading] = useState(false);
+  const reposRequestRef = useRef(0);
   const loadRepos = useCallback(
     async (skipCache = false) => {
       if (!configured) return;
       if (!skipCache && orgRepos.length > 0) return;
+      const requestId = ++reposRequestRef.current;
+      setReposLoading(true);
       try {
         const data = await fetchOrgRepos({ force: skipCache });
         setOrgRepos(data);
         saveCache(REPOS_CACHE_KEY, data);
       } catch (err) {
         console.error("Failed to fetch org repos:", err);
+      } finally {
+        if (requestId === reposRequestRef.current) setReposLoading(false);
       }
     },
     [configured, orgRepos.length],
   );
 
+  // Separate effects: members arriving re-creates loadMembers, which mustn't
+  // re-run loadRepos while the repos are still in flight (and vice versa).
   useEffect(() => {
     loadMembers();
+  }, [loadMembers]);
+  useEffect(() => {
     loadRepos();
-  }, [loadMembers, loadRepos]);
+  }, [loadRepos]);
 
   // Stabilize array dependencies for useCallback
   const authorsKey = JSON.stringify(authors);
@@ -307,7 +324,9 @@ export function useOrgPRSearch({
     selectedRepos,
     setSelectedRepos,
     members,
+    membersLoading,
     orgRepos,
+    reposLoading,
     subTab,
     setSubTab,
     refreshPRs,

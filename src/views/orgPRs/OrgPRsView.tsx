@@ -50,7 +50,9 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     selectedRepos,
     setSelectedRepos,
     members,
+    membersLoading,
     orgRepos,
+    reposLoading,
     subTab: orgSubTab,
     setSubTab: handleOrgSubTab,
     refreshPRs,
@@ -191,6 +193,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             onChange={handleAuthorsChange}
             placeholder="Search login or name..."
             allLabel="Select author(s)"
+            loading={membersLoading}
           />
           <MultiSelectDropdown
             items={repoItems}
@@ -198,6 +201,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             onChange={handleReposChange}
             placeholder="Search repos..."
             allLabel="Select repo(s)"
+            loading={reposLoading}
           />
           <div className="toolbar-divider" />
           <SavedFiltersDropdown

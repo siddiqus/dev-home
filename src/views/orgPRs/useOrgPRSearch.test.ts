@@ -54,6 +54,42 @@ describe("useOrgPRSearch", () => {
     expect(result.current.prs).toEqual([]);
   });
 
+  it("flags members and repos as loading while they're fetched", async () => {
+    let resolveMembers!: (v: Awaited<ReturnType<typeof fetchOrgMembers>>) => void;
+    let resolveRepos!: (v: Awaited<ReturnType<typeof fetchOrgRepos>>) => void;
+    vi.mocked(fetchOrgMembers).mockReturnValueOnce(new Promise((r) => (resolveMembers = r)));
+    vi.mocked(fetchOrgRepos).mockReturnValueOnce(new Promise((r) => (resolveRepos = r)));
+
+    const { result } = render();
+    await waitFor(() => expect(result.current.membersLoading).toBe(true));
+    expect(result.current.reposLoading).toBe(true);
+
+    await act(async () => resolveMembers([{ login: "shunjid", name: null, avatar_url: "" }]));
+    expect(result.current.membersLoading).toBe(false);
+    expect(result.current.reposLoading).toBe(true);
+
+    await act(async () => resolveRepos([{ full_name: "acme/web", name: "web" }]));
+    expect(result.current.reposLoading).toBe(false);
+  });
+
+  it("doesn't flag cached members and repos as loading", () => {
+    localStorage.setItem(
+      "dev-home-org-members-cache-v2",
+      JSON.stringify({
+        data: [{ login: "shunjid", name: null, avatar_url: "" }],
+        timestamp: Date.now(),
+      }),
+    );
+    localStorage.setItem(
+      "dev-home-org-repos-cache",
+      JSON.stringify({ data: [{ full_name: "acme/web", name: "web" }], timestamp: Date.now() }),
+    );
+    const { result } = render();
+    expect(result.current.membersLoading).toBe(false);
+    expect(result.current.reposLoading).toBe(false);
+    expect(fetchOrgMembers).not.toHaveBeenCalled();
+  });
+
   it("pages through one author's PRs", async () => {
     const { result } = render();
     act(() => result.current.setAuthors(["shunjid"]));
