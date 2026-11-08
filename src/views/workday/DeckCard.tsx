@@ -74,6 +74,16 @@ export function DeckCard({
   const jiraHref = key && jiraBaseUrl ? jiraBrowseUrl(jiraBaseUrl, key) : null;
   const currentCount = prs.filter((p) => p.current).length;
   const mergedCount = prs.filter((p) => p.pr.merged_at).length;
+  const meta = newest
+    ? [
+        plural(prs.length, "PR"),
+        mergedCount > 0 && `${mergedCount} merged`,
+        currentCount > 0 && `${currentCount} current`,
+        `updated ${compactAge(newest, now)}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
   const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
   const row = (p: DeckPR, i: number) => (
@@ -133,25 +143,13 @@ export function DeckCard({
               <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
             )}
             {ticket.ticket?.offSprint && <OffSprintPill />}
+            {/* PR count and freshness fill the key line's empty right side. */}
+            {meta && <span className="deck-card-meta">{meta}</span>}
           </div>
         )}
         <h3 className="deck-card-title">{ticket.title}</h3>
-        {(newest || jiraHref) && (
-          <div className="deck-card-sub">
-            {newest && (
-              <span>
-                {[
-                  plural(prs.length, "PR"),
-                  mergedCount > 0 && `${mergedCount} merged`,
-                  currentCount > 0 && `${currentCount} current`,
-                  `updated ${compactAge(newest, now)}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            )}
-          </div>
-        )}
+        {/* No key line to sit in: the meta keeps its own line under the title. */}
+        {!key && meta && <div className="deck-card-sub">{meta}</div>}
         {ticket.jiraMention && key && (
           <DeckQuote
             item={ticket.jiraMention}

@@ -724,6 +724,14 @@
   margin-right: var(--space-1);
 }
 
+/* PR count · merged · updated, pushed to the key line's right edge. */
+.deck-card-meta {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .deck-card-title {
   flex: 1;
   min-width: 0;
