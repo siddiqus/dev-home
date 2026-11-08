@@ -21,7 +21,7 @@ export interface PickedReviewer {
 
 interface Candidate extends PickedReviewer {
   avatar?: string;
-  /** A team's slug, when it differs from its name. */
+  /** A person's profile name, or a team's slug when it differs from its name. Searched too. */
   sub?: string;
 }
 
@@ -86,14 +86,20 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
   const [refusal, setRefusal] = useState<string | null>(null);
 
   const sections = useMemo(() => {
-    const avatars = new Map((members.data ?? []).map((m) => [m.login.toLowerCase(), m.avatar_url]));
+    const byLogin = new Map((members.data ?? []).map((m) => [m.login.toLowerCase(), m]));
     const prevKeys = new Set(previous.map(keyOf));
     const q = query.trim().toLowerCase();
     const matches = (c: Candidate) =>
       !q || c.label.toLowerCase().includes(q) || !!c.sub?.toLowerCase().includes(q);
     const people: Candidate[] = (members.data ?? [])
       .filter((m) => m.login.toLowerCase() !== author)
-      .map((m) => ({ kind: "user" as const, id: m.login, label: m.login, avatar: m.avatar_url }))
+      .map((m) => ({
+        kind: "user" as const,
+        id: m.login,
+        label: m.login,
+        avatar: m.avatar_url,
+        sub: m.name ?? undefined,
+      }))
       .filter((c) => !prevKeys.has(keyOf(c)));
     const teamRows: Candidate[] = (teams.data ?? []).map((t) => ({
       kind: "team" as const,
@@ -105,7 +111,10 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
       {
         title: "Reviewed before",
         rows: previous
-          .map((c) => ({ ...c, avatar: avatars.get(c.id.toLowerCase()) }))
+          .map((c) => {
+            const m = byLogin.get(c.id.toLowerCase());
+            return { ...c, avatar: m?.avatar_url, sub: m?.name ?? undefined };
+          })
           .filter(matches),
       },
       { title: "People", rows: people.filter(matches) },

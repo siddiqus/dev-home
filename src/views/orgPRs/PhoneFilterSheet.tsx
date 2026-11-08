@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
 import { IconCheck, IconSearch } from "@tabler/icons-react";
 import { useBackClose } from "../../hooks/useBackClose";
+import { itemMatches } from "../../components/SearchableDropdown";
 
 export interface SheetItem {
   value: string;
   label: string;
   avatar?: string;
+  /** Muted text after the label (a person's name); searched too. */
+  hint?: string;
 }
 
 interface Props {
@@ -38,8 +41,7 @@ export function PhoneFilterSheet({
   const [pickedAtOpen, setPickedAtOpen] = useState<string[]>([]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const matching = q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
+    const matching = items.filter((i) => itemMatches(i, query));
     const first = new Set(pickedAtOpen);
     return [
       ...matching.filter((i) => first.has(i.value)),
@@ -94,7 +96,10 @@ export function PhoneFilterSheet({
                   aria-label={item.label}
                 />
                 {item.avatar && <img className="phone-sheet__avatar" src={item.avatar} alt="" />}
-                <span className="phone-sheet__label">{item.label}</span>
+                <span className="phone-sheet__label">
+                  {item.label}
+                  {item.hint && <span className="phone-sheet__hint">{item.hint}</span>}
+                </span>
                 {checked && (
                   <IconCheck size={16} className="phone-sheet__check" aria-hidden="true" />
                 )}

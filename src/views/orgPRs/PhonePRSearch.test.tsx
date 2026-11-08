@@ -63,9 +63,9 @@ function search(over: Partial<Search> = {}): Search {
     selectedRepos: [],
     setSelectedRepos: vi.fn(),
     members: [
-      { login: "shunjid", avatar_url: "" },
-      { login: "tashfia", avatar_url: "" },
-      { login: "me", avatar_url: "" },
+      { login: "shunjid", name: "Shunjid Rahman", avatar_url: "" },
+      { login: "tashfia", name: null, avatar_url: "" },
+      { login: "me", name: null, avatar_url: "" },
     ],
     orgRepos: [
       { full_name: "acme/cmp-server", name: "cmp-server" },
@@ -119,13 +119,26 @@ describe("PhonePRSearch", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
     const sheet = screen.getByRole("dialog", { name: "Authors" });
 
-    fireEvent.change(within(sheet).getByPlaceholderText("Search people…"), {
+    fireEvent.change(within(sheet).getByPlaceholderText("Search login or name…"), {
       target: { value: "shun" },
     });
     expect(within(sheet).queryByRole("checkbox", { name: "tashfia" })).toBeNull();
     fireEvent.click(within(sheet).getByRole("checkbox", { name: "shunjid" }));
 
     expect(s.setAuthors).toHaveBeenCalledWith(["tashfia", "shunjid"]);
+  });
+
+  it("finds an author by their GitHub profile name, shown beside the login", () => {
+    renderPage(search());
+    fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
+    const sheet = screen.getByRole("dialog", { name: "Authors" });
+    expect(within(sheet).getByText("Shunjid Rahman")).toBeInTheDocument();
+
+    fireEvent.change(within(sheet).getByPlaceholderText("Search login or name…"), {
+      target: { value: "rahman" },
+    });
+    expect(within(sheet).getByRole("checkbox", { name: "shunjid" })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("checkbox", { name: "tashfia" })).toBeNull();
   });
 
   it("unpicks a repo from its sheet", () => {

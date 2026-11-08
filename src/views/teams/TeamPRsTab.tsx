@@ -189,7 +189,12 @@ export const TeamPRsTab = forwardRef<TeamPRsTabHandle, TeamPRsTabProps>(function
     () =>
       members
         .filter((m) => m.github_username?.trim())
-        .map((m) => ({ value: m.github_username, label: m.display_name || m.github_username })),
+        .map((m) => ({
+          value: m.github_username,
+          label: m.display_name || m.github_username,
+          // Search by login as well as the display name.
+          hint: m.display_name ? m.github_username : undefined,
+        })),
     [members],
   );
 

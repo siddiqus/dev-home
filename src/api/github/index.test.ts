@@ -96,6 +96,39 @@ describe("getOrgMembers", () => {
     await expect(getOrgMembers()).resolves.toEqual({ members: [] });
     expect(adapter).not.toHaveBeenCalled();
   });
+
+  it("pages the org's members over GraphQL with their profile names, sorted by login", async () => {
+    const pages: Record<string, any> = {
+      first: {
+        nodes: [
+          { login: "zed", name: "Zed Ahmed", avatarUrl: "https://avatars/zed" },
+          { login: "abu", name: null, avatarUrl: "https://avatars/abu" },
+        ],
+        pageInfo: { hasNextPage: true, endCursor: "c1" },
+      },
+      c1: {
+        nodes: [{ login: "mia", name: "  ", avatarUrl: "https://avatars/mia" }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    };
+    adapter.mockImplementation(async (config: any) => {
+      const body = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+      const page = pages[body.variables.after ?? "first"];
+      return ok(config, { data: { organization: { membersWithRole: page } } });
+    });
+
+    await expect(getOrgMembers()).resolves.toEqual({
+      members: [
+        { login: "abu", name: null, avatar_url: "https://avatars/abu" },
+        { login: "mia", name: null, avatar_url: "https://avatars/mia" },
+        { login: "zed", name: "Zed Ahmed", avatar_url: "https://avatars/zed" },
+      ],
+    });
+    const bodies = graphqlBodies();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].variables).toMatchObject({ org: "test-org", after: null });
+    expect(bodies[1].variables).toMatchObject({ org: "test-org", after: "c1" });
+  });
 });
 
 describe("getPrDetail", () => {

@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { searchJiraUsers } from "../../services/teams";
-import { fetchOrgMembers } from "../../services/github";
+import { fetchOrgMembers, type OrgMember } from "../../services/github";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import type { JiraUserResult } from "../../types/teams";
 
-interface GhMember {
-  login: string;
-  avatar_url: string;
+const normName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** The one org member whose GitHub profile name is this Jira name; null if none or several. */
+export function suggestGithubMember(members: OrgMember[], jiraName: string): OrgMember | null {
+  const want = normName(jiraName);
+  if (!want) return null;
+  const found = members.filter((m) => m.name && normName(m.name) === want);
+  return found.length === 1 ? found[0] : null;
 }
 
 interface Props {
@@ -22,8 +27,18 @@ export function MemberSearchRow({ onAdd }: Props) {
   const [jiraResults, setJiraResults] = useState<JiraUserResult[]>([]);
   const [selectedJira, setSelectedJira] = useState<JiraUserResult | null>(null);
 
-  const [ghMembers, setGhMembers] = useState<GhMember[]>([]);
-  const [selectedGh, setSelectedGh] = useState<GhMember | null>(null);
+  const [ghMembers, setGhMembers] = useState<OrgMember[]>([]);
+  const [selectedGh, setSelectedGh] = useState<OrgMember | null>(null);
+  // The GitHub pick came from the Jira name, not the user: a new Jira pick may replace it.
+  const [ghSuggested, setGhSuggested] = useState(false);
+
+  const pickJira = (user: JiraUserResult | null) => {
+    setSelectedJira(user);
+    if (selectedGh && !ghSuggested) return;
+    const match = user ? suggestGithubMember(ghMembers, user.displayName) : null;
+    setSelectedGh(match);
+    setGhSuggested(!!match);
+  };
 
   const runJiraSearch = async (q: string) => {
     if (q.trim().length < 2) return setJiraResults([]);
@@ -61,7 +76,13 @@ export function MemberSearchRow({ onAdd }: Props) {
   );
 
   const ghItems: DropdownItem[] = useMemo(
-    () => ghMembers.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),
+    () =>
+      ghMembers.map((m) => ({
+        value: m.login,
+        label: m.login,
+        hint: m.name ?? undefined,
+        icon: m.avatar_url,
+      })),
     [ghMembers],
   );
 
@@ -73,7 +94,7 @@ export function MemberSearchRow({ onAdd }: Props) {
         items={jiraItems}
         value={selectedJira?.accountId || ""}
         selectedLabel={selectedJira?.emailAddress || selectedJira?.displayName}
-        onChange={(v) => setSelectedJira(jiraResults.find((u) => u.accountId === v) || null)}
+        onChange={(v) => pickJira(jiraResults.find((u) => u.accountId === v) || null)}
         onSearchChange={runJiraSearch}
         placeholder="Search Jira user…"
         allLabel="Select Jira user"
@@ -83,11 +104,14 @@ export function MemberSearchRow({ onAdd }: Props) {
       <SearchableDropdown
         items={ghItems}
         value={selectedGh?.login || ""}
-        onChange={(v) => setSelectedGh(ghMembers.find((m) => m.login === v) || null)}
-        placeholder="Search GitHub member…"
+        onChange={(v) => {
+          setSelectedGh(ghMembers.find((m) => m.login === v) || null);
+          setGhSuggested(false);
+        }}
+        placeholder="Search login or name…"
         allLabel="Select GitHub member"
         hideAllOption
-        width={220}
+        width={280}
       />
       <button
         className="btn btn-sm btn-primary"
@@ -102,6 +126,7 @@ export function MemberSearchRow({ onAdd }: Props) {
           });
           setSelectedJira(null);
           setSelectedGh(null);
+          setGhSuggested(false);
           setJiraResults([]);
         }}
       >

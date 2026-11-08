@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
 import { IconSearch, IconX, IconCheck } from "@tabler/icons-react";
-import { DropdownItem } from "./SearchableDropdown";
+import { DropdownItem, itemMatches } from "./SearchableDropdown";
 import { Avatar } from "./primitives/Avatar";
 import "./MultiSelectDropdown.css";
 
@@ -43,9 +43,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const selectedSet = useMemo(() => new Set(values), [values]);
 
   const filtered = useMemo(() => {
-    const base = search
-      ? items.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
-      : items;
+    const base = search ? items.filter((item) => itemMatches(item, search)) : items;
     const selected = base.filter((item) => selectedSet.has(item.value));
     const unselected = base.filter((item) => !selectedSet.has(item.value));
     return [...selected, ...unselected];
@@ -295,7 +293,15 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                       {item.tag.label}
                     </span>
                   )}
-                  {item.label}
+                  {/* Only a hinted label is wrapped (and truncated); others stay bare and wrap. */}
+                  {item.hint ? (
+                    <span className="multi-select-label">
+                      {item.label}
+                      <span className="dropdown-item-hint">{item.hint}</span>
+                    </span>
+                  ) : (
+                    item.label
+                  )}
                   {item.count !== undefined && (
                     <span className="multi-select-count-badge">{item.count}</span>
                   )}

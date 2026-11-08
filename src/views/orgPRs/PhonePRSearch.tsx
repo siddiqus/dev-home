@@ -144,8 +144,13 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
           show={sheet === "authors"}
           onHide={() => setSheet(null)}
           title="Authors"
-          searchPlaceholder="Search people…"
-          items={members.map((m) => ({ value: m.login, label: m.login, avatar: m.avatar_url }))}
+          searchPlaceholder="Search login or name…"
+          items={members.map((m) => ({
+            value: m.login,
+            label: m.login,
+            hint: m.name ?? undefined,
+            avatar: m.avatar_url,
+          }))}
           values={authors}
           onChange={search.setAuthors}
         />

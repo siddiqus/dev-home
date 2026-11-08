@@ -21,6 +21,7 @@ import {
 } from "./notifications";
 import { mapPrComments, threadStatus } from "./prComments";
 import {
+  ORG_MEMBERS_QUERY,
   OWN_PR_COMMENTS_QUERY,
   PR_BODY_QUERY,
   PR_COMMENTS_QUERY,
@@ -209,33 +210,32 @@ export async function getOrgPrs(
 
 /**
  * Formerly GET /api/github/org-members.
- * Fetch members of the configured org for the author filter dropdown.
+ * Fetch members of the configured org, with their profile names (null when a
+ * member hasn't set one), so pickers can search by login or name.
  */
 export async function getOrgMembers(): Promise<{
-  members: { login: string; avatar_url: string }[];
+  members: { login: string; name: string | null; avatar_url: string }[];
 }> {
-  const config = requireSettings();
-  const org = config.githubOrg;
+  const org = requireSettings().githubOrg;
+  if (!org) return { members: [] };
 
-  if (!org) {
-    return { members: [] };
-  }
-
-  const github = githubRest();
-  const members: Array<{ login: string; avatar_url: string }> = [];
-  let page = 1;
-  const perPage = 100;
-
-  while (true) {
-    const { data } = await github.get(`/orgs/${org}/members`, {
-      params: { per_page: perPage, page },
-    });
-    for (const m of data) {
-      members.push({ login: m.login, avatar_url: m.avatar_url });
+  const members: { login: string; name: string | null; avatar_url: string }[] = [];
+  let after: string | null = null;
+  do {
+    const result: {
+      organization: {
+        membersWithRole: {
+          nodes: { login: string; name: string | null; avatarUrl: string }[];
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      };
+    } = await githubGraphql(ORG_MEMBERS_QUERY, { org, after });
+    const { nodes, pageInfo } = result.organization.membersWithRole;
+    for (const m of nodes) {
+      members.push({ login: m.login, name: m.name?.trim() || null, avatar_url: m.avatarUrl });
     }
-    if (data.length < perPage) break;
-    page++;
-  }
+    after = pageInfo.hasNextPage ? pageInfo.endCursor : null;
+  } while (after);
 
   members.sort((a, b) => a.login.localeCompare(b.login));
   return { members };

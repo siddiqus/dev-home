@@ -25,7 +25,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.mocked(fetchOrgMembers)
     .mockReset()
-    .mockResolvedValue([{ login: "shunjid", avatar_url: "" }]);
+    .mockResolvedValue([{ login: "shunjid", name: null, avatar_url: "" }]);
   vi.mocked(fetchOrgRepos)
     .mockReset()
     .mockResolvedValue([{ full_name: "acme/web", name: "web" }]);

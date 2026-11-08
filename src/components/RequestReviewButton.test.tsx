@@ -70,9 +70,9 @@ beforeEach(() => {
   vi.mocked(fetchOrgMembers)
     .mockReset()
     .mockResolvedValue([
-      { login: "abu", avatar_url: "https://avatars/abu" },
-      { login: "me", avatar_url: "" },
-      { login: "rkhan", avatar_url: "https://avatars/rkhan" },
+      { login: "abu", name: "Abu Bakar", avatar_url: "https://avatars/abu" },
+      { login: "me", name: null, avatar_url: "" },
+      { login: "rkhan", name: null, avatar_url: "https://avatars/rkhan" },
     ]);
   vi.mocked(fetchOrgTeams)
     .mockReset()
@@ -131,6 +131,17 @@ describe("RequestReviewButton", () => {
     expect(within(picker).getByLabelText("Platform")).toBeInTheDocument();
     expect(within(picker).queryByLabelText("abu")).not.toBeInTheDocument();
     expect(within(picker).queryByLabelText("Frontend")).not.toBeInTheDocument();
+  });
+
+  it("shows a person's GitHub name beside their login and finds them by it", async () => {
+    renderButton();
+    const picker = await openPicker();
+    expect(within(picker).getByText("Abu Bakar")).toBeInTheDocument();
+    fireEvent.change(within(picker).getByLabelText("Search people and teams"), {
+      target: { value: "bakar" },
+    });
+    expect(within(picker).getByLabelText("abu")).toBeInTheDocument();
+    expect(within(picker).queryByLabelText("rkhan")).not.toBeInTheDocument();
   });
 
   it("requests the picked people and teams, then says so and refreshes", async () => {

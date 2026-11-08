@@ -161,7 +161,13 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
 
   // Dropdown items
   const authorItems = useMemo<DropdownItem[]>(
-    () => members.map((m) => ({ value: m.login, label: m.login, icon: m.avatar_url })),
+    () =>
+      members.map((m) => ({
+        value: m.login,
+        label: m.login,
+        hint: m.name ?? undefined,
+        icon: m.avatar_url,
+      })),
     [members],
   );
 
@@ -183,7 +189,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             items={authorItems}
             values={authors}
             onChange={handleAuthorsChange}
-            placeholder="Search authors..."
+            placeholder="Search login or name..."
             allLabel="Select author(s)"
           />
           <MultiSelectDropdown

@@ -13,6 +13,14 @@ export interface DropdownItem {
   count?: number;
   /** Optional kind pill shown before the label (e.g. "Jira", "PR"). */
   tag?: { label: string; tone: "info" | "purple" | "neutral" };
+  /** Optional muted text after the label (a person's name beside their login); searched too. */
+  hint?: string;
+}
+
+/** Whether a dropdown item matches a search: its label or hint contains it, case-insensitively. */
+export function itemMatches(item: { label: string; hint?: string }, search: string): boolean {
+  const q = search.trim().toLowerCase();
+  return !q || item.label.toLowerCase().includes(q) || !!item.hint?.toLowerCase().includes(q);
 }
 
 interface SearchableDropdownProps {
@@ -69,8 +77,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     // When search is server-driven, `items` are already the matches — don't
     // re-filter by label locally.
     if (onSearchChange || !search) return items;
-    const lower = search.toLowerCase();
-    return items.filter((item) => item.label.toLowerCase().includes(lower));
+    return items.filter((item) => itemMatches(item, search));
   }, [items, search, onSearchChange]);
 
   const selectedLabel = useMemo(() => {
@@ -284,6 +291,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                   )}
                   <span className="text-truncate" style={{ flex: 1 }}>
                     {item.label}
+                    {item.hint && <span className="dropdown-item-hint">{item.hint}</span>}
                   </span>
                   {onDeleteItem && (
                     <IconTrash

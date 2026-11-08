@@ -13,7 +13,8 @@ import { readCached, writeCached } from "../../lib/ttlCache";
 
 // --- localStorage caching ---
 
-const MEMBERS_CACHE_KEY = "dev-home-org-members-cache";
+// v2: members carry profile names; lists cached before that refetch once.
+const MEMBERS_CACHE_KEY = "dev-home-org-members-cache-v2";
 const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
 const PRS_CACHE_KEY = "dev-home-org-prs-cache-v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes

@@ -204,6 +204,21 @@ export const OWN_PR_COMMENTS_QUERY = `
 `;
 
 /**
+ * One page of org members with their profile names. REST /orgs/{org}/members
+ * returns no names; this pages the same 100 at a time, at 1 point per page.
+ */
+export const ORG_MEMBERS_QUERY = `
+  query OrgMembers($org: String!, $after: String) {
+    organization(login: $org) {
+      membersWithRole(first: 100, after: $after) {
+        nodes { login name avatarUrl }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+`;
+
+/**
  * GraphQL query for org PRs with cursor-based pagination.
  */
 export const SEARCH_ORG_PRS_QUERY = `

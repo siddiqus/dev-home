@@ -171,10 +171,12 @@ export function mergedSince(prs: GitHubPR[], since: Date): GitHubPR[] {
 
 export interface OrgMember {
   login: string;
+  /** Public profile name; null when the member hasn't set one. */
+  name: string | null;
   avatar_url: string;
 }
 
-/** Org members, shared by Org PRs and team member search (paged REST, so cached). */
+/** Org members with names, shared by Org PRs, Request review and team member search (paged, so cached). */
 export async function fetchOrgMembers(opts: { force?: boolean } = {}): Promise<OrgMember[]> {
   return cached("org-members", ORG_LIST_TTL_MS, !!opts.force, async () => {
     const data = await getOrgMembers();

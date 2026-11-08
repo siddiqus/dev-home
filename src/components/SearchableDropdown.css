@@ -16,10 +16,21 @@
   opacity: 0.4;
   flex-shrink: 0;
   cursor: pointer;
-  transition: opacity 150ms ease, color 150ms ease;
+  transition:
+    opacity 150ms ease,
+    color 150ms ease;
 }
 
 .searchable-dropdown-delete:hover {
   opacity: 1;
   color: var(--color-status-danger);
+}
+
+/* Muted text after an option's label (a person's name beside their login);
+   shared with MultiSelectDropdown. Stays regular weight on a bold selected row. */
+.dropdown-item-hint {
+  margin-left: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
 }
