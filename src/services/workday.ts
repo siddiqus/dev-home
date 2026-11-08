@@ -44,18 +44,14 @@ type StableParts = Pick<WorkdayExtras, "ticketMerged">;
 type SinceParts = Pick<WorkdayExtras, "doneTickets" | "reviewed">;
 
 /**
- * How long a loaded group is reused. The view remounts on every tab switch, so
- * without this every visit refetches everything (My PRs' merged list does the same).
+ * Fully loaded groups, stamped with the refreshKey they were loaded under. The
+ * view remounts on every tab switch; a visit reuses a group however old it is,
+ * so opening Workday never refetches. Only a refresh (the top-bar Refresh, a
+ * merge) bumps refreshKey app-wide and forces a refetch on the next visit; the
+ * polling interval refreshes the groups while Workday is open (useWorkdayExtras).
+ * Cleared on settings change.
  */
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-/**
- * Fully loaded groups, stamped with the refreshKey they were loaded under: any
- * refresh (the top-bar Refresh, a merge) bumps it app-wide, so a bump while the
- * view is unmounted still forces a refetch on the next visit. Cleared on
- * settings change.
- */
-const groupCache = new Map<string, { at: number; refreshKey: number; parts: object }>();
+const groupCache = new Map<string, { refreshKey: number; parts: object }>();
 
 if (typeof window !== "undefined") {
   window.addEventListener(SETTINGS_EVENT, () => groupCache.clear());
@@ -63,14 +59,14 @@ if (typeof window !== "undefined") {
 
 function readGroup<T>(key: string, refreshKey: number): T | null {
   const hit = groupCache.get(key);
-  if (!hit || hit.refreshKey !== refreshKey || Date.now() - hit.at >= CACHE_TTL_MS) return null;
+  if (!hit || hit.refreshKey !== refreshKey) return null;
   return hit.parts as T;
 }
 
 /** A group with a failed part isn't kept, so the next visit retries it. */
 function writeGroup(key: string, refreshKey: number, parts: Record<string, Part<unknown>>): void {
   if (Object.values(parts).some((p) => p.error !== null)) return;
-  groupCache.set(key, { at: Date.now(), refreshKey, parts });
+  groupCache.set(key, { refreshKey, parts });
 }
 
 const sinceKey = (since: Date) => `since:${since.getTime()}`;
@@ -101,13 +97,14 @@ async function part<T>(load: () => Promise<T>): Promise<Part<T>> {
 /**
  * My merged PRs for the deck's open tickets. Not aborted with the view, since
  * another view may share the request. Sprint and off-sprint come from
- * sprintParts, not a fetch.
+ * sprintParts, not a fetch. `force` skips the shared list (a polling refresh).
  */
 export async function fetchWorkdayStable(
   refreshKey: number,
   now: Date = new Date(),
+  opts: { force?: boolean } = {},
 ): Promise<StableParts> {
-  return { ticketMerged: await part(() => fetchMyMergedPRs(refreshKey, now)) };
+  return { ticketMerged: await part(() => fetchMyMergedPRs(refreshKey, now, opts)) };
 }
 
 /** "Done since" pieces; refetched when the lookback changes. Merged PRs are derived, not fetched. */

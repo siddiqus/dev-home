@@ -127,12 +127,34 @@ describe("useDashboard lifecycle", () => {
     act(() => setVisibility("hidden"));
     act(() => setVisibility("visible"));
     expect(fetchOpenPRs).toHaveBeenCalledTimes(1);
+    expect(result.current.pollKey).toBe(0);
 
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now + 11 * 60 * 1000);
     act(() => setVisibility("hidden"));
     act(() => setVisibility("visible"));
     expect(fetchOpenPRs).toHaveBeenCalledTimes(2);
+    // The catch-up counts as a poll, so an open Workday refreshes its own lists.
+    expect(result.current.pollKey).toBe(1);
     vi.restoreAllMocks();
+  });
+
+  it("bumps pollKey on each polling interval, and not on a manual refresh", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const { result } = renderHook(() => useDashboard(true));
+      // waitFor polls with setInterval, which is faked here: flush promises instead.
+      await act(async () => result.current.ensure(["openPRs"]));
+      expect(result.current.loadedSources.has("openPRs")).toBe(true);
+
+      await act(async () => result.current.refresh(["openPRs"]));
+      expect(result.current.pollKey).toBe(0);
+
+      await act(async () => vi.advanceTimersByTime(10 * 60 * 1000));
+      expect(result.current.pollKey).toBe(1);
+      expect(fetchOpenPRs).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

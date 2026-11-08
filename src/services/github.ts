@@ -35,9 +35,10 @@ const listCache = new Map<string, { at: number; value: Promise<any> }>();
 
 /**
  * My merged PRs, loaded under a refreshKey (see fetchMyMergedPRs). Kept apart
- * from listCache because a refreshKey bump, not a `force` flag, retires it.
+ * from listCache because it has no TTL: only a refreshKey bump or a polling
+ * `force` retires it.
  */
-let myMerged: { at: number; refreshKey: number; value: Promise<GitHubPR[]> } | null = null;
+let myMerged: { refreshKey: number; value: Promise<GitHubPR[]> } | null = null;
 
 if (typeof window !== "undefined") {
   window.addEventListener(SETTINGS_EVENT, () => {
@@ -143,18 +144,20 @@ const MY_MERGED_MAX = 100;
  * My PRs merged in the last MY_MERGED_DAYS: Workday's PRs under tickets,
  * Merged recently and Standup all read this one list and filter it by date
  * (mergedSince). Whichever asks first under a refreshKey fetches it for the
- * others; it's kept 5 minutes.
+ * others; it's kept until refreshKey moves on, or a `force` (polling) refetch.
  */
-export function fetchMyMergedPRs(refreshKey: number, now: Date = new Date()): Promise<GitHubPR[]> {
+export function fetchMyMergedPRs(
+  refreshKey: number,
+  now: Date = new Date(),
+  opts: { force?: boolean } = {},
+): Promise<GitHubPR[]> {
   const hit = myMerged;
-  if (hit && hit.refreshKey === refreshKey && Date.now() - hit.at < MERGED_TTL_MS) {
-    return hit.value;
-  }
+  if (hit && hit.refreshKey === refreshKey && !opts.force) return hit.value;
   const since = new Date(now.getTime() - MY_MERGED_DAYS * 24 * 60 * 60 * 1000);
   const value = getMergedPrs({ scope: "user", since, first: MY_MERGED_MAX }).then(
     (data) => data.prs as GitHubPR[],
   );
-  const entry = { at: Date.now(), refreshKey, value };
+  const entry = { refreshKey, value };
   myMerged = entry;
   // A failure isn't kept, so the next caller retries.
   value.catch(() => {

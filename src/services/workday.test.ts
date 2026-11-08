@@ -44,7 +44,7 @@ describe("workday service", () => {
     vi.mocked(fetchMyMergedPRs).mockRejectedValue(new Error("gh down"));
     const now = new Date("2026-10-14T12:00:00Z");
     const stable = await fetchWorkdayStable(3, now);
-    expect(fetchMyMergedPRs).toHaveBeenCalledWith(3, now);
+    expect(fetchMyMergedPRs).toHaveBeenCalledWith(3, now, {});
     expect(stable).toEqual({ ticketMerged: { data: null, error: "gh down" } });
   });
 
@@ -75,15 +75,13 @@ describe("workday cache", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("reuses a loaded group for 5 minutes", () => {
+  it("reuses a loaded group however old it is, so opening Workday never refetches", () => {
     rememberWorkdayStable(3, stable);
-    vi.advanceTimersByTime(5 * 60_000 - 1);
+    vi.advanceTimersByTime(3 * 60 * 60_000);
     expect(cachedWorkdayStable(3)).toEqual(stable);
-    vi.advanceTimersByTime(1);
-    expect(cachedWorkdayStable(3)).toBeNull();
   });
 
-  it("misses once refreshKey has moved on, even within 5 minutes", () => {
+  it("misses once refreshKey has moved on", () => {
     rememberWorkdayStable(3, stable);
     expect(cachedWorkdayStable(4)).toBeNull();
   });

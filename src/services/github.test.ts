@@ -215,13 +215,15 @@ describe("fetchMyMergedPRs", () => {
     expect(getMergedPrs).toHaveBeenCalledTimes(2);
   });
 
-  it("searches again after 5 minutes", async () => {
+  it("keeps the list however old it is, until a forced (polling) search", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
       vi.setSystemTime(new Date("2026-11-04T12:00:00Z"));
       await fetchMyMergedPRs(0);
-      vi.setSystemTime(new Date("2026-11-04T12:05:00Z"));
+      vi.setSystemTime(new Date("2026-11-04T15:00:00Z"));
       await fetchMyMergedPRs(0);
+      expect(getMergedPrs).toHaveBeenCalledTimes(1);
+      await fetchMyMergedPRs(0, new Date(), { force: true });
       expect(getMergedPrs).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();

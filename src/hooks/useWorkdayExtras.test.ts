@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { GitHubPR, JiraIssue } from "../types";
 
@@ -45,18 +45,61 @@ async function mountLoaded(refreshKey: number) {
 }
 
 describe("useWorkdayExtras", () => {
-  it("shows the last load on a revisit within 5 minutes, without refetching", async () => {
+  it("shows the last load on a revisit, however much later, without refetching", async () => {
     (await mountLoaded(0)).unmount();
 
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 3 * 60 * 60 * 1000);
+    // Polling ran while Workday was closed: opening it still doesn't refetch.
     const { result } = renderHook(() =>
-      useWorkdayExtras(true, since, 0, { needsDone: true, assigned: noneAssigned }),
+      useWorkdayExtras(true, since, 0, { needsDone: true, assigned: noneAssigned, pollKey: 4 }),
     );
+    vi.restoreAllMocks();
 
     // Data on the very first render: no loading skeletons on the way back.
     expect(result.current.sprint.data).toEqual([]);
     expect(result.current.merged.data).toEqual([]);
     expect(fetchWorkdayStable).toHaveBeenCalledTimes(1);
     expect(fetchWorkdaySince).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches quietly when the polling interval fires while mounted", async () => {
+    const hook = renderHook(
+      (pollKey: number) =>
+        useWorkdayExtras(true, since, 0, { needsDone: true, assigned: noneAssigned, pollKey }),
+      { initialProps: 0 },
+    );
+    await waitFor(() => expect(hook.result.current.doneTickets.data).toEqual([]));
+
+    let land!: (v: Awaited<ReturnType<typeof fetchWorkdaySince>>) => void;
+    vi.mocked(fetchWorkdaySince).mockReturnValueOnce(new Promise((r) => (land = r)));
+    vi.mocked(fetchWorkdayStable).mockResolvedValueOnce({
+      ticketMerged: ok([{ number: 7, merged_at: "2026-10-28T09:00:00Z" } as GitHubPR]),
+    });
+    hook.rerender(1);
+
+    // The merged list skips the shared cache, and the done lists stay up meanwhile.
+    expect(vi.mocked(fetchWorkdayStable).mock.calls[1][2]).toEqual({ force: true });
+    expect(hook.result.current.doneTickets.data).toEqual([]);
+    await waitFor(() => expect(hook.result.current.merged.data?.map((p) => p.number)).toEqual([7]));
+    await act(async () => land({ doneTickets: ok([]), reviewed: ok([]) }));
+    expect(fetchWorkdaySince).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps what's on screen when a polling refetch fails", async () => {
+    const hook = renderHook(
+      (pollKey: number) =>
+        useWorkdayExtras(true, since, 0, { needsDone: false, assigned: noneAssigned, pollKey }),
+      { initialProps: 0 },
+    );
+    await waitFor(() => expect(hook.result.current.ticketMerged.data).toEqual([]));
+    vi.mocked(fetchWorkdayStable).mockResolvedValueOnce({
+      ticketMerged: { data: null, error: "gh down" },
+    });
+    hook.rerender(1);
+    await waitFor(() => expect(fetchWorkdayStable).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(hook.result.current.ticketMerged).toEqual(ok([]));
   });
 
   it("refetches when refreshKey bumps while mounted", async () => {

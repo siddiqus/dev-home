@@ -59,6 +59,8 @@ export interface WorkdayViewProps {
   githubUsername?: string;
   weekendDays: number[];
   refreshKey: number;
+  /** useDashboard().pollKey: the polling interval fired; Workday's own lists refresh quietly. */
+  pollKey?: number;
   onRefresh: () => void;
   /** When Workday's data was last fetched (ISO), for "Last updated 5m ago" beside Refresh. */
   updatedAt?: string;
@@ -237,6 +239,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     jiraBaseUrl,
     weekendDays,
     refreshKey,
+    pollKey = 0,
     onRefresh,
     notes,
     notesLoaded,
@@ -298,6 +301,7 @@ export function WorkdayView(props: WorkdayViewProps) {
   const extras = useWorkdayExtras(configured, since, refreshKey, {
     needsDone: mode === "standup",
     assigned,
+    pollKey,
   });
   // The merged list as last loaded: a refresh or lookback change refetches it
   // from empty, which would otherwise drop the Merged recently group until it lands.

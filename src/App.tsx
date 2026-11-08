@@ -229,6 +229,7 @@ export default function App() {
     ensure,
     refresh,
     refreshKey,
+    pollKey,
   } = useDashboard(configured);
   // Workday's "Last updated": its least recently fetched source, so the label
   // never claims fresher data than is on screen. A source that never fetched is skipped.
@@ -802,6 +803,7 @@ export default function App() {
                         githubUsername={githubUsername}
                         weekendDays={weekendDays}
                         refreshKey={refreshKey}
+                        pollKey={pollKey}
                         onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
                         updatedAt={workdayUpdatedAt}
                         notes={notes}

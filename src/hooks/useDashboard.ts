@@ -105,6 +105,12 @@ interface UseDashboardReturn {
   ensure: (sources: DataSource[], opts?: { force?: boolean }) => void;
   refresh: (sources?: DataSource[]) => void;
   refreshKey: number;
+  /**
+   * Bumps each time polling refetches (the interval, or catching up when the
+   * window shows again). Unlike refreshKey it doesn't retire caches, so a view
+   * opened later reuses what it had; an open view refreshes its own extras on it.
+   */
+  pollKey: number;
 }
 
 export function useDashboard(active: boolean): UseDashboardReturn {
@@ -135,6 +141,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   const [reviewRequestsLoading, setReviewRequestsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pollKey, setPollKey] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -428,15 +435,16 @@ export function useDashboard(active: boolean): UseDashboardReturn {
 
   // Refetch loaded sources last fetched at least `maxAgeMs` ago (0 = all of
   // them). Used by polling and manual refresh so we only re-hit services the
-  // user has actually viewed.
+  // user has actually viewed. Says whether anything was refetched.
   const refetchLoaded = useCallback(
-    (maxAgeMs = 0) => {
+    (maxAgeMs = 0): boolean => {
       const now = Date.now();
       const due = [...loadedRef.current].filter(
         (s) => now - (lastFetchedRef.current.get(s) ?? 0) >= maxAgeMs,
       );
-      if (due.length === 0) return;
+      if (due.length === 0) return false;
       ensure(due, { force: true });
+      return true;
     },
     [ensure],
   );
@@ -446,8 +454,10 @@ export function useDashboard(active: boolean): UseDashboardReturn {
   useEffect(() => {
     if (!active) return;
 
-    const poll = () => refetchLoaded();
-    intervalRef.current = setInterval(poll, POLLING_INTERVAL_MS);
+    const poll = (maxAgeMs = 0) => {
+      if (refetchLoaded(maxAgeMs)) setPollKey((k) => k + 1);
+    };
+    intervalRef.current = setInterval(() => poll(), POLLING_INTERVAL_MS);
 
     // Pause polling when the window is hidden. On return, refetch only what
     // went stale while away, so quick tab switches don't cost a full refresh.
@@ -458,8 +468,8 @@ export function useDashboard(active: boolean): UseDashboardReturn {
           intervalRef.current = null;
         }
       } else if (!intervalRef.current) {
-        refetchLoaded(POLLING_INTERVAL_MS);
-        intervalRef.current = setInterval(poll, POLLING_INTERVAL_MS);
+        poll(POLLING_INTERVAL_MS);
+        intervalRef.current = setInterval(() => poll(), POLLING_INTERVAL_MS);
       }
     };
 
@@ -563,6 +573,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     ensure,
     refresh,
     refreshKey,
+    pollKey,
   };
 }
 
