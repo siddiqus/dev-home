@@ -153,8 +153,9 @@ function PRRow({
  * One ticket: type, key, title and its timing ("in progress 3d · updated
  * today") on one line, plus its Jira status on the right when it's flagged (a
  * status group already says it otherwise); then why it's flagged (tinted by
- * its group), when it's due and whether it came in mid-sprint; then its PRs on
- * a tree line. Only the key and PR links open anything.
+ * its group), when it's due, whether it came in mid-sprint and whether it has
+ * no PRs this sprint; then its PRs on a tree line. Only the key and PR links
+ * open anything.
  */
 function TicketCard({
   item: { issue, prs },
@@ -181,10 +182,13 @@ function TicketCard({
       `in progress ${issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}`,
     !says("stale") && `updated ${ageLabel(issue.daysSinceUpdate)}`,
   ]);
-  // On the line below: "due Nov 12 · added mid-sprint".
+  // On the line below: "due Nov 12 · added mid-sprint · no PRs this sprint". Only
+  // PRs opened or merged in the sprint are fetched, so a ticket whose PRs merged
+  // before it started shows none; this says so instead of implying it has none.
   const meta = texts([
     issue.dueDate && !says("dueSoon") && `due ${dueDate(issue.dueDate)}`,
     issue.flags.addedAfterStart && "added mid-sprint",
+    prs.length === 0 && !says("inProgressNoPR") && "no PRs this sprint",
   ]);
   return (
     <div className="member-card">

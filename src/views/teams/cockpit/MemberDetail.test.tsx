@@ -130,12 +130,45 @@ describe("MemberDetail", () => {
     const details = card("Token refresh").querySelector(".member-card__details")!;
     // Separate items, so CSS can put a dot between them.
     const items = Array.from(details.querySelector(".member-card__meta")!.children);
-    expect(items.map((i) => i.textContent)).toEqual(["due Jul 10", "added mid-sprint"]);
+    expect(items.map((i) => i.textContent)).toEqual([
+      "due Jul 10",
+      "added mid-sprint",
+      "no PRs this sprint",
+    ]);
   });
 
   it("leaves out the details line when there's nothing more to say", () => {
-    render(<MemberDetail member={nadman} issues={[doneTicket({})]} prs={[]} />);
+    const withPR = doneTicket({ linkedPRs: issues[0]!.linkedPRs });
+    render(<MemberDetail member={nadman} issues={[withPR]} prs={[]} />);
     expect(card("Token refresh").querySelector(".member-card__details")).toBeNull();
+  });
+
+  it("says a ticket has no PRs this sprint when none came back, since older ones aren't fetched", () => {
+    const mine = [
+      doneTicket({}),
+      doneTicket({ key: "PLAT-2", summary: "Has a PR", linkedPRs: issues[0]!.linkedPRs }),
+    ];
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
+
+    expect(card("Token refresh").querySelector(".member-card__meta")).toHaveTextContent(
+      /^no PRs this sprint$/,
+    );
+    expect(card("Has a PR")).not.toHaveTextContent("no PRs this sprint");
+  });
+
+  it("doesn't say no PRs this sprint when the reason it's flagged already says so", () => {
+    const mine = [
+      doneTicket({
+        status: "In Progress",
+        statusCategory: "indeterminate",
+        flags: { ...plat201.flags, stale: true, inProgressNoPR: true },
+        risk: { score: 4, level: "attention", reasons: ["stale", "inProgressNoPR"] },
+      }),
+    ];
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
+
+    expect(card("Token refresh")).toHaveTextContent("In progress, but no PR is linked yet");
+    expect(card("Token refresh")).not.toHaveTextContent("no PRs this sprint");
   });
 
   it("groups plain tickets by their Jira status and leaves the status off their cards", () => {
