@@ -227,8 +227,11 @@ export interface MemberWork {
   /** Flagged tickets, whatever their status, worst first. */
   atRisk: TicketItem[];
   needsLook: TicketItem[];
-  /** The rest by status, review first; empty groups are left out. */
-  groups: { bucket: StatusBucket; items: TicketItem[] }[];
+  /**
+   * The rest by their Jira status (Code Review, Blocked…), review first, then
+   * in progress, to do and done, A–Z within each; `bucket` is that stage.
+   */
+  groups: { status: string; bucket: StatusBucket; items: TicketItem[] }[];
   /**
    * PRs the member wrote that aren't on one of their tickets, newest first;
    * `forKey` names the teammate's sprint ticket a PR is linked to, if any.
@@ -245,7 +248,7 @@ function byRisk(a: DashboardIssue, b: DashboardIssue): number {
 
 /**
  * Everything one member has in the sprint, as the People tab lists it: flagged
- * tickets on top, the rest by status, each with its PRs, then the PRs they
+ * tickets on top, the rest by Jira status, each with its PRs, then the PRs they
  * wrote that sit on no ticket of theirs. `login` is their GitHub username.
  */
 export function memberWork(
@@ -264,18 +267,30 @@ export function memberWork(
       .sort(byRisk)
       .map(item);
 
-  const groups = GROUP_ORDER.map((bucket) => ({
-    bucket,
-    items: mine
-      .filter((i) => i.risk.level === "normal" && statusBucket(i) === bucket)
+  const byStatus = new Map<string, DashboardIssue[]>();
+  for (const i of mine.filter((i) => i.risk.level === "normal")) {
+    const status = i.status || STATUS_LABELS[statusBucket(i)];
+    byStatus.set(status, [...(byStatus.get(status) ?? []), i]);
+  }
+  // We don't fetch the board's column order, so: stage first, then A–Z.
+  const groups = [...byStatus]
+    .map(([status, list]) => {
+      const bucket = statusBucket(list[0]!);
       // Open work: longest without an update first. Done: most recent first.
-      .sort((a, b) =>
-        bucket === "done"
-          ? a.daysSinceUpdate - b.daysSinceUpdate
-          : b.daysSinceUpdate - a.daysSinceUpdate,
-      )
-      .map(item),
-  })).filter((g) => g.items.length > 0);
+      const items = list
+        .sort((a, b) =>
+          bucket === "done"
+            ? a.daysSinceUpdate - b.daysSinceUpdate
+            : b.daysSinceUpdate - a.daysSinceUpdate,
+        )
+        .map(item);
+      return { status, bucket, items };
+    })
+    .sort(
+      (a, b) =>
+        GROUP_ORDER.indexOf(a.bucket) - GROUP_ORDER.indexOf(b.bucket) ||
+        a.status.localeCompare(b.status),
+    );
 
   const onMine = new Set(mine.flatMap((i) => i.linkedPRs.map(prId)));
   const ticketOf = new Map(issues.flatMap((i) => i.linkedPRs.map((p) => [prId(p), i.key])));

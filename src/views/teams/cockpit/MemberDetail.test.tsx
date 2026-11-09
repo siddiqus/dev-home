@@ -72,29 +72,101 @@ describe("MemberDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("puts the title beside the key, the status on the right, and the timing below", () => {
+  it("puts the type, title and timing beside a flagged ticket's key, its status on the right, and why below", () => {
     render(<MemberDetail member={tashfia} issues={issues} prs={[]} />);
 
     const [head, status, details] = Array.from(card("Sprint health strip").children);
-    // Key and title share one cell, so the title follows the key directly.
-    const [key, title] = Array.from(head!.children);
+    // Type, key, title and timing share one cell, so the title follows the key directly.
+    const [type, key, title, timing] = Array.from(head!.children);
+    expect(type).toHaveAccessibleName("Story");
     expect(key).toHaveTextContent(/^PLAT-101$/);
     expect(title).toHaveTextContent(/^Sprint health strip$/);
-    expect(status).toHaveTextContent(/^In Progress$/);
     // "No update for 4 days" already says it, so no "updated 4d ago".
-    expect(details).toHaveTextContent("in progress 9d");
-    expect(details).not.toHaveTextContent("updated");
+    expect(timing).toHaveTextContent(/^in progress 9d$/);
+    expect(status).toHaveTextContent(/^In Progress$/);
+    expect(details).toHaveTextContent("No update for 4 days");
+    expect(details).not.toHaveTextContent(/in progress|updated/);
   });
 
-  it("says when an unflagged ticket was updated and when it's due", () => {
-    const mine = [doneTicket({ dueDate: "2026-07-10" })];
+  it("shows no type icon when Jira gave no type", () => {
+    render(<MemberDetail member={nadman} issues={[doneTicket({ issueType: null })]} prs={[]} />);
+
+    expect(
+      within(card("Token refresh").querySelector<HTMLElement>(".member-card__head")!).queryByRole(
+        "img",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says how long a ticket's been in progress and when it was updated right after its title", () => {
+    const mine = [
+      doneTicket({ status: "In Progress", statusCategory: "indeterminate", daysInProgress: 3 }),
+    ];
     render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
 
+    const head = card("Token refresh").querySelector(".member-card__head")!;
+    expect(Array.from(head.children).map((c) => c.textContent)).toEqual([
+      "PLAT-201",
+      "Token refresh",
+      "in progress 3dupdated 1d ago",
+    ]);
+    // Separate items, so CSS can put a dot between them.
+    const timing = head.querySelector(".member-card__timing")!;
+    expect(Array.from(timing.children).map((i) => i.textContent)).toEqual([
+      "in progress 3d",
+      "updated 1d ago",
+    ]);
+  });
+
+  it("keeps when a ticket's due and that it was added mid-sprint on the line below", () => {
+    const mine = [
+      doneTicket({ dueDate: "2026-07-10", flags: { ...plat201.flags, addedAfterStart: true } }),
+    ];
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
+
+    expect(card("Token refresh").querySelector(".member-card__timing")).toHaveTextContent(
+      /^updated 1d ago$/,
+    );
     const details = card("Token refresh").querySelector(".member-card__details")!;
-    expect(details).toHaveTextContent(/^updated 1d ago\s*due Jul 10$/);
     // Separate items, so CSS can put a dot between them.
     const items = Array.from(details.querySelector(".member-card__meta")!.children);
-    expect(items.map((i) => i.textContent)).toEqual(["updated 1d ago", "due Jul 10"]);
+    expect(items.map((i) => i.textContent)).toEqual(["due Jul 10", "added mid-sprint"]);
+  });
+
+  it("leaves out the details line when there's nothing more to say", () => {
+    render(<MemberDetail member={nadman} issues={[doneTicket({})]} prs={[]} />);
+    expect(card("Token refresh").querySelector(".member-card__details")).toBeNull();
+  });
+
+  it("groups plain tickets by their Jira status and leaves the status off their cards", () => {
+    const mine = [
+      doneTicket({
+        key: "PLAT-1",
+        summary: "Reviewing",
+        status: "Code Review",
+        statusCategory: "indeterminate",
+      }),
+      doneTicket({
+        key: "PLAT-2",
+        summary: "Stuck",
+        status: "Blocked",
+        statusCategory: "indeterminate",
+      }),
+      doneTicket({
+        key: "PLAT-3",
+        summary: "Building",
+        status: "In Progress",
+        statusCategory: "indeterminate",
+      }),
+    ];
+    render(<MemberDetail member={nadman} issues={mine} prs={[]} />);
+
+    const regions = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+    expect(regions).toEqual(["Code Review tickets", "Blocked tickets", "In Progress tickets"]);
+    expect(
+      within(screen.getByRole("region", { name: "Blocked tickets" })).getByText("Stuck"),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".member-card__status")).toBeNull();
   });
 
   it("shows time in progress only when it's known", () => {

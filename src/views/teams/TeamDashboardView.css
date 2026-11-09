@@ -565,8 +565,8 @@
   border-radius: var(--radius-md);
 }
 
-/* A ticket: key, title and status on one line; then why, timing and labels;
-   then its PRs. */
+/* A ticket: type, key, title and timing on one line (plus its status when
+   flagged); then why, due date and mid-sprint; then its PRs. */
 .member-card {
   align-items: baseline;
   row-gap: 3px;
@@ -584,6 +584,16 @@
   gap: var(--space-2);
   min-width: 0;
 }
+/* No status on the right: the head takes the whole line. */
+.member-card__head--wide {
+  grid-column: ref / -1;
+}
+/* 6px to the key, like the cockpit rows, so icon and key read as one. */
+.member-card__type {
+  flex: none;
+  align-self: center;
+  margin-right: -2px;
+}
 .member-card__key {
   flex: none;
   font-weight: 600;
@@ -594,6 +604,14 @@
   overflow: hidden;
   font-weight: 500;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* "in progress 3d · updated today", right after the title. */
+.member-card__timing {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 .member-card__status {
@@ -621,12 +639,14 @@
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
-/* Timing and context: one run of text items with a dot between each. */
+/* Due date and mid-sprint: one run of text items with a dot between each,
+   like the timing beside the title. */
 .member-card__meta {
   display: inline-flex;
   flex-wrap: wrap;
   row-gap: 3px;
 }
+.member-card__timing > * + *::before,
 .member-card__meta > * + *::before {
   margin: 0 6px;
   color: var(--color-text-muted);

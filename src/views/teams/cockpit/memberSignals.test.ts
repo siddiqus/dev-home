@@ -303,28 +303,34 @@ describe("memberWork", () => {
     );
     expect(keys(work.atRisk)).toEqual(["RISK-7", "RISK-5"]);
     expect(keys(work.needsLook)).toEqual(["REVIEW", "LOOK-old", "LOOK"]);
-    expect(work.groups.map((g) => [g.bucket, keys(g.items)])).toEqual([["indeterminate", ["OK"]]]);
+    expect(work.groups.map((g) => [g.status, keys(g.items)])).toEqual([["In Progress", ["OK"]]]);
   });
 
-  it("groups the rest review-first, skips empty groups, and orders each group", () => {
+  it("groups the rest by Jira status: review first, A–Z within a stage, each group ordered", () => {
     const work = memberWork(
       [
         issue({ key: "D-old", status: "Done", statusCategory: "done", daysSinceUpdate: 6 }),
         issue({ key: "P-fresh", daysSinceUpdate: 0 }),
         issue({ key: "D-new", status: "Done", statusCategory: "done", daysSinceUpdate: 1 }),
-        issue({ key: "R", status: "In Review" }),
+        issue({ key: "R", status: "Code Review" }),
         issue({ key: "P-stuck", daysSinceUpdate: 5 }),
+        issue({ key: "B", status: "Blocked" }),
+        issue({ key: "T", status: "To Do", statusCategory: "new" }),
+        issue({ key: "C", status: "Closed", statusCategory: "done" }),
       ],
       [],
       "u1",
       "shunjid",
     );
-    expect(work.groups.map((g) => [g.bucket, keys(g.items)])).toEqual([
-      ["inReview", ["R"]],
+    expect(work.groups.map((g) => [g.status, g.bucket, keys(g.items)])).toEqual([
+      ["Code Review", "inReview", ["R"]],
+      ["Blocked", "indeterminate", ["B"]],
       // Open work: longest without an update first.
-      ["indeterminate", ["P-stuck", "P-fresh"]],
+      ["In Progress", "indeterminate", ["P-stuck", "P-fresh"]],
+      ["To Do", "new", ["T"]],
+      ["Closed", "done", ["C"]],
       // Done: most recent first.
-      ["done", ["D-new", "D-old"]],
+      ["Done", "done", ["D-new", "D-old"]],
     ]);
   });
 

@@ -8,6 +8,7 @@ import {
   IconUserQuestion,
   type Icon,
 } from "@tabler/icons-react";
+import { IssueTypeIcon } from "../../../components/IssueTypeIcon";
 import { DiffStat } from "../../../components/prIndicators";
 import type {
   AuthoredPR,
@@ -19,7 +20,6 @@ import type {
 import {
   LEVEL_LABELS,
   STATUS_COLORS,
-  STATUS_LABELS,
   describeSignals,
   memberWork,
   statusBucket,
@@ -150,9 +150,11 @@ function PRRow({
 }
 
 /**
- * One ticket: key, title and Jira status on one line; then why it's flagged
- * (tinted by its group), its timing and labels; then its PRs on a tree line.
- * Only the key and PR links open anything.
+ * One ticket: type, key, title and its timing ("in progress 3d · updated
+ * today") on one line, plus its Jira status on the right when it's flagged (a
+ * status group already says it otherwise); then why it's flagged (tinted by
+ * its group), when it's due and whether it came in mid-sprint; then its PRs on
+ * a tree line. Only the key and PR links open anything.
  */
 function TicketCard({
   item: { issue, prs },
@@ -171,19 +173,25 @@ function TicketCard({
   const signals = tone ? describeSignals(issue, now) : [];
   // Leave out timing a reason already gives ("No update for 4 days", "Due tomorrow").
   const says = (key: keyof IssueFlags) => signals.some((s) => s.key === key);
-  // Timing and context, dot-separated: "in progress 3d · updated today · added mid-sprint".
-  const meta = [
+  const texts = (items: (string | false | null)[]) =>
+    items.filter((t): t is string => typeof t === "string");
+  // Beside the title, dot-separated: "in progress 3d · updated today".
+  const timing = texts([
     issue.daysInProgress != null &&
       `in progress ${issue.daysInProgress === 0 ? "<1d" : `${issue.daysInProgress}d`}`,
     !says("stale") && `updated ${ageLabel(issue.daysSinceUpdate)}`,
+  ]);
+  // On the line below: "due Nov 12 · added mid-sprint".
+  const meta = texts([
     issue.dueDate && !says("dueSoon") && `due ${dueDate(issue.dueDate)}`,
     issue.flags.addedAfterStart && "added mid-sprint",
-  ].filter((t): t is string => typeof t === "string");
+  ]);
   return (
     <div className="member-card">
-      {/* Key and title as one cell, so the title follows the key instead of
-          starting at the PR titles' column. */}
-      <span className="member-card__head">
+      {/* Type, key, title and timing as one cell, so the title follows the key
+          instead of starting at the PR titles' column. */}
+      <span className={`member-card__head${tone ? "" : " member-card__head--wide"}`}>
+        <IssueTypeIcon type={issue.issueType} className="member-card__type" />
         <button
           type="button"
           className="member-link member-card__key"
@@ -194,35 +202,46 @@ function TicketCard({
         <span className="member-card__title" title={issue.summary}>
           {issue.summary}
         </span>
-      </span>
-      <span className="member-card__status">
-        <StatusSquare bucket={statusBucket(issue)} />
-        {issue.status}
-      </span>
-      <div className="member-card__details">
-        {signals.length > 0 && (
-          <span className={`member-why member-why--${tone}`}>
-            {signals.map((s) => {
-              const SignalIcon = SIGNAL_ICONS[s.key] ?? IconAlertTriangle;
-              return (
-                <span key={s.key} className="member-signal">
-                  <span className={`member-tone--${s.tone}`}>
-                    <SignalIcon size={14} />
-                  </span>
-                  {s.text}
-                </span>
-              );
-            })}
-          </span>
-        )}
-        {meta.length > 0 && (
-          <span className="member-card__meta">
-            {meta.map((text) => (
+        {timing.length > 0 && (
+          <span className="member-card__timing">
+            {timing.map((text) => (
               <span key={text}>{text}</span>
             ))}
           </span>
         )}
-      </div>
+      </span>
+      {tone && (
+        <span className="member-card__status">
+          <StatusSquare bucket={statusBucket(issue)} />
+          {issue.status}
+        </span>
+      )}
+      {(signals.length > 0 || meta.length > 0) && (
+        <div className="member-card__details">
+          {signals.length > 0 && (
+            <span className={`member-why member-why--${tone}`}>
+              {signals.map((s) => {
+                const SignalIcon = SIGNAL_ICONS[s.key] ?? IconAlertTriangle;
+                return (
+                  <span key={s.key} className="member-signal">
+                    <span className={`member-tone--${s.tone}`}>
+                      <SignalIcon size={14} />
+                    </span>
+                    {s.text}
+                  </span>
+                );
+              })}
+            </span>
+          )}
+          {meta.length > 0 && (
+            <span className="member-card__meta">
+              {meta.map((text) => (
+                <span key={text}>{text}</span>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
       {prs.length > 0 && (
         <div className="member-prs">
           {prs.map((pr) => (
@@ -273,7 +292,7 @@ const FLAGGED = [
 /**
  * One member on the People tab: their numbers, then one list of everything
  * they have in the sprint. Flagged tickets come first whatever their status,
- * then the rest by status, each ticket with its PRs under it, then the PRs
+ * then the rest by Jira status, each ticket with its PRs under it, then the PRs
  * they wrote that sit on no ticket of theirs. Nothing is folded away.
  */
 export function MemberDetail({ member, issues, prs, onOpenRef }: Props) {
@@ -357,11 +376,11 @@ export function MemberDetail({ member, issues, prs, onOpenRef }: Props) {
                   </WorkGroup>
                 ),
             )}
-            {work.groups.map(({ bucket, items }) => (
+            {work.groups.map(({ status, bucket, items }) => (
               <WorkGroup
-                key={bucket}
-                label={STATUS_LABELS[bucket]}
-                region={`${STATUS_LABELS[bucket]} tickets`}
+                key={status}
+                label={status}
+                region={`${status} tickets`}
                 icon={<StatusSquare bucket={bucket} />}
                 count={items.length}
               >
