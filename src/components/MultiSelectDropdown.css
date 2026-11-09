@@ -8,6 +8,16 @@
   padding: 6px 12px;
 }
 
+/* A section's name above its items (e.g. Teams, People). Not an option. */
+.multi-select-group {
+  padding: 8px 12px 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
 /* Label plus its hint, truncated as one so a long name can't push the count off. */
 .multi-select-label {
   min-width: 0;

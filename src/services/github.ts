@@ -190,9 +190,11 @@ export async function fetchOrgMembers(opts: { force?: boolean } = {}): Promise<O
 export interface OrgTeam {
   slug: string;
   name: string;
+  /** Members' logins, child teams' included. */
+  members: string[];
 }
 
-/** Org teams for the review picker (paged REST, so cached like members). */
+/** Org teams with their members, shared by Request review and All PRs (paged, so cached like members). */
 export async function fetchOrgTeams(opts: { force?: boolean } = {}): Promise<OrgTeam[]> {
   return cached("org-teams", ORG_LIST_TTL_MS, !!opts.force, async () => {
     const data = await getOrgTeams();

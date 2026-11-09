@@ -6,6 +6,7 @@ import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
   fetchOrgRepos,
+  fetchOrgTeams,
   fetchRecentlyMergedPRs,
 } from "../../services/github";
 import { useOrgPRSearch } from "./useOrgPRSearch";
@@ -15,6 +16,7 @@ vi.mock("../../services/github", () => ({
   fetchOrgPRsMulti: vi.fn(),
   fetchOrgMembers: vi.fn(),
   fetchOrgRepos: vi.fn(),
+  fetchOrgTeams: vi.fn(),
   fetchRecentlyMergedPRs: vi.fn(),
 }));
 
@@ -29,6 +31,9 @@ beforeEach(() => {
   vi.mocked(fetchOrgRepos)
     .mockReset()
     .mockResolvedValue([{ full_name: "acme/web", name: "web" }]);
+  vi.mocked(fetchOrgTeams)
+    .mockReset()
+    .mockResolvedValue([{ slug: "web", name: "Web", members: ["shunjid", "tashfia", "Me"] }]);
   vi.mocked(fetchOrgPRs)
     .mockReset()
     .mockResolvedValue({ prs: [pr(1)], pageInfo: { hasNextPage: true, endCursor: "c1" } });
@@ -142,5 +147,50 @@ describe("useOrgPRSearch", () => {
     act(() => result.current.setSubTab("merged"));
     expect(result.current.subTab).toBe("merged");
     expect(localStorage.getItem("dev-home-org-prs-subtab")).toBe("merged");
+  });
+
+  it("searches a picked team as its members, with any people picked beside it", async () => {
+    const { result } = render();
+    await waitFor(() => expect(result.current.teams).toHaveLength(1));
+    act(() => result.current.setAuthors(["team:web", "me", "shunjid"]));
+    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalled());
+    // Repeats (any case) dropped; first appearance kept.
+    expect(fetchOrgPRsMulti).toHaveBeenLastCalledWith(["shunjid", "tashfia", "Me"], []);
+    await waitFor(() =>
+      expect(fetchRecentlyMergedPRs).toHaveBeenLastCalledWith(
+        "org",
+        ["shunjid", "tashfia", "Me"],
+        [],
+        { force: false },
+      ),
+    );
+    expect(result.current.isMultiMode).toBe(true);
+  });
+
+  it("waits for the teams list before searching a remembered team pick", async () => {
+    let resolveTeams!: (v: Awaited<ReturnType<typeof fetchOrgTeams>>) => void;
+    vi.mocked(fetchOrgTeams).mockReturnValueOnce(new Promise((r) => (resolveTeams = r)));
+    const { result } = render();
+    act(() => result.current.setAuthors(["team:web"]));
+    await act(async () => {});
+    expect(fetchOrgPRsMulti).not.toHaveBeenCalled();
+    expect(fetchOrgPRs).not.toHaveBeenCalled();
+
+    await act(async () => resolveTeams([{ slug: "web", name: "Web", members: ["a", "b"] }]));
+    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], []));
+  });
+
+  it("searches nothing for a team with no one in it, rather than the whole org", async () => {
+    vi.mocked(fetchOrgTeams).mockResolvedValue([{ slug: "empty", name: "Empty", members: [] }]);
+    const { result } = render();
+    await waitFor(() => expect(result.current.teams).toHaveLength(1));
+    act(() => {
+      result.current.setAuthors(["team:empty"]);
+      result.current.setSelectedRepos(["acme/web"]);
+    });
+    await act(async () => {});
+    expect(fetchOrgPRs).not.toHaveBeenCalled();
+    expect(fetchOrgPRsMulti).not.toHaveBeenCalled();
+    expect(result.current.prs).toEqual([]);
   });
 });

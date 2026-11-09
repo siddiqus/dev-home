@@ -77,8 +77,8 @@ beforeEach(() => {
   vi.mocked(fetchOrgTeams)
     .mockReset()
     .mockResolvedValue([
-      { slug: "frontend", name: "Frontend" },
-      { slug: "platform-core", name: "Platform" },
+      { slug: "frontend", name: "Frontend", members: ["abu", "rkhan"] },
+      { slug: "platform-core", name: "Platform", members: ["abu", "rkhan", "me"] },
     ]);
   onReviewRequested.mockReset();
   rowClick.mockReset();
@@ -131,6 +131,25 @@ describe("RequestReviewButton", () => {
     expect(within(picker).getByLabelText("Platform")).toBeInTheDocument();
     expect(within(picker).queryByLabelText("abu")).not.toBeInTheDocument();
     expect(within(picker).queryByLabelText("Frontend")).not.toBeInTheDocument();
+  });
+
+  it("shows each team's member count", async () => {
+    renderButton();
+    const picker = await openPicker();
+    const teams = within(picker).getByRole("region", { name: "Teams" });
+    expect(within(teams).getByText("2")).toBeInTheDocument();
+    expect(within(teams).getByText("3")).toBeInTheDocument();
+  });
+
+  it("says why when GitHub lists no teams", async () => {
+    vi.mocked(fetchOrgTeams).mockResolvedValue([]);
+    renderButton();
+    const picker = await openPicker();
+    expect(
+      within(picker).getByText(
+        "No teams to show. Listing teams needs org read access on your GitHub token.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows a person's GitHub name beside their login and finds them by it", async () => {

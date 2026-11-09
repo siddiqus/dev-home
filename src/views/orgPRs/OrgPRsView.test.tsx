@@ -10,6 +10,7 @@ vi.mock("../../services/github", () => ({
   fetchOrgPRs: vi.fn(),
   fetchOrgPRsMulti: vi.fn(),
   fetchOrgMembers: vi.fn().mockResolvedValue([]),
+  fetchOrgTeams: vi.fn().mockResolvedValue([]),
   fetchOrgRepos: vi.fn().mockResolvedValue([]),
   fetchRecentlyMergedPRs: vi.fn(),
 }));

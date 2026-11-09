@@ -83,17 +83,72 @@ describe("requestReviewers", () => {
 });
 
 describe("getOrgTeams", () => {
-  it("pages through the org's teams, sorted by name", async () => {
-    const full = Array.from({ length: 100 }, (_, i) => ({
-      slug: `t${String(i).padStart(3, "0")}`,
-      name: `Team ${String(i).padStart(3, "0")}`,
-    }));
-    respond({ data: full }, { data: [{ slug: "alpha", name: "Alpha" }] });
+  const page = (logins: string[], endCursor: string | null = null) => ({
+    nodes: logins.map((login) => ({ login })),
+    pageInfo: { hasNextPage: endCursor !== null, endCursor },
+  });
+  const body = (i: number) => {
+    const c = adapter.mock.calls[i][0];
+    return typeof c.data === "string" ? JSON.parse(c.data) : c.data;
+  };
+
+  it("pages the org's teams over GraphQL with their members, sorted by name", async () => {
+    respond(
+      {
+        data: {
+          data: {
+            organization: {
+              teams: {
+                nodes: [{ slug: "web", name: "Web", members: page(["abu", "rkhan"]) }],
+                pageInfo: { hasNextPage: true, endCursor: "t1" },
+              },
+            },
+          },
+        },
+      },
+      {
+        data: {
+          data: {
+            organization: {
+              teams: {
+                nodes: [{ slug: "alpha", name: null, members: page([]) }],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        },
+      },
+    );
     const { teams } = await getOrgTeams();
     expect(adapter).toHaveBeenCalledTimes(2);
-    expect(sent().url).toBe("/orgs/test-org/teams");
-    expect(teams).toHaveLength(101);
-    expect(teams[0]).toEqual({ slug: "alpha", name: "Alpha" });
+    expect(String(sent().url)).toMatch(/\/graphql$/);
+    expect(body(0).variables).toMatchObject({ org: "test-org", after: null });
+    expect(body(1).variables).toMatchObject({ org: "test-org", after: "t1" });
+    expect(teams).toEqual([
+      { slug: "alpha", name: "alpha", members: [] },
+      { slug: "web", name: "Web", members: ["abu", "rkhan"] },
+    ]);
+  });
+
+  it("pages the rest of a team with more than 100 members", async () => {
+    respond(
+      {
+        data: {
+          data: {
+            organization: {
+              teams: {
+                nodes: [{ slug: "eng", name: "Eng", members: page(["a"], "m1") }],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        },
+      },
+      { data: { data: { organization: { team: { members: page(["b"]) } } } } },
+    );
+    const { teams } = await getOrgTeams();
+    expect(body(1).variables).toEqual({ org: "test-org", slug: "eng", after: "m1" });
+    expect(teams[0].members).toEqual(["a", "b"]);
   });
 
   it("returns nothing without an org", async () => {

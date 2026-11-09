@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
 import { IconCheck, IconSearch } from "@tabler/icons-react";
 import { useBackClose } from "../../hooks/useBackClose";
-import { itemMatches } from "../../components/SearchableDropdown";
+import { bySection, itemMatches } from "../../components/SearchableDropdown";
 
 export interface SheetItem {
   value: string;
@@ -10,6 +10,12 @@ export interface SheetItem {
   avatar?: string;
   /** Muted text after the label (a person's name); searched too. */
   hint?: string;
+  /** Shown in place of an avatar (a team's icon). */
+  glyph?: ReactNode;
+  /** A right-aligned count (a team's members). */
+  count?: number;
+  /** Section heading the item sits under (Teams, People), in first-appearance order. */
+  group?: string;
 }
 
 interface Props {
@@ -43,10 +49,13 @@ export function PhoneFilterSheet({
   const rows = useMemo(() => {
     const matching = items.filter((i) => itemMatches(i, query));
     const first = new Set(pickedAtOpen);
-    return [
-      ...matching.filter((i) => first.has(i.value)),
-      ...matching.filter((i) => !first.has(i.value)),
-    ];
+    return bySection(
+      [
+        ...matching.filter((i) => first.has(i.value)),
+        ...matching.filter((i) => !first.has(i.value)),
+      ],
+      items,
+    );
   }, [items, query, pickedAtOpen]);
 
   const toggle = (value: string) =>
@@ -84,26 +93,37 @@ export function PhoneFilterSheet({
           />
         </label>
         <div className="phone-sheet__rows">
-          {rows.map((item) => {
+          {rows.map((item, i) => {
             const checked = values.includes(item.value);
             return (
-              <label key={item.value} className="phone-sheet__row">
-                <input
-                  type="checkbox"
-                  className="visually-hidden"
-                  checked={checked}
-                  onChange={() => toggle(item.value)}
-                  aria-label={item.label}
-                />
-                {item.avatar && <img className="phone-sheet__avatar" src={item.avatar} alt="" />}
-                <span className="phone-sheet__label">
-                  {item.label}
-                  {item.hint && <span className="phone-sheet__hint">{item.hint}</span>}
-                </span>
-                {checked && (
-                  <IconCheck size={16} className="phone-sheet__check" aria-hidden="true" />
+              <Fragment key={item.value}>
+                {item.group && item.group !== rows[i - 1]?.group && (
+                  <div className="phone-sheet__group">{item.group}</div>
                 )}
-              </label>
+                <label className="phone-sheet__row">
+                  <input
+                    type="checkbox"
+                    className="visually-hidden"
+                    checked={checked}
+                    onChange={() => toggle(item.value)}
+                    aria-label={item.label}
+                  />
+                  {item.glyph ??
+                    (item.avatar && (
+                      <img className="phone-sheet__avatar" src={item.avatar} alt="" />
+                    ))}
+                  <span className="phone-sheet__label">
+                    {item.label}
+                    {item.hint && <span className="phone-sheet__hint">{item.hint}</span>}
+                  </span>
+                  {item.count !== undefined && (
+                    <span className="phone-sheet__count">{item.count}</span>
+                  )}
+                  {checked && (
+                    <IconCheck size={16} className="phone-sheet__check" aria-hidden="true" />
+                  )}
+                </label>
+              </Fragment>
             );
           })}
           {rows.length === 0 && <div className="phone-sheet__none">No matches</div>}

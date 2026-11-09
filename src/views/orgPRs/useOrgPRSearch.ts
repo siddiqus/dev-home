@@ -1,21 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { GitHubPR } from "../../types";
 import {
   fetchOrgPRs,
   fetchOrgPRsMulti,
   fetchOrgMembers,
   fetchOrgRepos,
+  fetchOrgTeams,
   fetchRecentlyMergedPRs,
   OrgMember,
   OrgRepo,
+  OrgTeam,
 } from "../../services/github";
 import { readCached, writeCached } from "../../lib/ttlCache";
+import { expandAuthors, hasTeamPick } from "../../utils/authorPicks";
 
 // --- localStorage caching ---
 
 // v2: members carry profile names; lists cached before that refetch once.
 const MEMBERS_CACHE_KEY = "dev-home-org-members-cache-v2";
 const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
+const TEAMS_CACHE_KEY = "dev-home-org-teams-cache";
 const PRS_CACHE_KEY = "dev-home-org-prs-cache-v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -44,9 +48,11 @@ function arraysEqual(a: string[], b: string[]): boolean {
 
 /**
  * The org PR search behind All PRs (desktop) and PR search (phone): the org's
- * members and repos to pick from, the picked authors and repos, their open PRs
- * (one author or repo pages; several are one unpaginated search) and recently
- * merged PRs, cached in localStorage. A `refreshKey` change reloads both lists.
+ * members, teams and repos to pick from, the picked authors and repos, their
+ * open PRs (one author or repo pages; several are one unpaginated search) and
+ * recently merged PRs, cached in localStorage. A picked team searches as its
+ * members (utils/authorPicks), so a team pick waits for the teams list.
+ * A `refreshKey` change reloads both PR lists.
  */
 export function useOrgPRSearch({
   configured,
@@ -58,6 +64,7 @@ export function useOrgPRSearch({
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
   const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
   const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
+  const cachedTeams = useRef(loadCache<OrgTeam[]>(TEAMS_CACHE_KEY));
 
   const [prs, setPrs] = useState<GitHubPR[]>(cachedPRs.current?.prs ?? []);
   const [loading, setLoading] = useState(false);
@@ -68,6 +75,17 @@ export function useOrgPRSearch({
   const [selectedRepos, setSelectedRepos] = useState<string[]>(cachedPRs.current?.repos ?? []);
   const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
   const [orgRepos, setOrgRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
+  const [teams, setTeams] = useState<OrgTeam[]>(cachedTeams.current ?? []);
+  // Settled once teams came from the cache or a fetch (failed included), so a
+  // team pick doesn't wait forever on a token that can't list teams.
+  const [teamsSettled, setTeamsSettled] = useState(cachedTeams.current !== null);
+
+  // The logins actually searched: teams become their members. A team pick
+  // waits for the teams list; picks that come to no one search nothing (an
+  // empty author list would mean "everyone").
+  const searchAuthors = useMemo(() => expandAuthors(authors, teams), [authors, teams]);
+  const searchReady = teamsSettled || !hasTeamPick(authors);
+  const noOne = authors.length > 0 && searchAuthors.length === 0;
 
   // Open or merged, remembered across visits.
   const [subTab, setSubTabState] = useState<"open" | "merged">(() => {
@@ -85,14 +103,15 @@ export function useOrgPRSearch({
   const loadMergedPRs = useCallback(
     async (force = false) => {
       if (!configured) return;
+      if (!searchReady) return;
       const requestId = ++mergedRequestRef.current;
-      if (authors.length === 0 && selectedRepos.length === 0) {
+      if ((authors.length === 0 && selectedRepos.length === 0) || noOne) {
         setMergedPRs([]);
         return;
       }
       setMergedPRsLoading(true);
       try {
-        const data = await fetchRecentlyMergedPRs("org", authors, selectedRepos, { force });
+        const data = await fetchRecentlyMergedPRs("org", searchAuthors, selectedRepos, { force });
         if (requestId === mergedRequestRef.current) setMergedPRs(data);
       } catch (err) {
         console.error("Failed to fetch recently merged PRs:", err);
@@ -100,7 +119,7 @@ export function useOrgPRSearch({
         if (requestId === mergedRequestRef.current) setMergedPRsLoading(false);
       }
     },
-    [configured, authors, selectedRepos],
+    [configured, authors, searchAuthors, selectedRepos, searchReady, noOne],
   );
   useEffect(() => {
     loadMergedPRs();
@@ -127,6 +146,29 @@ export function useOrgPRSearch({
       }
     },
     [configured, members.length],
+  );
+
+  // Load org teams (with their members) for the author dropdown's Teams section.
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const teamsRequestRef = useRef(0);
+  const loadTeams = useCallback(
+    async (skipCache = false) => {
+      if (!configured) return;
+      if (!skipCache && teamsSettled) return;
+      const requestId = ++teamsRequestRef.current;
+      setTeamsLoading(true);
+      try {
+        const data = await fetchOrgTeams({ force: skipCache });
+        setTeams(data);
+        saveCache(TEAMS_CACHE_KEY, data);
+      } catch (err) {
+        console.error("Failed to fetch org teams:", err);
+      } finally {
+        setTeamsSettled(true);
+        if (requestId === teamsRequestRef.current) setTeamsLoading(false);
+      }
+    },
+    [configured, teamsSettled],
   );
 
   // Load org repos (same loading pattern, for the repo dropdown).
@@ -159,14 +201,19 @@ export function useOrgPRSearch({
   useEffect(() => {
     loadRepos();
   }, [loadRepos]);
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
 
   // Stabilize array dependencies for useCallback
   const authorsKey = JSON.stringify(authors);
+  const searchAuthorsKey = JSON.stringify(searchAuthors);
   const reposKey = JSON.stringify(selectedRepos);
 
-  // Whether we're in multi-filter mode (multiple authors or repos selected).
-  // Multi mode is one unpaginated search, so cursor pagination is unavailable.
-  const isMultiMode = authors.length > 1 || selectedRepos.length > 1;
+  // Whether we're in multi-filter mode (several logins searched, e.g. a team,
+  // or several repos). Multi mode is one unpaginated search, so cursor
+  // pagination is unavailable.
+  const isMultiMode = searchAuthors.length > 1 || selectedRepos.length > 1;
 
   // Latest PR list for load-more, and a request id so a slow response for old
   // filters can't overwrite results for newer ones.
@@ -177,9 +224,9 @@ export function useOrgPRSearch({
   // Fetch first page when filters change
   const fetchFirstPage = useCallback(
     async (skipCache = false) => {
-      if (!configured) return;
+      if (!configured || !searchReady) return;
       const requestId = ++prsRequestRef.current;
-      if (authors.length === 0 && selectedRepos.length === 0) {
+      if ((authors.length === 0 && selectedRepos.length === 0) || noOne) {
         setPrs([]);
         setHasNextPage(false);
         setEndCursor(null);
@@ -201,7 +248,7 @@ export function useOrgPRSearch({
       try {
         if (isMultiMode) {
           // One search ORs every selected author and repo
-          const merged = await fetchOrgPRsMulti(authors, selectedRepos);
+          const merged = await fetchOrgPRsMulti(searchAuthors, selectedRepos);
           if (requestId !== prsRequestRef.current) return;
           setPrs(merged);
           setHasNextPage(false);
@@ -215,7 +262,7 @@ export function useOrgPRSearch({
           });
         } else {
           // Single author / single repo -- use the paginated endpoint directly
-          const author = authors[0] || undefined;
+          const author = searchAuthors[0] || undefined;
           const repo = selectedRepos[0] || undefined;
           const result = await fetchOrgPRs(undefined, author, repo);
           if (requestId !== prsRequestRef.current) return;
@@ -237,7 +284,7 @@ export function useOrgPRSearch({
       }
     },
 
-    [configured, authorsKey, reposKey, isMultiMode],
+    [configured, authorsKey, searchAuthorsKey, reposKey, isMultiMode, searchReady, noOne],
   );
 
   useEffect(() => {
@@ -250,7 +297,7 @@ export function useOrgPRSearch({
     const requestId = prsRequestRef.current;
     setLoadingMore(true);
     try {
-      const author = authors[0] || undefined;
+      const author = searchAuthors[0] || undefined;
       const repo = selectedRepos[0] || undefined;
       const result = await fetchOrgPRs(endCursor, author, repo);
       // Filters changed (or a refresh started) while this page was loading.
@@ -271,7 +318,7 @@ export function useOrgPRSearch({
     } finally {
       if (requestId === prsRequestRef.current) setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, authors, selectedRepos, loadingMore, isMultiMode]);
+  }, [hasNextPage, endCursor, authors, searchAuthors, selectedRepos, loadingMore, isMultiMode]);
 
   // Refresh handlers
   const refreshPRs = useCallback(() => {
@@ -280,10 +327,13 @@ export function useOrgPRSearch({
     fetchFirstPage(true);
   }, [fetchFirstPage]);
 
+  // People and teams refresh together: both feed the author dropdown.
   const refreshMembers = useCallback(() => {
     localStorage.removeItem(MEMBERS_CACHE_KEY);
+    localStorage.removeItem(TEAMS_CACHE_KEY);
     loadMembers(true);
-  }, [loadMembers]);
+    loadTeams(true);
+  }, [loadMembers, loadTeams]);
 
   const refreshRepos = useCallback(() => {
     localStorage.removeItem(REPOS_CACHE_KEY);
@@ -295,11 +345,13 @@ export function useOrgPRSearch({
     localStorage.removeItem(PRS_CACHE_KEY);
     localStorage.removeItem(MEMBERS_CACHE_KEY);
     localStorage.removeItem(REPOS_CACHE_KEY);
+    localStorage.removeItem(TEAMS_CACHE_KEY);
     loadMembers(true);
     loadRepos(true);
+    loadTeams(true);
     fetchFirstPage(true);
     loadMergedPRs(true);
-  }, [loadMembers, loadRepos, fetchFirstPage, loadMergedPRs]);
+  }, [loadMembers, loadRepos, loadTeams, fetchFirstPage, loadMergedPRs]);
 
   // The app-level Refresh bumps refreshKey: reload open and merged PRs (not on mount).
   const seenRefreshKey = useRef(refreshKey);
@@ -325,6 +377,8 @@ export function useOrgPRSearch({
     setSelectedRepos,
     members,
     membersLoading,
+    teams,
+    teamsLoading,
     orgRepos,
     reposLoading,
     subTab,

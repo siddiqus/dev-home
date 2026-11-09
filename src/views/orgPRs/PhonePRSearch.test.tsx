@@ -67,6 +67,7 @@ function search(over: Partial<Search> = {}): Search {
       { login: "tashfia", name: null, avatar_url: "" },
       { login: "me", name: null, avatar_url: "" },
     ],
+    teams: [],
     orgRepos: [
       { full_name: "acme/cmp-server", name: "cmp-server" },
       { full_name: "acme/cmp-web", name: "cmp-web" },
@@ -119,7 +120,7 @@ describe("PhonePRSearch", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
     const sheet = screen.getByRole("dialog", { name: "Authors" });
 
-    fireEvent.change(within(sheet).getByPlaceholderText("Search login or name…"), {
+    fireEvent.change(within(sheet).getByPlaceholderText("Search people or teams…"), {
       target: { value: "shun" },
     });
     expect(within(sheet).queryByRole("checkbox", { name: "tashfia" })).toBeNull();
@@ -134,11 +135,31 @@ describe("PhonePRSearch", () => {
     const sheet = screen.getByRole("dialog", { name: "Authors" });
     expect(within(sheet).getByText("Shunjid Rahman")).toBeInTheDocument();
 
-    fireEvent.change(within(sheet).getByPlaceholderText("Search login or name…"), {
+    fireEvent.change(within(sheet).getByPlaceholderText("Search people or teams…"), {
       target: { value: "rahman" },
     });
     expect(within(sheet).getByRole("checkbox", { name: "shunjid" })).toBeInTheDocument();
     expect(within(sheet).queryByRole("checkbox", { name: "tashfia" })).toBeNull();
+  });
+
+  it("lists teams above people in the authors sheet, and names a picked team on the chip", () => {
+    const teams = [{ slug: "cmp-frontend", name: "CMP Frontend", members: ["shunjid", "tashfia"] }];
+    const s = search({ teams, authors: ["team:cmp-frontend", "me"] });
+    renderPage(s);
+    expect(screen.getByRole("button", { name: "Authors: CMP Frontend + 1" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
+    const sheet = screen.getByRole("dialog", { name: "Authors" });
+    const headings = within(sheet).getAllByText(/^(Teams|People)$/);
+    expect(headings.map((h) => h.textContent)).toEqual(["Teams", "People"]);
+    expect(within(sheet).getByRole("checkbox", { name: "CMP Frontend" })).toBeChecked();
+    expect(within(sheet).getByText("cmp-frontend")).toBeInTheDocument();
+
+    fireEvent.change(within(sheet).getByPlaceholderText("Search people or teams…"), {
+      target: { value: "frontend" },
+    });
+    expect(within(sheet).getByRole("checkbox", { name: "CMP Frontend" })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("checkbox", { name: "shunjid" })).toBeNull();
   });
 
   it("unpicks a repo from its sheet", () => {

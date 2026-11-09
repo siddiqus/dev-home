@@ -219,6 +219,43 @@ export const ORG_MEMBERS_QUERY = `
 `;
 
 /**
+ * One page of the org's teams, each with its members' logins: All PRs searches
+ * a picked team by its members, and both pickers show member counts. A page of
+ * 100 teams with 100 members each still costs 1 point.
+ */
+export const ORG_TEAMS_QUERY = `
+  query OrgTeams($org: String!, $after: String) {
+    organization(login: $org) {
+      teams(first: 100, after: $after) {
+        nodes {
+          slug
+          name
+          members(first: 100) {
+            nodes { login }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+`;
+
+/** The rest of one team's members, for a team with more than 100. */
+export const TEAM_MEMBERS_QUERY = `
+  query TeamMembers($org: String!, $slug: String!, $after: String) {
+    organization(login: $org) {
+      team(slug: $slug) {
+        members(first: 100, after: $after) {
+          nodes { login }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+  }
+`;
+
+/**
  * GraphQL query for org PRs with cursor-based pagination.
  */
 export const SEARCH_ORG_PRS_QUERY = `

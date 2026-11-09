@@ -16,6 +16,8 @@ import {
   deleteSavedFilter,
 } from "../../services/filters";
 import { useOrgPRSearch } from "./useOrgPRSearch";
+import { authorItems as buildAuthorItems } from "./authorItems";
+import { teamPicksLabel } from "../../utils/authorPicks";
 
 // --- OrgPRsView ---
 
@@ -51,6 +53,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     setSelectedRepos,
     members,
     membersLoading,
+    teams,
     orgRepos,
     reposLoading,
     subTab: orgSubTab,
@@ -162,16 +165,8 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
   }, []);
 
   // Dropdown items
-  const authorItems = useMemo<DropdownItem[]>(
-    () =>
-      members.map((m) => ({
-        value: m.login,
-        label: m.login,
-        hint: m.name ?? undefined,
-        icon: m.avatar_url,
-      })),
-    [members],
-  );
+  // Teams above people; a picked team searches as its members.
+  const authorItems = useMemo(() => buildAuthorItems(members, teams), [members, teams]);
 
   const repoItems = useMemo<DropdownItem[]>(
     () => orgRepos.map((r) => ({ value: r.full_name, label: r.name })),
@@ -191,9 +186,10 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             items={authorItems}
             values={authors}
             onChange={handleAuthorsChange}
-            placeholder="Search login or name..."
+            placeholder="Search people or teams..."
             allLabel="Select author(s)"
             loading={membersLoading}
+            selectionLabel={teamPicksLabel(authors, teams)}
           />
           <MultiSelectDropdown
             items={repoItems}
@@ -238,7 +234,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
               <Dropdown.Item onClick={refreshAll}>Refresh all</Dropdown.Item>
               <Dropdown.Divider />
               <Dropdown.Item onClick={refreshPRs}>Refresh PRs</Dropdown.Item>
-              <Dropdown.Item onClick={refreshMembers}>Refresh members</Dropdown.Item>
+              <Dropdown.Item onClick={refreshMembers}>Refresh people and teams</Dropdown.Item>
               <Dropdown.Item onClick={refreshRepos}>Refresh repos</Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
@@ -291,7 +287,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
               Select a filter to view PRs
             </div>
             <div style={{ fontSize: "0.8125rem" }}>
-              Choose at least one author or repository above.
+              Choose at least one author, team or repository above.
             </div>
           </div>
         ) : (

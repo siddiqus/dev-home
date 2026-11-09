@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Form from "react-bootstrap/Form";
 import Spinner from "react-bootstrap/Spinner";
 import { IconSearch, IconX, IconCheck } from "@tabler/icons-react";
-import { DropdownItem, itemMatches } from "./SearchableDropdown";
+import { DropdownItem, bySection, itemMatches } from "./SearchableDropdown";
 import { Avatar } from "./primitives/Avatar";
 import "./MultiSelectDropdown.css";
 
@@ -18,6 +18,8 @@ interface MultiSelectDropdownProps {
   loading?: boolean;
   /** Icon shown at the left of the trigger. Defaults to a search icon. */
   triggerIcon?: React.ReactNode;
+  /** The trigger's text for the current picks, in place of "label" / "N items". */
+  selectionLabel?: string | null;
 }
 
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
@@ -30,6 +32,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   height = 28,
   loading = false,
   triggerIcon = <IconSearch size={14} style={{ opacity: 0.5, flexShrink: 0 }} />,
+  selectionLabel,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -46,7 +49,8 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
     const base = search ? items.filter((item) => itemMatches(item, search)) : items;
     const selected = base.filter((item) => selectedSet.has(item.value));
     const unselected = base.filter((item) => !selectedSet.has(item.value));
-    return [...selected, ...unselected];
+    // Selected first within each section.
+    return bySection([...selected, ...unselected], items);
   }, [items, search, selectedSet]);
 
   // Derive a noun from allLabel for count display (e.g., "All authors" -> "authors")
@@ -57,12 +61,13 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
 
   const triggerLabel = useMemo(() => {
     if (values.length === 0) return allLabel;
+    if (selectionLabel) return selectionLabel;
     if (values.length === 1) {
       const item = items.find((i) => i.value === values[0]);
       return item ? item.label : values[0];
     }
     return `${values.length} ${noun}`;
-  }, [items, values, allLabel, noun]);
+  }, [items, values, allLabel, noun, selectionLabel]);
 
   // Build tooltip lines listing all selected item labels
   const selectedLabels = useMemo(() => {
@@ -265,47 +270,54 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
               </div>
 
               {filtered.map((item, i) => (
-                <div
-                  key={item.value}
-                  data-index={i + 1}
-                  className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""} ${
-                    highlightedIndex === i + 1 ? "multi-select-item--active" : ""
-                  } ${item.count === 0 ? "multi-select-item--empty" : ""}`}
-                  onMouseEnter={() => setHighlightedIndex(i + 1)}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleToggle(item.value);
-                  }}
-                >
-                  <span className="multi-select-check">
-                    {selectedSet.has(item.value) && <IconCheck size={14} />}
-                  </span>
-                  {item.icon && (
-                    <Avatar
-                      src={item.icon}
-                      alt={item.label}
-                      size="sm"
-                      style={{ width: 18, height: 18 }}
-                    />
+                <React.Fragment key={item.value}>
+                  {item.group && item.group !== filtered[i - 1]?.group && (
+                    <div className="multi-select-group" role="presentation">
+                      {item.group}
+                    </div>
                   )}
-                  {item.tag && (
-                    <span className={`multi-select-tag multi-select-tag--${item.tag.tone}`}>
-                      {item.tag.label}
+                  <div
+                    data-index={i + 1}
+                    className={`multi-select-item ${selectedSet.has(item.value) ? "fw-bold" : ""} ${
+                      highlightedIndex === i + 1 ? "multi-select-item--active" : ""
+                    } ${item.count === 0 ? "multi-select-item--empty" : ""}`}
+                    onMouseEnter={() => setHighlightedIndex(i + 1)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleToggle(item.value);
+                    }}
+                  >
+                    <span className="multi-select-check">
+                      {selectedSet.has(item.value) && <IconCheck size={14} />}
                     </span>
-                  )}
-                  {/* Only a hinted label is wrapped (and truncated); others stay bare and wrap. */}
-                  {item.hint ? (
-                    <span className="multi-select-label">
-                      {item.label}
-                      <span className="dropdown-item-hint">{item.hint}</span>
-                    </span>
-                  ) : (
-                    item.label
-                  )}
-                  {item.count !== undefined && (
-                    <span className="multi-select-count-badge">{item.count}</span>
-                  )}
-                </div>
+                    {item.glyph ??
+                      (item.icon && (
+                        <Avatar
+                          src={item.icon}
+                          alt={item.label}
+                          size="sm"
+                          style={{ width: 18, height: 18 }}
+                        />
+                      ))}
+                    {item.tag && (
+                      <span className={`multi-select-tag multi-select-tag--${item.tag.tone}`}>
+                        {item.tag.label}
+                      </span>
+                    )}
+                    {/* Only a hinted label is wrapped (and truncated); others stay bare and wrap. */}
+                    {item.hint ? (
+                      <span className="multi-select-label">
+                        {item.label}
+                        <span className="dropdown-item-hint">{item.hint}</span>
+                      </span>
+                    ) : (
+                      item.label
+                    )}
+                    {item.count !== undefined && (
+                      <span className="multi-select-count-badge">{item.count}</span>
+                    )}
+                  </div>
+                </React.Fragment>
               ))}
               {filtered.length === 0 && (
                 <div className="px-3 py-2 text-secondary-custom" style={{ fontSize: "0.8125rem" }}>

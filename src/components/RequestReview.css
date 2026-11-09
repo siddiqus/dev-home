@@ -140,8 +140,7 @@
   outline-offset: -2px;
 }
 
-.rr-avatar,
-.rr-team-icon {
+.rr-avatar {
   flex: none;
   width: 22px;
   height: 22px;
@@ -149,12 +148,12 @@
   background: var(--color-bg-hover);
 }
 
-.rr-team-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
+/* A team's member count, right-aligned before the check. */
+.rr-members {
+  flex: none;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .rr-label {
@@ -167,7 +166,7 @@
 
 .rr-sub {
   margin-left: 6px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
 

@@ -30,7 +30,7 @@
    shared with MultiSelectDropdown. Stays regular weight on a bold selected row. */
 .dropdown-item-hint {
   margin-left: 6px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
   font-weight: 400;
 }

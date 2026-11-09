@@ -15,6 +15,25 @@ export interface DropdownItem {
   tag?: { label: string; tone: "info" | "purple" | "neutral" };
   /** Optional muted text after the label (a person's name beside their login); searched too. */
   hint?: string;
+  /** Shown in place of an avatar `icon` (e.g. a team's icon). */
+  glyph?: React.ReactNode;
+  /**
+   * Section the item sits under (MultiSelectDropdown). Sections keep the order
+   * they first appear in `items`, each headed by its name.
+   */
+  group?: string;
+}
+
+/**
+ * Items ordered for a sectioned list: by section (first-appearance order),
+ * otherwise as given, so a caller's own ordering (selected first) holds within
+ * each section. Ungrouped lists come back unchanged.
+ */
+export function bySection<T extends { group?: string }>(items: T[], all: T[] = items): T[] {
+  if (!all.some((i) => i.group)) return items;
+  const order = new Map<string, number>();
+  for (const i of all) if (!order.has(i.group ?? "")) order.set(i.group ?? "", order.size);
+  return [...items].sort((a, b) => order.get(a.group ?? "")! - order.get(b.group ?? "")!);
 }
 
 /** Whether a dropdown item matches a search: its label or hint contains it, case-insensitively. */

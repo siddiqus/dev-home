@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 import "./SavedFiltersDropdown.css";
 import { Toast, useToast } from "./Toast";
+import { teamSlugOf } from "../utils/authorPicks";
 
 export interface SavedFilter {
   id: number;
@@ -141,9 +142,10 @@ export const SavedFiltersDropdown: React.FC<SavedFiltersDropdownProps> = ({
 
   const formatMeta = (filter: SavedFilter) => {
     const parts: string[] = [];
-    if (filter.authors.length > 0) {
-      parts.push(`${filter.authors.length} author${filter.authors.length > 1 ? "s" : ""}`);
-    }
+    const teams = filter.authors.filter((a) => teamSlugOf(a) !== null).length;
+    const people = filter.authors.length - teams;
+    if (teams > 0) parts.push(`${teams} team${teams > 1 ? "s" : ""}`);
+    if (people > 0) parts.push(`${people} author${people > 1 ? "s" : ""}`);
     if (filter.repos.length > 0) {
       parts.push(`${filter.repos.length} repo${filter.repos.length > 1 ? "s" : ""}`);
     }

@@ -153,8 +153,24 @@
 }
 .phone-sheet__hint {
   margin-left: 6px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
+}
+.phone-sheet__group {
+  padding: 12px 2px 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.phone-sheet__group + .phone-sheet__row {
+  border-top: 0;
+}
+.phone-sheet__count {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .phone-sheet__check {
   color: var(--color-accent);

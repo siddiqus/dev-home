@@ -13,6 +13,8 @@ import { DeckPRRow } from "../workday/DeckPRRow";
 import { PhoneFilterSheet } from "./PhoneFilterSheet";
 import { searchPR } from "./searchPR";
 import { useOrgPRSearch } from "./useOrgPRSearch";
+import { authorItems } from "./authorItems";
+import { pickName, teamPicksLabel } from "../../utils/authorPicks";
 // The Workday card's styles; Workday loads them too, but a phone can open here first.
 import "../workday/deck.css";
 import "./PhonePRSearch.css";
@@ -42,7 +44,7 @@ function picksLabel(values: string[], none: string, noun: string, name = (v: str
  */
 export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingChange }: Props) {
   const search = useOrgPRSearch({ configured, refreshKey });
-  const { authors, selectedRepos, subTab, members, orgRepos } = search;
+  const { authors, selectedRepos, subTab, members, teams, orgRepos } = search;
   const [sheet, setSheet] = useState<"authors" | "repos" | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { onCopyLink, toast } = usePRCopyActions();
@@ -55,7 +57,9 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
 
   const picked = authors.length > 0 || selectedRepos.length > 0;
   const repoName = (fullName: string) => fullName.split("/").pop() ?? fullName;
-  const authorsLabel = picksLabel(authors, "Anyone", "authors");
+  const authorsLabel =
+    teamPicksLabel(authors, teams) ??
+    picksLabel(authors, "Anyone", "authors", (v) => pickName(v, teams));
   const reposLabel = picksLabel(selectedRepos, "All repos", "repos", repoName);
 
   const chip = (kind: "authors" | "repos", title: string, label: string, set: boolean) => (
@@ -144,12 +148,10 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
           show={sheet === "authors"}
           onHide={() => setSheet(null)}
           title="Authors"
-          searchPlaceholder="Search login or name…"
-          items={members.map((m) => ({
-            value: m.login,
-            label: m.login,
-            hint: m.name ?? undefined,
-            avatar: m.avatar_url,
+          searchPlaceholder="Search people or teams…"
+          items={authorItems(members, teams, 22).map(({ icon, ...item }) => ({
+            ...item,
+            avatar: icon,
           }))}
           values={authors}
           onChange={search.setAuthors}

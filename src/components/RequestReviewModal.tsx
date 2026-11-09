@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
-import { IconCheck, IconSearch, IconUsersGroup } from "@tabler/icons-react";
+import { IconCheck, IconSearch } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
 import { toApiError } from "../api/http/errors";
 import { fetchOrgMembers, fetchOrgTeams, type OrgMember, type OrgTeam } from "../services/github";
 import { useBackClose } from "../hooks/useBackClose";
 import { useIsPhone } from "../hooks/useIsPhone";
+import { TeamIcon } from "./primitives/TeamIcon";
 import { reviewStep } from "../utils/prAction";
 import { repoRef } from "../views/workday/prState";
 import "./RequestReview.css";
@@ -23,6 +24,8 @@ interface Candidate extends PickedReviewer {
   avatar?: string;
   /** A person's profile name, or a team's slug when it differs from its name. Searched too. */
   sub?: string;
+  /** A team's member count. */
+  members?: number;
 }
 
 interface Props {
@@ -106,6 +109,7 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
       id: t.slug,
       label: t.name,
       sub: t.slug !== t.name ? t.slug : undefined,
+      members: t.members.length,
     }));
     return [
       {
@@ -184,6 +188,12 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
             token.
           </div>
         )}
+        {/* GitHub can list no teams, rather than fail, for a token without org read access. */}
+        {teams.data?.length === 0 && !query.trim() && (
+          <div className="rr-note">
+            No teams to show. Listing teams needs org read access on your GitHub token.
+          </div>
+        )}
         {loading && <div className="rr-note">Loading people and teams…</div>}
         {sections.map((s) => (
           <section key={s.title} aria-label={s.title}>
@@ -200,9 +210,7 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
                     aria-label={c.label}
                   />
                   {c.kind === "team" ? (
-                    <span className="rr-team-icon" aria-hidden="true">
-                      <IconUsersGroup size={14} />
-                    </span>
+                    <TeamIcon size={22} />
                   ) : c.avatar ? (
                     <img className="rr-avatar" src={c.avatar} alt="" />
                   ) : (
@@ -212,6 +220,7 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
                     {c.label}
                     {c.sub && <span className="rr-sub">{c.sub}</span>}
                   </span>
+                  {c.members !== undefined && <span className="rr-members">{c.members}</span>}
                   {checked && <IconCheck size={16} className="rr-check" aria-hidden="true" />}
                 </label>
               );
