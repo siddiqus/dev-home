@@ -309,6 +309,7 @@ export const SINGLE_PR_QUERY = `
       pullRequest(number: $number) {
         ${PR_BASE_FIELDS}
         body
+        bodyHTML
         ${PR_STATUS_FIELDS}
         reviews(last: 20) {
           nodes { state author { login } }
@@ -318,12 +319,16 @@ export const SINGLE_PR_QUERY = `
   }
 `;
 
-/** Just a PR's markdown description, lazy-loaded when its modal opens. */
+/**
+ * Just a PR's markdown description, lazy-loaded when its modal opens. bodyHTML
+ * rides along only for its signed image URLs (see signAttachmentUrls).
+ */
 export const PR_BODY_QUERY = `
   query PRBody($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         body
+        bodyHTML
       }
     }
   }
@@ -356,7 +361,8 @@ export const UNRESOLVE_THREAD_MUTATION = `
  * tab opens (see mapPrComments). Takes the newest 100 of each: every thread
  * reply adds an empty review, so `first` would push out recent verdicts. Thread
  * comments stay oldest first, since a thread's opening matters most. pageInfo
- * only flags truncation.
+ * only flags truncation. Node ids let COMMENT_HTML_QUERY follow up for pasted
+ * images.
  */
 export const PR_COMMENTS_QUERY = `
   query PRComments($owner: String!, $repo: String!, $number: Int!) {
@@ -372,6 +378,7 @@ export const PR_COMMENTS_QUERY = `
             comments(first: 50) {
               pageInfo { hasNextPage }
               nodes {
+                id
                 databaseId
                 body
                 createdAt
@@ -385,6 +392,7 @@ export const PR_COMMENTS_QUERY = `
         comments(last: 100) {
           pageInfo { hasPreviousPage }
           nodes {
+            id
             databaseId
             body
             createdAt
@@ -395,6 +403,7 @@ export const PR_COMMENTS_QUERY = `
         reviews(last: 100) {
           pageInfo { hasPreviousPage }
           nodes {
+            id
             databaseId
             state
             body
@@ -404,6 +413,19 @@ export const PR_COMMENTS_QUERY = `
           }
         }
       }
+    }
+  }
+`;
+
+/**
+ * bodyHTML of the comments, reviews and review comments with these node ids, for
+ * their signed image URLs (see signAttachmentUrls). At most 100 ids per call.
+ */
+export const COMMENT_HTML_QUERY = `
+  query CommentHTML($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      id
+      ... on Comment { bodyHTML }
     }
   }
 `;

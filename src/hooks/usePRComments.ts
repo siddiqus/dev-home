@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitHubPR, PRComments, PRReviewThread, PRThreadStatus } from "../types";
-import { fetchPRComments, setPRThreadResolved, withThreadStatus } from "../services/github";
+import {
+  fetchPRComments,
+  refreshPRCommentImages,
+  setPRThreadResolved,
+  withThreadStatus,
+} from "../services/github";
 
 export interface PRCommentsState {
   comments: PRComments | null;
@@ -11,6 +16,11 @@ export interface PRCommentsState {
    * answer; put back to what GitHub last confirmed (and rejected) if it refuses.
    */
   setThreadResolved: (threadId: string, resolved: boolean) => Promise<void>;
+  /**
+   * For a comment image that failed to load: its signed URL may have expired,
+   * so refetch the comments if they're old enough for that.
+   */
+  onImageError: () => void;
 }
 
 const statusOf = ({ state, can_resolve, can_unresolve }: PRReviewThread): PRThreadStatus => ({
@@ -100,13 +110,22 @@ export function usePRComments(pr: GitHubPR | null | undefined, enabled: boolean)
     [pr, key],
   );
 
-  if (!key) return { comments: null, loading: false, error: false, setThreadResolved };
+  const onImageError = useCallback(() => {
+    if (!pr || !key) return;
+    refreshPRCommentImages(pr)?.then(
+      (comments) => setLoaded((l) => (l?.key === key ? { key, comments } : l)),
+      () => {},
+    );
+  }, [pr, key]);
+
+  const actions = { setThreadResolved, onImageError };
+  if (!key) return { comments: null, loading: false, error: false, ...actions };
   // Derived from whether the result matches the current key, so a cancelled
   // request can never leave a stuck spinner or show another PR's comments.
   if (loaded?.key === key) {
     return loaded.comments
-      ? { comments: loaded.comments, loading: false, error: false, setThreadResolved }
-      : { comments: null, loading: false, error: true, setThreadResolved };
+      ? { comments: loaded.comments, loading: false, error: false, ...actions }
+      : { comments: null, loading: false, error: true, ...actions };
   }
-  return { comments: null, loading: enabled, error: false, setThreadResolved };
+  return { comments: null, loading: enabled, error: false, ...actions };
 }

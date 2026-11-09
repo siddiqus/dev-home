@@ -17,7 +17,13 @@ vi.mock("./PrNotesPanel", () => ({
 
 vi.mock("../hooks/usePRComments", () => ({ usePRComments: vi.fn() }));
 const mockUsePRComments = vi.mocked(usePRComments);
-const IDLE = { comments: null, loading: false, error: false, setThreadResolved: vi.fn() };
+const IDLE = {
+  comments: null,
+  loading: false,
+  error: false,
+  setThreadResolved: vi.fn(),
+  onImageError: vi.fn(),
+};
 
 // The list counts are made up per test; the loaded ones (and the tab's tags)
 // are counted for real unless a test says otherwise.
@@ -318,6 +324,44 @@ describe("DescriptionModal PR header", () => {
     expect(document.querySelector(".pr-modal-header")).toBeNull();
     expect(document.querySelector(".pr-card-status")).toBeNull();
     expect(document.querySelector(".pr-card-branch")).toBeNull();
+  });
+});
+
+describe("DescriptionModal images", () => {
+  const SIGNED = "https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t";
+
+  it("reports a description image that fails to load", async () => {
+    const onImageError = vi.fn();
+    render(
+      <DescriptionModal
+        {...baseProps}
+        pr={makePR()}
+        description={`![shot](${SIGNED})`}
+        onImageError={onImageError}
+      />,
+    );
+    fireEvent.error(await screen.findByRole("img", { name: "shot" }));
+    expect(onImageError).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a comment image that fails to load to the comments", async () => {
+    const onImageError = vi.fn();
+    mockUsePRComments.mockReturnValue({
+      ...IDLE,
+      comments: {
+        ...commentsWithNew,
+        conversation: [{ ...commentsWithNew.conversation[0], body: `![shot](${SIGNED})` }],
+      },
+      onImageError,
+    });
+    const onDescriptionImageError = vi.fn();
+    render(
+      <DescriptionModal {...baseProps} pr={makePR()} onImageError={onDescriptionImageError} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Comments/ }));
+    fireEvent.error(await screen.findByRole("img", { name: "shot" }));
+    expect(onImageError).toHaveBeenCalledTimes(1);
+    expect(onDescriptionImageError).not.toHaveBeenCalled();
   });
 });
 

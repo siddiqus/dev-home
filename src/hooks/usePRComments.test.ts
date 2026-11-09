@@ -1,17 +1,18 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { usePRComments, type PRCommentsState } from "./usePRComments";
-import { fetchPRComments, setPRThreadResolved } from "../services/github";
+import { fetchPRComments, refreshPRCommentImages, setPRThreadResolved } from "../services/github";
 import type { GitHubPR, PRComments, PRReviewThread } from "../types";
 
 vi.mock("../services/github", async () => ({
   fetchPRComments: vi.fn(),
+  refreshPRCommentImages: vi.fn(),
   setPRThreadResolved: vi.fn(),
   withThreadStatus: (await import("../api/github/prComments")).withThreadStatus,
 }));
 
-/** The hook's data, without its setThreadResolved action. */
-const view = ({ setThreadResolved: _, ...data }: PRCommentsState) => data;
+/** The hook's data, without its actions. */
+const view = ({ setThreadResolved: _, onImageError: __, ...data }: PRCommentsState) => data;
 
 function pr(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -50,6 +51,8 @@ beforeEach(() => {
   vi.mocked(fetchPRComments).mockReset();
   vi.mocked(fetchPRComments).mockImplementation(async () => COMMENTS);
   vi.mocked(setPRThreadResolved).mockReset();
+  vi.mocked(refreshPRCommentImages).mockReset();
+  vi.mocked(refreshPRCommentImages).mockReturnValue(null);
 });
 
 describe("usePRComments", () => {
@@ -143,6 +146,25 @@ describe("usePRComments", () => {
     const fresh = comments(true);
     await act(async () => second.resolve(fresh));
     expect(view(result.current)).toEqual({ comments: fresh, loading: false, error: false });
+  });
+});
+
+describe("usePRComments onImageError", () => {
+  it("swaps in refetched comments when the image URLs had expired", async () => {
+    const fresh = comments(true);
+    vi.mocked(refreshPRCommentImages).mockReturnValue(Promise.resolve(fresh));
+    const { result } = renderHook(() => usePRComments(pr(), true));
+    await waitFor(() => expect(result.current.comments).toBe(COMMENTS));
+    act(() => result.current.onImageError());
+    await waitFor(() => expect(result.current.comments).toBe(fresh));
+  });
+
+  it("keeps the comments when their URLs can't have expired", async () => {
+    const { result } = renderHook(() => usePRComments(pr(), true));
+    await waitFor(() => expect(result.current.comments).toBe(COMMENTS));
+    act(() => result.current.onImageError());
+    expect(refreshPRCommentImages).toHaveBeenCalledTimes(1);
+    expect(result.current.comments).toBe(COMMENTS);
   });
 });
 

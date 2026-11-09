@@ -5,6 +5,7 @@ import {
   enqueuePr,
   getMergeOptions,
   getMergedPrs,
+  getPrBody,
   getPrComments,
   mergePr,
   setReviewThreadResolved,
@@ -15,7 +16,10 @@ import {
   clearListCache,
   fetchMergeOptions,
   fetchMyMergedPRs,
+  fetchPRBody,
   fetchPRComments,
+  refreshPRBodyImages,
+  refreshPRCommentImages,
   mergePR,
   mergedSince,
   MY_MERGED_DAYS,
@@ -27,6 +31,7 @@ vi.mock("../api/github", () => ({
   approvePr: vi.fn(),
   getMergeOptions: vi.fn(),
   getMergedPrs: vi.fn(),
+  getPrBody: vi.fn(),
   mergePr: vi.fn(),
   enqueuePr: vi.fn(),
   getPrComments: vi.fn(),
@@ -60,6 +65,7 @@ beforeEach(() => {
   vi.mocked(getMergeOptions).mockReset();
   vi.mocked(mergePr).mockReset();
   vi.mocked(enqueuePr).mockReset();
+  vi.mocked(getPrBody).mockReset();
   vi.mocked(getPrComments).mockReset();
   vi.mocked(setReviewThreadResolved).mockReset();
   window.dispatchEvent(new Event(SETTINGS_EVENT));
@@ -82,6 +88,103 @@ describe("fetchMergeOptions", () => {
   });
 });
 
+describe("fetchPRBody", () => {
+  const SIGNED = "![a](https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t)";
+
+  it("reuses a plain body for the session", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getPrBody).mockResolvedValue("plain");
+      await fetchPRBody(pr());
+      vi.advanceTimersByTime(60 * 60 * 1000);
+      await expect(fetchPRBody(pr())).resolves.toBe("plain");
+      expect(getPrBody).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refetches a body with signed image URLs before they expire", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getPrBody).mockResolvedValue(SIGNED);
+      await fetchPRBody(pr());
+      vi.advanceTimersByTime(3 * 60 * 1000);
+      await fetchPRBody(pr());
+      expect(getPrBody).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(60 * 1000 + 1);
+      await fetchPRBody(pr());
+      expect(getPrBody).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("refreshPRBodyImages", () => {
+  const SIGNED = "![a](https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t)";
+
+  it("refetches only once the signed URLs may have expired", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getPrBody).mockResolvedValue(SIGNED);
+      await fetchPRBody(pr());
+      // A broken image this early isn't an expired one: nothing to refetch.
+      expect(refreshPRBodyImages(pr())).toBeNull();
+      vi.advanceTimersByTime(4 * 60 * 1000 + 1);
+      await expect(refreshPRBodyImages(pr())).resolves.toBe(SIGNED);
+      expect(getPrBody).toHaveBeenCalledTimes(2);
+      // The refetched body is fresh again.
+      expect(refreshPRBodyImages(pr())).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never refetches a body without signed URLs", async () => {
+    vi.mocked(getPrBody).mockResolvedValue("plain");
+    await fetchPRBody(pr());
+    expect(refreshPRBodyImages(pr())).toBeNull();
+  });
+
+  it("fetches a body that was never cached (it came with the PR)", async () => {
+    vi.mocked(getPrBody).mockResolvedValue(SIGNED);
+    await expect(refreshPRBodyImages(pr({ body: "inline" }))).resolves.toBe(SIGNED);
+    expect(refreshPRBodyImages(pr({ body: "inline" }))).toBeNull();
+  });
+});
+
+describe("refreshPRCommentImages", () => {
+  it("refetches comments only once their signed URLs may have expired", async () => {
+    const author = { login: "bob", avatar_url: "", is_bot: false };
+    const signed: PRComments = {
+      threads: [],
+      truncated: false,
+      conversation: [
+        {
+          kind: "comment",
+          id: "c1",
+          author,
+          body: "![a](https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t)",
+          created_at: "T1",
+          html_url: "",
+        },
+      ],
+    };
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getPrComments).mockResolvedValue(signed);
+      await fetchPRComments(pr());
+      expect(refreshPRCommentImages(pr())).toBeNull();
+      vi.advanceTimersByTime(4 * 60 * 1000 + 1);
+      await expect(refreshPRCommentImages(pr())).resolves.toBe(signed);
+      expect(getPrComments).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("fetchPRComments", () => {
   const COMMENTS: PRComments = { threads: [], conversation: [], truncated: false };
 
@@ -100,6 +203,36 @@ describe("fetchPRComments", () => {
     await expect(fetchPRComments(pr())).rejects.toThrow("down");
     vi.mocked(getPrComments).mockResolvedValue(COMMENTS);
     await expect(fetchPRComments(pr())).resolves.toBe(COMMENTS);
+  });
+
+  it("refetches comments with signed image URLs before they expire", async () => {
+    const author = { login: "bob", avatar_url: "", is_bot: false };
+    const signed: PRComments = {
+      ...COMMENTS,
+      conversation: [
+        {
+          kind: "comment",
+          id: "c1",
+          author,
+          body: "![a](https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t)",
+          created_at: "T1",
+          html_url: "",
+        },
+      ],
+    };
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getPrComments).mockResolvedValue(signed);
+      await fetchPRComments(pr());
+      vi.advanceTimersByTime(3 * 60 * 1000);
+      await fetchPRComments(pr());
+      expect(getPrComments).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(60 * 1000 + 1);
+      await fetchPRComments(pr());
+      expect(getPrComments).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("forgets everything when settings change", async () => {

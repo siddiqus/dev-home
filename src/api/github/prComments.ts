@@ -7,6 +7,7 @@ import type {
   PRThreadComment,
   PRThreadStatus,
 } from "../../types";
+import { signAttachmentUrls } from "./attachments";
 import { isBot } from "./mapping";
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
@@ -60,7 +61,7 @@ function mapComment(c: any): PRThreadComment {
   return {
     id: c.databaseId,
     author: mapAuthor(c.author),
-    body: c.body || "",
+    body: signAttachmentUrls(c.body || "", c.bodyHTML || ""),
     created_at: c.createdAt,
     html_url: c.url,
   };
@@ -137,7 +138,7 @@ export function mapPrComments(raw: any): PRComments {
         kind: "review",
         id: `r${r.databaseId}`,
         author: mapAuthor(r.author),
-        body: r.body || "",
+        body: signAttachmentUrls(r.body || "", r.bodyHTML || ""),
         created_at: r.submittedAt,
         html_url: r.url,
         verdict: r.state,

@@ -21,6 +21,7 @@ import {
   type MergeMethod,
   type MergeOptions,
 } from "../api/github";
+import { hasSignedAttachments, SIGNED_URL_TTL_MS } from "../api/github/attachments";
 import { withThreadStatus } from "../api/github/prComments";
 
 // Hooks patch comments the same way the cache does.
@@ -220,47 +221,93 @@ export async function fetchPR(owner: string, repo: string, number: number): Prom
   return data.pr;
 }
 
-// PR descriptions shared across every modal for the session. Keyed by updated_at
-// too, so an edited PR (which refetches with a newer timestamp) loads afresh.
-// Failures are evicted so the next open retries.
-const prBodyCache = new Map<string, Promise<string>>();
-if (typeof window !== "undefined") {
-  window.addEventListener(SETTINGS_EVENT, () => prBodyCache.clear());
+/**
+ * Session cache for what a PR modal loads lazily, keyed per PR update (an edited
+ * PR refetches with a newer updated_at, so it loads afresh). Failures are evicted
+ * so the next open retries. Values holding signed image URLs (pasted
+ * screenshots) are reused only for SIGNED_URL_TTL_MS, since the URLs expire.
+ */
+function prModalCache<T>(hasSignedImages: (value: T) => boolean) {
+  const entries = new Map<string, { pending: Promise<T>; staleAt: number }>();
+  if (typeof window !== "undefined") {
+    window.addEventListener(SETTINGS_EVENT, () => entries.clear());
+  }
+  return {
+    get(key: string, load: () => Promise<T>): Promise<T> {
+      const hit = entries.get(key);
+      if (hit && Date.now() < hit.staleAt) return hit.pending;
+      const startedAt = Date.now();
+      const entry = { pending: load(), staleAt: Infinity };
+      entry.pending.then(
+        (value) => {
+          if (hasSignedImages(value)) entry.staleAt = startedAt + SIGNED_URL_TTL_MS;
+        },
+        () => {
+          if (entries.get(key) === entry) entries.delete(key);
+        },
+      );
+      entries.set(key, entry);
+      return entry.pending;
+    },
+    /**
+     * Reload a value whose signed image URLs may have expired (an image failed
+     * to load); null while they're still good, or when it has none.
+     */
+    refresh(key: string, load: () => Promise<T>): Promise<T> | null {
+      const hit = entries.get(key);
+      if (hit && Date.now() < hit.staleAt) return null;
+      return this.get(key, load);
+    },
+    /** Rewrite a cached value in place, keeping its expiry. */
+    patch(key: string, update: (value: T) => T): void {
+      const entry = entries.get(key);
+      if (entry) entry.pending = entry.pending.then(update);
+    },
+  };
 }
+
+const prModalKey = (pr: GitHubPR) => `${pr.repo_full_name}#${pr.number}@${pr.updated_at}`;
+
+const prBodyCache = prModalCache<string>(hasSignedAttachments);
+
+const loadPRBody = (pr: GitHubPR) => () => {
+  const [owner, repo] = pr.repo_full_name.split("/");
+  return getPrBody({ owner, repo, number: pr.number });
+};
 
 /** Lazily fetch (and cache) a PR's markdown description. */
 export function fetchPRBody(pr: GitHubPR): Promise<string> {
-  const key = `${pr.repo_full_name}#${pr.number}@${pr.updated_at}`;
-  let pending = prBodyCache.get(key);
-  if (!pending) {
-    const [owner, repo] = pr.repo_full_name.split("/");
-    pending = getPrBody({ owner, repo, number: pr.number });
-    pending.catch(() => prBodyCache.delete(key));
-    prBodyCache.set(key, pending);
-  }
-  return pending;
+  return prBodyCache.get(prModalKey(pr), loadPRBody(pr));
 }
 
-// PR comments for the modal's Comments tab, cached like descriptions: keyed by
-// updated_at (new comments bump it), failures evicted so the next open retries.
-const prCommentsCache = new Map<string, Promise<PRComments>>();
-if (typeof window !== "undefined") {
-  window.addEventListener(SETTINGS_EVENT, () => prCommentsCache.clear());
+/**
+ * A fresh description for when one of its images failed to load, in case its
+ * signed URLs expired; null when they can't have (nothing to refetch). A body
+ * that came with the PR isn't cached, so the first call fetches one.
+ */
+export function refreshPRBodyImages(pr: GitHubPR): Promise<string> | null {
+  return prBodyCache.refresh(prModalKey(pr), loadPRBody(pr));
 }
 
-const prCommentsKey = (pr: GitHubPR) => `${pr.repo_full_name}#${pr.number}@${pr.updated_at}`;
+const prCommentsCache = prModalCache<PRComments>(
+  (c) =>
+    c.conversation.some((item) => hasSignedAttachments(item.body)) ||
+    c.threads.some((t) => t.comments.some((m) => hasSignedAttachments(m.body))),
+);
+
+const loadPRComments = (pr: GitHubPR) => () => {
+  const [owner, repo] = pr.repo_full_name.split("/");
+  return getPrComments({ owner, repo, number: pr.number });
+};
 
 /** Lazily fetch (and cache) a PR's review threads and conversation. */
 export function fetchPRComments(pr: GitHubPR): Promise<PRComments> {
-  const key = prCommentsKey(pr);
-  let pending = prCommentsCache.get(key);
-  if (!pending) {
-    const [owner, repo] = pr.repo_full_name.split("/");
-    pending = getPrComments({ owner, repo, number: pr.number });
-    pending.catch(() => prCommentsCache.delete(key));
-    prCommentsCache.set(key, pending);
-  }
-  return pending;
+  return prCommentsCache.get(prModalKey(pr), loadPRComments(pr));
+}
+
+/** Like refreshPRBodyImages, for the comments. */
+export function refreshPRCommentImages(pr: GitHubPR): Promise<PRComments> | null {
+  return prCommentsCache.refresh(prModalKey(pr), loadPRComments(pr));
 }
 
 /**
@@ -274,13 +321,7 @@ export async function setPRThreadResolved(
   resolved: boolean,
 ): Promise<PRThreadStatus> {
   const status = await setReviewThreadResolved({ threadId, resolved });
-  const key = prCommentsKey(pr);
-  const cached = prCommentsCache.get(key);
-  if (cached)
-    prCommentsCache.set(
-      key,
-      cached.then((c) => withThreadStatus(c, threadId, status)),
-    );
+  prCommentsCache.patch(prModalKey(pr), (c) => withThreadStatus(c, threadId, status));
   return status;
 }
 

@@ -1,6 +1,7 @@
-import { render } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
 import Markdown from "./MarkdownRenderer";
+import { ImageExpiredContext } from "./markdownImages";
 
 describe("Markdown", () => {
   it("renders GFM tables, task lists and strikethrough", () => {
@@ -25,5 +26,31 @@ describe("Markdown", () => {
     const a = container.querySelector("a");
     expect(a?.getAttribute("href")).toBe("https://github.com");
     expect(a?.getAttribute("target")).toBe("_blank");
+  });
+
+  it("loads images lazily", () => {
+    const { container } = render(<Markdown>{"![a](https://example.com/a.png)"}</Markdown>);
+    expect(container.querySelector("img")?.getAttribute("loading")).toBe("lazy");
+  });
+
+  it("reports a signed image that fails to load, as its URL may have expired", () => {
+    const onExpired = vi.fn();
+    const signed = "https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t";
+    const { container } = render(
+      <ImageExpiredContext.Provider value={onExpired}>
+        <Markdown>{`![a](${signed})\n\n![b](https://example.com/b.png)`}</Markdown>
+      </ImageExpiredContext.Provider>,
+    );
+    const [signedImg, otherImg] = container.querySelectorAll("img");
+    fireEvent.error(otherImg);
+    expect(onExpired).not.toHaveBeenCalled();
+    fireEvent.error(signedImg);
+    expect(onExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores failed images with nobody listening", () => {
+    const signed = "https://private-user-images.githubusercontent.com/1/2-x.png?jwt=t";
+    const { container } = render(<Markdown>{`![a](${signed})`}</Markdown>);
+    expect(() => fireEvent.error(container.querySelector("img")!)).not.toThrow();
   });
 });

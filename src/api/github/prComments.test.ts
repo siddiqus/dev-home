@@ -285,6 +285,26 @@ describe("mapPrComments", () => {
     expect(mapPrComments(node()).truncated).toBe(false);
     expect(mapPrComments(node(threads(long))).truncated).toBe(true);
   });
+
+  it("points pasted images at the signed URLs from bodyHTML", () => {
+    const uuid = "0f590dfb-04c5-4944-8947-d39c46e0ba15";
+    const raw = `![shot](https://github.com/user-attachments/assets/${uuid})`;
+    const signed = `https://private-user-images.githubusercontent.com/1/2-${uuid}.png?jwt=x`;
+    const pasted = { body: raw, bodyHTML: `<img src="${signed}">` };
+    const mapped = mapPrComments(
+      node({
+        ...threads(thread("T1", [comment(1, "T1", pasted)])),
+        comments: { pageInfo: { hasPreviousPage: false }, nodes: [comment(2, "T2", pasted)] },
+        reviews: {
+          pageInfo: { hasPreviousPage: false },
+          nodes: [{ ...review(3, "COMMENTED", raw, "T3"), bodyHTML: pasted.bodyHTML }],
+        },
+      }),
+    );
+    const want = `![shot](${signed})`;
+    expect(mapped.threads[0].comments[0].body).toBe(want);
+    expect(mapped.conversation.map((c) => c.body)).toEqual([want, want]);
+  });
 });
 
 describe("threadStatus", () => {

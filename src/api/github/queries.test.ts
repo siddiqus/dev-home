@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   buildSubjectStatesQuery,
+  COMMENT_HTML_QUERY,
   PR_BODY_QUERY,
+  PR_COMMENTS_QUERY,
   REVIEW_SEARCH_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
@@ -48,8 +50,24 @@ describe("PR body is lazy", () => {
   it.each([
     ["SINGLE_PR_QUERY", SINGLE_PR_QUERY],
     ["PR_BODY_QUERY", PR_BODY_QUERY],
-  ])("%s selects body", (_name, query) => {
+  ])("%s selects body, and bodyHTML for signed image URLs", (_name, query) => {
     expect(query).toMatch(/\bbody\b/);
+    expect(query).toMatch(/\bbodyHTML\b/);
+  });
+});
+
+describe("comments query", () => {
+  // bodyHTML is several times the markdown's size, so it's fetched afterwards
+  // (COMMENT_HTML_QUERY) only for comments with pasted images, by node id.
+  it("selects every comment's node id, not its bodyHTML", () => {
+    expect(PR_COMMENTS_QUERY.match(/\bbody\b/g)).toHaveLength(3);
+    expect(PR_COMMENTS_QUERY.match(/\bid\s+databaseId\b/g)).toHaveLength(3);
+    expect(PR_COMMENTS_QUERY).not.toMatch(/\bbodyHTML\b/);
+  });
+
+  it("looks up bodyHTML by node id for any comment type", () => {
+    expect(COMMENT_HTML_QUERY).toMatch(/nodes\(ids: \$ids\)/);
+    expect(COMMENT_HTML_QUERY).toMatch(/\.\.\. on Comment \{ bodyHTML \}/);
   });
 });
 

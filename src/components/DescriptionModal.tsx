@@ -41,6 +41,7 @@ import {
   renderTitleContent,
 } from "./prIndicators";
 import { Markdown } from "./Markdown";
+import { ImageExpiredContext } from "./markdownImages";
 import "./DescriptionModal.css";
 
 const CHECK_SORT_ORDER: Record<string, number> = {
@@ -454,6 +455,8 @@ interface DescriptionModalProps {
   jiraBaseUrl?: string;
   checks?: CheckRunInfo[];
   pr?: GitHubPR;
+  /** For a description image that failed to load (its signed URL may have expired). */
+  onImageError?: () => void;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -467,6 +470,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   jiraBaseUrl,
   checks,
   pr,
+  onImageError,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -560,7 +564,9 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
         <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
       </div>
     ) : description ? (
-      <Markdown>{description}</Markdown>
+      <ImageExpiredContext.Provider value={onImageError}>
+        <Markdown>{description}</Markdown>
+      </ImageExpiredContext.Provider>
     ) : (
       <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>
         No description provided.

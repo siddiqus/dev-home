@@ -2,6 +2,7 @@ import type { PRComments, PRThreadStatus, ReviewedPR, ReviewState } from "../../
 import { requireSettings } from "../http/credentials";
 import { ApiError, toApiError } from "../http/errors";
 import { githubGraphql, githubRest } from "../http/github";
+import { hasAttachmentUrls, signAttachmentUrls } from "./attachments";
 import {
   deriveViewerReview,
   extractOwnPRComments,
@@ -22,6 +23,7 @@ import {
 import { mapPrComments, threadStatus } from "./prComments";
 import {
   ORG_MEMBERS_QUERY,
+  COMMENT_HTML_QUERY,
   OWN_PR_COMMENTS_QUERY,
   PR_BODY_QUERY,
   PR_COMMENTS_QUERY,
@@ -468,11 +470,11 @@ export async function getPrBody(args: {
   repo: string;
   number: number;
 }): Promise<string> {
-  const result = await githubGraphql<{ repository: { pullRequest: { body: string } | null } }>(
-    PR_BODY_QUERY,
-    args,
-  );
-  return result.repository?.pullRequest?.body || "";
+  const result = await githubGraphql<{
+    repository: { pullRequest: { body: string; bodyHTML: string } | null };
+  }>(PR_BODY_QUERY, args);
+  const pr = result.repository?.pullRequest;
+  return signAttachmentUrls(pr?.body || "", pr?.bodyHTML || "");
 }
 
 /** A PR's review threads and conversation (empty when the PR isn't found). */
@@ -485,7 +487,43 @@ export async function getPrComments(args: {
     PR_COMMENTS_QUERY,
     args,
   );
-  return mapPrComments(result.repository?.pullRequest);
+  const raw = result.repository?.pullRequest;
+  if (raw) await addAttachmentHtml(raw);
+  return mapPrComments(raw);
+}
+
+/**
+ * Give the comments with pasted images their bodyHTML, which mapPrComments signs
+ * them from. A follow-up call rather than part of PR_COMMENTS_QUERY: bodyHTML is
+ * several times the markdown's size, and most comments have no images. Best
+ * effort: if it fails, the comments still show, with those images broken.
+ */
+async function addAttachmentHtml(raw: any): Promise<void> {
+  const nodes: any[] = [
+    ...(raw.reviewThreads?.nodes || []).flatMap((t: any) => t.comments?.nodes || []),
+    ...(raw.comments?.nodes || []),
+    ...(raw.reviews?.nodes || []),
+  ].filter((n) => n?.id && hasAttachmentUrls(n.body || ""));
+  if (nodes.length === 0) return;
+  const ids = nodes.map((n) => n.id);
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
+  try {
+    const results = await Promise.all(
+      batches.map((batch) =>
+        githubGraphql<{ nodes: ({ id: string; bodyHTML?: string } | null)[] }>(COMMENT_HTML_QUERY, {
+          ids: batch,
+        }),
+      ),
+    );
+    const html = new Map<string, string>();
+    for (const r of results) {
+      for (const n of r.nodes || []) if (n?.bodyHTML) html.set(n.id, n.bodyHTML);
+    }
+    for (const n of nodes) n.bodyHTML = html.get(n.id);
+  } catch {
+    // Unsigned images just stay broken; the comments matter more.
+  }
 }
 
 /**

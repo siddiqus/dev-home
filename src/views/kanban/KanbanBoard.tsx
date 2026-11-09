@@ -338,6 +338,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         subtitle={modalData?.subtitle}
         description={modalPR ? modalPRBody.body : modalData?.description || ""}
         loading={modalPRBody.loading}
+        onImageError={modalPR ? modalPRBody.onImageError : undefined}
         url={modalData?.url}
         checks={modalData?.checks}
         pr={modalPR ?? undefined}

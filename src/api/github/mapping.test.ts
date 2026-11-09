@@ -69,6 +69,20 @@ describe("mapGraphQLPr head", () => {
   });
 });
 
+describe("mapGraphQLPr body", () => {
+  it("points pasted images at the signed URLs from bodyHTML", () => {
+    const uuid = "0f590dfb-04c5-4944-8947-d39c46e0ba15";
+    const signed = `https://private-user-images.githubusercontent.com/1/2-${uuid}.png?jwt=x`;
+    const node = {
+      body: `![a](https://github.com/user-attachments/assets/${uuid})`,
+      bodyHTML: `<img src="${signed}">`,
+    };
+    expect(mapGraphQLPr(node).body).toBe(`![a](${signed})`);
+    expect(mapGraphQLPr({ body: "plain" }).body).toBe("plain");
+    expect(mapGraphQLPr({}).body).toBeUndefined();
+  });
+});
+
 describe("deriveParticipants", () => {
   const c = (login: string) => ({ author: { login } });
 

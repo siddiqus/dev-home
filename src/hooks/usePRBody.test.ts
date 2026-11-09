@@ -1,10 +1,13 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { usePRBody } from "./usePRBody";
-import { fetchPRBody } from "../services/github";
+import { usePRBody, type PRBodyState } from "./usePRBody";
+import { fetchPRBody, refreshPRBodyImages } from "../services/github";
 import type { GitHubPR } from "../types";
 
-vi.mock("../services/github", () => ({ fetchPRBody: vi.fn() }));
+vi.mock("../services/github", () => ({ fetchPRBody: vi.fn(), refreshPRBodyImages: vi.fn() }));
+
+/** The hook's data, without its onImageError action. */
+const view = ({ onImageError: _, ...data }: PRBodyState) => data;
 
 function pr(overrides: Partial<GitHubPR> = {}): GitHubPR {
   return {
@@ -30,25 +33,27 @@ function pr(overrides: Partial<GitHubPR> = {}): GitHubPR {
 beforeEach(() => {
   vi.mocked(fetchPRBody).mockReset();
   vi.mocked(fetchPRBody).mockImplementation(async () => "hello");
+  vi.mocked(refreshPRBodyImages).mockReset();
+  vi.mocked(refreshPRBodyImages).mockReturnValue(null);
 });
 
 describe("usePRBody", () => {
   it("is idle with no PR", () => {
     const { result } = renderHook(() => usePRBody(null));
-    expect(result.current).toEqual({ body: "", loading: false });
+    expect(view(result.current)).toEqual({ body: "", loading: false });
     expect(fetchPRBody).not.toHaveBeenCalled();
   });
 
   it("uses a body the PR already carries without fetching", () => {
     const { result } = renderHook(() => usePRBody(pr({ body: "inline" })));
-    expect(result.current).toEqual({ body: "inline", loading: false });
+    expect(view(result.current)).toEqual({ body: "inline", loading: false });
     expect(fetchPRBody).not.toHaveBeenCalled();
   });
 
   it("lazy-loads a missing body", async () => {
     const { result } = renderHook(() => usePRBody(pr()));
-    expect(result.current).toEqual({ body: "", loading: true });
-    await waitFor(() => expect(result.current).toEqual({ body: "hello", loading: false }));
+    expect(view(result.current)).toEqual({ body: "", loading: true });
+    await waitFor(() => expect(view(result.current)).toEqual({ body: "hello", loading: false }));
     expect(fetchPRBody).toHaveBeenCalledTimes(1);
   });
 
@@ -57,6 +62,30 @@ describe("usePRBody", () => {
       throw new Error("boom");
     });
     const { result } = renderHook(() => usePRBody(pr()));
-    await waitFor(() => expect(result.current).toEqual({ body: "", loading: false }));
+    await waitFor(() => expect(view(result.current)).toEqual({ body: "", loading: false }));
+  });
+
+  describe("onImageError", () => {
+    it("swaps in a refetched body when the image URLs had expired", async () => {
+      vi.mocked(refreshPRBodyImages).mockReturnValue(Promise.resolve("fresh"));
+      const { result } = renderHook(() => usePRBody(pr()));
+      await waitFor(() => expect(view(result.current).body).toBe("hello"));
+      act(() => result.current.onImageError());
+      await waitFor(() => expect(view(result.current)).toEqual({ body: "fresh", loading: false }));
+    });
+
+    it("refreshes a body that came with the PR too", async () => {
+      vi.mocked(refreshPRBodyImages).mockReturnValue(Promise.resolve("fresh"));
+      const { result } = renderHook(() => usePRBody(pr({ body: "inline" })));
+      act(() => result.current.onImageError());
+      await waitFor(() => expect(view(result.current).body).toBe("fresh"));
+    });
+
+    it("keeps the body when its URLs can't have expired", async () => {
+      const { result } = renderHook(() => usePRBody(pr({ body: "inline" })));
+      act(() => result.current.onImageError());
+      expect(refreshPRBodyImages).toHaveBeenCalledTimes(1);
+      expect(view(result.current).body).toBe("inline");
+    });
   });
 });

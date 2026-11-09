@@ -21,6 +21,7 @@ export function PRDetailModal({ pr, onHide, jiraBaseUrl }: PRDetailModalProps) {
       subtitle={`${pr?.user.login} · ${pr?.repo_full_name} · ${pr?.head.ref} · ${formatRelativeTime(pr?.created_at || "")}`}
       description={body.body}
       loading={body.loading}
+      onImageError={body.onImageError}
       url={pr?.html_url}
       jiraBaseUrl={jiraBaseUrl}
       checks={pr?.checks}

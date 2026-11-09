@@ -6,6 +6,7 @@ import {
   clearRequiredContextsCache,
   getMergedPrs,
   getOrgMembers,
+  getPrBody,
   getPrComments,
   getPrDetail,
   getPrs,
@@ -185,6 +186,31 @@ describe("getPrDetail", () => {
   });
 });
 
+describe("getPrBody", () => {
+  const UUID = "0f590dfb-04c5-4944-8947-d39c46e0ba15";
+  const SIGNED = `https://private-user-images.githubusercontent.com/1/2-${UUID}.png?jwt=x&X-Amz-Expires=300`;
+
+  it("points pasted images at the signed URLs from bodyHTML", async () => {
+    adapter.mockImplementation(async (config: any) =>
+      ok(config, {
+        data: {
+          repository: {
+            pullRequest: {
+              body: `<img src="https://github.com/user-attachments/assets/${UUID}" />`,
+              bodyHTML: `<p><img src="${SIGNED.replace("&", "&amp;")}"></p>`,
+            },
+          },
+        },
+      }),
+    );
+    await expect(getPrBody({ owner: "test-org", repo: "app", number: 7 })).resolves.toBe(
+      `<img src="${SIGNED}" />`,
+    );
+    const [body] = graphqlBodies();
+    expect(body.query).toMatch(/\bbodyHTML\b/);
+  });
+});
+
 describe("getPrComments", () => {
   it("queries the PR's comments and maps them", async () => {
     adapter.mockImplementation(async (config: any) =>
@@ -212,6 +238,91 @@ describe("getPrComments", () => {
       expect(body.query).toContain(`${field}(last: 100)`);
     }
     expect(body.variables).toEqual({ owner: "test-org", repo: "app", number: 7 });
+  });
+
+  describe("pasted images", () => {
+    const UUID = "0f590dfb-04c5-4944-8947-d39c46e0ba15";
+    const PASTED = `![shot](https://github.com/user-attachments/assets/${UUID})`;
+    const SIGNED = `https://private-user-images.githubusercontent.com/1/2-${UUID}.png?jwt=x`;
+    const author = { __typename: "User", login: "bob", avatarUrl: "" };
+    const pullRequest = (bodies: string[]) => ({
+      reviewThreads: {
+        pageInfo: { hasPreviousPage: false },
+        nodes: [
+          {
+            id: "T1",
+            path: "a.ts",
+            line: 1,
+            comments: {
+              pageInfo: { hasNextPage: false },
+              nodes: [
+                { id: "RC_1", databaseId: 1, body: bodies[0], createdAt: "T1", url: "", author },
+              ],
+            },
+          },
+        ],
+      },
+      comments: {
+        pageInfo: { hasPreviousPage: false },
+        nodes: [{ id: "IC_2", databaseId: 2, body: bodies[1], createdAt: "T2", url: "", author }],
+      },
+      reviews: {
+        pageInfo: { hasPreviousPage: false },
+        nodes: [
+          {
+            id: "PRR_3",
+            databaseId: 3,
+            state: "COMMENTED",
+            body: bodies[2],
+            submittedAt: "T3",
+            url: "",
+            author,
+          },
+        ],
+      },
+    });
+    /** Answers the comments query with `pr`, the HTML lookup with `html` (or fails it). */
+    const respond = (pr: unknown, html: (ids: string[]) => unknown) =>
+      adapter.mockImplementation(async (config: any) => {
+        const body = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+        if (body.query.includes("query PRComments")) {
+          return ok(config, { data: { repository: { pullRequest: pr } } });
+        }
+        return ok(config, { data: html(body.variables.ids) });
+      });
+    const bodiesOf = (c: Awaited<ReturnType<typeof getPrComments>>) => [
+      c.threads[0].comments[0].body,
+      ...c.conversation.map((i) => i.body),
+    ];
+
+    it("fetches bodyHTML only for comments with pasted images, and signs them", async () => {
+      respond(pullRequest([PASTED, "plain", PASTED]), (ids) => ({
+        nodes: ids.map((id) => ({ id, bodyHTML: `<img src="${SIGNED}">` })),
+      }));
+      const comments = await getPrComments({ owner: "test-org", repo: "app", number: 7 });
+      expect(bodiesOf(comments)).toEqual([`![shot](${SIGNED})`, "plain", `![shot](${SIGNED})`]);
+      const [, lookup] = graphqlBodies();
+      expect(lookup.variables).toEqual({ ids: ["RC_1", "PRR_3"] });
+    });
+
+    it("makes no second call when no comment has a pasted image", async () => {
+      respond(pullRequest(["a", "b", "c"]), () => {
+        throw new Error("unexpected lookup");
+      });
+      await getPrComments({ owner: "test-org", repo: "app", number: 7 });
+      expect(graphqlBodies()).toHaveLength(1);
+    });
+
+    it("still returns the comments when the HTML lookup fails", async () => {
+      adapter.mockImplementationOnce(async (config: any) =>
+        ok(config, { data: { repository: { pullRequest: pullRequest([PASTED, "b", "c"]) } } }),
+      );
+      adapter.mockImplementationOnce(async () => {
+        throw new Error("network down");
+      });
+      const comments = await getPrComments({ owner: "test-org", repo: "app", number: 7 });
+      expect(bodiesOf(comments)).toEqual([PASTED, "b", "c"]);
+    });
   });
 
   it("returns nothing when the pull request is missing", async () => {

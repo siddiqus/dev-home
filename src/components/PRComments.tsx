@@ -26,6 +26,7 @@ import { NewPill } from "./CommentCountChip";
 import { Avatar } from "./primitives/Avatar";
 import { Markdown } from "./Markdown";
 import { Toast, toastProps, type ToastState } from "./Toast";
+import { ImageExpiredContext } from "./markdownImages";
 import "./PRComments.css";
 
 type Tone = "success" | "warning" | "danger" | "neutral";
@@ -373,6 +374,8 @@ interface PRCommentsProps {
    * Without it, nothing is.
    */
   readSince?: string | null;
+  /** For a comment image that failed to load (its signed URL may have expired). */
+  onImageError?: () => void;
 }
 
 /**
@@ -394,6 +397,7 @@ export function PRComments({
   setThreadResolved,
   toast: outerToast,
   readSince,
+  onImageError,
 }: PRCommentsProps) {
   const { copy, toast } = usePRCopyActions(outerToast);
   const feedbackHeader = useRef<HTMLDivElement>(null);
@@ -547,7 +551,7 @@ export function PRComments({
 
   if (phone) {
     return (
-      <>
+      <ImageExpiredContext.Provider value={onImageError}>
         <section className="modal-phone-section pr-comments pr-comments--phone">
           {newSummary}
           {truncatedNote}
@@ -557,23 +561,25 @@ export function PRComments({
           {conversation}
         </section>
         {toastEl}
-      </>
+      </ImageExpiredContext.Provider>
     );
   }
 
   return (
-    <div className="pr-comments">
-      <div className="pr-comments-toolbar">
-        <span className="pr-comments-counts">
-          {`${open.length} open · ${resolved.length} resolved · ${comments.conversation.length} in conversation`}
-        </span>
-        {copyButton}
+    <ImageExpiredContext.Provider value={onImageError}>
+      <div className="pr-comments">
+        <div className="pr-comments-toolbar">
+          <span className="pr-comments-counts">
+            {`${open.length} open · ${resolved.length} resolved · ${comments.conversation.length} in conversation`}
+          </span>
+          {copyButton}
+        </div>
+        {newSummary}
+        {truncatedNote}
+        <div className="pr-comments-part">{feedback}</div>
+        <div className="pr-comments-part">{conversation}</div>
+        {toastEl}
       </div>
-      {newSummary}
-      {truncatedNote}
-      <div className="pr-comments-part">{feedback}</div>
-      <div className="pr-comments-part">{conversation}</div>
-      {toastEl}
-    </div>
+    </ImageExpiredContext.Provider>
   );
 }

@@ -448,6 +448,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
         subtitle={selectedPR?.repo_full_name}
         description={selectedPRBody.body}
         loading={selectedPRBody.loading}
+        onImageError={selectedPRBody.onImageError}
         url={selectedPR?.html_url}
         checks={selectedPR?.checks}
         pr={selectedPR ?? undefined}

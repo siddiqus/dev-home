@@ -1,4 +1,5 @@
 import type { GitHubPR, PRParticipant, RecentComment, ReviewState } from "../../types";
+import { signAttachmentUrls } from "./attachments";
 import { computeChecksStatus, findOptionalFailures, latestContexts } from "./checks";
 
 /**
@@ -301,7 +302,10 @@ export function mapGraphQLPr(
     },
     // Only single-PR queries select the body; list queries leave it undefined
     // ("not loaded") so modals know to fetch it (see usePRBody).
-    body: typeof node.body === "string" ? node.body : undefined,
+    body:
+      typeof node.body === "string"
+        ? signAttachmentUrls(node.body, node.bodyHTML || "")
+        : undefined,
     additions: node.additions ?? null,
     deletions: node.deletions ?? null,
     changed_files: node.changedFiles ?? null,
