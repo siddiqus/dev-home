@@ -331,7 +331,7 @@ describe("WorkdayView deck", () => {
     expect(card()).toHaveAccessibleName("CCP-412 Move asset sync to a queue");
     expect(within(card()).getByText("CCP-412")).toBeTruthy();
     expect(within(card()).getByText("In Progress")).toBeTruthy();
-    expect(within(card()).getByText("2 PRs · updated 4m")).toBeTruthy();
+    expect(within(card()).getByText("updated 4m")).toBeTruthy();
     const options = within(prList()).getAllByRole("option");
     expect(options).toHaveLength(2);
     // Newest first, key stripped from PR titles; top row selected on open.
@@ -811,7 +811,7 @@ describe("WorkdayView merged PRs on open tickets", () => {
       "#1100 Merged 2d ago",
     );
     expect(within(card()).queryByText("No PR yet")).toBeNull();
-    expect(within(card()).getByText(/^1 PR · 1 merged · updated/)).toBeTruthy();
+    expect(within(card()).getByText(/^updated /)).toBeTruthy();
     const [row] = within(prList()).getAllByRole("option");
     expect(within(row).getByText("Backfill job")).toBeTruthy();
     expect(within(row).getByText("Merged 2d ago")).toBeTruthy();

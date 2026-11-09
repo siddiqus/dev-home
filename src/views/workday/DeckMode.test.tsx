@@ -378,7 +378,7 @@ describe("DeckMode card", () => {
     const card = screen.getByRole("region", { name: "CCP-1 Title CCP-1" });
     expect(within(card).getByText("Off-sprint")).toBeTruthy();
     expect(within(card).getByText("In Review")).toBeTruthy();
-    expect(within(card).getByText("2 PRs · 1 current · updated 2h")).toBeTruthy();
+    expect(within(card).getByText("updated 2h")).toBeTruthy();
 
     const [mine, theirs] = within(card).getAllByRole("option");
     expect(within(mine).getByText("▶ current")).toBeTruthy();

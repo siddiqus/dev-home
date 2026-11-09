@@ -31,8 +31,6 @@ export interface DeckCardProps {
   onResolveNote?(note: Note): void;
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 /**
  * The ticket card (spec §5.4): header, sub-line and PR rows as a listbox, in
  * Yours / To review groups when the ticket has both.
@@ -72,18 +70,8 @@ export function DeckCard({
     null,
   );
   const jiraHref = key && jiraBaseUrl ? jiraBrowseUrl(jiraBaseUrl, key) : null;
-  const currentCount = prs.filter((p) => p.current).length;
-  const mergedCount = prs.filter((p) => p.pr.merged_at).length;
-  const meta = newest
-    ? [
-        plural(prs.length, "PR"),
-        mergedCount > 0 && `${mergedCount} merged`,
-        currentCount > 0 && `${currentCount} current`,
-        `updated ${compactAge(newest, now)}`,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : null;
+  // Only freshness: the PR rows already show how many there are and which merged.
+  const meta = newest ? `updated ${compactAge(newest, now)}` : null;
   const activeIndex = prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
   const activePR = activeIndex === -1 ? null : prs[activeIndex].pr;
   const row = (p: DeckPR, i: number) => (
@@ -143,7 +131,7 @@ export function DeckCard({
               <Badge variant="neutral">{ticket.ticket.statusName}</Badge>
             )}
             {ticket.ticket?.offSprint && <OffSprintPill />}
-            {/* PR count and freshness fill the key line's empty right side. */}
+            {/* Freshness fills the key line's empty right side. */}
             {meta && <span className="deck-card-meta">{meta}</span>}
           </div>
         )}
