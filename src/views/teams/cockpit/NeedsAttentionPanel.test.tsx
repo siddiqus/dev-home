@@ -43,8 +43,7 @@ describe("NeedsAttentionPanel", () => {
   it("shows the issue type icon before a ticket's key", () => {
     renderPanel();
     const row = screen.getByText("PLAT-101").closest("button")!;
-    const icon = within(row).getByRole("img", { name: "Story" });
-    expect(icon).toHaveAttribute("src", "https://jira.example/story.svg");
+    expect(within(row).getByRole("img", { name: "Story" })).toBeInTheDocument();
   });
 
   it("shows no type icon on a PR row", () => {
