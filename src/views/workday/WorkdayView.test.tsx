@@ -1701,10 +1701,14 @@ describe("WorkdayView on a phone", () => {
     expect(localStorage.getItem("workday-v2.mode")).toBe("list");
   });
 
-  it("puts an items button and the deck's counts in the deck bar", () => {
+  it("puts an items button and the deck's jump chips in the deck bar", () => {
     renderView({ phone: true, openPRs: [prs[0], second] });
     const bar = screen.getByTestId("deck-phone-bar");
-    expect(bar).toHaveTextContent("2 open PRs, 0 review requests");
+    expect(
+      within(within(bar).getByRole("group", { name: "Jump to" }))
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Authored 2"]);
     const button = within(bar).getByRole("button", { name: "Show items" });
     expect(button).toHaveTextContent("All Items");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -1729,6 +1733,33 @@ describe("WorkdayView on a phone", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
     expect(screen.getByTestId("deck-track")).toHaveAttribute("data-swipe", "next");
     expect(document.querySelector(".deck-ghost")).toBeNull();
+  });
+
+  it("dots All Items for a merge since the drawer last opened, and clears it on opening", () => {
+    // Last looked 5h ago; this PR merged 3h ago.
+    localStorage.setItem(
+      "dev-home-workday-v2-merged-seen",
+      JSON.stringify(NOW.getTime() - 5 * 3_600_000),
+    );
+    extrasMock.merged = [
+      deckPR(1100, "CCP-350 Export fix", "2026-10-01T10:00:00Z", {
+        state: "merged",
+        merged_at: new Date(NOW.getTime() - 3 * 3_600_000).toISOString(),
+      }),
+    ];
+    try {
+      renderView({ phone: true, openPRs: [prs[0], second] });
+      fireEvent.click(screen.getByRole("button", { name: "Show items, new merges" }));
+      const drawer = screen.getByRole("dialog", { name: "All Items" });
+      const merged = within(
+        within(drawer).getByRole("group", { name: "Merged recently" }),
+      ).getByRole("option");
+      expect(within(merged).getByRole("img", { name: "new merge" })).toBeTruthy();
+      fireEvent.click(within(drawer).getByRole("button", { name: /close/i }));
+      expect(screen.getByRole("button", { name: "Show items" })).toBeTruthy();
+    } finally {
+      extrasMock.merged = [];
+    }
   });
 
   it("leaves Merged recently out of Prev / Next and the position, not the drawer", () => {

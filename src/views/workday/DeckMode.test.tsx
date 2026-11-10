@@ -100,7 +100,10 @@ const phoneDeck = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
   position: 1,
   total: 3,
   tickets: 3,
-  counts: { openPRs: 5, reviewRequests: 2 },
+  jumps: [
+    { kind: "authored" as const, label: "Authored", count: 7, firstId: "CCP-1" },
+    { kind: "review" as const, label: "To Review", count: 2, firstId: "CCP-2" },
+  ],
   ...o,
 });
 
@@ -674,30 +677,86 @@ describe("DeckMode on a phone", () => {
     expect(p.onRailOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("pins a deck bar with the Items button and what's on the deck", () => {
+  it("pins a deck bar with the Items button and a jump chip per kind", () => {
     const p = phone();
     renderDeck({ deck: three(), phone: p });
     const bar = screen.getByTestId("deck-phone-bar");
     expect(screen.getByTestId("deck-mode")).toContainElement(bar);
-    expect(bar).toHaveTextContent("5 open PRs, 2 review requests");
     const button = within(bar).getByRole("button", { name: "Show items" });
     expect(button).toHaveTextContent("All Items");
     fireEvent.click(button);
     expect(p.onRailOpenChange).toHaveBeenCalledWith(true);
+    const jumps = within(within(bar).getByRole("group", { name: "Jump to" })).getAllByRole(
+      "button",
+    );
+    expect(jumps.map((b) => b.textContent)).toEqual(["Authored 7", "To Review 2"]);
+    expect(bar).not.toHaveTextContent(/open PR|review request/);
   });
 
-  it("counts in the singular, and leaves the counts out while loading", () => {
-    renderDeck({ deck: three(), phone: phone({ counts: { openPRs: 1, reviewRequests: 1 } }) });
-    expect(screen.getByTestId("deck-phone-bar")).toHaveTextContent("1 open PR, 1 review request");
+  it("jumps to a kind's first card, and marks the kind of the card on show", () => {
+    const { onSelect } = renderDeck({ deck: three(), phone: phone() });
+    const group = screen.getByRole("group", { name: "Jump to" });
+    // CCP-1 is on show and it's mine.
+    expect(within(group).getByRole("button", { name: "Authored 7" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    const toReview = within(group).getByRole("button", { name: "To Review 2" });
+    expect(toReview).not.toHaveAttribute("aria-current");
+    fireEvent.click(toReview);
+    expect(onSelect).toHaveBeenCalledWith("CCP-2");
+  });
+
+  it("shows only the kinds it's given, and no group without any", () => {
+    renderDeck({
+      deck: three(),
+      phone: phone({
+        jumps: [{ kind: "authored", label: "Authored", count: 3, firstId: "CCP-1" }],
+      }),
+    });
+    expect(
+      within(screen.getByRole("group", { name: "Jump to" }))
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Authored 3"]);
     cleanup();
+    renderDeck({ deck: three(), phone: phone({ jumps: [] }) });
+    expect(screen.queryByRole("group", { name: "Jump to" })).toBeNull();
+  });
+
+  it("dots the Items button while something merged that the drawer hasn't shown", () => {
+    renderDeck({ deck: three(), phone: phone({ mergedNew: true }) });
+    const button = screen.getByRole("button", { name: "Show items, new merges" });
+    expect(button.querySelector(".deck-rail-trigger-dot")).toBeTruthy();
+    cleanup();
+    renderDeck({ deck: three(), phone: phone() });
+    expect(
+      screen.getByRole("button", { name: "Show items" }).querySelector(".deck-rail-trigger-dot"),
+    ).toBeNull();
+  });
+
+  it("marks a new merge in the drawer with a purple dot", () => {
+    const merged = ticket("merged:CCP-9", { key: "CCP-9", unseen: true });
+    renderDeck({
+      deck: deck({ ...three(), merged: [merged] }),
+      phone: phone({ railOpen: true }),
+    });
+    const row = within(screen.getByRole("dialog")).getByRole("option", { name: /CCP-9/ });
+    expect(within(row).getByRole("img", { name: "new merge" })).toHaveClass(
+      "deck-dot",
+      "deck-dot--merged",
+    );
+  });
+
+  it("leaves the jump chips out while loading", () => {
     renderDeck({ deck: three(), phone: phone(), loading: true });
-    expect(screen.getByTestId("deck-phone-bar")).not.toHaveTextContent(/open PR/);
+    expect(screen.queryByRole("group", { name: "Jump to" })).toBeNull();
   });
 
   it("hides every count until all sources have landed", () => {
     renderDeck({ deck: three(), phone: phone(), countsReady: false });
     const bar = screen.getByTestId("deck-phone-bar");
-    expect(bar).not.toHaveTextContent(/open PR/);
+    expect(within(bar).queryByRole("group", { name: "Jump to" })).toBeNull();
     expect(within(bar).getByRole("button", { name: "Show items" })).toHaveTextContent(
       /^All Items$/,
     );

@@ -9,7 +9,7 @@ import { useWheelSwipe } from "../../hooks/useWheelSwipe";
 import { useBackClose } from "../../hooks/useBackClose";
 import { DeckCard } from "./DeckCard";
 import { DeckRail } from "./DeckRail";
-import type { DeckCounts } from "./deckCounts";
+import { deckKind, type DeckJump } from "./deckJumps";
 import { loopWindow, outgoingOffset, type SwipeDirection } from "./deckCarousel";
 import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 import type { MentionItem } from "./types";
@@ -78,8 +78,10 @@ export interface PhoneDeck {
   total: number;
   /** The rail's length, for the drawer title and the deck bar's Tickets button. */
   tickets: number;
-  /** What's on the deck, at the deck bar's right end. */
-  counts: DeckCounts;
+  /** The deck bar's jump chips, at its right end: one per kind of card on the deck. */
+  jumps: DeckJump[];
+  /** Something merged that the drawer hasn't shown yet: a purple dot on the Items button. */
+  mergedNew?: boolean;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -272,19 +274,33 @@ export function DeckMode({
           <button
             type="button"
             className="deck-rail-trigger"
-            aria-label="Show items"
+            aria-label={phone.mergedNew ? "Show items, new merges" : "Show items"}
             aria-expanded={phone.railOpen}
             onClick={() => phone.onRailOpenChange(true)}
           >
             <IconListDetails size={14} aria-hidden="true" />
-            All Items
+            <span className="deck-rail-trigger-label">All Items</span>
+            {phone.mergedNew && <span className="deck-rail-trigger-dot" aria-hidden="true" />}
           </button>
-          {showCounts && (
-            <span className="deck-phone-counts">
-              <b>{phone.counts.openPRs}</b> {phone.counts.openPRs === 1 ? "open PR" : "open PRs"},{" "}
-              <b>{phone.counts.reviewRequests}</b>{" "}
-              {phone.counts.reviewRequests === 1 ? "review request" : "review requests"}
-            </span>
+          {showCounts && phone.jumps.length > 0 && (
+            // A tap goes to the kind's first card, as a pick from the drawer does;
+            // the chip of the card on show is tinted, so the bar says where you are.
+            <div className="deck-phone-jumps" role="group" aria-label="Jump to">
+              {phone.jumps.map((j) => {
+                const on = ticket !== null && deckKind(ticket) === j.kind;
+                return (
+                  <button
+                    key={j.kind}
+                    type="button"
+                    className={`deck-jump${on ? " deck-jump--on" : ""}`}
+                    aria-current={on || undefined}
+                    onClick={() => onSelect(j.firstId)}
+                  >
+                    {j.label} <span className="deck-jump-count">{j.count}</span>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

@@ -2,6 +2,7 @@ import type { MouseEvent } from "react";
 import { Avatar } from "../../components/primitives/Avatar";
 import { blurOnPointer } from "./pointer";
 import type { DeckTicket } from "./deckTypes";
+import { isMergedTab } from "./pins";
 
 export interface DeckRailRowProps {
   /** DOM id, referenced by the rail's `aria-activedescendant`. */
@@ -35,6 +36,7 @@ export function DeckRailRow({
     blurOnPointer(e);
     onSelect(ticket.id, e);
   };
+  const merged = isMergedTab(ticket.id);
   // A review-only tab's top PR: its author stands in for the "review" chip.
   const author = ticket.reviewOnly ? ticket.prs[0]?.pr.user : undefined;
   const classes = [
@@ -105,7 +107,12 @@ export function DeckRailRow({
         </span>
       </span>
       {ticket.unseen ? (
-        <span className="deck-dot" role="img" aria-label="new activity" />
+        merged ? (
+          // A merge the phone's drawer hadn't shown: purple, as merged is everywhere.
+          <span className="deck-dot deck-dot--merged" role="img" aria-label="new merge" />
+        ) : (
+          <span className="deck-dot" role="img" aria-label="new activity" />
+        )
       ) : (
         <span aria-hidden="true" />
       )}

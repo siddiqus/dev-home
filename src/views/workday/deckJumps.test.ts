@@ -1,53 +1,50 @@
 import { describe, it, expect } from "vitest";
-import type { GitHubPR } from "../../types";
-import type { DeckPR, DeckTicket } from "./deckTypes";
-import { deckCounts } from "./deckCounts";
+import type { DeckTicket } from "./deckTypes";
+import { deckJumps, deckKind } from "./deckJumps";
 
-const pr = (
-  url: string,
-  over: Partial<GitHubPR> = {},
-  who: { mine?: boolean; requested?: boolean } = { mine: true },
-): DeckPR =>
-  ({
-    pr: { html_url: url, state: "open", merged_at: null, ...over },
-    mine: !!who.mine,
-    requested: who.requested,
-  }) as DeckPR;
+const ticket = (id: string, o: Partial<DeckTicket> = {}): DeckTicket =>
+  ({ id, reviewOnly: false, noteItem: null, ...o }) as DeckTicket;
 
-const ticket = (key: string | null, prs: DeckPR[] = []): DeckTicket =>
-  ({ id: key ?? "pr-only", key, prs }) as DeckTicket;
+const review = (id: string) => ticket(id, { reviewOnly: true });
+const merged = (key: string) => ticket(`merged:${key}`);
+const noteTab = (id: string) =>
+  ticket(id, { noteItem: { id } as unknown as DeckTicket["noteItem"] });
 
-describe("deckCounts", () => {
-  it("counts my distinct open PRs, on any tab", () => {
-    const shared = "https://github.com/acme/web/pull/1";
-    const counts = deckCounts([
-      ticket("WMU-1", [pr(shared), pr("https://github.com/acme/web/pull/2")]),
-      // The same PR on a second ticket counts once.
-      ticket("WMU-2", [pr(shared)]),
-      // A PR with no ticket counts too.
-      ticket(null, [pr("https://github.com/acme/api/pull/9")]),
+describe("deckKind", () => {
+  it("sorts a tab under Authored or To Review, and a merged or note tab under none", () => {
+    expect(deckKind(ticket("CCP-1"))).toBe("authored");
+    expect(deckKind(review("CCP-2"))).toBe("review");
+    expect(deckKind(merged("CCP-3"))).toBeNull();
+    expect(deckKind(noteTab("note:1"))).toBeNull();
+  });
+});
+
+describe("deckJumps", () => {
+  it("counts each kind and points at its first tab in rail order", () => {
+    const jumps = deckJumps([
+      review("CCP-2"),
+      merged("CCP-9"),
+      ticket("CCP-1"),
+      review("CCP-4"),
+      ticket("CCP-5"),
+      merged("CCP-8"),
     ]);
-    expect(counts).toEqual({ openPRs: 3, reviewRequests: 0 });
+    expect(jumps).toEqual([
+      { kind: "authored", label: "Authored", count: 2, firstId: "CCP-1" },
+      { kind: "review", label: "To Review", count: 2, firstId: "CCP-2" },
+    ]);
   });
 
-  it("leaves merged PRs out", () => {
-    const counts = deckCounts([
-      ticket("WMU-1", [
-        pr("https://github.com/acme/web/pull/3", { state: "closed", merged_at: "2026-10-30" }),
-      ]),
+  it("leaves out a kind with no tabs", () => {
+    expect(deckJumps([ticket("CCP-1"), ticket("CCP-2")])).toEqual([
+      { kind: "authored", label: "Authored", count: 2, firstId: "CCP-1" },
     ]);
-    expect(counts).toEqual({ openPRs: 0, reviewRequests: 0 });
+    expect(deckJumps([])).toEqual([]);
   });
 
-  it("counts review requests apart, and leaves re-reviews out", () => {
-    const counts = deckCounts([
-      ticket("WMU-1", [
-        pr("https://github.com/acme/web/pull/4"),
-        pr("https://github.com/acme/web/pull/5", {}, { requested: true }),
-        // New commits on a PR I reviewed: on the deck, but nobody asked.
-        pr("https://github.com/acme/web/pull/6", {}, {}),
-      ]),
+  it("doesn't count merged or note tabs", () => {
+    expect(deckJumps([merged("CCP-9"), noteTab("note:1"), review("CCP-2")])).toEqual([
+      { kind: "review", label: "To Review", count: 1, firstId: "CCP-2" },
     ]);
-    expect(counts).toEqual({ openPRs: 1, reviewRequests: 1 });
   });
 });

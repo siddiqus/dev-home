@@ -29,7 +29,8 @@ import type { MentionItem } from "./types";
 import { CommandPalette, type PaletteAction, type PaletteCommand } from "./CommandPalette";
 import type { SearchResult } from "./deckSearch";
 import { buildDeck } from "./buildDeck";
-import { deckCounts } from "./deckCounts";
+import { deckJumps } from "./deckJumps";
+import { useMergedSeen } from "./useMergedSeen";
 import { jiraCommentUrl } from "./DeckContext";
 import type { DeckPR } from "./deckTypes";
 import { DeckMode, type SwipeDirection } from "./DeckMode";
@@ -415,6 +416,18 @@ export function WorkdayView(props: WorkdayViewProps) {
       now,
     ],
   );
+
+  // Phone: a dot on All Items for merges its drawer hasn't shown yet, and on
+  // their rows while it's open (swiping skips Merged recently, so it's the way in).
+  const mergedSeen = useMergedSeen(deck.merged, phone && railOpen, now);
+  const shownDeck = useMemo(() => {
+    const ids = mergedSeen.newIds;
+    if (!ids || ids.size === 0) return deck;
+    return {
+      ...deck,
+      merged: deck.merged.map((t) => (ids.has(t.id) ? { ...t, unseen: true } : t)),
+    };
+  }, [deck, mergedSeen.newIds]);
 
   // Apply buildDeck's patch (arrivals, reopens, pruning, first-run seeding) only
   // after a complete, error-free load, so a partial or failed fetch never drops
@@ -1145,7 +1158,7 @@ export function WorkdayView(props: WorkdayViewProps) {
 
             {mode === "focus" ? (
               <DeckMode
-                deck={deck}
+                deck={shownDeck}
                 selectedId={selectedId}
                 onSelect={clickTicket}
                 selectedPrUrl={selectedPrUrl}
@@ -1184,7 +1197,8 @@ export function WorkdayView(props: WorkdayViewProps) {
                         position: stops.findIndex((t) => t.id === selectedId) + 1,
                         total: stops.length,
                         tickets: rail.length,
-                        counts: deckCounts(rail),
+                        jumps: deckJumps(rail),
+                        mergedNew: mergedSeen.hasNew,
                       }
                     : undefined
                 }

@@ -549,6 +549,11 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-status-info) 25%, transparent);
 }
 
+.deck-dot--merged {
+  background: var(--color-status-purple);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-status-purple) 25%, transparent);
+}
+
 /* ---------- Stage and card (spec §5.1, §5.4) ---------- */
 
 .deck-stage {
@@ -1723,6 +1728,7 @@ button.deck-rail-row:focus-visible {
   padding: 0 var(--space-2) var(--space-2);
 }
 .deck-rail-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1735,16 +1741,65 @@ button.deck-rail-row:focus-visible {
   font-weight: 600;
   white-space: nowrap;
 }
-.deck-phone-counts {
-  overflow: hidden;
+/* Something merged that the drawer hasn't shown: a purple dot on the button's corner. */
+.deck-rail-trigger-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-status-purple);
+  box-shadow: 0 0 0 2px var(--color-bg-app);
+}
+/* Jump chips at the bar's right end; scroll sideways rather than squeeze if a phone is narrow. */
+.deck-phone-jumps {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.deck-jump {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-panel);
   color: var(--color-text-secondary);
   font-size: 0.75rem;
-  text-overflow: ellipsis;
+  font-weight: 500;
+  line-height: 1.2;
   white-space: nowrap;
 }
-.deck-phone-counts b {
+.deck-jump-count {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+/* The card on show's kind: the segmented-tab tint. */
+.deck-jump--on,
+.deck-jump--on .deck-jump-count {
+  color: var(--color-accent);
+}
+.deck-jump--on {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: var(--color-accent-bg-subtle);
+}
+/* Narrow phones: All Items goes icon-only so the chips keep their room. */
+@media (max-width: 379.98px) {
+  .deck-rail-trigger-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* Bootstrap's own variables, set on the same element so load order can't undo them. */
