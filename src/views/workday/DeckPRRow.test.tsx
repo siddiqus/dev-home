@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import { ViewerLoginContext } from "../../context/ViewerLoginContext";
 import { MergeProvider } from "../../context/MergeContext";
@@ -161,5 +161,47 @@ describe("DeckPRRow author", () => {
   it("shows any author, me included, when asked (PR search)", () => {
     const { container } = renderRow(item({}, []), { alwaysShowAuthor: true });
     expect(container.querySelector(".deck-pr-author")).toHaveTextContent("me");
+  });
+});
+
+describe("DeckPRRow unseen comment", () => {
+  const comment = {
+    id: "c1",
+    source: "GitHub" as const,
+    who: "tomas",
+    ticketKey: "CCP-1",
+    where: "r#7",
+    snippet: "Can we rename this?",
+    at: "2026-10-14T11:00:00Z",
+    url: "https://github.com/o/r/pull/7#issuecomment-1",
+  };
+  const desktop = window.matchMedia;
+  const onPhone = (matches: boolean) => {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  };
+  afterEach(() => {
+    window.matchMedia = desktop;
+  });
+
+  it("links the quote to the comment on GitHub on desktop", () => {
+    onPhone(false);
+    const { onOpen } = renderRow({ ...item({}, []), unseenComment: comment });
+    const quote = screen.getByRole("link", { name: /Can we rename this/ });
+    expect(quote).toHaveAttribute("href", comment.url);
+    fireEvent.click(quote);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("is plain text on a phone, so a tap opens the PR like the rest of the row", () => {
+    onPhone(true);
+    const { onOpen } = renderRow({ ...item({}, []), unseenComment: comment });
+    expect(screen.queryByRole("link", { name: /Can we rename this/ })).toBeNull();
+    fireEvent.click(screen.getByText(/Can we rename this/));
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });

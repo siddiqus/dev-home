@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { Note } from "../../types";
+import { useIsPhone } from "../../hooks/useIsPhone";
 import { compactAge } from "./dates";
 import { noteHeadline } from "../../utils/noteTags";
 import type { MentionItem } from "./types";
@@ -19,7 +20,8 @@ export function jiraCommentUrl(base: string, key: string, mentionId: string): st
 /**
  * An unseen comment or mention as a one-line quote with a blue dot (spec §5.4):
  * author, age and snippet, linking to the comment in a new tab. Plain text when
- * there is nothing to link to.
+ * there is nothing to link to, and on a phone, where the full-width line was
+ * too easy to tap by mistake: the tap reaches the row (a PR's opens its modal).
  */
 export function DeckQuote({
   item,
@@ -30,7 +32,8 @@ export function DeckQuote({
   now: Date;
   href?: string | null;
 }) {
-  const url = href ?? item.url;
+  const phone = useIsPhone();
+  const url = phone ? null : (href ?? item.url);
   const content = (
     <>
       <span className="deck-dot" aria-hidden="true" />
