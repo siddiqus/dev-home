@@ -31,6 +31,23 @@
   min-width: 0;
 }
 
+.jira-issue-drawer .jira-drawer-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.jira-issue-drawer .jira-drawer-meta .jira-drawer-type {
+  margin-bottom: 0;
+}
+
+.jira-issue-drawer .jira-drawer-status {
+  display: inline-flex;
+  line-height: 1;
+}
+
 .jira-issue-drawer .jira-drawer-type {
   display: inline-flex;
   align-items: center;

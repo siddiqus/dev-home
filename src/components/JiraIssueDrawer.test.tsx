@@ -6,6 +6,7 @@ vi.mock("../hooks/useIssueDescription", () => ({
 }));
 
 import { JiraIssueDrawer } from "./JiraIssueDrawer";
+import type { JiraIssue } from "../types";
 
 // Offcanvas checks a responsive breakpoint; jsdom has no matchMedia.
 window.matchMedia ??= ((query: string) => ({
@@ -71,6 +72,23 @@ describe("JiraIssueDrawer", () => {
     } finally {
       window.matchMedia = desktop;
     }
+  });
+
+  it("shows the issue status in the header", async () => {
+    const issue = {
+      key: "CCP-2",
+      summary: "Fix it",
+      status: { name: "In Review", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+      priority: { name: "Medium", iconUrl: "" },
+      assignee: null,
+      project: { key: "CCP", name: "Content" },
+      issueType: { name: "Story", iconUrl: "" },
+    } as unknown as JiraIssue;
+    render(<JiraIssueDrawer issue={issue} show onHide={() => {}} />);
+    const header = (await screen.findByText("CCP-2: Fix it")).closest(
+      ".jira-drawer-header",
+    ) as HTMLElement;
+    expect(within(header).getByText("In Review")).toBeInTheDocument();
   });
 
   it("stays open on clicks inside the drawer", async () => {

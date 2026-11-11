@@ -10,6 +10,7 @@ import { useIsPhone } from "../hooks/useIsPhone";
 import { useBackClose } from "../hooks/useBackClose";
 import { Avatar } from "./primitives/Avatar";
 import { IssueTypeIcon } from "./IssueTypeIcon";
+import { StatusBadge } from "./StatusBadge";
 import { staleTone } from "../views/teams/cockpit/staleTone";
 import { Markdown } from "./Markdown";
 import "./JiraIssueDrawer.css";
@@ -76,10 +77,22 @@ export const JiraIssueDrawer: React.FC<JiraIssueDrawerProps> = ({
               <span className="jira-drawer-skeleton" style={{ width: 56 }} />
             </div>
           ) : (
-            issue?.issueType?.name && (
-              <div className="jira-drawer-type">
-                <IssueTypeIcon type={issue.issueType} />
-                <span>{issue.issueType.name}</span>
+            (issue?.issueType?.name || issue?.status?.name) && (
+              <div className="jira-drawer-meta">
+                {issue.issueType?.name && (
+                  <div className="jira-drawer-type">
+                    <IssueTypeIcon type={issue.issueType} />
+                    <span>{issue.issueType.name}</span>
+                  </div>
+                )}
+                {issue.status?.name && (
+                  <span className="jira-drawer-status">
+                    <StatusBadge
+                      statusName={issue.status.name}
+                      colorName={issue.status.statusCategory?.colorName ?? ""}
+                    />
+                  </span>
+                )}
               </div>
             )
           )}
