@@ -40,6 +40,9 @@ export interface DeckModeProps {
   onSaveNote?(text: string): Promise<void>;
   onCancelNote?(): void;
   onResolveNote?(note: Note): void;
+  /** The selected card's merged PRs are unfolded (folded by default). */
+  mergedOpen?: boolean;
+  onToggleMerged?(): void;
   /** Direction of the selection change that produced this card; null = no motion. */
   swipe?: SwipeDirection | null;
   /**
@@ -133,6 +136,8 @@ export function DeckMode({
   onSaveNote,
   onCancelNote,
   onResolveNote,
+  mergedOpen,
+  onToggleMerged,
   swipe = null,
   stops,
   onPrev,
@@ -241,6 +246,8 @@ export function DeckMode({
       onSaveNote={onSaveNote}
       onCancelNote={onCancelNote}
       onResolveNote={onResolveNote}
+      mergedOpen={mergedOpen}
+      onToggleMerged={onToggleMerged}
     />
   );
   // In the drawer, a pick (or a reopen) is a jump: the drawer closes on it.

@@ -184,8 +184,8 @@ function statusLine(
 
 /**
  * Ticket-level fields derived from its PRs (spec §6.2 step 4). `merged` PRs
- * (newest merge first) are listed after my open ones and only speak for the
- * ticket — title, status line, stripe — when it has none open.
+ * (newest merge first) are listed last and only speak for the ticket — title,
+ * status line, stripe — when it has none open.
  */
 function deckTicket(
   id: string,
@@ -229,8 +229,9 @@ function deckTicket(
     key,
     title,
     ticket,
-    // Mine (merged ones too) before the ones I review, so the card can label the two groups.
-    prs: [...sorted.filter((p) => p.mine), ...merged, ...sorted.filter((p) => !p.mine)],
+    // Mine before the ones I review, so the card can label the two groups; my
+    // merged ones last, where the card folds them away under "Merged".
+    prs: [...sorted.filter((p) => p.mine), ...sorted.filter((p) => !p.mine), ...merged],
     stripe: toneOf(worst),
     status: status.text,
     statusTone: status.tone,

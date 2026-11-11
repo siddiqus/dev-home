@@ -812,12 +812,52 @@ describe("WorkdayView merged PRs on open tickets", () => {
     );
     expect(within(card()).queryByText("No PR yet")).toBeNull();
     expect(within(card()).getByText(/^updated /)).toBeTruthy();
+    // Folded by default: nothing picked, so Space marks the ticket.
+    expect(within(prList()).queryAllByRole("option")).toHaveLength(0);
+    press(" ");
+    expect(stored().current).toEqual(["ticket:CCP-371"]);
+    fireEvent.click(within(prList()).getByRole("button", { name: "Merged (1)" }));
     const [row] = within(prList()).getAllByRole("option");
     expect(within(row).getByText("Backfill job")).toBeTruthy();
     expect(within(row).getByText("Merged 2d ago")).toBeTruthy();
-    // A merged PR can't be current, so Space marks the ticket instead.
+    expect(row).toHaveAttribute("aria-selected", "true");
+    // A merged PR can't be current, so Space still goes to the ticket.
     press(" ");
-    expect(stored().current).toEqual(["ticket:CCP-371"]);
+    expect(stored().current ?? []).toEqual([]);
+  });
+
+  it("keeps folded merged PRs out of ↑/↓, and folds them again on leaving the card", () => {
+    extrasMock.ticketMerged = [
+      deckPR(1100, "CCP-412 Old fix", "2026-10-01T10:00:00Z", {
+        state: "merged",
+        merged_at: new Date(NOW.getTime() - 2 * 86_400_000).toISOString(),
+      }),
+    ];
+    renderView({ openPRs: deckPRs, allIssues: deckIssues });
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    const selected = () =>
+      within(prList())
+        .getAllByRole("option")
+        .find((o) => o.getAttribute("aria-selected") === "true");
+    const first = selected();
+    const open = within(prList()).getAllByRole("option");
+    for (let i = 0; i <= open.length; i++) press("ArrowDown");
+    expect(selected()).toBe(open[open.length - 1]);
+    expect(selected()).not.toHaveTextContent("Old fix");
+    fireEvent.click(within(prList()).getByRole("button", { name: "Merged (1)" }));
+    press("ArrowDown");
+    expect(selected()).toHaveTextContent("Old fix");
+    // Folding hands the pick back to an open PR.
+    fireEvent.click(within(prList()).getByRole("button", { name: "Merged (1)" }));
+    expect(selected()).toBe(first);
+    fireEvent.click(within(prList()).getByRole("button", { name: "Merged (1)" }));
+    press("ArrowRight");
+    press("ArrowLeft");
+    expect(card()).toHaveAccessibleName(/^CCP-412/);
+    expect(within(prList()).getByRole("button", { name: "Merged (1)" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   it("shows loading instead of No PR yet on the card and rail while merged PRs load", () => {

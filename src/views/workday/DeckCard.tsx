@@ -12,8 +12,10 @@ import { repoRef } from "./prState";
 import { DeckNoteLine, DeckQuote, jiraCommentUrl } from "./DeckContext";
 import { DeckNoteComposer } from "./DeckNoteComposer";
 import { DeckPRRow } from "./DeckPRRow";
+import { blurOnPointer } from "./pointer";
+import { isMergedTab } from "./pins";
 import type { DeckPR, DeckTicket } from "./deckTypes";
-import { IconExternalLink, IconEye } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconExternalLink, IconEye } from "@tabler/icons-react";
 
 export interface DeckCardProps {
   ticket: DeckTicket;
@@ -29,11 +31,16 @@ export interface DeckCardProps {
   onCancelNote?(): void;
   /** Resolve on a note tab's card. */
   onResolveNote?(note: Note): void;
+  /** My merged PRs are unfolded (folded by default). */
+  mergedOpen?: boolean;
+  onToggleMerged?(): void;
 }
 
 /**
  * The ticket card (spec §5.4): header, sub-line and PR rows as a listbox, in
- * Yours / To review groups when the ticket has both.
+ * Yours / To review groups when the ticket has both. My merged PRs fold under
+ * a "Merged (n)" toggle at the end, folded by default, except on a Merged
+ * recently tab, whose merged PR is the whole card.
  */
 export function DeckCard({
   ticket,
@@ -47,6 +54,8 @@ export function DeckCard({
   onSaveNote,
   onCancelNote,
   onResolveNote,
+  mergedOpen = false,
+  onToggleMerged,
 }: DeckCardProps) {
   // Row ids per card: the carousel shows its neighbours' cards too.
   const rowIds = useId();
@@ -88,10 +97,14 @@ export function DeckCard({
     />
   );
   // Mine and the ones I review, labelled only when the ticket has both. Rows keep
-  // their index in `prs` (buildDeck lists mine first), which ↑/↓ walk.
+  // their index in `prs` (buildDeck lists mine, then the ones I review, then my
+  // merged ones), which ↑/↓ walk.
   const indexed = prs.map((p, i) => [p, i] as const);
-  const mineRows = indexed.filter(([p]) => p.mine);
-  const reviewRows = indexed.filter(([p]) => !p.mine);
+  const mergedRows = indexed.filter(([p]) => p.pr.merged_at);
+  const foldMerged = mergedRows.length > 0 && !isMergedTab(ticket.id);
+  const listed = foldMerged ? indexed.filter(([p]) => !p.pr.merged_at) : indexed;
+  const mineRows = listed.filter(([p]) => p.mine);
+  const reviewRows = listed.filter(([p]) => !p.mine);
   const groups =
     mineRows.length > 0 && reviewRows.length > 0
       ? [
@@ -198,7 +211,28 @@ export function DeckCard({
                       {g.rows.map(([p, i]) => row(p, i))}
                     </div>
                   ))
-                : prs.map(row)}
+                : listed.map(([p, i]) => row(p, i))}
+              {foldMerged && (
+                <div role="group" aria-label="Merged">
+                  <button
+                    type="button"
+                    className="deck-pr-group-label deck-pr-group-toggle"
+                    aria-expanded={mergedOpen}
+                    onClick={(e) => {
+                      blurOnPointer(e);
+                      onToggleMerged?.();
+                    }}
+                  >
+                    Merged <span className="deck-pr-group-count">({mergedRows.length})</span>
+                    {mergedOpen ? (
+                      <IconChevronDown size={12} stroke={2} aria-hidden="true" />
+                    ) : (
+                      <IconChevronRight size={12} stroke={2} aria-hidden="true" />
+                    )}
+                  </button>
+                  {mergedOpen && mergedRows.map(([p, i]) => row(p, i))}
+                </div>
+              )}
             </div>
             {/* A ticket whose PRs have all merged keeps its ticket note. */}
             {ticket.note && <DeckNoteLine note={ticket.note} onOpen={onOpenNote} />}

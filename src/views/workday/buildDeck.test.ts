@@ -1085,7 +1085,7 @@ describe("buildDeck merged PRs on open tickets", () => {
     expect(t.reviewOnly).toBe(false);
   });
 
-  it("keeps my merged PRs with my open ones, before the PRs I review", () => {
+  it("lists my merged PRs last, after the PRs I review", () => {
     const deck = build(
       {
         openPRs: [pr(5, { title: "CCP-1 follow-up" })],
@@ -1095,7 +1095,7 @@ describe("buildDeck merged PRs on open tickets", () => {
       },
       { seeded: true },
     );
-    expect(numbers(byId(all(deck), "CCP-1"))).toEqual([5, 1, 6]);
+    expect(numbers(byId(all(deck), "CCP-1"))).toEqual([5, 6, 1]);
   });
 
   it("skips a merged PR that's still listed as open", () => {

@@ -539,8 +539,15 @@ export function WorkdayView(props: WorkdayViewProps) {
   }
   // Pin the default pick for the visit too (unless a jump already picked one),
   // so a PR turning current mid-visit doesn't move the highlight either.
+  // My merged PRs fold on the card (unfolded for one card visit), so a folded
+  // one is never the pick, nor a ↑/↓ stop. A Merged recently tab never folds.
+  const [mergedOpenFor, setMergedOpenFor] = useState<string | null>(null);
+  if (mergedOpenFor !== null && mergedOpenFor !== selectedId) setMergedOpenFor(null);
+  const mergedOpen =
+    selectedId !== null && (mergedOpenFor === selectedId || isMergedTab(selectedId));
+  const unfolded = (p: DeckPR) => mergedOpen || !p.pr.merged_at;
   if (selectedId && prPick?.ticketId !== selectedId) {
-    const first = livePRs?.find((p) => p.current) ?? livePRs?.[0];
+    const first = livePRs?.find((p) => p.current) ?? livePRs?.find(unfolded);
     if (first) setPrPick({ ticketId: selectedId, url: first.pr.html_url });
   }
   const orderUrls = order.urls;
@@ -578,10 +585,14 @@ export function WorkdayView(props: WorkdayViewProps) {
           : { ...p, unseenComment: heldPR[p.pr.html_url] },
       );
   }, [livePRs, orderUrls, heldPR]);
+  const shownPRs = useMemo(
+    () => (mergedOpen ? cardPRs : cardPRs.filter((p) => !p.pr.merged_at)),
+    [cardPRs, mergedOpen],
+  );
   const pickedPR =
-    (prPick?.ticketId === selectedId && cardPRs.find((p) => p.pr.html_url === prPick.url)) ||
-    cardPRs.find((p) => p.current) ||
-    cardPRs[0] ||
+    (prPick?.ticketId === selectedId && shownPRs.find((p) => p.pr.html_url === prPick.url)) ||
+    shownPRs.find((p) => p.current) ||
+    shownPRs[0] ||
     null;
   const selectedPrUrl = pickedPR?.pr.html_url ?? null;
 
@@ -751,8 +762,8 @@ export function WorkdayView(props: WorkdayViewProps) {
       selectTicket(target);
     };
     const movePr = (delta: number) => {
-      const i = cardPRs.findIndex((p) => p.pr.html_url === selectedPrUrl);
-      const next = cardPRs[Math.min(Math.max(i + delta, 0), cardPRs.length - 1)];
+      const i = shownPRs.findIndex((p) => p.pr.html_url === selectedPrUrl);
+      const next = shownPRs[Math.min(Math.max(i + delta, 0), shownPRs.length - 1)];
       if (next) selectPr(next.pr.html_url);
     };
     const pr = pickedPR?.pr ?? null;
@@ -813,7 +824,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     stops,
     selectedId,
     selectedTicket,
-    cardPRs,
+    shownPRs,
     selectedPrUrl,
     pickedPR,
     selectTicket,
@@ -1177,6 +1188,8 @@ export function WorkdayView(props: WorkdayViewProps) {
                 onSaveNote={saveNote}
                 onCancelNote={cancelNote}
                 onResolveNote={resolveNote ? resolveNoteTab : undefined}
+                mergedOpen={mergedOpen}
+                onToggleMerged={() => setMergedOpenFor(mergedOpen ? null : selectedId)}
                 swipe={swipe.dir}
                 stops={stops}
                 onPrev={deckKeys.prev}

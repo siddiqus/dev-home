@@ -203,7 +203,7 @@ describe("DeckMode rail", () => {
 
   it("lists a merged PR's approvers in its meta line, ticked", () => {
     const p = deckPR(5, {}, { merged_at: "2026-10-14T10:00:00Z", approved_by: ["alice", "bob"] });
-    renderDeck({ deck: deck({ open: [ticket("CCP-5", { prs: [p] })] }) });
+    renderDeck({ deck: deck({ open: [ticket("CCP-5", { prs: [p] })] }), mergedOpen: true });
     const row = screen.getByRole("option", { name: /PR 5/ });
     const people = row.querySelector(".pr-participants");
     expect(people?.textContent).toBe("✓alice,✓bob");
@@ -409,6 +409,52 @@ describe("DeckMode card", () => {
     // Row ids keep their place in `prs`, so the selection still points at the right row.
     expect(list).toHaveAttribute("aria-activedescendant", row.id);
     expect(row).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("folds my merged PRs under a closed 'Merged (n)' toggle at the end of the card", () => {
+    const merged = (n: number) => deckPR(n, {}, { merged_at: "2026-10-14T10:00:00Z" });
+    const review = deckPR(9, { mine: false });
+    const t = ticket("CCP-1", { prs: [deckPR(7), review, merged(5), merged(4)] });
+    const onToggleMerged = vi.fn();
+    renderDeck({ deck: deck({ open: [t] }), onToggleMerged });
+    const list = screen.getByRole("listbox", { name: "Pull requests" });
+    const group = within(list).getByRole("group", { name: "Merged" });
+    const toggle = within(group).getByRole("button", { name: "Merged (2)" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(group).queryByRole("option")).toBeNull();
+    // The open PRs keep their groups.
+    expect(within(list).getByRole("group", { name: "Yours" })).toBeTruthy();
+    expect(within(list).getByRole("group", { name: "To review" })).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(onToggleMerged).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderDeck({ deck: deck({ open: [t] }), mergedOpen: true });
+    const open = screen.getByRole("group", { name: "Merged" });
+    expect(within(open).getByRole("button", { name: "Merged (2)" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    const rows = within(open).getAllByRole("option");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAccessibleName(/PR 5/);
+    expect(rows[1]).toHaveAccessibleName(/PR 4/);
+  });
+
+  it("folds a card whose PRs have all merged down to the toggle", () => {
+    const merged = (n: number) => deckPR(n, {}, { merged_at: "2026-10-14T10:00:00Z" });
+    renderDeck({ deck: deck({ open: [ticket("CCP-1", { prs: [merged(5), merged(4)] })] }) });
+    const list = screen.getByRole("listbox", { name: "Pull requests" });
+    expect(within(list).getByRole("button", { name: "Merged (2)" })).toBeTruthy();
+    expect(within(list).queryByRole("option")).toBeNull();
+  });
+
+  it("never folds a Merged recently tab, whose merged PR is the card", () => {
+    const m = deckPR(5, {}, { merged_at: "2026-10-14T10:00:00Z" });
+    const t = ticket("merged:CCP-1", { key: "CCP-1", prs: [m] });
+    renderDeck({ deck: deck({ merged: [t] }), selectedId: t.id });
+    expect(screen.queryByRole("button", { name: /^Merged/ })).toBeNull();
+    expect(screen.getByRole("option", { name: /PR 5/ })).toBeTruthy();
   });
 
   it("leaves a card whose PRs are all mine (or all theirs) unlabelled", () => {

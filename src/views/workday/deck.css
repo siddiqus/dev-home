@@ -796,6 +796,28 @@
   color: var(--color-text-muted);
 }
 
+/* The Merged fold: a quiet toggle styled like the group labels. */
+button.deck-pr-group-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+button.deck-pr-group-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+button.deck-pr-group-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.deck-pr-group-label.deck-pr-group-toggle svg {
+  color: inherit;
+}
+
 .deck-pr {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
