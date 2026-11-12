@@ -902,6 +902,20 @@ button.deck-pr-group-toggle:focus-visible {
   margin-left: 4px;
 }
 
+/* Phones: the line wraps as a whole instead of dropping reviewers or truncating
+   the repo, so the diffstat and reviewers stay visible. */
+@media (max-width: 899.98px) {
+  .deck-pr-meta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .deck-pr-meta > .pr-participants {
+    flex: none;
+    overflow: visible;
+  }
+}
+
 /* Updated age and the unseen dot sit at the right end of the meta line. */
 .deck-pr-when {
   display: inline-flex;
