@@ -796,6 +796,25 @@
   color: var(--color-text-muted);
 }
 
+/* Copies this group's PR links; sits at the label row's right end. */
+.deck-pr-group-copy {
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.deck-pr-group-copy:hover {
+  color: var(--color-text-primary);
+}
+
 /* The Merged fold: a quiet toggle styled like the group labels. */
 button.deck-pr-group-toggle {
   padding: 0;

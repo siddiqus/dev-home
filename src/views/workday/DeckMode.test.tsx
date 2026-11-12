@@ -2,6 +2,7 @@ import { render, screen, fireEvent, within, cleanup } from "@testing-library/rea
 import { describe, it, expect, vi } from "vitest";
 import type { GitHubPR } from "../../types";
 import { DeckMode, type DeckModeProps } from "./DeckMode";
+import { CopyPRLinksContext } from "./CompactRow";
 import type { DeckData, DeckPR, DeckTicket } from "./deckTypes";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
@@ -457,12 +458,49 @@ describe("DeckMode card", () => {
     expect(screen.getByRole("option", { name: /PR 5/ })).toBeTruthy();
   });
 
-  it("leaves a card whose PRs are all mine (or all theirs) unlabelled", () => {
+  it("labels a card whose PRs are all mine with its one group, so it can be copied", () => {
     const mine = ticket("CCP-1", { prs: [deckPR(7), deckPR(8)] });
     renderDeck({ deck: deck({ open: [mine] }) });
-    expect(screen.queryByRole("group", { name: "Yours" })).toBeNull();
+    const yours = screen.getByRole("group", { name: "Yours" });
+    expect(within(yours).getAllByRole("option", { name: /PR [78]/ })).toHaveLength(2);
     expect(screen.queryByRole("group", { name: "To review" })).toBeNull();
-    expect(screen.getAllByRole("option", { name: /PR [78]/ })).toHaveLength(2);
+  });
+
+  it("copies each group's PR links from its own Copy links button", () => {
+    const onCopyLinks = vi.fn();
+    const review = deckPR(9, { mine: false }, { user: { login: "tomas", avatar_url: "" } });
+    const t = ticket("CCP-1", { prs: [deckPR(7), deckPR(8), review] });
+    render(
+      <CopyPRLinksContext.Provider value={onCopyLinks}>
+        <DeckMode
+          deck={deck({ open: [t] })}
+          selectedId={t.id}
+          selectedPrUrl={null}
+          jiraBaseUrl="https://example.atlassian.net"
+          now={NOW}
+          onSelect={vi.fn()}
+          onSelectPr={vi.fn()}
+          onOpen={vi.fn()}
+          onReopen={vi.fn()}
+        />
+      </CopyPRLinksContext.Provider>,
+    );
+    const list = screen.getByRole("listbox", { name: "Pull requests" });
+    fireEvent.click(
+      within(within(list).getByRole("group", { name: "Yours" })).getByRole("button", {
+        name: "Copy Yours PR links",
+      }),
+    );
+    expect(onCopyLinks).toHaveBeenLastCalledWith([
+      "https://github.com/o/r/pull/7",
+      "https://github.com/o/r/pull/8",
+    ]);
+    fireEvent.click(
+      within(within(list).getByRole("group", { name: "To review" })).getByRole("button", {
+        name: "Copy To review PR links",
+      }),
+    );
+    expect(onCopyLinks).toHaveBeenLastCalledWith(["https://github.com/o/r/pull/9"]);
   });
 
   it("renders a chip with an href as a GitHub link that doesn't open the modal", () => {

@@ -38,10 +38,27 @@ export function usePRCopyActions(external?: ToastState) {
     (key: string) => copy(key, "Copied ticket key to clipboard"),
     [copy],
   );
+  const onCopyLinks = useCallback(
+    (urls: string[]) =>
+      copy(
+        urls.join("\n"),
+        `Copied ${urls.length} PR link${urls.length === 1 ? "" : "s"} to clipboard`,
+      ),
+    [copy],
+  );
   const onCopyTicketLink = useCallback(
     (url: string) => copy(url, "Copied ticket link to clipboard"),
     [copy],
   );
 
-  return { copy, onCopyBranch, onCopyLink, onCopyRef, onCopyTicket, onCopyTicketLink, toast };
+  return {
+    copy,
+    onCopyBranch,
+    onCopyLink,
+    onCopyLinks,
+    onCopyRef,
+    onCopyTicket,
+    onCopyTicketLink,
+    toast,
+  };
 }

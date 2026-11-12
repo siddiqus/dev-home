@@ -32,6 +32,9 @@ export const CopyTicketContext = React.createContext<((key: string) => void) | n
 /** Copies a PR link with a toast; provided by the Workday page. */
 export const CopyPRLinkContext = React.createContext<((url: string) => void) | null>(null);
 
+/** Copies several PR links, one per line, with a toast; provided by the Workday page. */
+export const CopyPRLinksContext = React.createContext<((urls: string[]) => void) | null>(null);
+
 export { ViewerLoginContext } from "../../context/ViewerLoginContext";
 
 /** Focus pins and their toggle; provided by the Workday List View only. */

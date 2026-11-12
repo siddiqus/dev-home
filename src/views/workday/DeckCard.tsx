@@ -1,8 +1,8 @@
-import { useId } from "react";
+import { useContext, useId } from "react";
 import Button from "react-bootstrap/Button";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
-import { OffSprintPill, TicketKey } from "./CompactRow";
+import { CopyPRLinksContext, OffSprintPill, TicketKey } from "./CompactRow";
 import { compactAge } from "./dates";
 import { noteText } from "../../utils/noteTags";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
@@ -38,7 +38,7 @@ export interface DeckCardProps {
 
 /**
  * The ticket card (spec §5.4): header, sub-line and PR rows as a listbox, in
- * Yours / To review groups when the ticket has both. My merged PRs fold under
+ * Yours / To review groups (each with a Copy links action). My merged PRs fold under
  * a "Merged (n)" toggle at the end, folded by default, except on a Merged
  * recently tab, whose merged PR is the whole card.
  */
@@ -59,6 +59,7 @@ export function DeckCard({
 }: DeckCardProps) {
   // Row ids per card: the carousel shows its neighbours' cards too.
   const rowIds = useId();
+  const copyLinks = useContext(CopyPRLinksContext);
   const prRowId = (index: number) => `${rowIds}pr-${index}`;
   if (ticket.noteItem) {
     return (
@@ -105,13 +106,10 @@ export function DeckCard({
   const listed = foldMerged ? indexed.filter(([p]) => !p.pr.merged_at) : indexed;
   const mineRows = listed.filter(([p]) => p.mine);
   const reviewRows = listed.filter(([p]) => !p.mine);
-  const groups =
-    mineRows.length > 0 && reviewRows.length > 0
-      ? [
-          { label: "Yours", rows: mineRows, review: false },
-          { label: "To review", rows: reviewRows, review: true },
-        ]
-      : null;
+  const groups = [
+    ...(mineRows.length > 0 ? [{ label: "Yours", rows: mineRows, review: false }] : []),
+    ...(reviewRows.length > 0 ? [{ label: "To review", rows: reviewRows, review: true }] : []),
+  ];
   const composer =
     composing && onSaveNote ? (
       <DeckNoteComposer
@@ -200,18 +198,29 @@ export function DeckCard({
               aria-activedescendant={activeIndex === -1 ? undefined : prRowId(activeIndex)}
               tabIndex={0}
             >
-              {groups
-                ? groups.map((g) => (
-                    <div key={g.label} role="group" aria-label={g.label}>
-                      <div className="deck-pr-group-label" aria-hidden="true">
-                        {g.review && <IconEye size={13} stroke={1.8} />}
-                        {g.label}
-                        <span className="deck-pr-group-count">{g.rows.length}</span>
-                      </div>
-                      {g.rows.map(([p, i]) => row(p, i))}
-                    </div>
-                  ))
-                : listed.map(([p, i]) => row(p, i))}
+              {groups.map((g) => (
+                <div key={g.label} role="group" aria-label={g.label}>
+                  <div className="deck-pr-group-label">
+                    {g.review && <IconEye size={13} stroke={1.8} aria-hidden="true" />}
+                    {g.label}
+                    <span className="deck-pr-group-count">{g.rows.length}</span>
+                    {copyLinks && (
+                      <button
+                        type="button"
+                        className="deck-pr-group-copy"
+                        aria-label={`Copy ${g.label} PR links`}
+                        onClick={(e) => {
+                          blurOnPointer(e);
+                          copyLinks(g.rows.map(([p]) => p.pr.html_url));
+                        }}
+                      >
+                        Copy links
+                      </button>
+                    )}
+                  </div>
+                  {g.rows.map(([p, i]) => row(p, i))}
+                </div>
+              ))}
               {foldMerged && (
                 <div role="group" aria-label="Merged">
                   <button
