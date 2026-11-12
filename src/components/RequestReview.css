@@ -94,6 +94,19 @@
   border-color: var(--color-accent);
 }
 
+.rr-refresh {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+}
+
+.rr-refresh:disabled {
+  opacity: 0.5;
+}
+
 .rr-search input {
   flex: 1;
   min-width: 0;

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
-import { IconCheck, IconSearch } from "@tabler/icons-react";
+import { IconCheck, IconRefresh, IconSearch } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
 import { toApiError } from "../api/http/errors";
+import { loadSettings } from "../services/config";
 import { fetchOrgMembers, fetchOrgTeams, type OrgMember, type OrgTeam } from "../services/github";
+import { readCached, writeCached } from "../lib/ttlCache";
 import { useBackClose } from "../hooks/useBackClose";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { TeamIcon } from "./primitives/TeamIcon";
@@ -41,20 +43,52 @@ const keyOf = (c: PickedReviewer) => `${c.kind}:${c.id.toLowerCase()}`;
 /** A load that hasn't settled, settled with data, or failed with a reason. */
 type Load<T> = { data: T | null; error: string | null };
 
-function useOrgList<T>(show: boolean, load: () => Promise<T>): Load<T> {
-  const [state, setState] = useState<Load<T>>({ data: null, error: null });
+/** Org members and teams change rarely: a list saved within the day opens with no fetch. Refresh refetches. */
+const LIST_TTL_MS = 24 * 60 * 60 * 1000;
+
+const loadMembers = (force: boolean) => fetchOrgMembers({ force });
+const loadTeams = (force: boolean) => fetchOrgTeams({ force });
+
+/**
+ * An org list kept in localStorage per org (a switched org never shows the old
+ * one). Opening fetches only when no fresh copy is saved; `refresh` refetches.
+ */
+function useOrgList<T>(
+  show: boolean,
+  name: string,
+  load: (force: boolean) => Promise<T>,
+): Load<T> & { refreshing: boolean; refresh(): void } {
+  const key = `dev-home-review-${name}-cache:${loadSettings().githubOrg}`;
+  const [state, setState] = useState<Load<T>>(() => ({
+    data: readCached<{ data: T }>(key, LIST_TTL_MS)?.data ?? null,
+    error: null,
+  }));
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchList = useCallback(
+    async (force: boolean) => {
+      try {
+        const data = await load(force);
+        writeCached(key, { data });
+        setState({ data, error: null });
+      } catch (err) {
+        setState((prev) => ({ data: prev.data, error: toApiError(err).message }));
+      }
+    },
+    [key, load],
+  );
+
   useEffect(() => {
-    if (!show) return;
-    let cancelled = false;
-    load().then(
-      (data) => !cancelled && setState({ data, error: null }),
-      (err) => !cancelled && setState({ data: null, error: toApiError(err).message }),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [show, load]);
-  return state;
+    if (show && !readCached(key, LIST_TTL_MS)) void fetchList(false);
+  }, [show, key, fetchList]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchList(true);
+    setRefreshing(false);
+  }, [fetchList]);
+
+  return { ...state, refreshing, refresh };
 }
 
 /**
@@ -70,8 +104,13 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
   const rerequest = reviewStep(pr) === "rerequest";
   const author = pr.user.login.toLowerCase();
 
-  const members = useOrgList<OrgMember[]>(show, fetchOrgMembers);
-  const teams = useOrgList<OrgTeam[]>(show, fetchOrgTeams);
+  const members = useOrgList<OrgMember[]>(show, "members", loadMembers);
+  const teams = useOrgList<OrgTeam[]>(show, "teams", loadTeams);
+  const refreshing = members.refreshing || teams.refreshing;
+  const refreshLists = () => {
+    members.refresh();
+    teams.refresh();
+  };
 
   /** Who reviewed or commented before, on a re-request: listed first, ticked. */
   const previous = useMemo<Candidate[]>(() => {
@@ -179,6 +218,16 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
           aria-label="Search people and teams"
           autoFocus
         />
+        <button
+          type="button"
+          className="rr-refresh"
+          onClick={refreshLists}
+          disabled={refreshing}
+          aria-label="Refresh people and teams"
+          title="Refresh people and teams"
+        >
+          <IconRefresh size={14} className={refreshing ? "spin" : undefined} aria-hidden="true" />
+        </button>
       </div>
       <Modal.Body className="rr-body">
         {members.error && <div className="rr-note">Couldn't load people: {members.error}</div>}

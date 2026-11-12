@@ -66,6 +66,7 @@ async function openPicker(name: RegExp | string = "Request a review") {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.mocked(requestPRReviewers).mockReset().mockResolvedValue(undefined);
   vi.mocked(fetchOrgMembers)
     .mockReset()
@@ -259,6 +260,24 @@ describe("RequestReviewButton", () => {
     const picker = await openPicker();
     expect(within(picker).getByLabelText("abu")).toBeInTheDocument();
     expect(within(picker).getByText(/Couldn't load teams/)).toBeInTheDocument();
+  });
+
+  it("opens from the saved list without refetching, until Refresh", async () => {
+    renderButton();
+    await openPicker();
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Cancel" }));
+    await settle();
+    expect(fetchOrgMembers).toHaveBeenCalledTimes(1);
+
+    const picker = await openPicker();
+    expect(within(picker).getByLabelText("abu")).toBeInTheDocument();
+    expect(fetchOrgMembers).toHaveBeenCalledTimes(1);
+    expect(fetchOrgTeams).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(picker).getByRole("button", { name: "Refresh people and teams" }));
+    await settle();
+    expect(fetchOrgMembers).toHaveBeenLastCalledWith({ force: true });
+    expect(fetchOrgTeams).toHaveBeenLastCalledWith({ force: true });
   });
 });
 
