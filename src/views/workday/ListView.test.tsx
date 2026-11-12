@@ -385,10 +385,10 @@ describe("Workday List View", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     renderView();
     await act(async () => {
-      fireEvent.click(screen.getAllByRole("button", { name: "Copy WMU-402" })[0]);
+      fireEvent.click(screen.getAllByRole("button", { name: "Copy WMU-402 link" })[0]);
     });
-    expect(writeText).toHaveBeenLastCalledWith("WMU-402");
-    expect(screen.getByRole("status").textContent).toBe("Copied ticket key to clipboard");
+    expect(writeText).toHaveBeenLastCalledWith("https://example.atlassian.net/browse/WMU-402");
+    expect(screen.getByRole("status").textContent).toBe("Copied ticket link to clipboard");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(
       screen.getAllByRole("link", { name: "Open WMU-402 in Jira" })[0].getAttribute("href"),

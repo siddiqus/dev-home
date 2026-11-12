@@ -437,8 +437,11 @@ describe("WorkdayView deck", () => {
       "href",
       expect.stringContaining("/browse/CCP-412"),
     );
-    fireEvent.click(within(c).getByRole("button", { name: "Copy CCP-412" }));
-    expect(writeText).toHaveBeenCalledWith("CCP-412");
+    const jiraHref = within(c)
+      .getByRole("link", { name: "Open CCP-412 in Jira" })
+      .getAttribute("href");
+    fireEvent.click(within(c).getByRole("button", { name: "Copy CCP-412 link" }));
+    expect(writeText).toHaveBeenCalledWith(jiraHref);
 
     for (const n of [1203, 1207]) {
       expect(

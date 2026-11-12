@@ -258,7 +258,7 @@ export function WorkdayView(props: WorkdayViewProps) {
   const [railOpen, setRailOpen] = useState(false);
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
-  const { copy, onCopyLink, onCopyTicket, onCopyBranch, toast } = usePRCopyActions();
+  const { copy, onCopyLink, onCopyTicketLink, onCopyBranch, toast } = usePRCopyActions();
   const showToast = toast.show;
   const [closedFolded, setClosedFolded] = usePersistedState(CLOSED_FOLDED_KEY, true);
   const [onlyCurrent, setOnlyCurrent] = usePersistedState(ONLY_CURRENT_KEY, false);
@@ -1093,7 +1093,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     [done, workingOn, reviewing, blockers, waiting].some((sec) => sec.error !== null);
 
   return (
-    <CopyTicketContext.Provider value={onCopyTicket}>
+    <CopyTicketContext.Provider value={onCopyTicketLink}>
       <CopyPRLinkContext.Provider value={onCopyLink}>
         <ViewerLoginContext.Provider value={props.githubUsername ?? ""}>
           <div className={`workday-page${phone ? " workday-page--phone" : ""}`}>

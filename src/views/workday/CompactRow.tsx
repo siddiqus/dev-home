@@ -80,18 +80,19 @@ export function TicketKey({
 }) {
   const onCopy = React.useContext(CopyTicketContext);
   if (!ticketKey) return <span className="workday-key workday-key--none">—</span>;
+  const link = jiraBrowseUrl(jiraBaseUrl, ticketKey);
   return (
     <span className="workday-key">
       <TicketChip ticket={ticketKey} jiraBaseUrl={jiraBaseUrl} />
-      {onCopy && (
+      {onCopy && link && (
         <button
           type="button"
           className="pr-cluster-icon-btn"
-          title="Copy ticket key"
-          aria-label={`Copy ${ticketKey}`}
+          title="Copy ticket link"
+          aria-label={`Copy ${ticketKey} link`}
           onClick={(e) => {
             e.stopPropagation();
-            onCopy(ticketKey);
+            onCopy(link);
           }}
           onKeyDown={(e) => e.stopPropagation()}
         >
@@ -101,7 +102,7 @@ export function TicketKey({
       {showOpen && jiraBaseUrl && (
         <a
           className="pr-cluster-ext"
-          href={jiraBrowseUrl(jiraBaseUrl, ticketKey)}
+          href={link}
           target="_blank"
           rel="noopener noreferrer"
           title="Open in Jira"
