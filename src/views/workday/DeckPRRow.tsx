@@ -5,7 +5,7 @@ import { Badge } from "../../components/primitives/Badge";
 import { CommentCountChip, useCommentCounts } from "../../components/CommentCountChip";
 import { MergeButton } from "../../components/MergeButton";
 import { RequestReviewButton } from "../../components/RequestReviewButton";
-import { Participants } from "../../components/prIndicators";
+import { DiffStat, Participants } from "../../components/prIndicators";
 import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
 import { compactAge } from "./dates";
 import { repoRef, titleWithoutKey } from "./prState";
@@ -30,7 +30,7 @@ export interface DeckPRRowProps {
 
 /**
  * One PR on the card (spec §5.4): a muted meta line with the author's avatar
- * and login (unless it's me) · repo#number, copy-link / open-on-GitHub icons · reviewers /
+ * and login (unless it's me) · repo#number, copy-link / open-on-GitHub icons, +additions −deletions · reviewers /
  * commenters (approvers, once merged), and a "current" label, the updated age
  * and the unseen dot on the right; the title without the key; up to four
  * signal chips with "+N", then the comment count (never folded into "+N",
@@ -93,6 +93,7 @@ export function DeckPRRow({
           <span className="deck-pr-links">
             <PRLinkIcons pr={pr} />
           </span>
+          <DiffStat pr={pr} />
           {participants && participants.length > 0 && (
             <>
               <span aria-hidden="true">·</span>

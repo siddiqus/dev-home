@@ -205,3 +205,18 @@ describe("DeckPRRow unseen comment", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("DeckPRRow diff stat", () => {
+  it("shows the additions and deletions on the meta line", () => {
+    const { container } = renderRow(item({ additions: 120, deletions: 30, changed_files: 4 }, []));
+    const stat = container.querySelector(".deck-pr-meta .pr-card-diffstat");
+    expect(stat).toHaveTextContent("+120");
+    expect(stat).toHaveTextContent("−30");
+    expect(stat).toHaveTextContent("4 files");
+  });
+
+  it("renders nothing when the counts weren't fetched", () => {
+    const { container } = renderRow(item({ additions: null, deletions: null }, []));
+    expect(container.querySelector(".pr-card-diffstat")).toBeNull();
+  });
+});
