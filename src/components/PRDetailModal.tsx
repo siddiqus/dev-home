@@ -1,6 +1,7 @@
 import type { GitHubPR } from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { usePRBody } from "../hooks/usePRBody";
+import { refreshPR } from "../services/github";
 import { DescriptionModal } from "./DescriptionModal";
 
 interface PRDetailModalProps {
@@ -8,11 +9,14 @@ interface PRDetailModalProps {
   pr: GitHubPR | null;
   onHide: () => void;
   jiraBaseUrl?: string;
+  /** Shows a Refresh button; called with the refetched PR (see refreshPR). */
+  onRefreshed?: (pr: GitHubPR) => void;
 }
 
 /** PR description modal; the body is fetched lazily when a PR is opened. */
-export function PRDetailModal({ pr, onHide, jiraBaseUrl }: PRDetailModalProps) {
+export function PRDetailModal({ pr, onHide, jiraBaseUrl, onRefreshed }: PRDetailModalProps) {
   const body = usePRBody(pr);
+  const onRefresh = pr && onRefreshed ? () => refreshPR(pr).then(onRefreshed) : undefined;
   return (
     <DescriptionModal
       show={!!pr}
@@ -26,6 +30,7 @@ export function PRDetailModal({ pr, onHide, jiraBaseUrl }: PRDetailModalProps) {
       jiraBaseUrl={jiraBaseUrl}
       checks={pr?.checks}
       pr={pr ?? undefined}
+      onRefresh={onRefresh}
     />
   );
 }

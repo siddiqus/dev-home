@@ -9,6 +9,7 @@ import {
   getPrBody,
   getPrComments,
   getPrDetail,
+  getPrRefresh,
   getPrs,
   getReviewedSince,
   getReviews,
@@ -183,6 +184,68 @@ describe("getPrDetail", () => {
     });
     const { pr } = await getPrDetail({ owner: "test-org", repo: "app", number: 7 });
     expect(pr).toMatchObject({ number: 7, repo_full_name: "test-org/app", state: "open" });
+  });
+});
+
+describe("getPrRefresh", () => {
+  const activity = (author: string) => ({
+    ...prNode(7),
+    author: { login: author, avatarUrl: "" },
+    reviews: {
+      nodes: [
+        { state: "APPROVED", submittedAt: "2026-09-02T00:00:00Z", author: { login: "testuser" } },
+      ],
+    },
+    comments: {
+      totalCount: 1,
+      nodes: [{ createdAt: "2026-09-03T00:00:00Z", author: { __typename: "User", login: "bob" } }],
+    },
+    reviewThreads: { totalCount: 0, nodes: [] },
+    reviewRequests: { nodes: [{ requestedReviewer: { login: "carol" } }] },
+    commits: { nodes: [{ commit: { committedDate: "2026-09-01T00:00:00Z" } }] },
+  });
+  const respondWith = (node: any) =>
+    adapter.mockImplementation(async (config: any) => {
+      if (!String(config.url).endsWith("/graphql")) throw notFound(config);
+      return ok(config, { data: { repository: { pullRequest: node } } });
+    });
+
+  it("maps someone else's PR like the review lists, with my latest review", async () => {
+    respondWith(activity("someone"));
+    const { pr } = await getPrRefresh({ owner: "test-org", repo: "app", number: 7 });
+    expect(pr).toMatchObject({
+      number: 7,
+      state: "open",
+      requested_reviewers: ["carol"],
+      viewer_review_state: "APPROVED",
+      viewer_reviewed_at: "2026-09-02T00:00:00Z",
+      new_commits_since_review: false,
+      viewer_engaged: true,
+    });
+    expect(pr.participants.map((p: any) => p.login)).toEqual(["testuser", "bob"]);
+    const [body] = graphqlBodies();
+    expect(body.variables).toEqual({ owner: "test-org", repo: "app", number: 7 });
+  });
+
+  it("isn't engaged when I haven't reviewed or commented", async () => {
+    respondWith({ ...activity("someone"), reviews: { nodes: [] } });
+    const { pr } = await getPrRefresh({ owner: "test-org", repo: "app", number: 7 });
+    expect(pr.viewer_engaged).toBe(false);
+  });
+
+  it("maps my own PR like My PRs: your turn, no viewer-review fields", async () => {
+    respondWith(activity("TestUser"));
+    const { pr } = await getPrRefresh({ owner: "test-org", repo: "app", number: 7 });
+    expect(pr.your_turn).toBe(true);
+    expect(pr).not.toHaveProperty("viewer_review_state");
+    expect(pr).not.toHaveProperty("viewer_engaged");
+  });
+
+  it("throws ApiError 404 when the pull request is null", async () => {
+    respondWith(null);
+    await expect(getPrRefresh({ owner: "test-org", repo: "app", number: 7 })).rejects.toMatchObject(
+      { status: 404, message: "Pull request not found" },
+    );
   });
 });
 

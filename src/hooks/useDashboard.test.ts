@@ -158,3 +158,56 @@ describe("useDashboard lifecycle", () => {
     }
   });
 });
+
+describe("useDashboard patchPR", () => {
+  const listed = (n: number, extra: object = {}) =>
+    ({
+      ...pr(n, `PR ${n}`),
+      html_url: `https://github.com/o/r/pull/${n}`,
+      state: "open",
+      ...extra,
+    }) as any;
+
+  beforeEach(() => {
+    vi.mocked(fetchOpenPRs).mockResolvedValue([listed(1), listed(2)]);
+    vi.mocked(fetchReviewRequests).mockResolvedValue({
+      reviews: [listed(3, { viewer_engaged: true }), listed(4)],
+      reviewing: [listed(3)],
+    });
+  });
+
+  async function loaded() {
+    const hook = renderHook(() => useDashboard(true));
+    act(() => hook.result.current.ensure(["openPRs", "reviewRequests"]));
+    await waitFor(() => expect(hook.result.current.loadedSources.size).toBe(2));
+    return hook;
+  }
+
+  it("swaps the PR into every list it's in, leaving the rest and refreshKey alone", async () => {
+    const { result } = await loaded();
+    const key = result.current.refreshKey;
+    act(() => result.current.patchPR(listed(3, { title: "fresh", viewer_engaged: false })));
+
+    expect(result.current.reviewRequests.map((p) => p.title)).toEqual(["fresh", "PR 4"]);
+    expect(result.current.reviewingPRs.map((p) => p.title)).toEqual(["fresh"]);
+    expect(result.current.openPRs.map((p) => p.title)).toEqual(["PR 1", "PR 2"]);
+    // Engagement isn't undone by the refresh's narrower view of it.
+    expect(result.current.reviewRequests[0].viewer_engaged).toBe(true);
+    expect(result.current.refreshKey).toBe(key);
+    expect(fetchOpenPRs).toHaveBeenCalledTimes(1);
+    expect(fetchReviewRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the swap across a reload, from the cache", async () => {
+    const { result } = await loaded();
+    act(() => result.current.patchPR(listed(2, { title: "fresh" })));
+    const reloaded = renderHook(() => useDashboard(true)).result;
+    expect(reloaded.current.openPRs.map((p) => p.title)).toEqual(["PR 1", "fresh"]);
+  });
+
+  it("leaves the lists alone for a PR that's no longer open", async () => {
+    const { result } = await loaded();
+    act(() => result.current.patchPR(listed(2, { title: "merged", state: "merged" })));
+    expect(result.current.openPRs.map((p) => p.title)).toEqual(["PR 1", "PR 2"]);
+  });
+});

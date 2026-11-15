@@ -1,4 +1,11 @@
-import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { useOptionalNotes } from "../context/NotesContext";
 import { notesForPr } from "../utils/prNotes";
@@ -8,7 +15,14 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconChevronRight, IconCopy, IconExternalLink, IconX } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconChevronRight,
+  IconCopy,
+  IconExternalLink,
+  IconRefresh,
+  IconX,
+} from "@tabler/icons-react";
 import { CheckRunInfo } from "../types";
 import type { GitHubPR, PRComments as PRCommentsData } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
@@ -269,16 +283,19 @@ function PhoneTopBar({
   url,
   isPR,
   onHide,
+  refresh,
 }: {
   label: string;
   url?: string;
   isPR: boolean;
   onHide: () => void;
+  refresh: PRRefresh | null;
 }) {
   const { copy, toast } = usePRCopyActions();
   return (
     <div className="modal-phone-bar">
       <span className="modal-phone-bar-ref">{label}</span>
+      {refresh && <RefreshPRButton refresh={refresh} className="modal-phone-bar-btn" size={16} />}
       {url && (
         <>
           <button
@@ -318,6 +335,98 @@ function PhoneTopBar({
   );
 }
 
+type RefreshStatus = "idle" | "loading" | "done";
+
+interface PRRefresh {
+  status: RefreshStatus;
+  run: () => void;
+}
+
+/** How long "up to date" shows after a refresh, before the age returns. */
+const REFRESH_DONE_MS = 1500;
+
+/**
+ * The modal's refresh action, null without an `onRefresh`. A refresh that
+ * finishes after another PR has opened is ignored, and a failure keeps the PR
+ * as shown with an error toast.
+ */
+function usePRRefresh(
+  onRefresh: (() => Promise<void>) | undefined,
+  openKey: string | null,
+  toast: ToastState,
+): PRRefresh | null {
+  const [state, setState] = useState<{ key: string | null; status: RefreshStatus }>({
+    key: openKey,
+    status: "idle",
+  });
+  const status = state.key === openKey ? state.status : "idle";
+  const keyRef = useRef(openKey);
+  keyRef.current = openKey;
+  const busy = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const showToast = toast.show;
+  const run = useCallback(async () => {
+    if (!onRefresh || busy.current) return;
+    const key = keyRef.current;
+    busy.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    setState({ key, status: "loading" });
+    try {
+      await onRefresh();
+      if (keyRef.current !== key) return;
+      setState({ key, status: "done" });
+      timer.current = setTimeout(() => setState({ key, status: "idle" }), REFRESH_DONE_MS);
+    } catch {
+      if (keyRef.current !== key) return;
+      setState({ key, status: "idle" });
+      showToast("Couldn't refresh this PR", { tone: "danger" });
+    } finally {
+      busy.current = false;
+    }
+  }, [onRefresh, showToast]);
+  return onRefresh ? { status, run } : null;
+}
+
+function RefreshPRButton({
+  refresh,
+  className,
+  size,
+}: {
+  refresh: PRRefresh;
+  className: string;
+  size: number;
+}) {
+  const { status, run } = refresh;
+  const label = status === "loading" ? "Refreshing this PR" : "Refresh this PR";
+  return (
+    <button
+      type="button"
+      className={className}
+      title={label}
+      aria-label={label}
+      aria-busy={status === "loading"}
+      onClick={run}
+    >
+      {status === "done" ? (
+        <IconCheck size={size} stroke={1.8} aria-hidden="true" />
+      ) : (
+        <IconRefresh
+          size={size}
+          stroke={1.8}
+          aria-hidden="true"
+          className={status === "loading" ? "spin" : undefined}
+        />
+      )}
+    </button>
+  );
+}
+
 /**
  * Rich PR header shown in place of the plain title/subtitle when the modal is
  * opened for a PR. Renders the same labels and indicators as the PR list row
@@ -331,7 +440,7 @@ function PhoneTopBar({
  * matching the row's merged variant which hides them too.
  *
  * On a desktop, Copy link sits beside the repo#number link and confirms in the
- * modal's toast; a phone has it in the top bar instead.
+ * modal's toast, and Refresh ends the meta line; a phone has both in the top bar.
  */
 function PrModalHeader({
   pr,
@@ -339,12 +448,14 @@ function PrModalHeader({
   url,
   toast,
   copyLink,
+  refresh,
 }: {
   pr: GitHubPR;
   jiraBaseUrl?: string;
   url?: string;
   toast: ToastState;
   copyLink: boolean;
+  refresh: PRRefresh | null;
 }) {
   const { onCopyLink } = usePRCopyActions(toast);
   const ticket = ticketKeyOf(pr);
@@ -413,7 +524,14 @@ function PrModalHeader({
           </>
         )}
         <span className="pr-modal-sep">{"·"}</span>
-        <span className="pr-modal-time">{timeText}</span>
+        <span className="pr-modal-time" aria-live="polite">
+          {refresh?.status === "loading"
+            ? "refreshing…"
+            : refresh?.status === "done"
+              ? "up to date"
+              : timeText}
+        </span>
+        {refresh && <RefreshPRButton refresh={refresh} className="pr-modal-copy-link" size={12} />}
       </div>
 
       {(!isMerged || hasLabels) && (
@@ -457,6 +575,8 @@ interface DescriptionModalProps {
   pr?: GitHubPR;
   /** For a description image that failed to load (its signed URL may have expired). */
   onImageError?: () => void;
+  /** Refetch this PR; shows a Refresh button when set. */
+  onRefresh?: () => Promise<void>;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -471,6 +591,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   checks,
   pr,
   onImageError,
+  onRefresh,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -532,6 +653,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   useEffect(() => {
     hideToast();
   }, [openKey, hideToast]);
+  const refresh = usePRRefresh(pr ? onRefresh : undefined, openKey, toast);
   // Only opening the Comments tab counts as a look, and only once its comments
   // have loaded, so a failed load leaves them unread. Once per open.
   const loadedComments = prComments.comments;
@@ -586,6 +708,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             url={url}
             toast={toast}
             copyLink={!phone}
+            refresh={phone ? null : refresh}
           />
         ) : (
           <>
@@ -629,6 +752,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
           url={url ?? pr?.html_url}
           isPR={!!pr}
           onHide={onHide}
+          refresh={refresh}
         />
       )}
       {phone && pr && (

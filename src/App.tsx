@@ -228,6 +228,7 @@ export default function App() {
     error,
     ensure,
     refresh,
+    patchPR,
     refreshKey,
     pollKey,
   } = useDashboard(configured);
@@ -805,6 +806,7 @@ export default function App() {
                         refreshKey={refreshKey}
                         pollKey={pollKey}
                         onRefresh={() => refresh(PAGE_REFRESH.workday.sources)}
+                        onPRRefreshed={patchPR}
                         updatedAt={workdayUpdatedAt}
                         notes={notes}
                         notesLoaded={notesLoaded}

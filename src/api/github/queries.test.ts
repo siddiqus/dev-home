@@ -4,6 +4,7 @@ import {
   COMMENT_HTML_QUERY,
   PR_BODY_QUERY,
   PR_COMMENTS_QUERY,
+  PR_REFRESH_QUERY,
   REVIEW_SEARCH_QUERY,
   SEARCH_MERGED_PRS_QUERY,
   SEARCH_MY_PRS_QUERY,
@@ -19,6 +20,7 @@ describe("open-PR queries", () => {
     ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
     ["SEARCH_ORG_PRS_QUERY", SEARCH_ORG_PRS_QUERY],
     ["SINGLE_PR_QUERY", SINGLE_PR_QUERY],
+    ["PR_REFRESH_QUERY", PR_REFRESH_QUERY],
   ])("%s selects mergeable", (_name, query) => {
     expect(query).toMatch(/\bmergeable\b/);
   });
@@ -31,8 +33,24 @@ describe("mergeStateStatus is not fetched", () => {
     ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
     ["SEARCH_ORG_PRS_QUERY", SEARCH_ORG_PRS_QUERY],
     ["SINGLE_PR_QUERY", SINGLE_PR_QUERY],
+    ["PR_REFRESH_QUERY", PR_REFRESH_QUERY],
   ])("%s omits mergeStateStatus", (_name, query) => {
     expect(query).not.toMatch(/\bmergeStateStatus\b/);
+  });
+});
+
+describe("refreshed PR matches its list entry", () => {
+  // A refreshed PR replaces its list entry, so a field the lists select but the
+  // refresh doesn't would drop a chip or reviewer from the card.
+  const selection = (query: string) =>
+    query.slice(query.indexOf("{", query.indexOf("PullRequest")) + 1).replace(/\s+/g, " ");
+  it.each([
+    ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
+    ["REVIEW_SEARCH_QUERY", REVIEW_SEARCH_QUERY],
+  ])("selects every field %s does", (_name, list) => {
+    const fields = new Set(selection(list).match(/\b[a-zA-Z_]+\b/g));
+    const refresh = new Set(selection(PR_REFRESH_QUERY).match(/\b[a-zA-Z_]+\b/g));
+    expect([...fields].filter((f) => !refresh.has(f))).toEqual([]);
   });
 });
 
@@ -43,6 +61,7 @@ describe("PR body is lazy", () => {
     ["SEARCH_MY_PRS_QUERY", SEARCH_MY_PRS_QUERY],
     ["SEARCH_ORG_PRS_QUERY", SEARCH_ORG_PRS_QUERY],
     ["SEARCH_MERGED_PRS_QUERY", SEARCH_MERGED_PRS_QUERY],
+    ["PR_REFRESH_QUERY", PR_REFRESH_QUERY],
   ])("%s does not select body", (_name, query) => {
     expect(query).not.toMatch(/\bbody\b/);
   });

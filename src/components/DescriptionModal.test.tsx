@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DescriptionModal } from "./DescriptionModal";
@@ -603,6 +603,13 @@ describe("DescriptionModal on a phone", () => {
     expect(screen.queryByRole("button", { name: "Copy PR link" })).toBeNull();
   });
 
+  it("puts Refresh in the top bar only", () => {
+    render(<DescriptionModal {...baseProps} pr={makePR()} onRefresh={vi.fn()} />);
+    const [button, ...rest] = screen.getAllByRole("button", { name: "Refresh this PR" });
+    expect(rest).toHaveLength(0);
+    expect(button.closest(".modal-phone-bar")).not.toBeNull();
+  });
+
   it("copies the PR link from the top bar", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
@@ -718,5 +725,69 @@ describe("DescriptionModal comments toast", () => {
     expect(screen.getByText("Resolved thread")).toHaveClass("is-visible");
     rerender(<DescriptionModal {...baseProps} pr={makePR({ number: 43 })} />);
     expect(screen.getByText("Resolved thread")).not.toHaveClass("is-visible");
+  });
+});
+
+describe("DescriptionModal refresh", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const deferred = () => {
+    let resolve!: () => void;
+    let reject!: (err: Error) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it("has no Refresh button without onRefresh", () => {
+    render(<DescriptionModal {...baseProps} pr={makePR()} />);
+    expect(screen.queryByRole("button", { name: "Refresh this PR" })).toBeNull();
+  });
+
+  it("refreshes from the meta line: refreshing…, then up to date, then the age again", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const call = deferred();
+    const onRefresh = vi.fn(() => call.promise);
+    render(<DescriptionModal {...baseProps} pr={makePR()} onRefresh={onRefresh} />);
+    expect(screen.getByText(/updated/)).toHaveClass("pr-modal-time");
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh this PR" }));
+    expect(screen.getByText("refreshing…")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Refreshing this PR" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => call.resolve());
+    expect(screen.getByText("up to date")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByText(/updated/)).toHaveClass("pr-modal-time");
+  });
+
+  it("keeps the PR as shown and says so in a toast when the refresh fails", async () => {
+    const onRefresh = vi.fn().mockRejectedValue(new Error("boom"));
+    render(<DescriptionModal {...baseProps} pr={makePR()} onRefresh={onRefresh} />);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh this PR" }));
+    expect(await screen.findByText("Couldn't refresh this PR")).toHaveClass("is-visible");
+    expect(screen.getByText(/updated/)).toHaveClass("pr-modal-time");
+    expect(screen.getByRole("button", { name: "Refresh this PR" })).toBeInTheDocument();
+  });
+
+  it("ignores a refresh that lands after another PR opened", async () => {
+    const call = deferred();
+    const onRefresh = vi.fn(() => call.promise);
+    const { rerender } = render(
+      <DescriptionModal {...baseProps} pr={makePR()} onRefresh={onRefresh} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Refresh this PR" }));
+    rerender(<DescriptionModal {...baseProps} pr={makePR({ number: 43 })} onRefresh={onRefresh} />);
+    expect(screen.getByRole("button", { name: "Refresh this PR" })).toBeInTheDocument();
+    await act(async () => call.reject(new Error("late")));
+    expect(screen.queryByText("up to date")).toBeNull();
+    expect(screen.queryByText("Couldn't refresh this PR")).toBeNull();
   });
 });

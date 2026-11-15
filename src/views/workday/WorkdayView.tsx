@@ -69,6 +69,8 @@ export interface WorkdayViewProps {
   /** useDashboard().pollKey: the polling interval fired; Workday's own lists refresh quietly. */
   pollKey?: number;
   onRefresh: () => void;
+  /** A PR refreshed from its modal, to swap into the shared PR lists (useDashboard().patchPR). */
+  onPRRefreshed?: (pr: GitHubPR) => void;
   /** When Workday's data was last fetched (ISO), for "Last updated 5m ago" beside Refresh. */
   updatedAt?: string;
   notes: Note[];
@@ -248,6 +250,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     refreshKey,
     pollKey = 0,
     onRefresh,
+    onPRRefreshed,
     notes,
     notesLoaded,
     addNote,
@@ -635,6 +638,15 @@ export function WorkdayView(props: WorkdayViewProps) {
       setSelectedPR(pr);
     },
     [markSeen],
+  );
+  // The modal shows the refreshed PR, and it stays seen since it's being looked at.
+  const onModalPRRefreshed = useCallback(
+    (fresh: GitHubPR) => {
+      onPRRefreshed?.(fresh);
+      markSeen({ [fresh.html_url]: fresh.updated_at });
+      setSelectedPR((cur) => (cur?.html_url === fresh.html_url ? fresh : cur));
+    },
+    [onPRRefreshed, markSeen],
   );
 
   // Dwell: after 1.5s on a card, every PR on it is seen at its updated_at, and a
@@ -1298,6 +1310,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                 pr={selectedPR}
                 onHide={() => setSelectedPR(null)}
                 jiraBaseUrl={jiraBaseUrl}
+                onRefreshed={onModalPRRefreshed}
               />
 
               <CommandPalette

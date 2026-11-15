@@ -27,6 +27,7 @@ import {
   OWN_PR_COMMENTS_QUERY,
   PR_BODY_QUERY,
   PR_COMMENTS_QUERY,
+  PR_REFRESH_QUERY,
   RESOLVE_THREAD_MUTATION,
   REVIEWED_SINCE_QUERY,
   REVIEW_SEARCH_QUERY,
@@ -423,6 +424,42 @@ export async function getReviewedSince(since: Date): Promise<{ reviews: Reviewed
 }
 
 /**
+ * One PR node by repo and number. A missing PR is a 404; other GraphQL errors
+ * (no HTTP status) are a 500, as on the old server.
+ */
+async function getPrNode(
+  query: string,
+  args: { owner: string; repo: string; number: number },
+): Promise<any> {
+  const { owner, repo } = args;
+  const number = parseInt(String(args.number), 10);
+
+  if (!owner || !repo || isNaN(number)) {
+    throw new ApiError(400, "owner, repo, and number are required");
+  }
+
+  try {
+    const result = await githubGraphql<{ repository: { pullRequest: any } }>(query, {
+      owner,
+      repo,
+      number,
+    });
+    const node = result.repository?.pullRequest;
+    if (!node) {
+      throw new ApiError(404, "Pull request not found");
+    }
+    return node;
+  } catch (err: any) {
+    if (err instanceof ApiError) throw err;
+    // GitHub reports a missing repo/PR as a GraphQL NOT_FOUND error, not a null node.
+    if (err?.graphqlErrors?.some((e: any) => e?.type === "NOT_FOUND")) {
+      throw new ApiError(404, "Pull request not found");
+    }
+    throw new ApiError(500, toApiError(err).message || "Failed to fetch pull request");
+  }
+}
+
+/**
  * Formerly GET /api/github/pr/:owner/:repo/:number.
  * Fetch a single PR with its body and checks, shaped like the list endpoints.
  * Used by views (e.g. the team dashboard) that only hold a PR reference and need
@@ -433,35 +470,36 @@ export async function getPrDetail(args: {
   repo: string;
   number: number;
 }): Promise<{ pr: any }> {
-  const { owner, repo } = args;
-  const number = parseInt(String(args.number), 10);
+  const node = await getPrNode(SINGLE_PR_QUERY, args);
+  const required = await getRequiredContexts(args.owner, args.repo, node.baseRefName || "");
+  return { pr: mapGraphQLPr(node, undefined, required) };
+}
 
-  if (!owner || !repo || isNaN(number)) {
-    throw new ApiError(400, "owner, repo, and number are required");
-  }
-
-  try {
-    const result = await githubGraphql<{ repository: { pullRequest: any } }>(SINGLE_PR_QUERY, {
-      owner,
-      repo,
-      number,
-    });
-    const node = result.repository?.pullRequest;
-    if (!node) {
-      throw new ApiError(404, "Pull request not found");
-    }
-    const required = await getRequiredContexts(owner, repo, node.baseRefName || "");
-    return { pr: mapGraphQLPr(node, undefined, required) };
-  } catch (err: any) {
-    if (err instanceof ApiError) throw err;
-    // GitHub reports a missing repo/PR as a GraphQL NOT_FOUND error, not a null node.
-    if (err?.graphqlErrors?.some((e: any) => e?.type === "NOT_FOUND")) {
-      throw new ApiError(404, "Pull request not found");
-    }
-    // githubGraphql already maps HTTP/network failures to ApiError (rethrown above),
-    // so what's left is a GraphQL error with no HTTP status — a 500 on the old server.
-    throw new ApiError(500, toApiError(err).message || "Failed to fetch pull request");
-  }
+/**
+ * Refetch one open-list PR, shaped like the list it came from: my own PRs as
+ * getPrs maps them (with your_turn), anyone else's as getReviews does (with my
+ * latest review). `viewer_engaged` is whether I've reviewed or commented.
+ */
+export async function getPrRefresh(args: {
+  owner: string;
+  repo: string;
+  number: number;
+}): Promise<{ pr: any }> {
+  const user = requireSettings().githubUsername;
+  const node = await getPrNode(PR_REFRESH_QUERY, args);
+  const required = await getRequiredContexts(args.owner, args.repo, node.baseRefName || "");
+  const mine = (node.author?.login || "").toLowerCase() === user.toLowerCase();
+  if (mine) return { pr: mapGraphQLPr(node, user, required) };
+  const pr = mapGraphQLPr(node, undefined, required);
+  return {
+    pr: {
+      ...pr,
+      ...deriveViewerReview(node, user),
+      viewer_engaged: !!pr.participants?.some(
+        (p: { login: string }) => p.login.toLowerCase() === user.toLowerCase(),
+      ),
+    },
+  };
 }
 
 /** A PR's markdown description ("" when it has none or the PR isn't found). */

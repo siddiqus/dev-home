@@ -22,6 +22,12 @@ vi.mock("../../hooks/useWorkdayExtras", () => ({
   },
 }));
 
+const refreshPRMock = vi.hoisted(() => vi.fn());
+vi.mock("../../services/github", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/github")>()),
+  refreshPR: refreshPRMock,
+}));
+
 vi.mock("../../components/PrNotesPanel", () => ({ PrNotesPanel: () => null }));
 vi.mock("../../hooks/usePRBody", () => ({
   usePRBody: () => ({ body: "PR body text", loading: false }),
@@ -386,6 +392,21 @@ describe("WorkdayView deck", () => {
     press("ArrowRight");
     press("ArrowLeft");
     expect(selectedPRRow()).toBe(within(prList()).getAllByRole("option")[0]);
+  });
+
+  it("refreshes the open PR from its modal: the modal shows it and the lists get it", async () => {
+    const onPRRefreshed = vi.fn();
+    const fresh = { ...deckPRs[0], title: "CCP-412 backend: queue worker v2" };
+    refreshPRMock.mockResolvedValue(fresh);
+    renderDeck({ onPRRefreshed });
+    press("ArrowDown");
+    press("Enter");
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Refresh this PR" }));
+    expect(await within(dialog).findByText("up to date")).toBeTruthy();
+    expect(refreshPRMock).toHaveBeenCalledWith(expect.objectContaining({ number: 1203 }));
+    expect(onPRRefreshed).toHaveBeenCalledWith(fresh);
+    expect(dialog.textContent).toContain("queue worker v2");
   });
 
   it("opens the selected PR in the modal with ⏎ and ignores deck keys while it's open", async () => {

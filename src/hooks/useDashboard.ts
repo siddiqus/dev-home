@@ -104,6 +104,8 @@ interface UseDashboardReturn {
   error: string | null;
   ensure: (sources: DataSource[], opts?: { force?: boolean }) => void;
   refresh: (sources?: DataSource[]) => void;
+  /** Swap one refetched PR into the PR lists (see refreshPR); nothing else reloads. */
+  patchPR: (pr: GitHubPR) => void;
   refreshKey: number;
   /**
    * Bumps each time polling refetches (the interval, or catching up when the
@@ -538,6 +540,38 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     return () => window.removeEventListener(SETTINGS_EVENT, onSettingsChange);
   }, [ensure]);
 
+  // One refetched PR replaces its entries in the PR lists, without a refetch or a
+  // refreshKey bump. A PR no longer open stays as listed until the next refresh,
+  // which moves it to the merged list.
+  const patchPR = useCallback(
+    (fresh: GitHubPR) => {
+      if (fresh.state !== "open") return;
+      const swap = <T extends GitHubPR>(list: T[], merge: (old: T) => T): T[] =>
+        list.some((p) => p.html_url === fresh.html_url)
+          ? list.map((p) => (p.html_url === fresh.html_url ? merge(p) : p))
+          : list;
+      const data = dataRef.current;
+      const openPRs = swap(data.openPRs, () => fresh);
+      const reviewRequests = swap(data.reviewRequests, (old) => ({
+        ...fresh,
+        viewer_engaged: !!(old.viewer_engaged || fresh.viewer_engaged),
+      }));
+      const reviewingPRs = swap(data.reviewingPRs, () => fresh);
+      if (
+        openPRs === data.openPRs &&
+        reviewRequests === data.reviewRequests &&
+        reviewingPRs === data.reviewingPRs
+      )
+        return;
+      dataRef.current = { ...data, openPRs, reviewRequests, reviewingPRs };
+      setOpenPRs(openPRs);
+      setReviewRequests(reviewRequests);
+      setReviewingPRs(reviewingPRs);
+      persistCache();
+    },
+    [persistCache],
+  );
+
   // Refresh scoped to the caller's sources when provided (force-refetch just
   // those remote sources), else fall back to refetching everything loaded.
   // Always bumps refreshKey so self-fetching views (PRs, Org PRs) reload too.
@@ -572,6 +606,7 @@ export function useDashboard(active: boolean): UseDashboardReturn {
     error,
     ensure,
     refresh,
+    patchPR,
     refreshKey,
     pollKey,
   };

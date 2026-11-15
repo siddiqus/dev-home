@@ -13,6 +13,7 @@ import {
   getPrBody,
   getPrComments,
   getPrDetail,
+  getPrRefresh,
   getPrs,
   getReviews,
   mergePr,
@@ -218,6 +219,13 @@ export async function fetchOrgRepos(opts: { force?: boolean } = {}): Promise<Org
 /** Fetch a single PR (body + checks) by repo and number. */
 export async function fetchPR(owner: string, repo: string, number: number): Promise<GitHubPR> {
   const data = await getPrDetail({ owner, repo, number });
+  return data.pr;
+}
+
+/** Refetch one open-list PR, shaped like the list entry it replaces (see getPrRefresh). */
+export async function refreshPR(pr: GitHubPR): Promise<GitHubPR> {
+  const [owner, repo] = pr.repo_full_name.split("/");
+  const data = await getPrRefresh({ owner, repo, number: pr.number });
   return data.pr;
 }
 

@@ -105,6 +105,43 @@ export const REVIEW_SEARCH_QUERY = `
   }
 `;
 
+/** Reviews, comments, threads and requested reviewers on my own open PRs. */
+const MY_PR_ACTIVITY_FIELDS = `reviews(last: 20) {
+    nodes {
+      state
+      submittedAt
+      author { login }
+    }
+  }
+  comments(last: 20) {
+    totalCount
+    nodes {
+      createdAt
+      author { __typename login }
+    }
+  }
+  reviewThreads(last: 50) {
+    totalCount
+    nodes {
+      isResolved
+      comments(last: 3) {
+        totalCount
+        nodes {
+          createdAt
+          author { __typename login }
+        }
+      }
+    }
+  }
+  reviewRequests(first: 10) {
+    nodes {
+      requestedReviewer {
+        ... on User { login }
+        ... on Team { name }
+      }
+    }
+  }`;
+
 /**
  * Query for the user's own open PRs. Comment/thread selections are limited to
  * what mapGraphQLPr reads (timestamps + authors for "your turn" and the comment
@@ -119,42 +156,27 @@ export const SEARCH_MY_PRS_QUERY = `
         ... on PullRequest {
           ${PR_BASE_FIELDS}
           ${PR_STATUS_FIELDS}
-          reviews(last: 20) {
-            nodes {
-              state
-              submittedAt
-              author { login }
-            }
-          }
-          comments(last: 20) {
-            totalCount
-            nodes {
-              createdAt
-              author { __typename login }
-            }
-          }
-          reviewThreads(last: 50) {
-            totalCount
-            nodes {
-              isResolved
-              comments(last: 3) {
-                totalCount
-                nodes {
-                  createdAt
-                  author { __typename login }
-                }
-              }
-            }
-          }
-          reviewRequests(first: 10) {
-            nodes {
-              requestedReviewer {
-                ... on User { login }
-                ... on Team { name }
-              }
-            }
-          }
+          ${MY_PR_ACTIVITY_FIELDS}
         }
+      }
+    }
+  }
+`;
+
+/**
+ * One PR with everything the open-PR lists select (my-PR activity fields are a
+ * superset of the review search's), so a refreshed PR can replace its list entry.
+ * mergedAt/mergedBy let a PR merged since the list loaded read as merged.
+ */
+export const PR_REFRESH_QUERY = `
+  query RefreshPR($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        ${PR_BASE_FIELDS}
+        ${PR_STATUS_FIELDS}
+        ${MY_PR_ACTIVITY_FIELDS}
+        mergedAt
+        mergedBy { login }
       }
     }
   }
