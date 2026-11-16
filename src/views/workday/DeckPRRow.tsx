@@ -4,6 +4,7 @@ import { Avatar } from "../../components/primitives/Avatar";
 import { Badge } from "../../components/primitives/Badge";
 import { CommentCountChip, useCommentCounts } from "../../components/CommentCountChip";
 import { MergeButton } from "../../components/MergeButton";
+import { useIsPhone } from "../../hooks/useIsPhone";
 import { RequestReviewButton } from "../../components/RequestReviewButton";
 import { DiffStat, Participants } from "../../components/prIndicators";
 import { PRLinkIcons, ViewerLoginContext } from "./CompactRow";
@@ -35,7 +36,8 @@ export interface DeckPRRowProps {
  * and the unseen dot on the right; the title without the key; up to four
  * signal chips with "+N", then the comment count (never folded into "+N",
  * since unread feedback is a reason to act); the newest unseen comment and my
- * newest unresolved note.
+ * newest unresolved note. On a phone nothing links out (the PR modal does), so
+ * a stray tap opens the modal instead of a GitHub tab.
  */
 export function DeckPRRow({
   id,
@@ -52,6 +54,7 @@ export function DeckPRRow({
   const me = useContext(ViewerLoginContext);
   const showAuthor = alwaysShowAuthor || !me || pr.user.login.toLowerCase() !== me.toLowerCase();
   const { shown, more } = visibleChips(item.signals);
+  const phone = useIsPhone();
   // Null without comments or comment data (merged PRs), so no chip and no chip-only row.
   const comments = useCommentCounts(pr);
   // Merged PRs carry approvers instead (the merged query skips full reviews).
@@ -91,7 +94,7 @@ export function DeckPRRow({
             <span className="deck-pr-number">#{pr.number}</span>
           </span>
           <span className="deck-pr-links">
-            <PRLinkIcons pr={pr} />
+            <PRLinkIcons pr={pr} external={!phone} />
           </span>
           <DiffStat pr={pr} />
           {participants && participants.length > 0 && (
@@ -115,23 +118,24 @@ export function DeckPRRow({
         {(item.signals.length > 0 || comments) && (
           <div className="deck-pr-signals">
             {shown.map((s, i) => {
-              const chip = s.href ? (
-                // Opens GitHub in a new tab, not the PR modal the row opens.
-                <a
-                  className="deck-chip-link"
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={s.detail ?? "Open on GitHub"}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Badge variant={s.tone}>{s.label}</Badge>
-                </a>
-              ) : (
-                <Badge variant={s.tone} title={s.detail}>
-                  {s.label}
-                </Badge>
-              );
+              // Opens GitHub in a new tab, not the PR modal the row opens.
+              const chip =
+                s.href && !phone ? (
+                  <a
+                    className="deck-chip-link"
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={s.detail ?? "Open on GitHub"}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Badge variant={s.tone}>{s.label}</Badge>
+                  </a>
+                ) : (
+                  <Badge variant={s.tone} title={s.detail}>
+                    {s.label}
+                  </Badge>
+                );
               // My PR's first chip is its next step: "Ready to merge" becomes the Merge
               // button, "Request a review" / "Re-request review" the Request review button.
               return i === 0 ? (

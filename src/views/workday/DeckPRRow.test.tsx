@@ -13,9 +13,23 @@ vi.mock("../../services/commentsRead", () => ({
 }));
 const mockCounts = vi.mocked(commentCounts);
 
+const desktop = window.matchMedia;
+function onPhone(matches: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+}
+
 beforeEach(() => {
   mockCounts.mockReset();
   mockCounts.mockReturnValue(null);
+});
+
+afterEach(() => {
+  window.matchMedia = desktop;
 });
 
 const NOW = new Date("2026-10-14T12:00:00Z");
@@ -175,18 +189,6 @@ describe("DeckPRRow unseen comment", () => {
     at: "2026-10-14T11:00:00Z",
     url: "https://github.com/o/r/pull/7#issuecomment-1",
   };
-  const desktop = window.matchMedia;
-  const onPhone = (matches: boolean) => {
-    window.matchMedia = ((query: string) => ({
-      matches,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia;
-  };
-  afterEach(() => {
-    window.matchMedia = desktop;
-  });
 
   it("links the quote to the comment on GitHub on desktop", () => {
     onPhone(false);
@@ -218,5 +220,45 @@ describe("DeckPRRow diff stat", () => {
   it("renders nothing when the counts weren't fetched", () => {
     const { container } = renderRow(item({ additions: null, deletions: null }, []));
     expect(container.querySelector(".pr-card-diffstat")).toBeNull();
+  });
+});
+
+describe("DeckPRRow linked chip", () => {
+  const threads: Signal = {
+    label: "2 open threads",
+    tone: "warning",
+    href: "https://github.com/o/r/pull/7",
+  };
+  const row = () => item({}, [{ label: "⏳ Waiting for review", tone: "neutral" }, threads]);
+
+  it("links to the PR on GitHub on desktop", () => {
+    onPhone(false);
+    const { onOpen } = renderRow(row());
+    const chip = screen.getByRole("link", { name: "2 open threads" });
+    expect(chip).toHaveAttribute("href", threads.href);
+    fireEvent.click(chip);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("is a plain chip on a phone, so a tap opens the PR like the rest of the row", () => {
+    onPhone(true);
+    const { onOpen } = renderRow(row());
+    expect(screen.queryByRole("link", { name: "2 open threads" })).toBeNull();
+    fireEvent.click(screen.getByText("2 open threads"));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DeckPRRow open-on-GitHub icon", () => {
+  it("shows on desktop", () => {
+    onPhone(false);
+    renderRow(item({}, []));
+    expect(screen.getByRole("link", { name: "Open r#7 on GitHub" })).toBeInTheDocument();
+  });
+
+  it("is left to the PR modal on a phone", () => {
+    onPhone(true);
+    renderRow(item({}, []));
+    expect(screen.queryByRole("link", { name: "Open r#7 on GitHub" })).toBeNull();
   });
 });

@@ -144,7 +144,7 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
 }
 
 /** Copy-link and open-on-GitHub icons for a PR; they don't open the row. */
-export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
+export function PRLinkIcons({ pr, external = true }: { pr: GitHubPR; external?: boolean }) {
   const onCopy = React.useContext(CopyPRLinkContext);
   const ref = repoRef(pr);
   return (
@@ -165,22 +165,24 @@ export function PRLinkIcons({ pr }: { pr: GitHubPR }) {
           <IconCopy size={13} stroke={1.8} />
         </button>
       )}
-      <a
-        className="pr-cluster-ext"
-        href={pr.html_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Open on GitHub"
-        aria-label={`Open ${ref} on GitHub`}
-        onClick={(e) => {
-          e.stopPropagation();
-          // A focused link takes the deck's next Enter and opens another tab.
-          blurOnPointer(e);
-        }}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <IconExternalLink size={13} stroke={1.8} />
-      </a>
+      {external && (
+        <a
+          className="pr-cluster-ext"
+          href={pr.html_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open on GitHub"
+          aria-label={`Open ${ref} on GitHub`}
+          onClick={(e) => {
+            e.stopPropagation();
+            // A focused link takes the deck's next Enter and opens another tab.
+            blurOnPointer(e);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <IconExternalLink size={13} stroke={1.8} />
+        </a>
+      )}
     </>
   );
 }
