@@ -70,6 +70,7 @@ function search(over: Partial<Search> = {}): Search {
     setSelectedRepos: vi.fn(),
     query: "",
     setQuery: vi.fn(),
+    searchLink: vi.fn(),
     members: [
       { login: "shunjid", name: "Shunjid Rahman", avatar_url: "" },
       { login: "tashfia", name: null, avatar_url: "" },
@@ -268,15 +269,18 @@ describe("PhonePRSearch", () => {
     expect(screen.getByText("Try Merged, or clear the box.")).toBeInTheDocument();
   });
 
-  it("opens a pasted PR link in the PR modal, or says it couldn't", async () => {
-    vi.mocked(fetchPR).mockResolvedValueOnce(pr(7, "tashfia"));
-    renderPage(search());
+  it("searches a pasted PR link's PR rather than opening it, or says it couldn't load", async () => {
+    const s = search();
+    renderPage(s);
     const box = screen.getByRole("textbox", { name: "Search PRs or paste a link…" });
+    vi.mocked(fetchPR).mockResolvedValueOnce(pr(7, "tashfia"));
     fireEvent.paste(box);
     fireEvent.change(box, { target: { value: "https://github.com/acme/cmp-server/pull/7" } });
     await act(async () => {});
     expect(fetchPR).toHaveBeenCalledWith("acme", "cmp-server", 7);
-    expect(screen.getByRole("dialog")).toHaveTextContent("PR modal: WMU-7 Change 7");
+    expect(s.searchLink).toHaveBeenCalledWith(pr(7, "tashfia"));
+    expect(box).toHaveValue("#7");
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     vi.mocked(fetchPR).mockRejectedValueOnce(new Error("Not Found"));
     fireEvent.paste(box);

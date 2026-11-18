@@ -4,9 +4,8 @@ import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh, IconFilter, IconFold, IconFoldDown } from "@tabler/icons-react";
 import "../prs/PRsView.css";
-import { GitHubPR, JiraIssue } from "../../types";
+import { JiraIssue } from "../../types";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
-import { PRDetailModal } from "../../components/PRDetailModal";
 import { Toast, useToast } from "../../components/Toast";
 import { isTypingTarget } from "../../utils/dom";
 import { RequestReviewIconContext } from "../../components/RequestReviewButton";
@@ -59,6 +58,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     setSelectedRepos,
     query,
     setQuery,
+    searchLink,
     members,
     membersLoading,
     teams,
@@ -72,8 +72,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     refreshAll,
   } = useOrgPRSearch({ configured, refreshKey });
 
-  // A pasted PR link opens here; a link that won't load says so in the toast.
-  const [linkedPR, setLinkedPR] = useState<GitHubPR | null>(null);
+  // A link that won't load says so in the toast.
   const toast = useToast();
   const showToast = toast.show;
 
@@ -209,7 +208,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
         <PRSearchBox
           query={query}
           onSearch={setQuery}
-          onOpenPR={setLinkedPR}
+          onSearchLink={searchLink}
           onLinkError={(message) => showToast(message, { tone: "danger" })}
           busy={!!query && (orgSubTab === "open" ? loading : mergedPRsLoading)}
           slashHint
@@ -392,7 +391,6 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
           )}
         </div>
       </RequestReviewIconContext.Provider>
-      <PRDetailModal pr={linkedPR} onHide={() => setLinkedPR(null)} jiraBaseUrl={jiraBaseUrl} />
       <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
     </div>
   );

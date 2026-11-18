@@ -87,7 +87,7 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
           <PRSearchBox
             query={query}
             onSearch={search.setQuery}
-            onOpenPR={setSelectedPR}
+            onSearchLink={search.searchLink}
             onLinkError={(message) => showToast(message, { tone: "danger" })}
             busy={loading && !!query}
           />

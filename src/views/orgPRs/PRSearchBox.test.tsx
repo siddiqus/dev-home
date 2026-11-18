@@ -9,14 +9,14 @@ vi.mock("../../services/github", () => ({ fetchPR: vi.fn() }));
 
 const linked = { number: 812, html_url: "https://github.com/acme/api/pull/812" } as GitHubPR;
 const onSearch = vi.fn();
-const onOpenPR = vi.fn();
+const onSearchLink = vi.fn();
 const onLinkError = vi.fn();
 
 beforeEach(() => {
   saveSettings({ ...loadSettings(), githubOrg: "acme" });
   vi.mocked(fetchPR).mockReset().mockResolvedValue(linked);
   onSearch.mockReset();
-  onOpenPR.mockReset();
+  onSearchLink.mockReset();
   onLinkError.mockReset();
 });
 
@@ -25,7 +25,7 @@ function renderBox(query = "") {
     <PRSearchBox
       query={query}
       onSearch={onSearch}
-      onOpenPR={onOpenPR}
+      onSearchLink={onSearchLink}
       onLinkError={onLinkError}
       slashHint
     />,
@@ -65,17 +65,17 @@ describe("PRSearchBox", () => {
     expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
   });
 
-  it("opens a pasted PR link without Enter, then clears", async () => {
+  it("searches a pasted PR link without Enter, leaving #number in the box", async () => {
     const box = renderBox();
     paste(box, "https://github.com/acme/api/pull/812/files");
     await settle();
     expect(fetchPR).toHaveBeenCalledWith("acme", "api", 812);
-    expect(onOpenPR).toHaveBeenCalledWith(linked);
-    expect(box).toHaveValue("");
+    expect(onSearchLink).toHaveBeenCalledWith(linked);
+    expect(box).toHaveValue("#812");
     expect(onSearch).not.toHaveBeenCalled();
   });
 
-  it("opens a typed short link on Enter, but not while it's being typed", async () => {
+  it("searches a typed short link on Enter, but not while it's being typed", async () => {
     const box = renderBox();
     fireEvent.change(box, { target: { value: "acme/api#81" } });
     fireEvent.change(box, { target: { value: "acme/api#812" } });
@@ -83,10 +83,10 @@ describe("PRSearchBox", () => {
     fireEvent.keyDown(box, { key: "Enter" });
     await settle();
     expect(fetchPR).toHaveBeenCalledWith("acme", "api", 812);
-    expect(onOpenPR).toHaveBeenCalledWith(linked);
+    expect(onSearchLink).toHaveBeenCalledWith(linked);
   });
 
-  it("opens repo/pull/123 as a repo in the configured org", async () => {
+  it("reads repo/pull/123 as a repo in the configured org", async () => {
     const box = renderBox();
     fireEvent.change(box, { target: { value: "cmp-server/pull/1234" } });
     expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
@@ -102,8 +102,18 @@ describe("PRSearchBox", () => {
     paste(box, "github.com/acme/api/pull/99999");
     await settle();
     expect(onLinkError).toHaveBeenCalledWith("Couldn't load acme/api#99999");
-    expect(onOpenPR).not.toHaveBeenCalled();
+    expect(onSearchLink).not.toHaveBeenCalled();
     expect(box).toHaveValue("github.com/acme/api/pull/99999");
+  });
+
+  it("doesn't search a link's PR that loads after the box has changed", async () => {
+    let resolve!: (pr: GitHubPR) => void;
+    vi.mocked(fetchPR).mockReturnValue(new Promise((r) => (resolve = r)));
+    const box = renderBox();
+    paste(box, "acme/api#812");
+    fireEvent.change(box, { target: { value: "token" } });
+    await act(async () => resolve(linked));
+    expect(onSearchLink).not.toHaveBeenCalled();
   });
 
   it("drops the searched text when cleared with ✕", () => {

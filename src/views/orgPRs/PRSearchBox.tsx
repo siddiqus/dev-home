@@ -10,8 +10,8 @@ interface Props {
   /** The searched text (trimmed). */
   query: string;
   onSearch(text: string): void;
-  /** A pasted or entered PR link loaded. */
-  onOpenPR(pr: GitHubPR): void;
+  /** A pasted or entered PR link's PR loaded, to search for. */
+  onSearchLink(pr: GitHubPR): void;
   onLinkError(message: string): void;
   /** The search behind the results is loading. */
   busy?: boolean;
@@ -31,15 +31,16 @@ export function noMatches(query: string, merged: boolean) {
 }
 
 /**
- * PR search's one box: a pasted PR link opens that PR (one fetch, no Enter
- * needed) and the box clears; anything else searches GitHub on Enter or a tap
- * of "↵ Search", which shows while the text isn't searched yet (the results
- * are still the last search's). Emptying the box drops the text from the search.
+ * PR search's one box: a pasted PR link loads that PR (one fetch, no Enter
+ * needed) to search for, leaving `#<number>` in the box; anything else
+ * searches GitHub on Enter or a tap of "↵ Search", which shows while the text
+ * isn't searched yet (the results are still the last search's). Emptying the
+ * box drops the text from the search.
  */
 export function PRSearchBox({
   query,
   onSearch,
-  onOpenPR,
+  onSearchLink,
   onLinkError,
   busy,
   slashHint,
@@ -60,8 +61,8 @@ export function PRSearchBox({
       (pr) => {
         if (seq !== openSeq.current) return;
         setOpening(false);
-        setDraft("");
-        onOpenPR(pr);
+        setDraft(`#${pr.number}`);
+        onSearchLink(pr);
       },
       () => {
         if (seq !== openSeq.current) return;
@@ -71,8 +72,14 @@ export function PRSearchBox({
     );
   };
 
+  const dropLink = () => {
+    openSeq.current++;
+    setOpening(false);
+  };
+
   const onChange = (value: string) => {
     setDraft(value);
+    dropLink();
     const link = pasted.current ? parsePRLink(value) : null;
     pasted.current = false;
     if (link) openLink(link);
@@ -86,8 +93,7 @@ export function PRSearchBox({
   };
 
   const clear = () => {
-    openSeq.current++;
-    setOpening(false);
+    dropLink();
     setDraft("");
     if (query) onSearch("");
   };

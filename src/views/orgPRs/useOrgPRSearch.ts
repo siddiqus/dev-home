@@ -50,7 +50,8 @@ function arraysEqual(a: string[], b: string[]): boolean {
  * searched free text, their open PRs (one author or repo pages; several are one
  * unpaginated search) and recently merged PRs, cached in localStorage (members
  * and teams by the service; results found by text aren't kept, nor the text).
- * Text alone searches the whole org. A picked team searches as its members
+ * Text alone searches the whole org; a PR link searches as its repo and number,
+ * by anyone, on its tab. A picked team searches as its members
  * (utils/authorPicks), so a team pick waits for the teams list. Merged PRs are
  * searched only while Merged is open. A `refreshKey` change reloads both PR lists.
  */
@@ -97,6 +98,16 @@ export function useOrgPRSearch({
     setSubTabState(tab);
     localStorage.setItem("dev-home-org-prs-subtab", tab);
   }, []);
+
+  const searchLink = useCallback(
+    (pr: GitHubPR) => {
+      setAuthors([]);
+      setSelectedRepos([pr.repo_full_name]);
+      setQueryState(`#${pr.number}`);
+      setSubTab(pr.merged_at ? "merged" : "open");
+    },
+    [setSubTab],
+  );
 
   // Recently merged PRs, searched only while Merged is open. `mergedFor` is
   // the search the list holds, so its count shows only once it's this one's; a
@@ -414,6 +425,7 @@ export function useOrgPRSearch({
     setSelectedRepos,
     query,
     setQuery,
+    searchLink,
     members,
     membersLoading,
     teams,

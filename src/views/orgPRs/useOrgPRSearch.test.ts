@@ -256,6 +256,39 @@ describe("useOrgPRSearch", () => {
     );
   });
 
+  const linked = (n: number, merged_at?: string) =>
+    ({ ...pr(n), repo_full_name: "acme/api", merged_at }) as GitHubPR;
+
+  it("searches a link's PR as its repo and #number, by anyone, in one search", async () => {
+    const { result } = render();
+    act(() => result.current.setAuthors(["a", "b"]));
+    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledTimes(1));
+    act(() => result.current.searchLink(linked(812)));
+    expect(result.current.authors).toEqual([]);
+    expect(result.current.selectedRepos).toEqual(["acme/api"]);
+    expect(result.current.query).toBe("#812");
+    expect(result.current.subTab).toBe("open");
+    await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
+    expect(fetchOrgPRs).toHaveBeenCalledTimes(1);
+    expect(fetchOrgPRs).toHaveBeenCalledWith(undefined, undefined, "acme/api", "#812");
+
+    act(() => result.current.setSelectedRepos(["acme/opal-app"]));
+    await waitFor(() =>
+      expect(fetchOrgPRs).toHaveBeenLastCalledWith(undefined, undefined, "acme/opal-app", "#812"),
+    );
+  });
+
+  it("searches a merged PR's link on Merged", async () => {
+    const { result } = render();
+    act(() => result.current.searchLink(linked(813, "2024-01-02T00:00:00Z")));
+    expect(result.current.subTab).toBe("merged");
+    await waitFor(() => expect(result.current.mergedPRs).toEqual([pr(9)]));
+    expect(fetchRecentlyMergedPRs).toHaveBeenLastCalledWith("org", [], ["acme/api"], {
+      force: false,
+      text: "#813",
+    });
+  });
+
   it("goes back to nothing once the text is cleared with nothing picked", async () => {
     const { result } = render();
     act(() => result.current.setQuery("token"));

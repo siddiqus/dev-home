@@ -1,4 +1,4 @@
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import {
@@ -110,14 +110,22 @@ describe("OrgPRsView (desktop All PRs)", () => {
     expect(box()).toHaveFocus();
   });
 
-  it("opens a pasted PR link in the PR modal", async () => {
-    vi.mocked(fetchPR).mockResolvedValue(pr(812, "Fix token refresh"));
+  it("fills in the filters from a pasted PR link, rather than opening it", async () => {
+    const linked = { ...pr(812, "Fix token refresh"), repo_full_name: "acme/api" };
+    vi.mocked(fetchPR).mockResolvedValue(linked);
+    vi.mocked(fetchOrgPRs).mockResolvedValue({
+      prs: [linked],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
     render(<OrgPRsView configured jiraBaseUrl="" />);
     fireEvent.paste(box());
     fireEvent.change(box(), { target: { value: "github.com/acme/api/pull/812" } });
-    await act(async () => {});
+    expect(await screen.findByText("Fix token refresh")).toBeInTheDocument();
     expect(fetchPR).toHaveBeenCalledWith("acme", "api", 812);
-    expect(screen.getByRole("dialog")).toHaveTextContent("PR modal: Fix token refresh");
+    expect(fetchOrgPRs).toHaveBeenCalledWith(undefined, undefined, "acme/api", "#812");
+    expect(box()).toHaveValue("#812");
+    expect(screen.getByText("acme/api")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("shows the cached results for the last filter", () => {
