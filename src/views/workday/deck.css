@@ -879,14 +879,21 @@ button.deck-pr-group-toggle:focus-visible {
   color: var(--color-text-muted);
 }
 
-.deck-pr-meta > :not(.deck-pr-ref) {
+/* Desktop: the two groups dissolve, so everything lays out on the one line. */
+.deck-pr-who,
+.deck-pr-stats {
+  display: contents;
+}
+
+.deck-pr-meta > :not(.deck-pr-ref),
+.deck-pr-meta > * > :not(.deck-pr-ref) {
   flex: none;
 }
 
 /* Reviewers take only the room left over (a zero basis, so they never shrink
    the repo): whole names drop behind an ellipsis. Block, not flex, for the
    ellipsis. */
-.deck-pr-meta > .pr-participants {
+.deck-pr-meta > * > .pr-participants {
   display: block;
   flex: 1 1 0;
   min-width: 0;
@@ -894,23 +901,36 @@ button.deck-pr-group-toggle:focus-visible {
   text-overflow: ellipsis;
 }
 
-.deck-pr-meta > .pr-participants > * {
+.deck-pr-meta > * > .pr-participants > * {
   vertical-align: top;
 }
 
-.deck-pr-meta > .pr-participants > * + * {
+.deck-pr-meta > * > .pr-participants > * + * {
   margin-left: 4px;
 }
 
-/* Phones: the line wraps as a whole instead of dropping reviewers or truncating
-   the repo, so the diffstat and reviewers stay visible. */
+/* Phones: two lines instead of one wrapping run — repo#number with its link
+   icons, then the diffstat and reviewers with the age pushed to the right. */
 @media (max-width: 899.98px) {
   .deck-pr-meta {
-    flex-wrap: wrap;
-    row-gap: 2px;
+    display: block;
   }
 
-  .deck-pr-meta > .pr-participants {
+  .deck-pr-who,
+  .deck-pr-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .deck-pr-stats {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    margin-top: 2px;
+  }
+
+  .deck-pr-meta > * > .pr-participants {
     flex: none;
     overflow: visible;
   }
@@ -987,6 +1007,20 @@ button.deck-pr-group-toggle:focus-visible {
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 5px;
+}
+
+/* A chip wider than the row (a long CI message) wraps inside itself rather
+   than running past the card's edge. */
+.deck-pr-signals > *,
+.deck-chip-link > .badge {
+  max-width: 100%;
+}
+
+.deck-pr-signals .badge {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.35;
 }
 
 /* A chip whose step is done on GitHub: underlined on hover, like the quote. */

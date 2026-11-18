@@ -42,8 +42,9 @@ function ageTitle({ pr, unseen, seenOn }: DeckPR): string {
  * and the unseen dot on the right; the title without the key; up to four
  * signal chips with "+N", then the comment count (never folded into "+N",
  * since unread feedback is a reason to act); the newest unseen comment and my
- * newest unresolved note. On a phone nothing links out (the PR modal does), so
- * a stray tap opens the modal instead of a GitHub tab.
+ * newest unresolved note. The copy-link and open-on-GitHub icons are there on a
+ * phone too (deliberate taps); the signal chips still don't link out there, so
+ * a stray tap opens the PR modal instead of a GitHub tab.
  */
 export function DeckPRRow({
   id,
@@ -70,6 +71,9 @@ export function DeckPRRow({
   const ref = repoRef(pr);
   const repo = ref.slice(0, ref.lastIndexOf("#"));
   const age = compactAge(pr.updated_at, now);
+  // No diffstat (older cached PRs) means no separator before the reviewers —
+  // on a phone they start the second line, and a leading "·" would dangle.
+  const hasDiff = typeof pr.additions === "number" && typeof pr.deletions === "number";
   const onClick = (e: MouseEvent) => {
     blurOnPointer(e);
     onSelect(pr.html_url);
@@ -82,43 +86,49 @@ export function DeckPRRow({
     <div id={id} role="option" aria-selected={selected} className={classes} onClick={onClick}>
       <div className="deck-pr-main">
         <div className="deck-pr-meta">
-          {/* First, with the author's face: someone else's PR reads apart from mine. */}
-          {showAuthor && (
-            <>
-              <span className="deck-pr-author">
-                {pr.user.avatar_url && (
-                  // Decorative: the login follows.
-                  <Avatar src={pr.user.avatar_url} alt="" className="deck-pr-avatar" />
-                )}
-                {pr.user.login}
-              </span>
-              <span aria-hidden="true">·</span>
-            </>
-          )}
-          <span className="deck-pr-ref" title={ref}>
-            <span className="deck-pr-repo">{repo}</span>
-            <span className="deck-pr-number">#{pr.number}</span>
-          </span>
-          <span className="deck-pr-links">
-            <PRLinkIcons pr={pr} external={!phone} />
-          </span>
-          <DiffStat pr={pr} />
-          {participants && participants.length > 0 && (
-            <>
-              <span aria-hidden="true">·</span>
-              <Participants pr={{ ...pr, participants }} />
-            </>
-          )}
-          <span className="deck-pr-when">
-            {item.current && <span className="deck-pr-current">▶ current</span>}
-            <span
-              className={item.unseen ? "deck-pr-age deck-pr-age--new" : "deck-pr-age"}
-              title={ageTitle(item)}
-            >
-              {item.unseen && "updated "}
-              {age === "now" ? "just now" : `${age} ago`}
+          {/* Two groups, one line on desktop (display: contents), two on a phone:
+              who and which PR, then what changed and when. */}
+          <span className="deck-pr-who">
+            {/* First, with the author's face: someone else's PR reads apart from mine. */}
+            {showAuthor && (
+              <>
+                <span className="deck-pr-author">
+                  {pr.user.avatar_url && (
+                    // Decorative: the login follows.
+                    <Avatar src={pr.user.avatar_url} alt="" className="deck-pr-avatar" />
+                  )}
+                  {pr.user.login}
+                </span>
+                <span aria-hidden="true">·</span>
+              </>
+            )}
+            <span className="deck-pr-ref" title={ref}>
+              <span className="deck-pr-repo">{repo}</span>
+              <span className="deck-pr-number">#{pr.number}</span>
             </span>
-            {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
+            <span className="deck-pr-links">
+              <PRLinkIcons pr={pr} />
+            </span>
+          </span>
+          <span className="deck-pr-stats">
+            <DiffStat pr={pr} />
+            {participants && participants.length > 0 && (
+              <>
+                {hasDiff && <span aria-hidden="true">·</span>}
+                <Participants pr={{ ...pr, participants }} />
+              </>
+            )}
+            <span className="deck-pr-when">
+              {item.current && <span className="deck-pr-current">▶ current</span>}
+              <span
+                className={item.unseen ? "deck-pr-age deck-pr-age--new" : "deck-pr-age"}
+                title={ageTitle(item)}
+              >
+                {item.unseen && "updated "}
+                {age === "now" ? "just now" : `${age} ago`}
+              </span>
+              {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
+            </span>
           </span>
         </div>
         <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>

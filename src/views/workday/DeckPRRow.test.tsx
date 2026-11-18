@@ -163,8 +163,8 @@ describe("DeckPRRow author", () => {
       "src",
       "https://avatars/tomas.png",
     );
-    const meta = container.querySelector(".deck-pr-meta")!;
-    expect(meta.firstElementChild).toBe(author);
+    const who = container.querySelector(".deck-pr-meta > .deck-pr-who")!;
+    expect(who.firstElementChild).toBe(author);
   });
 
   it("shows the login alone when the author has no avatar", () => {
@@ -224,6 +224,32 @@ describe("DeckPRRow diff stat", () => {
   });
 });
 
+describe("DeckPRRow meta groups", () => {
+  const reviewed = {
+    participants: [{ login: "tomas", state: "APPROVED" as const }],
+    additions: 10,
+    deletions: 2,
+    changed_files: 1,
+  };
+
+  it("splits the meta line into repo#number + links and diffstat + age", () => {
+    const { container } = renderRow(item(reviewed, []));
+    const who = container.querySelector(".deck-pr-who")!;
+    const stats = container.querySelector(".deck-pr-stats")!;
+    expect(who.querySelector(".deck-pr-ref")).not.toBeNull();
+    expect(who.querySelector(".deck-pr-links")).not.toBeNull();
+    expect(stats.querySelector(".pr-card-diffstat")).not.toBeNull();
+    expect(stats.querySelector(".pr-participants")).not.toBeNull();
+    expect(stats.querySelector(".deck-pr-when")).not.toBeNull();
+  });
+
+  it("drops the separator before the reviewers when there's no diffstat", () => {
+    const { container } = renderRow(item({ ...reviewed, additions: null, deletions: null }, []));
+    const stats = container.querySelector(".deck-pr-stats")!;
+    expect(stats.firstElementChild).toBe(stats.querySelector(".pr-participants"));
+  });
+});
+
 describe("DeckPRRow linked chip", () => {
   const threads: Signal = {
     label: "2 open threads",
@@ -257,10 +283,11 @@ describe("DeckPRRow open-on-GitHub icon", () => {
     expect(screen.getByRole("link", { name: "Open r#7 on GitHub" })).toBeInTheDocument();
   });
 
-  it("is left to the PR modal on a phone", () => {
+  it("shows on a phone too, next to the copy icon", () => {
     onPhone(true);
-    renderRow(item({}, []));
-    expect(screen.queryByRole("link", { name: "Open r#7 on GitHub" })).toBeNull();
+    const { container } = renderRow(item({}, []));
+    const links = container.querySelector(".deck-pr-links")!;
+    expect(links).toContainElement(screen.getByRole("link", { name: "Open r#7 on GitHub" }));
   });
 });
 
