@@ -718,11 +718,11 @@ describe("multi-author / multi-repo PR searches", () => {
     await getMergedPrs({ scope: "org", authors: ["alice"], repos: ["test-org/app"] });
     expect(graphqlBodies()[0].variables.first).toBe(20);
   });
-  it("adds PR search's free text to the open search, paged by 10 when it's the only filter", async () => {
+  it("adds PR search's free text to the open search, drafts included, paged by 10 when it's the only filter", async () => {
     await fetchOrgPRs(undefined, undefined, undefined, "  label:bug token refresh ");
     const [body] = graphqlBodies();
     expect(body.variables.query).toBe(
-      "org:test-org type:pr state:open draft:false sort:updated-desc label:bug token refresh",
+      "org:test-org type:pr state:open sort:updated-desc label:bug token refresh",
     );
     expect(body.variables.first).toBe(10);
   });

@@ -165,23 +165,27 @@ function textTerms(text: string | undefined): string {
   return t ? ` ${t}` : "";
 }
 
-/** Search query for open, non-draft org PRs by any of `authors` in any of `repos`, matching `text`. */
+/**
+ * Search query for open org PRs by any of `authors` in any of `repos`, matching
+ * `text`; drafts only when there is text.
+ */
 export function buildOrgPrsQuery(args: {
   org: string;
   authors: string[];
   repos: string[];
   text?: string;
 }): string {
+  const text = textTerms(args.text);
   return (
-    `${scopeQualifiers(args.org, cleanList(args.repos))} type:pr state:open draft:false sort:updated-desc` +
+    `${scopeQualifiers(args.org, cleanList(args.repos))} type:pr state:open${text ? "" : " draft:false"} sort:updated-desc` +
     authorQualifiers(cleanList(args.authors)) +
-    textTerms(args.text)
+    text
   );
 }
 
 /**
  * Formerly GET /api/github/org-prs (and org-prs-multi-repo).
- * Fetch open, non-draft PRs for the configured org, sorted by most recent.
+ * Fetch open PRs for the configured org (drafts only with `text`), sorted by most recent.
  * Supports cursor-based pagination via `cursor` and optional `authors` and `repos`
  * filters (a PR matches if it's by any selected author in any selected repo),
  * narrowed by free `text`.
@@ -213,8 +217,9 @@ export async function getOrgPrs(
   });
 
   const nodes = result.search.nodes || [];
+  const drafts = !!args.text?.trim();
   const prs = (await mapOpenPrsWithChecks(nodes)).filter(
-    (pr: any) => pr.state === "open" && !pr.draft,
+    (pr: any) => pr.state === "open" && (drafts || !pr.draft),
   );
 
   return { prs, pageInfo: result.search.pageInfo };

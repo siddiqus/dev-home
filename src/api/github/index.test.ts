@@ -6,6 +6,7 @@ import {
   clearRequiredContextsCache,
   getMergedPrs,
   getOrgMembers,
+  getOrgPrs,
   getPrBody,
   getPrComments,
   getPrDetail,
@@ -89,6 +90,22 @@ describe("getMergedPrs", () => {
     await expect(getMergedPrs({ scope: "user" })).resolves.toEqual({ prs: [] });
     const [body] = graphqlBodies();
     expect(body.variables.query).toContain("author:testuser type:pr is:merged");
+  });
+});
+
+describe("getOrgPrs", () => {
+  it("keeps draft PRs only when searching text", async () => {
+    adapter.mockImplementation(async (config: any) => {
+      if (!String(config.url).endsWith("/graphql")) throw notFound(config);
+      const nodes = [prNode(1), { ...prNode(2), isDraft: true }];
+      return ok(config, {
+        data: { search: { nodes, pageInfo: { hasNextPage: false, endCursor: null } } },
+      });
+    });
+    const numbers = async (text?: string) =>
+      (await getOrgPrs({ repos: ["test-org/app"], text })).prs.map((pr: any) => pr.number);
+    expect(await numbers()).toEqual([1]);
+    expect(await numbers("#2")).toEqual([1, 2]);
   });
 });
 
