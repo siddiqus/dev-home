@@ -155,6 +155,11 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
           }))}
           values={authors}
           onChange={search.setAuthors}
+          refresh={{
+            onClick: search.refreshMembers,
+            busy: search.membersLoading || search.teamsLoading,
+            label: "Refresh people and teams",
+          }}
         />
         <PhoneFilterSheet
           show={sheet === "repos"}

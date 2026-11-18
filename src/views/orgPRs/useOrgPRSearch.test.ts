@@ -8,6 +8,7 @@ import {
   fetchOrgRepos,
   fetchOrgTeams,
   fetchRecentlyMergedPRs,
+  savedOrgMembers,
 } from "../../services/github";
 import { useOrgPRSearch } from "./useOrgPRSearch";
 
@@ -18,6 +19,8 @@ vi.mock("../../services/github", () => ({
   fetchOrgRepos: vi.fn(),
   fetchOrgTeams: vi.fn(),
   fetchRecentlyMergedPRs: vi.fn(),
+  savedOrgMembers: vi.fn(),
+  savedOrgTeams: vi.fn(() => null),
 }));
 
 const pr = (n: number) =>
@@ -25,6 +28,7 @@ const pr = (n: number) =>
 
 beforeEach(() => {
   localStorage.clear();
+  vi.mocked(savedOrgMembers).mockReset().mockReturnValue(null);
   vi.mocked(fetchOrgMembers)
     .mockReset()
     .mockResolvedValue([{ login: "shunjid", name: null, avatar_url: "" }]);
@@ -78,13 +82,7 @@ describe("useOrgPRSearch", () => {
   });
 
   it("doesn't flag cached members and repos as loading", () => {
-    localStorage.setItem(
-      "dev-home-org-members-cache-v2",
-      JSON.stringify({
-        data: [{ login: "shunjid", name: null, avatar_url: "" }],
-        timestamp: Date.now(),
-      }),
-    );
+    vi.mocked(savedOrgMembers).mockReturnValue([{ login: "shunjid", name: null, avatar_url: "" }]);
     localStorage.setItem(
       "dev-home-org-repos-cache",
       JSON.stringify({ data: [{ full_name: "acme/web", name: "web" }], timestamp: Date.now() }),

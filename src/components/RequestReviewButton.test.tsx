@@ -2,7 +2,13 @@ import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../types";
 import { ApiError } from "../api/http/errors";
-import { fetchOrgMembers, fetchOrgTeams, requestPRReviewers } from "../services/github";
+import {
+  fetchOrgMembers,
+  fetchOrgTeams,
+  requestPRReviewers,
+  savedOrgMembers,
+  savedOrgTeams,
+} from "../services/github";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { MergeProvider, nameList } from "../context/MergeContext";
 import { RequestReviewButton } from "./RequestReviewButton";
@@ -14,6 +20,8 @@ vi.mock("../services/github", () => ({
   requestPRReviewers: vi.fn(),
   fetchOrgMembers: vi.fn(),
   fetchOrgTeams: vi.fn(),
+  savedOrgMembers: vi.fn(),
+  savedOrgTeams: vi.fn(),
 }));
 
 /** My open PR, green, nobody asked to review yet. */
@@ -67,6 +75,8 @@ async function openPicker(name: RegExp | string = "Request a review") {
 
 beforeEach(() => {
   localStorage.clear();
+  vi.mocked(savedOrgMembers).mockReset().mockReturnValue(null);
+  vi.mocked(savedOrgTeams).mockReset().mockReturnValue(null);
   vi.mocked(requestPRReviewers).mockReset().mockResolvedValue(undefined);
   vi.mocked(fetchOrgMembers)
     .mockReset()
@@ -263,16 +273,13 @@ describe("RequestReviewButton", () => {
   });
 
   it("opens from the saved list without refetching, until Refresh", async () => {
+    vi.mocked(savedOrgMembers).mockReturnValue([{ login: "abu", name: null, avatar_url: "" }]);
+    vi.mocked(savedOrgTeams).mockReturnValue([]);
     renderButton();
-    await openPicker();
-    fireEvent.click(within(dialog()).getByRole("button", { name: "Cancel" }));
-    await settle();
-    expect(fetchOrgMembers).toHaveBeenCalledTimes(1);
-
     const picker = await openPicker();
     expect(within(picker).getByLabelText("abu")).toBeInTheDocument();
-    expect(fetchOrgMembers).toHaveBeenCalledTimes(1);
-    expect(fetchOrgTeams).toHaveBeenCalledTimes(1);
+    expect(fetchOrgMembers).not.toHaveBeenCalled();
+    expect(fetchOrgTeams).not.toHaveBeenCalled();
 
     fireEvent.click(within(picker).getByRole("button", { name: "Refresh people and teams" }));
     await settle();

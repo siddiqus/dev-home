@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
-import { IconCheck, IconSearch } from "@tabler/icons-react";
+import { IconCheck, IconRefresh, IconSearch } from "@tabler/icons-react";
 import { useBackClose } from "../../hooks/useBackClose";
 import { bySection, itemMatches } from "../../components/SearchableDropdown";
 
@@ -26,6 +26,8 @@ interface Props {
   items: SheetItem[];
   values: string[];
   onChange(values: string[]): void;
+  /** A refetch button in the search box, spinning while `busy`. */
+  refresh?: { onClick(): void; busy: boolean; label: string };
 }
 
 /**
@@ -41,6 +43,7 @@ export function PhoneFilterSheet({
   items,
   values,
   onChange,
+  refresh,
 }: Props) {
   useBackClose(show, onHide);
   const [query, setQuery] = useState("");
@@ -91,6 +94,22 @@ export function PhoneFilterSheet({
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
           />
+          {refresh && (
+            <button
+              type="button"
+              className="phone-sheet__refresh"
+              onClick={refresh.onClick}
+              disabled={refresh.busy}
+              aria-label={refresh.label}
+              title={refresh.label}
+            >
+              <IconRefresh
+                size={14}
+                className={refresh.busy ? "spin" : undefined}
+                aria-hidden="true"
+              />
+            </button>
+          )}
         </label>
         <div className="phone-sheet__rows">
           {rows.map((item, i) => {

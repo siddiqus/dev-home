@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import { ViewerLoginContext } from "../../context/ViewerLoginContext";
@@ -127,6 +127,21 @@ describe("PhonePRSearch", () => {
     fireEvent.click(within(sheet).getByRole("checkbox", { name: "shunjid" }));
 
     expect(s.setAuthors).toHaveBeenCalledWith(["tashfia", "shunjid"]);
+  });
+
+  it("refreshes people and teams from the Authors sheet", () => {
+    const s = search();
+    renderPage(s);
+    fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
+    const sheet = screen.getByRole("dialog", { name: "Authors" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Refresh people and teams" }));
+    expect(s.refreshMembers).toHaveBeenCalled();
+
+    cleanup();
+    renderPage(search({ teamsLoading: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Authors:/ }));
+    const busy = screen.getByRole("dialog", { name: "Authors" });
+    expect(within(busy).getByRole("button", { name: "Refresh people and teams" })).toBeDisabled();
   });
 
   it("finds an author by their GitHub profile name, shown beside the login", () => {

@@ -4,9 +4,14 @@ import Button from "react-bootstrap/Button";
 import { IconCheck, IconRefresh, IconSearch } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
 import { toApiError } from "../api/http/errors";
-import { loadSettings } from "../services/config";
-import { fetchOrgMembers, fetchOrgTeams, type OrgMember, type OrgTeam } from "../services/github";
-import { readCached, writeCached } from "../lib/ttlCache";
+import {
+  fetchOrgMembers,
+  fetchOrgTeams,
+  savedOrgMembers,
+  savedOrgTeams,
+  type OrgMember,
+  type OrgTeam,
+} from "../services/github";
 import { useBackClose } from "../hooks/useBackClose";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { TeamIcon } from "./primitives/TeamIcon";
@@ -43,44 +48,36 @@ const keyOf = (c: PickedReviewer) => `${c.kind}:${c.id.toLowerCase()}`;
 /** A load that hasn't settled, settled with data, or failed with a reason. */
 type Load<T> = { data: T | null; error: string | null };
 
-/** Org members and teams change rarely: a list saved within the day opens with no fetch. Refresh refetches. */
-const LIST_TTL_MS = 24 * 60 * 60 * 1000;
-
 const loadMembers = (force: boolean) => fetchOrgMembers({ force });
 const loadTeams = (force: boolean) => fetchOrgTeams({ force });
 
 /**
- * An org list kept in localStorage per org (a switched org never shows the old
- * one). Opening fetches only when no fresh copy is saved; `refresh` refetches.
+ * An org list as services/github saves it (a week, per org): opening shows the
+ * saved copy and fetches only without one; `refresh` refetches.
  */
 function useOrgList<T>(
   show: boolean,
-  name: string,
+  saved: () => T | null,
   load: (force: boolean) => Promise<T>,
 ): Load<T> & { refreshing: boolean; refresh(): void } {
-  const key = `dev-home-review-${name}-cache:${loadSettings().githubOrg}`;
-  const [state, setState] = useState<Load<T>>(() => ({
-    data: readCached<{ data: T }>(key, LIST_TTL_MS)?.data ?? null,
-    error: null,
-  }));
+  const [state, setState] = useState<Load<T>>(() => ({ data: saved(), error: null }));
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchList = useCallback(
     async (force: boolean) => {
       try {
         const data = await load(force);
-        writeCached(key, { data });
         setState({ data, error: null });
       } catch (err) {
         setState((prev) => ({ data: prev.data, error: toApiError(err).message }));
       }
     },
-    [key, load],
+    [load],
   );
 
   useEffect(() => {
-    if (show && !readCached(key, LIST_TTL_MS)) void fetchList(false);
-  }, [show, key, fetchList]);
+    if (show && state.data === null) void fetchList(false);
+  }, [show, state.data, fetchList]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -104,8 +101,8 @@ export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
   const rerequest = reviewStep(pr) === "rerequest";
   const author = pr.user.login.toLowerCase();
 
-  const members = useOrgList<OrgMember[]>(show, "members", loadMembers);
-  const teams = useOrgList<OrgTeam[]>(show, "teams", loadTeams);
+  const members = useOrgList<OrgMember[]>(show, savedOrgMembers, loadMembers);
+  const teams = useOrgList<OrgTeam[]>(show, savedOrgTeams, loadTeams);
   const refreshing = members.refreshing || teams.refreshing;
   const refreshLists = () => {
     members.refresh();

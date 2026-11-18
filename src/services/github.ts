@@ -1,5 +1,6 @@
 import { GitHubPR, GitHubComment, GitHubReviewRequest, PRComments, PRThreadStatus } from "../types";
-import { SETTINGS_EVENT } from "./config";
+import { loadSettings, SETTINGS_EVENT } from "./config";
+import { readCached, writeCached } from "../lib/ttlCache";
 import {
   approvePr,
   enqueuePr,
@@ -68,6 +69,28 @@ export function clearListCache(): void {
 
 const MERGED_TTL_MS = 5 * 60 * 1000;
 const ORG_LIST_TTL_MS = 30 * 60 * 1000;
+/** Org members and teams change rarely: saved a week per org; `force` (a Refresh) refetches. */
+const PEOPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const peopleKey = (name: "members" | "teams") => `dev-home-org-${name}:${loadSettings().githubOrg}`;
+
+function savedPeople<T>(name: "members" | "teams"): T | null {
+  return readCached<{ data: T }>(peopleKey(name), PEOPLE_TTL_MS)?.data ?? null;
+}
+
+function peopleList<T>(
+  name: "members" | "teams",
+  force: boolean,
+  load: () => Promise<T>,
+): Promise<T> {
+  const saved = force ? null : savedPeople<T>(name);
+  if (saved) return Promise.resolve(saved);
+  return cached(`org-${name}`, ORG_LIST_TTL_MS, force, async () => {
+    const data = await load();
+    writeCached(peopleKey(name), { data });
+    return data;
+  });
+}
 
 export async function fetchOpenPRs(signal?: AbortSignal): Promise<GitHubPR[]> {
   const data = await getPrs(signal);
@@ -181,13 +204,13 @@ export interface OrgMember {
   avatar_url: string;
 }
 
-/** Org members with names, shared by Org PRs, Request review and team member search (paged, so cached). */
+/** Org members with names, shared by Org PRs, Request review and team member search (paged, so saved a week). */
 export async function fetchOrgMembers(opts: { force?: boolean } = {}): Promise<OrgMember[]> {
-  return cached("org-members", ORG_LIST_TTL_MS, !!opts.force, async () => {
-    const data = await getOrgMembers();
-    return data.members;
-  });
+  return peopleList("members", !!opts.force, async () => (await getOrgMembers()).members);
 }
+
+/** The saved org members, without fetching: null when none are saved or they're over a week old. */
+export const savedOrgMembers = () => savedPeople<OrgMember[]>("members");
 
 export interface OrgTeam {
   slug: string;
@@ -196,13 +219,13 @@ export interface OrgTeam {
   members: string[];
 }
 
-/** Org teams with their members, shared by Request review and All PRs (paged, so cached like members). */
+/** Org teams with their members, shared by Request review and All PRs (paged, so saved like members). */
 export async function fetchOrgTeams(opts: { force?: boolean } = {}): Promise<OrgTeam[]> {
-  return cached("org-teams", ORG_LIST_TTL_MS, !!opts.force, async () => {
-    const data = await getOrgTeams();
-    return data.teams;
-  });
+  return peopleList("teams", !!opts.force, async () => (await getOrgTeams()).teams);
 }
+
+/** The saved org teams, without fetching: null when none are saved or they're over a week old. */
+export const savedOrgTeams = () => savedPeople<OrgTeam[]>("teams");
 
 export interface OrgRepo {
   full_name: string;

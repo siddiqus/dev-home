@@ -13,6 +13,8 @@ vi.mock("../../services/github", () => ({
   fetchOrgTeams: vi.fn().mockResolvedValue([]),
   fetchOrgRepos: vi.fn().mockResolvedValue([]),
   fetchRecentlyMergedPRs: vi.fn(),
+  savedOrgMembers: vi.fn(() => null),
+  savedOrgTeams: vi.fn(() => null),
 }));
 vi.mock("../../services/filters", () => ({
   fetchSavedFilters: vi.fn(),

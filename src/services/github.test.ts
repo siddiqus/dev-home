@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { GitHubPR, PRComments, PRReviewThread } from "../types";
 import {
   approvePr,
   enqueuePr,
   getMergeOptions,
   getMergedPrs,
+  getOrgMembers,
+  getOrgTeams,
   getPrBody,
   getPrComments,
   mergePr,
@@ -16,6 +18,8 @@ import {
   clearListCache,
   fetchMergeOptions,
   fetchMyMergedPRs,
+  fetchOrgMembers,
+  fetchOrgTeams,
   fetchPRBody,
   fetchPRComments,
   refreshPRBodyImages,
@@ -23,14 +27,18 @@ import {
   mergePR,
   mergedSince,
   MY_MERGED_DAYS,
+  savedOrgMembers,
+  savedOrgTeams,
   setPRThreadResolved,
 } from "./github";
-import { SETTINGS_EVENT } from "./config";
+import { loadSettings, saveSettings, SETTINGS_EVENT } from "./config";
 
 vi.mock("../api/github", () => ({
   approvePr: vi.fn(),
   getMergeOptions: vi.fn(),
   getMergedPrs: vi.fn(),
+  getOrgMembers: vi.fn(),
+  getOrgTeams: vi.fn(),
   getPrBody: vi.fn(),
   mergePr: vi.fn(),
   enqueuePr: vi.fn(),
@@ -385,5 +393,58 @@ describe("mergedSince", () => {
     const c = pr({ number: 3, merged_at: undefined });
     expect(mergedSince([a, b, c], new Date("2026-11-02T00:00:00Z"))).toEqual([a]);
     expect(mergedSince([a], new Date("2026-11-03T00:00:00Z"))).toEqual([a]);
+  });
+});
+
+describe("org members and teams", () => {
+  const DAY = 86_400_000;
+  const abu = { login: "abu", name: null, avatar_url: "" };
+  const web = { slug: "web", name: "Web", members: ["abu"] };
+
+  beforeEach(() => {
+    localStorage.clear();
+    saveSettings({ ...loadSettings(), githubOrg: "acme" });
+    clearListCache();
+    vi.mocked(getOrgMembers)
+      .mockReset()
+      .mockResolvedValue({ members: [abu] });
+    vi.mocked(getOrgTeams)
+      .mockReset()
+      .mockResolvedValue({ teams: [web] });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("are saved for a week, across page loads", async () => {
+    expect(savedOrgMembers()).toBeNull();
+    expect(await fetchOrgMembers()).toEqual([abu]);
+    expect(await fetchOrgTeams()).toEqual([web]);
+    clearListCache();
+
+    vi.useFakeTimers({ now: Date.now() + 6 * DAY });
+    expect(savedOrgMembers()).toEqual([abu]);
+    expect(await fetchOrgMembers()).toEqual([abu]);
+    expect(await fetchOrgTeams()).toEqual([web]);
+    expect(getOrgMembers).toHaveBeenCalledTimes(1);
+    expect(getOrgTeams).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(Date.now() + 2 * DAY);
+    expect(savedOrgTeams()).toBeNull();
+    await fetchOrgMembers();
+    expect(getOrgMembers).toHaveBeenCalledTimes(2);
+  });
+
+  it("refetch on a forced refresh, and save the new list", async () => {
+    await fetchOrgMembers();
+    const rkhan = { login: "rkhan", name: null, avatar_url: "" };
+    vi.mocked(getOrgMembers).mockResolvedValue({ members: [abu, rkhan] });
+    expect(await fetchOrgMembers({ force: true })).toEqual([abu, rkhan]);
+    expect(savedOrgMembers()).toEqual([abu, rkhan]);
+  });
+
+  it("are saved per org", async () => {
+    await fetchOrgTeams();
+    saveSettings({ ...loadSettings(), githubOrg: "other" });
+    expect(savedOrgTeams()).toBeNull();
   });
 });

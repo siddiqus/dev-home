@@ -7,19 +7,17 @@ import {
   fetchOrgRepos,
   fetchOrgTeams,
   fetchRecentlyMergedPRs,
-  OrgMember,
   OrgRepo,
-  OrgTeam,
+  savedOrgMembers,
+  savedOrgTeams,
 } from "../../services/github";
 import { readCached, writeCached } from "../../lib/ttlCache";
 import { expandAuthors, hasTeamPick } from "../../utils/authorPicks";
 
 // --- localStorage caching ---
 
-// v2: members carry profile names; lists cached before that refetch once.
-const MEMBERS_CACHE_KEY = "dev-home-org-members-cache-v2";
+// Members and teams are saved by services/github (a week, shared with Request review).
 const REPOS_CACHE_KEY = "dev-home-org-repos-cache";
-const TEAMS_CACHE_KEY = "dev-home-org-teams-cache";
 const PRS_CACHE_KEY = "dev-home-org-prs-cache-v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -50,7 +48,7 @@ function arraysEqual(a: string[], b: string[]): boolean {
  * The org PR search behind All PRs (desktop) and PR search (phone): the org's
  * members, teams and repos to pick from, the picked authors and repos, their
  * open PRs (one author or repo pages; several are one unpaginated search) and
- * recently merged PRs, cached in localStorage. A picked team searches as its
+ * recently merged PRs, cached in localStorage (members and teams by the service). A picked team searches as its
  * members (utils/authorPicks), so a team pick waits for the teams list.
  * A `refreshKey` change reloads both PR lists.
  */
@@ -62,9 +60,8 @@ export function useOrgPRSearch({
   refreshKey?: number;
 }) {
   const cachedPRs = useRef(loadCache<PRsCacheData>(PRS_CACHE_KEY));
-  const cachedMembers = useRef(loadCache<OrgMember[]>(MEMBERS_CACHE_KEY));
   const cachedRepos = useRef(loadCache<OrgRepo[]>(REPOS_CACHE_KEY));
-  const cachedTeams = useRef(loadCache<OrgTeam[]>(TEAMS_CACHE_KEY));
+  const cachedTeams = useRef(savedOrgTeams());
 
   const [prs, setPrs] = useState<GitHubPR[]>(cachedPRs.current?.prs ?? []);
   const [loading, setLoading] = useState(false);
@@ -73,9 +70,9 @@ export function useOrgPRSearch({
   const [endCursor, setEndCursor] = useState<string | null>(cachedPRs.current?.endCursor ?? null);
   const [authors, setAuthors] = useState<string[]>(cachedPRs.current?.authors ?? []);
   const [selectedRepos, setSelectedRepos] = useState<string[]>(cachedPRs.current?.repos ?? []);
-  const [members, setMembers] = useState<OrgMember[]>(cachedMembers.current ?? []);
+  const [members, setMembers] = useState(() => savedOrgMembers() ?? []);
   const [orgRepos, setOrgRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
-  const [teams, setTeams] = useState<OrgTeam[]>(cachedTeams.current ?? []);
+  const [teams, setTeams] = useState(cachedTeams.current ?? []);
   // Settled once teams came from the cache or a fetch (failed included), so a
   // team pick doesn't wait forever on a token that can't list teams.
   const [teamsSettled, setTeamsSettled] = useState(cachedTeams.current !== null);
@@ -136,9 +133,7 @@ export function useOrgPRSearch({
       const requestId = ++membersRequestRef.current;
       setMembersLoading(true);
       try {
-        const data = await fetchOrgMembers({ force: skipCache });
-        setMembers(data);
-        saveCache(MEMBERS_CACHE_KEY, data);
+        setMembers(await fetchOrgMembers({ force: skipCache }));
       } catch (err) {
         console.error("Failed to fetch org members:", err);
       } finally {
@@ -158,9 +153,7 @@ export function useOrgPRSearch({
       const requestId = ++teamsRequestRef.current;
       setTeamsLoading(true);
       try {
-        const data = await fetchOrgTeams({ force: skipCache });
-        setTeams(data);
-        saveCache(TEAMS_CACHE_KEY, data);
+        setTeams(await fetchOrgTeams({ force: skipCache }));
       } catch (err) {
         console.error("Failed to fetch org teams:", err);
       } finally {
@@ -329,8 +322,6 @@ export function useOrgPRSearch({
 
   // People and teams refresh together: both feed the author dropdown.
   const refreshMembers = useCallback(() => {
-    localStorage.removeItem(MEMBERS_CACHE_KEY);
-    localStorage.removeItem(TEAMS_CACHE_KEY);
     loadMembers(true);
     loadTeams(true);
   }, [loadMembers, loadTeams]);
@@ -343,9 +334,7 @@ export function useOrgPRSearch({
   const refreshAll = useCallback(() => {
     cachedPRs.current = null;
     localStorage.removeItem(PRS_CACHE_KEY);
-    localStorage.removeItem(MEMBERS_CACHE_KEY);
     localStorage.removeItem(REPOS_CACHE_KEY);
-    localStorage.removeItem(TEAMS_CACHE_KEY);
     loadMembers(true);
     loadRepos(true);
     loadTeams(true);
