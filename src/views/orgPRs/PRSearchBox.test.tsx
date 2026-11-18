@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubPR } from "../../types";
 import { fetchPR } from "../../services/github";
+import { loadSettings, saveSettings } from "../../services/config";
 import { PRSearchBox } from "./PRSearchBox";
 
 vi.mock("../../services/github", () => ({ fetchPR: vi.fn() }));
@@ -12,6 +13,7 @@ const onOpenPR = vi.fn();
 const onLinkError = vi.fn();
 
 beforeEach(() => {
+  saveSettings({ ...loadSettings(), githubOrg: "acme" });
   vi.mocked(fetchPR).mockReset().mockResolvedValue(linked);
   onSearch.mockReset();
   onOpenPR.mockReset();
@@ -82,6 +84,16 @@ describe("PRSearchBox", () => {
     await settle();
     expect(fetchPR).toHaveBeenCalledWith("acme", "api", 812);
     expect(onOpenPR).toHaveBeenCalledWith(linked);
+  });
+
+  it("opens repo/pull/123 as a repo in the configured org", async () => {
+    const box = renderBox();
+    fireEvent.change(box, { target: { value: "cmp-server/pull/1234" } });
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    fireEvent.keyDown(box, { key: "Enter" });
+    await settle();
+    expect(fetchPR).toHaveBeenCalledWith("acme", "cmp-server", 1234);
+    expect(onSearch).not.toHaveBeenCalled();
   });
 
   it("says when a link won't load, keeping the text", async () => {

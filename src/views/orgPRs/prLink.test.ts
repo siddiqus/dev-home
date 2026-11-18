@@ -28,4 +28,17 @@ describe("parsePRLink", () => {
   ])("leaves %s as search text", (text) => {
     expect(parsePRLink(text)).toBeNull();
   });
+
+  it.each(["cmp-server/pull/1234", "cmp-server/pull/1234/files#diff-1"])(
+    "reads %s as a repo in the org",
+    (text) => {
+      expect(parsePRLink(text, "acme")).toEqual({ repo: "acme/cmp-server", number: 1234 });
+    },
+  );
+
+  it("keeps an owner that's given, and still leaves text alone, with an org", () => {
+    expect(parsePRLink("other/api/pull/9", "acme")).toEqual({ repo: "other/api", number: 9 });
+    expect(parsePRLink("token refresh", "acme")).toBeNull();
+    expect(parsePRLink("pull/12", "acme")).toBeNull();
+  });
 });

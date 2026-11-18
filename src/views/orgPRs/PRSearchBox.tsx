@@ -2,7 +2,8 @@ import { useRef, useState, type Ref } from "react";
 import { IconRefresh, IconSearch, IconX } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
 import { fetchPR } from "../../services/github";
-import { parsePRLink, type PRLink } from "./prLink";
+import { loadSettings } from "../../services/config";
+import { parsePRLink as parseLinkIn, type PRLink } from "./prLink";
 import "./PRSearchBox.css";
 
 interface Props {
@@ -47,6 +48,8 @@ export function PRSearchBox({
   const [draft, setDraft] = useState(query);
   const [opening, setOpening] = useState(false);
   const pasted = useRef(false);
+  // `repo/pull/123` means a repo in the configured org.
+  const parsePRLink = (text: string) => parseLinkIn(text, loadSettings().githubOrg);
   const openSeq = useRef(0);
 
   const openLink = (link: PRLink) => {
