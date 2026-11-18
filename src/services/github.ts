@@ -48,6 +48,20 @@ if (typeof window !== "undefined") {
     listCache.clear();
     myMerged = null;
   });
+  dropOldPeopleCaches();
+}
+
+/** The member and team lists' per-view copies from before the shared week-long one. */
+function dropOldPeopleCaches(): void {
+  const old = /^dev-home-(org-(members|teams)-cache(-v2)?|review-(members|teams)-cache:.*)$/;
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && old.test(key)) localStorage.removeItem(key);
+    }
+  } catch {
+    // storage unavailable
+  }
 }
 
 function cached<T>(key: string, ttlMs: number, force: boolean, load: () => Promise<T>): Promise<T> {

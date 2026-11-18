@@ -442,6 +442,25 @@ describe("org members and teams", () => {
     expect(savedOrgMembers()).toEqual([abu, rkhan]);
   });
 
+  it("drop the per-view copies they replaced, on load", async () => {
+    for (const key of [
+      "dev-home-org-members-cache",
+      "dev-home-org-members-cache-v2",
+      "dev-home-org-teams-cache",
+      "dev-home-review-members-cache:acme",
+      "dev-home-review-teams-cache:acme",
+      "dev-home-org-repos-cache",
+    ])
+      localStorage.setItem(key, "{}");
+    await fetchOrgMembers();
+
+    vi.resetModules();
+    await import("./github");
+    expect(Object.keys(localStorage).sort()).toEqual(
+      ["dev-home-org-members:acme", "dev-home-org-repos-cache", "dev-home-settings"].sort(),
+    );
+  });
+
   it("are saved per org", async () => {
     await fetchOrgTeams();
     saveSettings({ ...loadSettings(), githubOrg: "other" });
