@@ -31,9 +31,9 @@ export function noMatches(query: string, merged: boolean) {
 
 /**
  * PR search's one box: a pasted PR link opens that PR (one fetch, no Enter
- * needed) and the box clears; anything else searches GitHub on Enter. Until
- * then the results stay as they were, and "↵ Search" says the text isn't
- * searched yet. Emptying the box drops the text from the search.
+ * needed) and the box clears; anything else searches GitHub on Enter or a tap
+ * of "↵ Search", which shows while the text isn't searched yet (the results
+ * are still the last search's). Emptying the box drops the text from the search.
  */
 export function PRSearchBox({
   query,
@@ -119,7 +119,11 @@ export function PRSearchBox({
           submit();
         }}
       />
-      {pending && <kbd className="pr-search-box__hint">↵ Search</kbd>}
+      {pending && (
+        <button type="button" className="pr-search-box__hint pr-search-box__go" onClick={submit}>
+          <span aria-hidden="true">↵ </span>Search
+        </button>
+      )}
       {!draft && slashHint && <kbd className="pr-search-box__hint">/</kbd>}
       {draft && (
         <button

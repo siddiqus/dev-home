@@ -41,6 +41,13 @@
   line-height: 1.5;
   white-space: nowrap;
 }
+.pr-search-box__go {
+  cursor: pointer;
+}
+.pr-search-box__go:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
 .pr-search-box__clear {
   display: grid;
   flex: none;

@@ -42,7 +42,7 @@ describe("PRSearchBox", () => {
     const box = renderBox();
     expect(screen.getByText("/")).toBeInTheDocument();
     fireEvent.change(box, { target: { value: "label:bug sso" } });
-    expect(screen.getByText("↵ Search")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(onSearch).not.toHaveBeenCalled();
 
     fireEvent.keyDown(box, { key: "Enter" });
@@ -50,10 +50,17 @@ describe("PRSearchBox", () => {
     expect(fetchPR).not.toHaveBeenCalled();
   });
 
-  it("doesn't say ↵ Search for the text already searched", () => {
+  it("searches on a tap of ↵ Search too", () => {
+    const box = renderBox();
+    fireEvent.change(box, { target: { value: "token refresh" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(onSearch).toHaveBeenCalledWith("token refresh");
+  });
+
+  it("doesn't offer ↵ Search for the text already searched", () => {
     renderBox("token");
     expect(screen.getByRole("textbox")).toHaveValue("token");
-    expect(screen.queryByText("↵ Search")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
   });
 
   it("opens a pasted PR link without Enter, then clears", async () => {
