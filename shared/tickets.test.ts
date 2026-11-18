@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractTicketKey, projectOfKey, TICKET_KEY_REGEX } from "./tickets";
+import { extractTicketKey, projectOfKey, ticketKeysIn, TICKET_KEY_REGEX } from "./tickets";
 
 describe("extractTicketKey — string input", () => {
   const cases: Array<[string, string | null]> = [
@@ -88,5 +88,19 @@ describe("TICKET_KEY_REGEX", () => {
   it("is exported for reuse by note/text detection", () => {
     expect(TICKET_KEY_REGEX).toBeInstanceOf(RegExp);
     expect("see PROJ-123".match(TICKET_KEY_REGEX)?.[1]).toBe("PROJ-123");
+  });
+});
+
+describe("ticketKeysIn", () => {
+  it("returns every key in order, upper-cased", () => {
+    expect(ticketKeysIn("AC-65 ac-88: Limit rebalancing (AC-90)")).toEqual([
+      "AC-65",
+      "AC-88",
+      "AC-90",
+    ]);
+  });
+  it("returns [] for no text or no key", () => {
+    expect(ticketKeysIn(null)).toEqual([]);
+    expect(ticketKeysIn("plain title")).toEqual([]);
   });
 });

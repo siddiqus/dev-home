@@ -2,7 +2,7 @@ import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../.
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import { ticketKeyOf } from "../../utils/tickets";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
-import { projectOfKey } from "../../../shared/tickets";
+import { projectOfKey, ticketKeysIn } from "../../../shared/tickets";
 import { githubMentionItem, jiraMentionItem } from "./buildFocus";
 import { statusCategoryOf } from "./buildWorkday";
 import { repoRef, reviewingState, titleWithoutKey } from "./prState";
@@ -496,9 +496,10 @@ export function buildDeck(
   }
 
   // Step 3: in-progress tickets assigned to me with no open PR (v1's workingOn rule).
+  const namedInTitles = new Set(collected.flatMap((c) => ticketKeysIn(c.pr.title)));
   for (const issue of inp.assignedIssues) {
     const key = issue.key.toUpperCase();
-    if (statusCategoryOf(issue) === "indeterminate" && !byKey.has(key)) {
+    if (statusCategoryOf(issue) === "indeterminate" && !byKey.has(key) && !namedInTitles.has(key)) {
       byKey.set(key, []);
       const t = deckTicket(key, key, ref(key), [], ctx, mergedByKey.get(key));
       tickets.push(

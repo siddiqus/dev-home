@@ -30,6 +30,14 @@ function fromText(text: string | null | undefined): string | null {
   return match ? match[1].toUpperCase() : null;
 }
 
+/** Every key in a single string, in order, upper-cased. */
+export function ticketKeysIn(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return [...text.matchAll(new RegExp(TICKET_KEY_REGEX.source, "g"))].map((m) =>
+    m[1].toUpperCase(),
+  );
+}
+
 /**
  * Extract a ticket key from a bare string, or from a {@link TicketSource}.
  *

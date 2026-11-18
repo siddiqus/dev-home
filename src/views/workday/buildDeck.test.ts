@@ -141,6 +141,15 @@ describe("buildDeck grouping", () => {
     expect(ids(deck.open)).toEqual(["CCP-2"]);
     expect(numbers(deck.open[0])).toEqual([3]);
   });
+
+  it("drops the 'No PR yet' tab of a ticket a PR names after its first key; the PR stays on the first", () => {
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 CCP-2: Scope reads" })],
+      assignedIssues: [issue("CCP-2")],
+    });
+    expect(ids(deck.open)).toEqual(["CCP-1"]);
+    expect(numbers(deck.open[0])).toEqual([1]);
+  });
 });
 
 describe("buildDeck collection and de-duplication", () => {
