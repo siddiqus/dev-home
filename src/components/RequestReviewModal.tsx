@@ -15,7 +15,6 @@ import {
 import { useBackClose } from "../hooks/useBackClose";
 import { useIsPhone } from "../hooks/useIsPhone";
 import { TeamIcon } from "./primitives/TeamIcon";
-import { reviewStep } from "../utils/prAction";
 import { repoRef } from "../views/workday/prState";
 import "./RequestReview.css";
 
@@ -37,6 +36,8 @@ interface Candidate extends PickedReviewer {
 
 interface Props {
   pr: GitHubPR;
+  /** Asking again after a review: who reviewed or commented before starts ticked, on top. */
+  rerequest: boolean;
   show: boolean;
   onHide(): void;
   /** Sends the request: null once GitHub took it (the modal closes), else why it refused. */
@@ -95,10 +96,9 @@ function useOrgList<T>(
  * top. Full screen on a phone. Opened through MergeContext, never inside a row,
  * so its clicks can't reach a row underneath.
  */
-export function RequestReviewModal({ pr, show, onHide, onSubmit }: Props) {
+export function RequestReviewModal({ pr, rerequest, show, onHide, onSubmit }: Props) {
   useBackClose(show, onHide);
   const phone = useIsPhone();
-  const rerequest = reviewStep(pr) === "rerequest";
   const author = pr.user.login.toLowerCase();
 
   const members = useOrgList<OrgMember[]>(show, savedOrgMembers, loadMembers);

@@ -10,8 +10,8 @@ import {
   savedOrgTeams,
 } from "../services/github";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
-import { MergeProvider, nameList } from "../context/MergeContext";
-import { RequestReviewButton } from "./RequestReviewButton";
+import { MergeProvider, nameList, reviewRequestSource } from "../context/MergeContext";
+import { ModalRequestReviewButton, RequestReviewButton } from "./RequestReviewButton";
 
 vi.mock("../services/github", () => ({
   approvePR: vi.fn(),
@@ -285,6 +285,72 @@ describe("RequestReviewButton", () => {
     await settle();
     expect(fetchOrgMembers).toHaveBeenLastCalledWith({ force: true });
     expect(fetchOrgTeams).toHaveBeenLastCalledWith({ force: true });
+  });
+});
+
+describe("ModalRequestReviewButton", () => {
+  function renderModalButton(pr: GitHubPR, { viewer = "me", provider = true } = {}) {
+    const button = <ModalRequestReviewButton pr={pr} />;
+    return render(
+      <ViewerLoginContext.Provider value={viewer}>
+        {provider ? (
+          <MergeProvider onReviewRequested={onReviewRequested}>{button}</MergeProvider>
+        ) : (
+          button
+        )}
+      </ViewerLoginContext.Provider>,
+    );
+  }
+
+  it("asks for a review on my PR while CI fails", async () => {
+    const pr = myPR({ checks_status: "FAILURE" });
+    renderModalButton(pr);
+    const picker = await openPicker();
+    fireEvent.click(within(picker).getByLabelText("abu"));
+    fireEvent.click(within(picker).getByRole("button", { name: "Request review" }));
+    await settle();
+    expect(requestPRReviewers).toHaveBeenCalledWith(pr, { users: ["abu"], teams: [] });
+    expect(screen.getByText("Review requested")).toBeInTheDocument();
+  });
+
+  it("on someone else's PR, opens a plain request I can put myself on", async () => {
+    const pr = myPR({
+      user: { login: "abu", avatar_url: "" },
+      review_status: "REVIEWED",
+      participants: [{ login: "rkhan", state: "COMMENTED" }],
+    });
+    renderModalButton(pr);
+    const picker = await openPicker();
+    expect(within(picker).queryByRole("region", { name: "Reviewed before" })).toBeNull();
+    expect(within(picker).getByLabelText("rkhan")).not.toBeChecked();
+    expect(within(picker).queryByLabelText("abu")).toBeNull();
+    fireEvent.click(within(picker).getByLabelText("me"));
+    fireEvent.click(within(picker).getByRole("button", { name: "Request review" }));
+    await settle();
+    expect(requestPRReviewers).toHaveBeenCalledWith(pr, { users: ["me"], teams: [] });
+    expect(onReviewRequested).toHaveBeenCalledWith(pr);
+  });
+
+  it("isn't there on drafts, closed or merged PRs, outside a MergeProvider, or where the chip is the button", () => {
+    const failing = { checks_status: "FAILURE" } as const;
+    renderModalButton(myPR({ ...failing, draft: true }));
+    renderModalButton(myPR({ ...failing, state: "closed" }));
+    renderModalButton(myPR({ ...failing, merged_at: "2026-10-03T00:00:00Z" }));
+    renderModalButton(myPR(failing), { provider: false });
+    renderModalButton(myPR());
+    renderModalButton(myPR({ review_status: "REVIEWED" }));
+    expect(screen.queryByRole("button", { name: /request/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("reviewRequestSource", () => {
+  it("refreshes my open PRs after a request on mine, my reviews after one on someone else's", () => {
+    expect(reviewRequestSource(myPR({ user: { login: "me", avatar_url: "" } }), "Me")).toBe(
+      "openPRs",
+    );
+    expect(reviewRequestSource(myPR({ user: { login: "abu", avatar_url: "" } }), "me")).toBe(
+      "reviewRequests",
+    );
   });
 });
 

@@ -37,6 +37,7 @@ import { useRecentTeams } from "./hooks/useRecentTeams";
 import { readTeamNames } from "./services/teamsStore";
 import { RecentTeamsNav } from "./views/teams/RecentTeamsNav";
 import { AppProviders } from "./context/AppProviders";
+import { reviewRequestSource } from "./context/MergeContext";
 import { SummaryView } from "./views/summary/SummaryView";
 import { JiraTasks } from "./components/JiraTasks";
 import { JiraMentionsView } from "./views/mentions/JiraMentionsView";
@@ -54,7 +55,7 @@ import { PhoneMenu } from "./components/PhoneMenu";
 import { useKanban } from "./hooks/useKanban";
 import { usePomodoro } from "./hooks/usePomodoro";
 import { PomodoroBadge } from "./views/pomodoro/PomodoroBadge";
-import type { FocusableItem } from "./types";
+import type { FocusableItem, GitHubPR } from "./types";
 import { getReferenceUrl, getNoteDisplayTitle } from "./utils/text";
 import { noteBadge } from "./utils/noteBadge";
 import { NAV_GROUPS, effectiveTabFor, isTabVisible } from "./config/navTabs";
@@ -305,6 +306,10 @@ export default function App() {
   // out (refreshKey also reloads Workday's and My PRs' merged lists).
   const refreshOpenPRs = useCallback(() => refresh(["openPRs"]), [refresh]);
   const refreshReviews = useCallback(() => refresh(["reviewRequests"]), [refresh]);
+  const refreshAfterReviewRequest = useCallback(
+    (pr: GitHubPR) => refresh([reviewRequestSource(pr, githubUsername ?? "")]),
+    [githubUsername, refresh],
+  );
 
   // Top-bar refresh for pages whose data can be fetched on its own: refetches
   // only that page's primary source(s), skipping enrichment deps (e.g. Jira for
@@ -479,7 +484,7 @@ export default function App() {
       githubUsername={githubUsername}
       onMerged={refreshOpenPRs}
       onApproved={refreshReviews}
-      onReviewRequested={refreshOpenPRs}
+      onReviewRequested={refreshAfterReviewRequest}
     >
       {/* Thin top bar with app name and refresh */}
       <Navbar className="top-bar" variant="dark">

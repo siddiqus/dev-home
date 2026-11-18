@@ -28,7 +28,7 @@ import type { GitHubPR, PRComments as PRCommentsData } from "../types";
 import { STATUS_CONFIG } from "./ChecksStatusIcon";
 import { ApproveButton } from "./ApproveButton";
 import { MergeButton } from "./MergeButton";
-import { RequestReviewButton } from "./RequestReviewButton";
+import { ModalRequestReviewButton, RequestReviewButton } from "./RequestReviewButton";
 import { PrNotesPanel } from "./PrNotesPanel";
 import { PRComments } from "./PRComments";
 import { NewPill, newLabel, totalLabel } from "./CommentCountChip";
@@ -552,6 +552,8 @@ function PrModalHeader({
           {!isMerged && !isNeedsAction && !action && <StatusPill pr={pr} />}
           {/* On a PR I review that I haven't approved: Approve, after its pill. */}
           <ApproveButton pr={pr} />
+          {/* Any open PR, whatever blocks it (e.g. failing CI), unless the pill above is already the button. */}
+          <ModalRequestReviewButton pr={pr} />
           {!isMerged && <ReasonChips pr={pr} except={restatedReasons(action)} />}
           {hasLabels && <PRLabels labels={pr.labels!} />}
         </div>

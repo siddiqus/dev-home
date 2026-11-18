@@ -27,8 +27,8 @@ interface MergeApi {
    * `updated_at` then, so "Requested" only shows until fresh data arrives.
    */
   reviewRequested: ReadonlyMap<string, string>;
-  /** Opens the reviewer picker for one of my PRs. */
-  openReviewRequest(pr: GitHubPR): void;
+  /** Opens the reviewer picker; a `rerequest` starts with who reviewed before ticked. */
+  openReviewRequest(pr: GitHubPR, rerequest?: boolean): void;
 }
 
 export const MergeContext = React.createContext<MergeApi | null>(null);
@@ -62,7 +62,7 @@ export function nameList(names: string[]): string {
  * record of what was done (so a button that re-renders before the refresh can't
  * do it twice), one bottom toast, one reviewer picker, and a refresh after each
  * success: `onMerged` (the open PRs), `onApproved` (the reviews) or
- * `onReviewRequested` (the open PRs).
+ * `onReviewRequested` (with the PR, so mine and others' can refresh different lists).
  */
 export function MergeProvider({
   onMerged,
@@ -72,7 +72,7 @@ export function MergeProvider({
 }: {
   onMerged?: () => void;
   onApproved?: () => void;
-  onReviewRequested?: () => void;
+  onReviewRequested?: (pr: GitHubPR) => void;
   children: ReactNode;
 }) {
   const [done, setDone] = useState<ReadonlyMap<string, MergeOutcome>>(() => new Map());
@@ -81,7 +81,12 @@ export function MergeProvider({
     () => new Map(),
   );
   // The PR the reviewer picker is for; `seq` remounts the picker per open, so it starts fresh.
-  const [picker, setPicker] = useState<{ pr: GitHubPR; open: boolean; seq: number } | null>(null);
+  const [picker, setPicker] = useState<{
+    pr: GitHubPR;
+    rerequest: boolean;
+    open: boolean;
+    seq: number;
+  } | null>(null);
   const toast = useToast(3000);
   const { show } = toast;
   const onMergedRef = useRef(onMerged);
@@ -159,14 +164,15 @@ export function MergeProvider({
       }
       setReviewRequested((prev) => new Map(prev).set(pr.html_url, pr.updated_at));
       show(`Requested a review from ${nameList(picked.map((p) => p.label))} on ${repoRef(pr)}`);
-      onReviewRequestedRef.current?.();
+      onReviewRequestedRef.current?.(pr);
       return null;
     },
     [show],
   );
 
   const openReviewRequest = useCallback(
-    (pr: GitHubPR) => setPicker((prev) => ({ pr, open: true, seq: (prev?.seq ?? 0) + 1 })),
+    (pr: GitHubPR, rerequest = false) =>
+      setPicker((prev) => ({ pr, rerequest, open: true, seq: (prev?.seq ?? 0) + 1 })),
     [],
   );
   const closeReviewRequest = useCallback(
@@ -185,6 +191,7 @@ export function MergeProvider({
         <RequestReviewModal
           key={picker.seq}
           pr={picker.pr}
+          rerequest={picker.rerequest}
           show={picker.open}
           onHide={closeReviewRequest}
           onSubmit={(picked) => requestReview(picker.pr, picked)}
@@ -226,6 +233,23 @@ export function useCanApprove(pr: GitHubPR): boolean {
     !pr.draft &&
     pr.viewer_review_state !== "APPROVED"
   );
+}
+
+/**
+ * What to refetch after asking for reviews on `pr`: my PR's row in the open PRs,
+ * or, on someone else's PR, my reviews (I may have asked myself).
+ */
+export function reviewRequestSource(pr: GitHubPR, viewer: string): "openPRs" | "reviewRequests" {
+  return pr.user.login.toLowerCase() === viewer.toLowerCase() ? "openPRs" : "reviewRequests";
+}
+
+/**
+ * Whether a PR can take a review request from the PR modal: any open, non-draft
+ * PR, mine or anyone's, whatever its next step, under a MergeProvider.
+ */
+export function useCanRequestReview(pr: GitHubPR): boolean {
+  const api = useContext(MergeContext);
+  return !!api && pr.state === "open" && !pr.merged_at && !pr.draft;
 }
 
 /**

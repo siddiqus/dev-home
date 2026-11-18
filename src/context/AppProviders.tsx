@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import type { GitHubPR } from "../types";
 import { NotesApi, NotesProvider } from "./NotesContext";
 import { JiraDrawerProvider } from "./JiraDrawerContext";
 import { ViewerLoginContext } from "./ViewerLoginContext";
@@ -21,8 +22,8 @@ export function AppProviders({
   onMerged?: () => void;
   /** After an Approve button approves a PR: refresh the reviews. */
   onApproved?: () => void;
-  /** After a Request review button asks for reviews: refresh the open PRs. */
-  onReviewRequested?: () => void;
+  /** After a Request review button asks for reviews on `pr`. */
+  onReviewRequested?: (pr: GitHubPR) => void;
   children: ReactNode;
 }) {
   return (

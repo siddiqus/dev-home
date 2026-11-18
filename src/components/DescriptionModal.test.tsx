@@ -236,6 +236,22 @@ describe("DescriptionModal PR header", () => {
     expect(screen.queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
   });
 
+  it("offers Request a review beside Fix CI on my failing PR, and only once when it's the next step", () => {
+    const modal = (pr: GitHubPR) => (
+      <ViewerLoginContext.Provider value="octocat">
+        <MergeProvider>
+          <DescriptionModal {...baseProps} pr={pr} />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>
+    );
+    const { rerender } = render(modal(makePR({ checks_status: "FAILURE" })));
+    expect(screen.getByText("Fix CI")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request a review" })).toBeInTheDocument();
+
+    rerender(modal(makePR({ checks_status: "SUCCESS", requested_reviewers: [] })));
+    expect(screen.getAllByRole("button", { name: "Request a review" })).toHaveLength(1);
+  });
+
   it("shows no Approve button on my own PR", () => {
     render(
       <ViewerLoginContext.Provider value="octocat">
