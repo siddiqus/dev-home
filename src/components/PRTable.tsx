@@ -64,6 +64,8 @@ interface PRTableProps {
   actionPill?: (pr: GitHubPR) => StateBadge | null;
   /** Show the "Approved" status pill on approved rows even when the variant hides status. */
   showApproved?: boolean;
+  /** The empty state's words in place of the variant's (e.g. a search with no matches). */
+  empty?: { title: string; description: string };
 }
 
 /** Which card fields each variant shows. */
@@ -162,6 +164,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
     signals,
     actionPill,
     showApproved,
+    empty: emptyText,
   },
   ref,
 ) {
@@ -221,7 +224,7 @@ export const PRTable = forwardRef<PRTableHandle, PRTableProps>(function PRTable(
   }
 
   if (prs.length === 0) {
-    const empty = EMPTY_STATE[variant];
+    const empty = { ...EMPTY_STATE[variant], ...emptyText };
     return <EmptyState icon={empty.icon} title={empty.title} description={empty.description} />;
   }
 

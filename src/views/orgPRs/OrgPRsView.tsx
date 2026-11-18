@@ -4,8 +4,11 @@ import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import { IconRefresh, IconFilter, IconFold, IconFoldDown } from "@tabler/icons-react";
 import "../prs/PRsView.css";
-import { JiraIssue } from "../../types";
+import { GitHubPR, JiraIssue } from "../../types";
 import { PRTable, PRTableHandle } from "../../components/PRTable";
+import { PRDetailModal } from "../../components/PRDetailModal";
+import { Toast, useToast } from "../../components/Toast";
+import { isTypingTarget } from "../../utils/dom";
 import { DropdownItem } from "../../components/SearchableDropdown";
 import { MultiSelectDropdown } from "../../components/MultiSelectDropdown";
 import { SavedFiltersDropdown, SavedFilter } from "../../components/SavedFiltersDropdown";
@@ -16,6 +19,7 @@ import {
   deleteSavedFilter,
 } from "../../services/filters";
 import { useOrgPRSearch } from "./useOrgPRSearch";
+import { noMatches, PRSearchBox } from "./PRSearchBox";
 import { authorItems as buildAuthorItems } from "./authorItems";
 import { teamPicksLabel } from "../../utils/authorPicks";
 
@@ -51,6 +55,8 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     setAuthors,
     selectedRepos,
     setSelectedRepos,
+    query,
+    setQuery,
     members,
     membersLoading,
     teams,
@@ -63,6 +69,24 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     refreshRepos,
     refreshAll,
   } = useOrgPRSearch({ configured, refreshKey });
+
+  // A pasted PR link opens here; a link that won't load says so in the toast.
+  const [linkedPR, setLinkedPR] = useState<GitHubPR | null>(null);
+  const toast = useToast();
+  const showToast = toast.show;
+
+  // "/" jumps to the search box, as on GitHub.
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (e.target instanceof Element && e.target.closest(".modal")) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Saved filters
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
@@ -173,12 +197,23 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     [orgRepos],
   );
 
-  // A table is only mounted once at least one author/repo is selected; gate the
+  // A table is only mounted once an author/repo is picked or text searched; gate the
   // collapse control on the same condition so it can't linger on the empty state.
-  const hasSelection = authors.length > 0 || selectedRepos.length > 0;
+  const hasSelection = authors.length > 0 || selectedRepos.length > 0 || !!query;
 
   return (
     <div className="prs-view">
+      <div className="mb-2">
+        <PRSearchBox
+          query={query}
+          onSearch={setQuery}
+          onOpenPR={setLinkedPR}
+          onLinkError={(message) => showToast(message, { tone: "danger" })}
+          busy={!!query && (orgSubTab === "open" ? loading : mergedPRsLoading)}
+          slashHint
+          inputRef={searchRef}
+        />
+      </div>
       {/* Toolbar: filters (left) + subtabs + refresh (right) */}
       <div className="prs-toolbar d-flex align-items-center justify-content-between mb-3">
         <div className="d-flex align-items-center gap-2">
@@ -277,17 +312,17 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
       </div>
 
       <div className="prs-scroll-body">
-        {authors.length === 0 && selectedRepos.length === 0 ? (
+        {!hasSelection ? (
           <div
             className="d-flex flex-column align-items-center justify-content-center py-5"
             style={{ color: "var(--color-text-secondary)" }}
           >
             <IconFilter size={32} stroke={1.2} style={{ marginBottom: 12, opacity: 0.5 }} />
             <div style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>
-              Select a filter to view PRs
+              Search, or pick a filter
             </div>
             <div style={{ fontSize: "0.8125rem" }}>
-              Choose at least one author, team or repository above.
+              Type anything and press Enter, paste a PR link, or choose an author, team or repo.
             </div>
           </div>
         ) : (
@@ -308,6 +343,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                     jiraBaseUrl={jiraBaseUrl}
                     jiraIssues={jiraIssues}
                     variant="org-prs"
+                    empty={query ? noMatches(query, false) : undefined}
                     onCollapseStateChange={(hasGroups, allCollapsed) =>
                       setGroupState({ hasGroups, allCollapsed })
                     }
@@ -343,6 +379,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
                 loading={mergedPRsLoading}
                 variant="recently-merged-org"
                 jiraBaseUrl={jiraBaseUrl}
+                empty={query ? noMatches(query, true) : undefined}
                 onCollapseStateChange={(hasGroups, allCollapsed) =>
                   setGroupState({ hasGroups, allCollapsed })
                 }
@@ -351,6 +388,8 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
           </>
         )}
       </div>
+      <PRDetailModal pr={linkedPR} onHide={() => setLinkedPR(null)} jiraBaseUrl={jiraBaseUrl} />
+      <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
     </div>
   );
 };

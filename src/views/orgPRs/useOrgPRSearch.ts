@@ -46,11 +46,13 @@ function arraysEqual(a: string[], b: string[]): boolean {
 
 /**
  * The org PR search behind All PRs (desktop) and PR search (phone): the org's
- * members, teams and repos to pick from, the picked authors and repos, their
- * open PRs (one author or repo pages; several are one unpaginated search) and
- * recently merged PRs, cached in localStorage (members and teams by the service). A picked team searches as its
- * members (utils/authorPicks), so a team pick waits for the teams list.
- * A `refreshKey` change reloads both PR lists.
+ * members, teams and repos to pick from, the picked authors and repos, the
+ * searched free text, their open PRs (one author or repo pages; several are one
+ * unpaginated search) and recently merged PRs, cached in localStorage (members
+ * and teams by the service; results found by text aren't kept, nor the text).
+ * Text alone searches the whole org. A picked team searches as its members
+ * (utils/authorPicks), so a team pick waits for the teams list. A `refreshKey`
+ * change reloads both PR lists.
  */
 export function useOrgPRSearch({
   configured,
@@ -70,6 +72,8 @@ export function useOrgPRSearch({
   const [endCursor, setEndCursor] = useState<string | null>(cachedPRs.current?.endCursor ?? null);
   const [authors, setAuthors] = useState<string[]>(cachedPRs.current?.authors ?? []);
   const [selectedRepos, setSelectedRepos] = useState<string[]>(cachedPRs.current?.repos ?? []);
+  const [query, setQueryState] = useState("");
+  const setQuery = useCallback((q: string) => setQueryState(q.trim()), []);
   const [members, setMembers] = useState(() => savedOrgMembers() ?? []);
   const [orgRepos, setOrgRepos] = useState<OrgRepo[]>(cachedRepos.current ?? []);
   const [teams, setTeams] = useState(cachedTeams.current ?? []);
@@ -83,6 +87,7 @@ export function useOrgPRSearch({
   const searchAuthors = useMemo(() => expandAuthors(authors, teams), [authors, teams]);
   const searchReady = teamsSettled || !hasTeamPick(authors);
   const noOne = authors.length > 0 && searchAuthors.length === 0;
+  const nothingToSearch = (authors.length === 0 && selectedRepos.length === 0 && !query) || noOne;
 
   // Open or merged, remembered across visits.
   const [subTab, setSubTabState] = useState<"open" | "merged">(() => {
@@ -102,13 +107,16 @@ export function useOrgPRSearch({
       if (!configured) return;
       if (!searchReady) return;
       const requestId = ++mergedRequestRef.current;
-      if ((authors.length === 0 && selectedRepos.length === 0) || noOne) {
+      if (nothingToSearch) {
         setMergedPRs([]);
         return;
       }
       setMergedPRsLoading(true);
       try {
-        const data = await fetchRecentlyMergedPRs("org", searchAuthors, selectedRepos, { force });
+        const data = await fetchRecentlyMergedPRs("org", searchAuthors, selectedRepos, {
+          force,
+          text: query,
+        });
         if (requestId === mergedRequestRef.current) setMergedPRs(data);
       } catch (err) {
         console.error("Failed to fetch recently merged PRs:", err);
@@ -116,7 +124,7 @@ export function useOrgPRSearch({
         if (requestId === mergedRequestRef.current) setMergedPRsLoading(false);
       }
     },
-    [configured, authors, searchAuthors, selectedRepos, searchReady, noOne],
+    [configured, searchAuthors, selectedRepos, query, searchReady, nothingToSearch],
   );
   useEffect(() => {
     loadMergedPRs();
@@ -214,12 +222,20 @@ export function useOrgPRSearch({
   prsRef.current = prs;
   const prsRequestRef = useRef(0);
 
+  // Results found by text aren't kept: the text isn't remembered across visits.
+  const keepPRs = useCallback(
+    (data: Pick<PRsCacheData, "prs" | "hasNextPage" | "endCursor">) => {
+      if (!query) saveCache(PRS_CACHE_KEY, { ...data, authors, repos: selectedRepos });
+    },
+    [query, authorsKey, reposKey],
+  );
+
   // Fetch first page when filters change
   const fetchFirstPage = useCallback(
     async (skipCache = false) => {
       if (!configured || !searchReady) return;
       const requestId = ++prsRequestRef.current;
-      if ((authors.length === 0 && selectedRepos.length === 0) || noOne) {
+      if (nothingToSearch) {
         setPrs([]);
         setHasNextPage(false);
         setEndCursor(null);
@@ -228,6 +244,7 @@ export function useOrgPRSearch({
 
       if (
         !skipCache &&
+        !query &&
         cachedPRs.current &&
         arraysEqual(cachedPRs.current.authors, authors) &&
         arraysEqual(cachedPRs.current.repos, selectedRepos)
@@ -241,33 +258,25 @@ export function useOrgPRSearch({
       try {
         if (isMultiMode) {
           // One search ORs every selected author and repo
-          const merged = await fetchOrgPRsMulti(searchAuthors, selectedRepos);
+          const merged = await fetchOrgPRsMulti(searchAuthors, selectedRepos, query);
           if (requestId !== prsRequestRef.current) return;
           setPrs(merged);
           setHasNextPage(false);
           setEndCursor(null);
-          saveCache(PRS_CACHE_KEY, {
-            prs: merged,
-            hasNextPage: false,
-            endCursor: null,
-            authors,
-            repos: selectedRepos,
-          });
+          keepPRs({ prs: merged, hasNextPage: false, endCursor: null });
         } else {
           // Single author / single repo -- use the paginated endpoint directly
           const author = searchAuthors[0] || undefined;
           const repo = selectedRepos[0] || undefined;
-          const result = await fetchOrgPRs(undefined, author, repo);
+          const result = await fetchOrgPRs(undefined, author, repo, query);
           if (requestId !== prsRequestRef.current) return;
           setPrs(result.prs);
           setHasNextPage(result.pageInfo.hasNextPage);
           setEndCursor(result.pageInfo.endCursor);
-          saveCache(PRS_CACHE_KEY, {
+          keepPRs({
             prs: result.prs,
             hasNextPage: result.pageInfo.hasNextPage,
             endCursor: result.pageInfo.endCursor,
-            authors,
-            repos: selectedRepos,
           });
         }
       } catch (err) {
@@ -277,7 +286,17 @@ export function useOrgPRSearch({
       }
     },
 
-    [configured, authorsKey, searchAuthorsKey, reposKey, isMultiMode, searchReady, noOne],
+    [
+      configured,
+      authorsKey,
+      searchAuthorsKey,
+      reposKey,
+      query,
+      isMultiMode,
+      searchReady,
+      nothingToSearch,
+      keepPRs,
+    ],
   );
 
   useEffect(() => {
@@ -292,26 +311,33 @@ export function useOrgPRSearch({
     try {
       const author = searchAuthors[0] || undefined;
       const repo = selectedRepos[0] || undefined;
-      const result = await fetchOrgPRs(endCursor, author, repo);
+      const result = await fetchOrgPRs(endCursor, author, repo, query);
       // Filters changed (or a refresh started) while this page was loading.
       if (requestId !== prsRequestRef.current) return;
       const merged = [...prsRef.current, ...result.prs];
       setPrs(merged);
       setHasNextPage(result.pageInfo.hasNextPage);
       setEndCursor(result.pageInfo.endCursor);
-      saveCache(PRS_CACHE_KEY, {
+      keepPRs({
         prs: merged,
         hasNextPage: result.pageInfo.hasNextPage,
         endCursor: result.pageInfo.endCursor,
-        authors,
-        repos: selectedRepos,
       });
     } catch (err) {
       console.error("Failed to fetch more org PRs:", err);
     } finally {
       if (requestId === prsRequestRef.current) setLoadingMore(false);
     }
-  }, [hasNextPage, endCursor, authors, searchAuthors, selectedRepos, loadingMore, isMultiMode]);
+  }, [
+    hasNextPage,
+    endCursor,
+    searchAuthors,
+    selectedRepos,
+    query,
+    loadingMore,
+    isMultiMode,
+    keepPRs,
+  ]);
 
   // Refresh handlers
   const refreshPRs = useCallback(() => {
@@ -364,6 +390,8 @@ export function useOrgPRSearch({
     setAuthors,
     selectedRepos,
     setSelectedRepos,
+    query,
+    setQuery,
     members,
     membersLoading,
     teams,

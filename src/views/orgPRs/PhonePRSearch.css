@@ -1,13 +1,8 @@
-/* PR search on a phone: a title, Open / Merged, the filter chips, then cards. */
+/* PR search on a phone: the search box, Open / Merged, the filter chips, then cards. */
 .phone-pr-search {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-.phone-pr-search__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
 }
 /* One row: the filter chips on the left, Open / Merged on the right. On a
    narrow screen the chips' labels truncate; the tabs never shrink. */

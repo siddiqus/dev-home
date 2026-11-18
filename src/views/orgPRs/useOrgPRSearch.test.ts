@@ -97,7 +97,7 @@ describe("useOrgPRSearch", () => {
     const { result } = render();
     act(() => result.current.setAuthors(["shunjid"]));
     await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
-    expect(fetchOrgPRs).toHaveBeenCalledWith(undefined, "shunjid", undefined);
+    expect(fetchOrgPRs).toHaveBeenCalledWith(undefined, "shunjid", undefined, "");
     expect(result.current.hasNextPage).toBe(true);
 
     vi.mocked(fetchOrgPRs).mockResolvedValueOnce({
@@ -105,7 +105,7 @@ describe("useOrgPRSearch", () => {
       pageInfo: { hasNextPage: false, endCursor: null },
     });
     await act(() => result.current.fetchNextPage());
-    expect(fetchOrgPRs).toHaveBeenLastCalledWith("c1", "shunjid", undefined);
+    expect(fetchOrgPRs).toHaveBeenLastCalledWith("c1", "shunjid", undefined, "");
     expect(result.current.prs).toEqual([pr(1), pr(2)]);
     expect(result.current.hasNextPage).toBe(false);
   });
@@ -114,7 +114,7 @@ describe("useOrgPRSearch", () => {
     const { result } = render();
     act(() => result.current.setAuthors(["a", "b"]));
     await waitFor(() => expect(result.current.prs).toEqual([pr(5), pr(6)]));
-    expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], []);
+    expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], [], "");
     expect(result.current.isMultiMode).toBe(true);
     expect(result.current.hasNextPage).toBe(false);
   });
@@ -123,7 +123,10 @@ describe("useOrgPRSearch", () => {
     const { result } = render();
     act(() => result.current.setSelectedRepos(["acme/web"]));
     await waitFor(() => expect(result.current.mergedPRs).toEqual([pr(9)]));
-    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", [], ["acme/web"], { force: false });
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", [], ["acme/web"], {
+      force: false,
+      text: "",
+    });
   });
 
   it("reloads open and merged PRs when refreshKey changes", async () => {
@@ -136,7 +139,10 @@ describe("useOrgPRSearch", () => {
     rerender({ refreshKey: 1 });
 
     await waitFor(() => expect(fetchOrgPRs).toHaveBeenCalledTimes(1));
-    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", ["shunjid"], [], { force: true });
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", ["shunjid"], [], {
+      force: true,
+      text: "",
+    });
   });
 
   it("remembers whether Open or Merged was picked", () => {
@@ -153,13 +159,13 @@ describe("useOrgPRSearch", () => {
     act(() => result.current.setAuthors(["team:web", "me", "shunjid"]));
     await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalled());
     // Repeats (any case) dropped; first appearance kept.
-    expect(fetchOrgPRsMulti).toHaveBeenLastCalledWith(["shunjid", "tashfia", "Me"], []);
+    expect(fetchOrgPRsMulti).toHaveBeenLastCalledWith(["shunjid", "tashfia", "Me"], [], "");
     await waitFor(() =>
       expect(fetchRecentlyMergedPRs).toHaveBeenLastCalledWith(
         "org",
         ["shunjid", "tashfia", "Me"],
         [],
-        { force: false },
+        { force: false, text: "" },
       ),
     );
     expect(result.current.isMultiMode).toBe(true);
@@ -175,7 +181,61 @@ describe("useOrgPRSearch", () => {
     expect(fetchOrgPRs).not.toHaveBeenCalled();
 
     await act(async () => resolveTeams([{ slug: "web", name: "Web", members: ["a", "b"] }]));
-    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], []));
+    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], [], ""));
+  });
+
+  it("searches the whole org by text alone, open and any-time merged, and pages by it", async () => {
+    const { result } = render();
+    act(() => result.current.setQuery("  token refresh "));
+    expect(result.current.query).toBe("token refresh");
+    await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
+    expect(fetchOrgPRs).toHaveBeenCalledWith(undefined, undefined, undefined, "token refresh");
+    await waitFor(() => expect(result.current.mergedPRs).toEqual([pr(9)]));
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", [], [], {
+      force: false,
+      text: "token refresh",
+    });
+
+    await act(() => result.current.fetchNextPage());
+    expect(fetchOrgPRs).toHaveBeenLastCalledWith("c1", undefined, undefined, "token refresh");
+  });
+
+  it("narrows picked authors by the text", async () => {
+    const { result } = render();
+    act(() => result.current.setAuthors(["a", "b"]));
+    await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledTimes(1));
+    act(() => result.current.setQuery("label:bug"));
+    await waitFor(() =>
+      expect(fetchOrgPRsMulti).toHaveBeenLastCalledWith(["a", "b"], [], "label:bug"),
+    );
+  });
+
+  it("goes back to nothing once the text is cleared with nothing picked", async () => {
+    const { result } = render();
+    act(() => result.current.setQuery("token"));
+    await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
+    act(() => result.current.setQuery(""));
+    await waitFor(() => expect(result.current.prs).toEqual([]));
+    expect(result.current.mergedPRs).toEqual([]);
+    expect(fetchOrgPRs).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't keep results found by text for the next visit", async () => {
+    const { result, unmount } = render();
+    act(() => result.current.setAuthors(["shunjid"]));
+    await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
+    vi.mocked(fetchOrgPRs).mockResolvedValue({
+      prs: [pr(3)],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
+    act(() => result.current.setQuery("token"));
+    await waitFor(() => expect(result.current.prs).toEqual([pr(3)]));
+    unmount();
+
+    const next = render();
+    expect(next.result.current.query).toBe("");
+    expect(next.result.current.authors).toEqual(["shunjid"]);
+    expect(next.result.current.prs).toEqual([pr(1)]);
   });
 
   it("searches nothing for a team with no one in it, rather than the whole org", async () => {

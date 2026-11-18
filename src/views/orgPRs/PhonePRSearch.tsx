@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconChevronDown, IconFilter } from "@tabler/icons-react";
+import { IconChevronDown, IconFilter, IconSearch } from "@tabler/icons-react";
 import type { GitHubPR } from "../../types";
 import { EmptyState } from "../../components/EmptyState";
 import { PRDetailModal } from "../../components/PRDetailModal";
@@ -11,6 +11,7 @@ import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { CopyPRLinkContext } from "../workday/CompactRow";
 import { DeckPRRow } from "../workday/DeckPRRow";
 import { PhoneFilterSheet } from "./PhoneFilterSheet";
+import { noMatches, PRSearchBox } from "./PRSearchBox";
 import { searchPR } from "./searchPR";
 import { useOrgPRSearch } from "./useOrgPRSearch";
 import { authorItems } from "./authorItems";
@@ -38,16 +39,18 @@ function picksLabel(values: string[], none: string, noun: string, name = (v: str
 }
 
 /**
- * PR search on a phone: All PRs' search (authors and repos, open or recently
- * merged) with results as Workday PR cards, the author always shown. No saved
- * filters: they aren't synced across devices.
+ * PR search on a phone: All PRs' search (free text or a pasted PR link, authors
+ * and repos, open or recently merged) with results as Workday PR cards, the
+ * author always shown. The search box is the page's header. No saved filters:
+ * they aren't synced across devices.
  */
 export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingChange }: Props) {
   const search = useOrgPRSearch({ configured, refreshKey });
-  const { authors, selectedRepos, subTab, members, teams, orgRepos } = search;
+  const { authors, selectedRepos, query, subTab, members, teams, orgRepos } = search;
   const [sheet, setSheet] = useState<"authors" | "repos" | null>(null);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
   const { onCopyLink, toast } = usePRCopyActions();
+  const showToast = toast.show;
   const now = new Date();
 
   const merged = subTab === "merged";
@@ -55,7 +58,8 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
   const loading = merged ? search.mergedPRsLoading : search.loading;
   useEffect(() => onLoadingChange?.(loading), [loading, onLoadingChange]);
 
-  const picked = authors.length > 0 || selectedRepos.length > 0;
+  const picked = authors.length > 0 || selectedRepos.length > 0 || !!query;
+  const listed = merged ? (query ? "merged" : "recently merged") : "recent";
   const repoName = (fullName: string) => fullName.split("/").pop() ?? fullName;
   const authorsLabel =
     teamPicksLabel(authors, teams) ??
@@ -77,7 +81,14 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
   return (
     <CopyPRLinkContext.Provider value={onCopyLink}>
       <div className="phone-pr-search">
-        <h1 className="phone-pr-search__title">PR search</h1>
+        <h1 className="visually-hidden">PR search</h1>
+        <PRSearchBox
+          query={query}
+          onSearch={search.setQuery}
+          onOpenPR={setSelectedPR}
+          onLinkError={(message) => showToast(message, { tone: "danger" })}
+          busy={loading && !!query}
+        />
         <div className="phone-pr-search__toolbar">
           <div className="phone-pr-search__chips">
             {chip("authors", "Authors", authorsLabel, authors.length > 0)}
@@ -97,9 +108,11 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
         {!picked ? (
           <EmptyState
             icon={<IconFilter size={28} stroke={1.4} />}
-            title="Pick authors or repos to search"
-            description="Tap Anyone or All repos above."
+            title="Search, or pick a filter"
+            description="Type and tap Search, paste a PR link, or tap Anyone / All repos."
           />
+        ) : query && !loading && list.length === 0 ? (
+          <EmptyState icon={<IconSearch size={28} stroke={1.4} />} {...noMatches(query, merged)} />
         ) : (
           <>
             <div className="phone-pr-search__count">
@@ -107,7 +120,8 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
                 <Spinner animation="border" size="sm" variant="secondary" />
               ) : (
                 // "Showing", since the search returns the most recent page, not every match.
-                `Showing ${list.length} ${merged ? "recently merged" : "recent"} ${list.length === 1 ? "PR" : "PRs"}`
+                `Showing ${list.length} ${listed} ${list.length === 1 ? "PR" : "PRs"}` +
+                (query ? ` matching "${query}"` : "")
               )}
             </div>
             <div
@@ -175,7 +189,7 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
           onHide={() => setSelectedPR(null)}
           jiraBaseUrl={jiraBaseUrl}
         />
-        <Toast message={toast.message} visible={toast.visible} />
+        <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
       </div>
     </CopyPRLinkContext.Provider>
   );

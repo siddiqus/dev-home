@@ -123,11 +123,13 @@ export async function fetchOrgPRs(
   cursor?: string,
   author?: string,
   repo?: string,
+  text?: string,
 ): Promise<OrgPRsPage> {
-  const params: { cursor?: string; authors?: string[]; repos?: string[] } = {};
+  const params: { cursor?: string; authors?: string[]; repos?: string[]; text?: string } = {};
   if (cursor) params.cursor = cursor;
   if (author) params.authors = [author];
   if (repo) params.repos = [repo];
+  if (text) params.text = text;
   const data = await getOrgPrs(params);
   return data;
 }
@@ -138,24 +140,30 @@ export async function fetchOrgPRs(
  * One search covers every combination (GitHub ORs repeated qualifiers), sorted
  * newest-updated first by the query itself.
  */
-export async function fetchOrgPRsMulti(authors: string[], repos: string[]): Promise<GitHubPR[]> {
-  const data = await getOrgPrs({ authors, repos });
+export async function fetchOrgPRsMulti(
+  authors: string[],
+  repos: string[],
+  text?: string,
+): Promise<GitHubPR[]> {
+  const data = await getOrgPrs({ authors, repos, text });
   return data.prs;
 }
 
 /**
- * Recently merged PRs (last 3 days); one search for any number of authors/repos.
- * Cached briefly per filter so remounting a view doesn't re-search.
+ * Recently merged PRs (last 3 days, or any time with free `text`); one search
+ * for any number of authors/repos. Cached briefly per filter so remounting a
+ * view doesn't re-search.
  */
 export async function fetchRecentlyMergedPRs(
   scope: "user" | "org",
   authors?: string[],
   repos?: string[],
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; text?: string } = {},
 ): Promise<GitHubPR[]> {
-  const key = `merged:${JSON.stringify([scope, [...(authors ?? [])].sort(), [...(repos ?? [])].sort()])}`;
+  const text = opts.text?.trim() || undefined;
+  const key = `merged:${JSON.stringify([scope, [...(authors ?? [])].sort(), [...(repos ?? [])].sort(), text])}`;
   return cached(key, MERGED_TTL_MS, !!opts.force, async () => {
-    const data = await getMergedPrs({ scope, authors, repos });
+    const data = await getMergedPrs({ scope, authors, repos, text });
     return data.prs;
   });
 }

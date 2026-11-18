@@ -1,11 +1,16 @@
-import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
+import { act, cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import { ViewerLoginContext } from "../../context/ViewerLoginContext";
+import { fetchPR } from "../../services/github";
 import { useOrgPRSearch } from "./useOrgPRSearch";
 import { PhonePRSearch } from "./PhonePRSearch";
 
 vi.mock("./useOrgPRSearch", () => ({ useOrgPRSearch: vi.fn() }));
+vi.mock("../../services/github", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/github")>()),
+  fetchPR: vi.fn(),
+}));
 vi.mock("../../utils/commentCounts", () => ({ commentCounts: () => null }));
 vi.mock("../../services/commentsRead", () => ({ useCommentsReadAt: () => null }));
 vi.mock("../../components/PRDetailModal", () => ({
@@ -62,6 +67,8 @@ function search(over: Partial<Search> = {}): Search {
     setAuthors: vi.fn(),
     selectedRepos: [],
     setSelectedRepos: vi.fn(),
+    query: "",
+    setQuery: vi.fn(),
     members: [
       { login: "shunjid", name: "Shunjid Rahman", avatar_url: "" },
       { login: "tashfia", name: null, avatar_url: "" },
@@ -95,10 +102,13 @@ function renderPage(s: Search, onLoadingChange = vi.fn()) {
 beforeEach(() => vi.mocked(useOrgPRSearch).mockReset());
 
 describe("PhonePRSearch", () => {
-  it("asks for authors or repos until one is picked", () => {
+  it("asks for a search or a pick until there is one", () => {
     renderPage(search());
     expect(screen.getByRole("heading", { name: "PR search" })).toBeInTheDocument();
-    expect(screen.getByText("Pick authors or repos to search")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Search PRs or paste a link…" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Search, or pick a filter")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Authors: Anyone" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Repos: All repos" })).toBeInTheDocument();
   });
@@ -234,6 +244,44 @@ describe("PhonePRSearch", () => {
     renderPage(search({ authors: ["shunjid"], prs: [pr(1, "shunjid")] }));
     fireEvent.click(screen.getByText("WMU-1 Change 1"));
     expect(screen.getByRole("dialog")).toHaveTextContent("PR modal: WMU-1 Change 1");
+  });
+
+  it("searches the text typed in the box", () => {
+    const s = search();
+    renderPage(s);
+    const box = screen.getByRole("textbox", { name: "Search PRs or paste a link…" });
+    fireEvent.change(box, { target: { value: "token refresh" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(s.setQuery).toHaveBeenCalledWith("token refresh");
+  });
+
+  it("lists text results with what they match, and says when nothing does", () => {
+    renderPage(search({ query: "token", prs: [pr(1, "shunjid")] }));
+    expect(screen.getByText('Showing 1 recent PR matching "token"')).toBeInTheDocument();
+    cleanup();
+    renderPage(search({ query: "token", subTab: "merged", mergedPRs: [pr(2, "tashfia")] }));
+    expect(screen.getByText('Showing 1 merged PR matching "token"')).toBeInTheDocument();
+    cleanup();
+    renderPage(search({ query: "tokn" }));
+    expect(screen.getByText('No open PRs match "tokn"')).toBeInTheDocument();
+    expect(screen.getByText("Try Merged, or clear the box.")).toBeInTheDocument();
+  });
+
+  it("opens a pasted PR link in the PR modal, or says it couldn't", async () => {
+    vi.mocked(fetchPR).mockResolvedValueOnce(pr(7, "tashfia"));
+    renderPage(search());
+    const box = screen.getByRole("textbox", { name: "Search PRs or paste a link…" });
+    fireEvent.paste(box);
+    fireEvent.change(box, { target: { value: "https://github.com/acme/cmp-server/pull/7" } });
+    await act(async () => {});
+    expect(fetchPR).toHaveBeenCalledWith("acme", "cmp-server", 7);
+    expect(screen.getByRole("dialog")).toHaveTextContent("PR modal: WMU-7 Change 7");
+
+    vi.mocked(fetchPR).mockRejectedValueOnce(new Error("Not Found"));
+    fireEvent.paste(box);
+    fireEvent.change(box, { target: { value: "acme/cmp-server#9" } });
+    await act(async () => {});
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load acme/cmp-server#9");
   });
 
   it("tells the app when it's loading, for the pull-to-refresh spinner", () => {

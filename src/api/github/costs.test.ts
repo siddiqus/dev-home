@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { httpMock, useFetchAdapter } from "../../test/fetchAdapter";
 import { SETTINGS_EVENT, saveSettings, type AppSettings } from "../../services/config";
-import { clearListCache, fetchOrgPRsMulti, fetchRecentlyMergedPRs } from "../../services/github";
+import {
+  clearListCache,
+  fetchOrgPRs,
+  fetchOrgPRsMulti,
+  fetchRecentlyMergedPRs,
+} from "../../services/github";
 import {
   buildMergedPrsQuery,
   buildOrgPrsQuery,
@@ -712,5 +717,28 @@ describe("multi-author / multi-repo PR searches", () => {
   it("getMergedPrs keeps first: 20 for a single author and repo", async () => {
     await getMergedPrs({ scope: "org", authors: ["alice"], repos: ["test-org/app"] });
     expect(graphqlBodies()[0].variables.first).toBe(20);
+  });
+  it("adds PR search's free text to the open search, paged by 10 when it's the only filter", async () => {
+    await fetchOrgPRs(undefined, undefined, undefined, "  label:bug token refresh ");
+    const [body] = graphqlBodies();
+    expect(body.variables.query).toBe(
+      "org:test-org type:pr state:open draft:false sort:updated-desc label:bug token refresh",
+    );
+    expect(body.variables.first).toBe(10);
+  });
+
+  it("searches every merged PR with free text, up to 50, and caches per text", async () => {
+    await fetchRecentlyMergedPRs("org", ["alice"], [], { text: "token refresh" });
+    const [body] = graphqlBodies();
+    expect(body.variables.query).toBe(
+      "type:pr is:merged org:test-org author:alice token refresh sort:updated-desc",
+    );
+    expect(body.variables.first).toBe(50);
+
+    await fetchRecentlyMergedPRs("org", ["alice"], [], { text: "token refresh" });
+    expect(adapter).toHaveBeenCalledTimes(1);
+    await fetchRecentlyMergedPRs("org", ["alice"], []);
+    expect(adapter).toHaveBeenCalledTimes(2);
+    expect(graphqlBodies()[1].variables.query).toContain("merged:>=");
   });
 });
