@@ -634,19 +634,19 @@ export function WorkdayView(props: WorkdayViewProps) {
   // Opening a PR (⏎ or a click) marks it seen immediately (spec §5.8).
   const openPR = useCallback(
     (pr: GitHubPR) => {
-      markSeen({ [pr.html_url]: pr.updated_at });
+      markSeen({ [pr.html_url]: pr.updated_at }, stamp());
       setSelectedPR(pr);
     },
-    [markSeen],
+    [markSeen, stamp],
   );
   // The modal shows the refreshed PR, and it stays seen since it's being looked at.
   const onModalPRRefreshed = useCallback(
     (fresh: GitHubPR) => {
       onPRRefreshed?.(fresh);
-      markSeen({ [fresh.html_url]: fresh.updated_at });
+      markSeen({ [fresh.html_url]: fresh.updated_at }, stamp());
       setSelectedPR((cur) => (cur?.html_url === fresh.html_url ? fresh : cur));
     },
-    [onPRRefreshed, markSeen],
+    [onPRRefreshed, markSeen, stamp],
   );
 
   // Dwell: after 1.5s on a card, every PR on it is seen at its updated_at, and a
@@ -658,8 +658,9 @@ export function WorkdayView(props: WorkdayViewProps) {
     if (!selectedTicket) return;
     const entries: Record<string, string> = {};
     for (const p of selectedTicket.prs) entries[p.pr.html_url] = p.pr.updated_at;
-    if (selectedTicket.key) entries[ticketPin(selectedTicket.key)] = stamp().toISOString();
-    markSeen(entries);
+    const at = stamp();
+    if (selectedTicket.key) entries[ticketPin(selectedTicket.key)] = at.toISOString();
+    markSeen(entries, at);
   };
   const onDwell = useCallback(() => seenRef.current(), []);
   // Merged tabs aren't seen-tracked (and their key's Jira mentions belong to the open tab).

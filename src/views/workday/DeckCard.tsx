@@ -143,7 +143,17 @@ export function DeckCard({
             )}
             {ticket.ticket?.offSprint && <OffSprintPill />}
             {/* Freshness fills the key line's empty right side. */}
-            {meta && <span className="deck-card-meta">{meta}</span>}
+            {meta && (
+              <span
+                className={
+                  prs.some((p) => p.unseen)
+                    ? "deck-card-meta deck-card-meta--new"
+                    : "deck-card-meta"
+                }
+              >
+                {meta}
+              </span>
+            )}
           </div>
         )}
         <h3 className="deck-card-title">{ticket.title}</h3>

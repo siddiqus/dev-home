@@ -62,6 +62,7 @@ function item(p: Partial<GitHubPR>, signals: Signal[]): DeckPR {
     note: null,
     current: false,
     unseen: false,
+    seenOn: null,
   };
 }
 
@@ -260,5 +261,43 @@ describe("DeckPRRow open-on-GitHub icon", () => {
     onPhone(true);
     renderRow(item({}, []));
     expect(screen.queryByRole("link", { name: "Open r#7 on GitHub" })).toBeNull();
+  });
+});
+
+describe("DeckPRRow age", () => {
+  const age = (container: HTMLElement) => container.querySelector(".deck-pr-age")!;
+  const local = (iso: string) => new Date(iso).toLocaleString();
+
+  it("reads as an update, in the accent, while I haven't caught up", () => {
+    const { container } = renderRow({ ...item({}, []), unseen: true });
+    expect(age(container)).toHaveTextContent("updated 2h ago");
+    expect(age(container)).toHaveClass("deck-pr-age--new");
+  });
+
+  it("is a plain muted age once seen, with when I saw it in the tooltip", () => {
+    const { container } = renderRow({ ...item({}, []), seenOn: "2026-10-14T11:30:00Z" });
+    expect(age(container)).toHaveTextContent(/^2h ago$/);
+    expect(age(container)).not.toHaveClass("deck-pr-age--new");
+    expect(age(container)).toHaveAttribute(
+      "title",
+      `Updated ${local("2026-10-14T10:00:00Z")} · seen ${local("2026-10-14T11:30:00Z")}`,
+    );
+  });
+
+  it("says last seen when it changed after I looked", () => {
+    const { container } = renderRow({
+      ...item({}, []),
+      unseen: true,
+      seenOn: "2026-10-14T09:00:00Z",
+    });
+    expect(age(container)).toHaveAttribute(
+      "title",
+      `Updated ${local("2026-10-14T10:00:00Z")} · last seen ${local("2026-10-14T09:00:00Z")}`,
+    );
+  });
+
+  it("leaves the seen time out when it was never recorded", () => {
+    const { container } = renderRow(item({}, []));
+    expect(age(container)).toHaveAttribute("title", `Updated ${local("2026-10-14T10:00:00Z")}`);
   });
 });

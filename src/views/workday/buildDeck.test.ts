@@ -619,6 +619,13 @@ describe("buildDeck seen state", () => {
     expect(deck.counts.unseen).toBe(2);
   });
 
+  it("carries when I caught up to each PR, null when never recorded", () => {
+    const state = { ...seenAll([a, b]), seenOn: { [a.html_url]: "2026-10-12T09:00:00.000Z" } };
+    const deck = build({ openPRs: [a, b] }, state);
+    expect(byId(deck.open, "CCP-1").prs[0].seenOn).toBe("2026-10-12T09:00:00.000Z");
+    expect(byId(deck.open, "CCP-2").prs[0].seenOn).toBeNull();
+  });
+
   it("quotes the newest GitHub mention on the PR created after seen", () => {
     const touched = { ...a, updated_at: "2026-10-13T10:00:00Z" };
     const deck = build(

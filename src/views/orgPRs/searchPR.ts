@@ -20,5 +20,6 @@ export function searchPR(pr: GitHubPR, now: Date): DeckPR {
     note: null,
     current: false,
     unseen: false,
+    seenOn: null,
   };
 }

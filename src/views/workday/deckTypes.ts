@@ -43,6 +43,8 @@ export interface DeckPR {
   note: Note | null;
   current: boolean;
   unseen: boolean;
+  /** When I caught up to this PR (wall clock), or null if never recorded. */
+  seenOn: string | null;
 }
 
 /** A ticket tab on the deck. */

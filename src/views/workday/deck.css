@@ -916,6 +916,12 @@ button.deck-pr-group-toggle:focus-visible {
   }
 }
 
+/* An age that's news to me: the unseen dot's colour. */
+.deck-pr-age--new,
+.deck-card-meta--new {
+  color: var(--color-status-info);
+}
+
 /* Updated age and the unseen dot sit at the right end of the meta line. */
 .deck-pr-when {
   display: inline-flex;

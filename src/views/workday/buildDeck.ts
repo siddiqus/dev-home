@@ -24,6 +24,8 @@ export interface DeckState {
   currentTickets: string[];
   /** PR url → `updated_at` as of my last look. */
   seen: Record<string, string>;
+  /** Seen id → when that `seen` entry was recorded. */
+  seenOn: Record<string, string>;
   /** Ticket id → closed-at time. */
   closed: Record<string, string>;
   selected: string | null;
@@ -35,6 +37,7 @@ export const EMPTY_DECK_STATE: DeckState = {
   current: [],
   currentTickets: [],
   seen: {},
+  seenOn: {},
   closed: {},
   selected: null,
   seeded: false,
@@ -95,6 +98,7 @@ interface BuildContext {
   current: Set<string>;
   /** Seen time (ms) for a `seen` id; +Infinity on the first run, so everything counts as seen. */
   seenAt: (id: string) => number;
+  seenOn: (id: string) => string | null;
   /** GitHub mentions per PR, keyed by `prRef`. */
   ghMentions: Map<string, GitHubComment[]>;
   /** Jira mentions per upper-cased ticket key. */
@@ -144,6 +148,7 @@ function deckPR(c: Collected, ctx: BuildContext, now: Date): DeckPR {
     current: ctx.current.has(prPin(c.pr)),
     // A missing `seen` entry reads as 0, so a newly arrived PR starts unseen.
     unseen: time(c.pr.updated_at) > seenAt,
+    seenOn: ctx.seenOn(c.pr.html_url),
   };
 }
 
@@ -296,6 +301,7 @@ function mergedDeckPR(pr: GitHubPR, ctx: BuildContext, now: Date): DeckPR {
     note: newest(ctx.prNotes.get(prNoteKey(pr)) ?? [], (n) => n.created_at),
     current: false,
     unseen: false,
+    seenOn: null,
   };
 }
 
@@ -441,6 +447,7 @@ export function buildDeck(
   const ctx: BuildContext = {
     current: new Set(state.current),
     seenAt: (id) => (seeding ? Infinity : time(state.seen[id])),
+    seenOn: (id) => state.seenOn[id] ?? null,
     ghMentions,
     jiraMentions,
     newComments: new Map(),

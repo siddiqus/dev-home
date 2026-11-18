@@ -45,6 +45,7 @@ function sanitize(raw: Record<string, unknown>): PersistedDeckState {
     current: stringsOf(raw.current) ?? d.current,
     currentTickets: stringsOf(raw.currentTickets) ?? d.currentTickets,
     seen: recordOf(raw.seen, isString) ?? d.seen,
+    seenOn: recordOf(raw.seenOn, isString) ?? d.seenOn,
     closed: recordOf(raw.closed, isString) ?? d.closed,
     selected: isString(raw.selected) ? raw.selected : d.selected,
     seeded: typeof raw.seeded === "boolean" ? raw.seeded : d.seeded,
@@ -99,6 +100,7 @@ export function useDeckState() {
       current: internalState.current,
       currentTickets: internalState.currentTickets,
       seen: internalState.seen,
+      seenOn: internalState.seenOn,
       closed: internalState.closed,
       selected: internalState.selected,
       seeded: internalState.seeded,
@@ -144,19 +146,21 @@ export function useDeckState() {
     });
   }, []);
 
-  const markSeen = useCallback((entries: Record<string, string>) => {
+  const markSeen = useCallback((entries: Record<string, string>, at: Date = new Date()) => {
     setInternalState((prev) => {
       const newSeen = { ...prev.seen };
+      const newSeenOn = { ...prev.seenOn };
       let changed = false;
       for (const [id, iso] of Object.entries(entries)) {
         const existing = newSeen[id];
         // Monotonic: never move backwards
         if (!existing || iso > existing) {
           newSeen[id] = iso;
+          newSeenOn[id] = at.toISOString();
           changed = true;
         }
       }
-      return changed ? { ...prev, seen: newSeen } : prev;
+      return changed ? { ...prev, seen: newSeen, seenOn: newSeenOn } : prev;
     });
   }, []);
 
@@ -165,7 +169,9 @@ export function useDeckState() {
       if (!(prUrl in prev.seen)) return prev;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [prUrl]: _removed, ...newSeen } = prev.seen;
-      return { ...prev, seen: newSeen };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [prUrl]: _removedOn, ...newSeenOn } = prev.seenOn;
+      return { ...prev, seen: newSeen, seenOn: newSeenOn };
     });
   }, []);
 
@@ -299,15 +305,17 @@ export function useDeckState() {
         if (presentSeen) {
           const seenSet = new Set(presentSeen);
           const newSeen = { ...next.seen };
+          const newSeenOn = { ...next.seenOn };
           let seenChanged = false;
           for (const id in newSeen) {
             if (!seenSet.has(id) && new Date(newSeen[id]).getTime() < cutoff) {
               delete newSeen[id];
+              delete newSeenOn[id];
               seenChanged = true;
             }
           }
           if (seenChanged) {
-            next = { ...next, seen: newSeen };
+            next = { ...next, seen: newSeen, seenOn: newSeenOn };
             changed = true;
           }
         }

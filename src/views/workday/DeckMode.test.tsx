@@ -51,6 +51,7 @@ function deckPR(n: number, o: Partial<DeckPR> = {}, p: Partial<GitHubPR> = {}): 
     note: null,
     current: false,
     unseen: false,
+    seenOn: null,
     ...o,
   };
 }
@@ -395,6 +396,20 @@ describe("DeckMode card", () => {
     for (const l of ["A", "B", "C", "D"]) expect(within(theirs).getByText(l)).toBeTruthy();
     expect(within(theirs).queryByText("E")).toBeNull();
     expect(within(theirs).getByText("+2")).toHaveAttribute("title", "E, F");
+  });
+
+  it("tints the header's updated age while a PR on the card is unseen", () => {
+    const meta = (t: DeckTicket) => {
+      cleanup();
+      renderDeck({ deck: deck({ open: [t] }) });
+      return screen.getByText("updated 2h");
+    };
+    expect(meta(ticket("CCP-1", { prs: [deckPR(7), deckPR(8, { unseen: true })] }))).toHaveClass(
+      "deck-card-meta--new",
+    );
+    expect(meta(ticket("CCP-1", { prs: [deckPR(7), deckPR(8)] }))).not.toHaveClass(
+      "deck-card-meta--new",
+    );
   });
 
   it("splits a card with mine and theirs into Yours and To review groups", () => {

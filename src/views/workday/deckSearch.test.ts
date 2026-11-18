@@ -40,6 +40,7 @@ function ticket(id: string, prs: GitHubPR[], o: Partial<DeckTicket> = {}): DeckT
       note: null,
       current: false,
       unseen: false,
+      seenOn: null,
     })),
     stripe: "neutral",
     status: "Open",

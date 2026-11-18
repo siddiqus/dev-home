@@ -16,6 +16,7 @@ describe("useDeckState persistence", () => {
       current: [],
       currentTickets: [],
       seen: {},
+      seenOn: {},
       closed: {},
       selected: null,
       seeded: false,
@@ -85,6 +86,7 @@ describe("useDeckState persistence", () => {
       current: [],
       currentTickets: [],
       seen: { a: "2026-10-01T00:00:00Z" },
+      seenOn: {},
       closed: {},
       selected: "CCP-1",
       seeded: false,
@@ -198,6 +200,56 @@ describe("useDeckState markSeen", () => {
       url1: "2026-10-14T10:00:00Z",
       url2: "2026-10-14T11:00:00Z",
     });
+  });
+});
+
+describe("useDeckState seenOn", () => {
+  const url = "https://github.com/o/repo/pull/1";
+
+  it("records when I caught up to a PR's version, kept until it changes again", () => {
+    const { result } = renderHook(() => useDeckState());
+    act(() =>
+      result.current.markSeen({ [url]: "2026-10-14T10:00:00Z" }, new Date("2026-10-14T11:00:00Z")),
+    );
+    act(() =>
+      result.current.markSeen({ [url]: "2026-10-14T10:00:00Z" }, new Date("2026-10-14T12:00:00Z")),
+    );
+    expect(result.current.state.seenOn[url]).toBe("2026-10-14T11:00:00.000Z");
+    act(() =>
+      result.current.markSeen({ [url]: "2026-10-14T13:00:00Z" }, new Date("2026-10-14T14:00:00Z")),
+    );
+    expect(result.current.state.seenOn[url]).toBe("2026-10-14T14:00:00.000Z");
+  });
+
+  it("is dropped with its seen entry by markUnread", () => {
+    const { result } = renderHook(() => useDeckState());
+    act(() => {
+      result.current.markSeen({ [url]: "2026-10-14T10:00:00Z" }, new Date("2026-10-14T11:00:00Z"));
+      result.current.markUnread(url);
+    });
+    expect(result.current.state.seenOn).toEqual({});
+  });
+
+  it("is pruned with its seen entry", () => {
+    localStorage.setItem(
+      DECK_STATE_KEY,
+      JSON.stringify({
+        v: 1,
+        seen: {
+          "https://gh/gone": "2026-08-01T00:00:00Z",
+          "https://gh/kept": "2026-08-01T00:00:00Z",
+        },
+        seenOn: {
+          "https://gh/gone": "2026-08-01T00:00:00Z",
+          "https://gh/kept": "2026-08-01T00:00:00Z",
+        },
+      }),
+    );
+    const { result } = renderHook(() => useDeckState());
+    act(() => {
+      result.current.applyUpdates({}, [], new Date("2026-10-14T12:00:00Z"), ["https://gh/kept"]);
+    });
+    expect(result.current.state.seenOn).toEqual({ "https://gh/kept": "2026-08-01T00:00:00Z" });
   });
 });
 

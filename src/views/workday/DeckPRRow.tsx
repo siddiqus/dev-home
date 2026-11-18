@@ -29,6 +29,12 @@ export interface DeckPRRowProps {
   alwaysShowAuthor?: boolean;
 }
 
+function ageTitle({ pr, unseen, seenOn }: DeckPR): string {
+  const updated = `Updated ${new Date(pr.updated_at).toLocaleString()}`;
+  if (!seenOn) return updated;
+  return `${updated} · ${unseen ? "last seen" : "seen"} ${new Date(seenOn).toLocaleString()}`;
+}
+
 /**
  * One PR on the card (spec §5.4): a muted meta line with the author's avatar
  * and login (unless it's me) · repo#number, copy-link / open-on-GitHub icons, +additions −deletions · reviewers /
@@ -106,9 +112,10 @@ export function DeckPRRow({
           <span className="deck-pr-when">
             {item.current && <span className="deck-pr-current">▶ current</span>}
             <span
-              className="deck-pr-age"
-              title={`Updated ${new Date(pr.updated_at).toLocaleString()}`}
+              className={item.unseen ? "deck-pr-age deck-pr-age--new" : "deck-pr-age"}
+              title={ageTitle(item)}
             >
+              {item.unseen && "updated "}
               {age === "now" ? "just now" : `${age} ago`}
             </span>
             {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
