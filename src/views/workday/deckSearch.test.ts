@@ -405,6 +405,26 @@ describe("searchDeck", () => {
       expect(results[0].ticketId).toBeNull();
     });
 
+    it("finds a PR by a ticket key its title names after the key it is grouped under", () => {
+      const d = deck({ open: [ticket("CCP-1", [pr(7, { title: "CCP-1 CCP-88: Scope reads" })])] });
+      const results = searchDeck("ccp-88", d);
+      expect(results).toHaveLength(1);
+      expect(results[0].external).toBeUndefined();
+      expect(results[0].pr?.number).toBe(7);
+      expect(results[0].ticketId).toBe("CCP-1");
+    });
+
+    it("matches a ticket key query as text, never as a subsequence", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [pr(7, { title: "CCP-1 CCP-80: Scope reads" })]),
+          ticket("CCP-830", [pr(8, { title: "CCP-830: Disable animations" })]),
+          ticket("CCP-468", [pr(9, { title: "CCP-468: filter; 400 for invalid" })]),
+        ],
+      });
+      expect(searchDeck("ccp-80", d).map((r) => r.pr?.number)).toEqual([7]);
+    });
+
     it("does not add an external result if the link is in the deck", () => {
       const d = deck({ open: [ticket("CCP-1", [pr(1234)])] });
       const results = searchDeck("https://github.com/owner/repo/pull/1234", d);

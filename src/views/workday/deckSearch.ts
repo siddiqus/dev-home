@@ -2,7 +2,7 @@ import type { GitHubPR } from "../../types";
 import type { DeckData, DeckTicket } from "./deckTypes";
 import { normalizeNoteRef } from "../../utils/prNotes";
 import { repoRef } from "./prState";
-import { TICKET_KEY_REGEX } from "../../../shared/tickets";
+import { TICKET_KEY_REGEX, ticketKeysIn } from "../../../shared/tickets";
 import { hasTag, noteText } from "../../utils/noteTags";
 import type { Note } from "../../types";
 
@@ -11,6 +11,8 @@ const KEY = TICKET_KEY_REGEX.source.replace(/\\b/g, "");
 const BROWSE_RE = new RegExp(`/browse/${KEY}`, "i");
 const SELECTED_ISSUE_RE = new RegExp(`[?&]selectedIssue=${KEY}`, "i");
 const BARE_KEY_RE = new RegExp(`^${KEY}$`, "i");
+/** A searched key named in a PR's title (`AC-65 AC-88: …`): below the key's own tab, above any fuzzy match. */
+const TITLE_NAMES_KEY = 1_000_000;
 
 export type LinkTarget =
   | { kind: "pr"; repo: string; number: number; url: string }
@@ -155,6 +157,7 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
 
   // Check if the query is a link
   const linkTarget = parseLink(trimmed);
+  const subsequence = linkTarget?.kind !== "ticket";
 
   // Collect all searchable items
   const allTickets = [...deck.current, ...deck.open, ...deck.closed];
@@ -182,7 +185,7 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     const ticketScore = ticketLinked
       ? Infinity
       : Math.max(
-          fuzzyMatch(trimmed, [ticket.key ?? "", ticket.title]),
+          fuzzyMatch(trimmed, [ticket.key ?? "", ticket.title], subsequence),
           notesMatch(trimmed, tabNotes(ticket)),
         );
 
@@ -196,13 +199,17 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
       const prNumberScore = numberMatch(trimmed, pr);
 
       // Other PR fields
-      const prOtherScore = fuzzyMatch(trimmed, [
-        pr.repo_full_name,
-        pr.title,
-        pr.user.login,
-        pr.head.ref,
-        ...(pr.requested_reviewers || []),
-      ]);
+      const prOtherScore = fuzzyMatch(
+        trimmed,
+        [
+          pr.repo_full_name,
+          pr.title,
+          pr.user.login,
+          pr.head.ref,
+          ...(pr.requested_reviewers || []),
+        ],
+        subsequence,
+      );
 
       // Boost PR number matches to rank higher than title/other matches
       const prScore = prNumberScore > 0 ? prNumberScore + 10000 : prOtherScore;
@@ -211,7 +218,11 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
         linkTarget?.kind === "pr" &&
         pr.repo_full_name.toLowerCase() === linkTarget.repo.toLowerCase() &&
         pr.number === linkTarget.number;
-      const score = prLinked ? Infinity : Math.max(ticketScore, prScore);
+      const titleNamesKey =
+        linkTarget?.kind === "ticket" && ticketKeysIn(pr.title).includes(linkTarget.key);
+      const score = prLinked
+        ? Infinity
+        : Math.max(ticketScore, prScore, titleNamesKey ? TITLE_NAMES_KEY : 0);
 
       if (score > 0) {
         results.push({
@@ -239,7 +250,7 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   results.sort((a, b) => b.score - a.score);
 
   // A link that isn't in the deck: only the external result.
-  if (linkTarget && !results.some((r) => r.score === Infinity)) {
+  if (linkTarget && !results.some((r) => r.score >= TITLE_NAMES_KEY)) {
     return [
       {
         ticketId: null,
@@ -277,9 +288,9 @@ function numberMatch(query: string, pr: GitHubPR): number {
 /**
  * Fuzzy match of the query against each target (case-insensitive); the best
  * target wins. Exact 1000, target contains the query 500, query is a
- * subsequence of the target 100. Empty targets never match.
+ * subsequence of the target 100 (unless `subsequence` is off). Empty targets never match.
  */
-function fuzzyMatch(query: string, targets: string[]): number {
+function fuzzyMatch(query: string, targets: string[], subsequence = true): number {
   const lowerQuery = query.toLowerCase();
   let best = 0;
   for (const target of targets) {
@@ -290,7 +301,7 @@ function fuzzyMatch(query: string, targets: string[]): number {
         ? 1000
         : lowerTarget.includes(lowerQuery)
           ? 500
-          : isSubsequence(lowerQuery, lowerTarget)
+          : subsequence && isSubsequence(lowerQuery, lowerTarget)
             ? 100
             : 0;
     if (score > best) best = score;
