@@ -132,6 +132,9 @@ describe("OrgPRsView (desktop All PRs)", () => {
     render(<OrgPRsView configured jiraBaseUrl="" />);
     expect(screen.getByText("Cached PR")).toBeInTheDocument();
     expect(screen.getByText("Open PRs (1)")).toBeInTheDocument();
+    // Merged isn't searched until it's opened, so it has no count yet.
+    expect(screen.getByRole("button", { name: "Merged" })).toBeInTheDocument();
+    expect(fetchRecentlyMergedPRs).not.toHaveBeenCalled();
   });
 
   it("applies a saved filter's authors and repos", async () => {

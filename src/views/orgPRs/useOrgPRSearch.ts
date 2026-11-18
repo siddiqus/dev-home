@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { GitHubPR } from "../../types";
 import {
   fetchOrgPRs,
@@ -51,8 +51,8 @@ function arraysEqual(a: string[], b: string[]): boolean {
  * unpaginated search) and recently merged PRs, cached in localStorage (members
  * and teams by the service; results found by text aren't kept, nor the text).
  * Text alone searches the whole org. A picked team searches as its members
- * (utils/authorPicks), so a team pick waits for the teams list. A `refreshKey`
- * change reloads both PR lists.
+ * (utils/authorPicks), so a team pick waits for the teams list. Merged PRs are
+ * searched only while Merged is open. A `refreshKey` change reloads both PR lists.
  */
 export function useOrgPRSearch({
   configured,
@@ -98,10 +98,15 @@ export function useOrgPRSearch({
     localStorage.setItem("dev-home-org-prs-subtab", tab);
   }, []);
 
-  // Recently merged PRs
+  // Recently merged PRs, searched only while Merged is open. `mergedFor` is
+  // the search the list holds, so its count shows only once it's this one's; a
+  // refresh while Merged is closed forces its next load.
   const [mergedPRs, setMergedPRs] = useState<GitHubPR[]>([]);
   const [mergedPRsLoading, setMergedPRsLoading] = useState(false);
+  const [mergedFor, setMergedFor] = useState<string | null>(null);
   const mergedRequestRef = useRef(0);
+  const forceMerged = useRef(false);
+  const searchKey = JSON.stringify([searchAuthors, selectedRepos, query]);
   const loadMergedPRs = useCallback(
     async (force = false) => {
       if (!configured) return;
@@ -109,6 +114,8 @@ export function useOrgPRSearch({
       const requestId = ++mergedRequestRef.current;
       if (nothingToSearch) {
         setMergedPRs([]);
+        setMergedPRsLoading(false);
+        setMergedFor(searchKey);
         return;
       }
       setMergedPRsLoading(true);
@@ -117,18 +124,31 @@ export function useOrgPRSearch({
           force,
           text: query,
         });
-        if (requestId === mergedRequestRef.current) setMergedPRs(data);
+        if (requestId === mergedRequestRef.current) {
+          setMergedPRs(data);
+          setMergedFor(searchKey);
+        }
       } catch (err) {
         console.error("Failed to fetch recently merged PRs:", err);
       } finally {
         if (requestId === mergedRequestRef.current) setMergedPRsLoading(false);
       }
     },
-    [configured, searchAuthors, selectedRepos, query, searchReady, nothingToSearch],
+    [configured, searchAuthors, selectedRepos, query, searchReady, nothingToSearch, searchKey],
   );
-  useEffect(() => {
-    loadMergedPRs();
-  }, [loadMergedPRs]);
+  // Before paint, so opening Merged shows its spinner rather than a flash of the old list.
+  useLayoutEffect(() => {
+    if (subTab !== "merged") return;
+    const force = forceMerged.current;
+    forceMerged.current = false;
+    loadMergedPRs(force);
+  }, [loadMergedPRs, subTab]);
+  const refreshMerged = useCallback(() => {
+    if (subTab === "merged") return void loadMergedPRs(true);
+    forceMerged.current = true;
+    setMergedFor(null);
+  }, [subTab, loadMergedPRs]);
+  const mergedPRsKnown = !mergedPRsLoading && mergedFor === searchKey;
 
   // Load org members. The loading flag drives the author dropdown's spinner; a
   // request id keeps an older fetch from clearing it while a newer one runs.
@@ -365,17 +385,18 @@ export function useOrgPRSearch({
     loadRepos(true);
     loadTeams(true);
     fetchFirstPage(true);
-    loadMergedPRs(true);
-  }, [loadMembers, loadRepos, loadTeams, fetchFirstPage, loadMergedPRs]);
+    refreshMerged();
+  }, [loadMembers, loadRepos, loadTeams, fetchFirstPage, refreshMerged]);
 
-  // The app-level Refresh bumps refreshKey: reload open and merged PRs (not on mount).
+  // The app-level Refresh bumps refreshKey: reload open and merged PRs (not on mount;
+  // merged when it's next open, if it isn't).
   const seenRefreshKey = useRef(refreshKey);
   useEffect(() => {
     if (seenRefreshKey.current === refreshKey) return;
     seenRefreshKey.current = refreshKey;
     refreshPRs();
-    loadMergedPRs(true);
-  }, [refreshKey, refreshPRs, loadMergedPRs]);
+    refreshMerged();
+  }, [refreshKey, refreshPRs, refreshMerged]);
 
   return {
     prs,
@@ -386,6 +407,7 @@ export function useOrgPRSearch({
     fetchNextPage,
     mergedPRs,
     mergedPRsLoading,
+    mergedPRsKnown,
     authors,
     setAuthors,
     selectedRepos,

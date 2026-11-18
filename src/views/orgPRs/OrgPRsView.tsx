@@ -51,6 +51,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
     fetchNextPage,
     mergedPRs,
     mergedPRsLoading,
+    mergedPRsKnown,
     authors,
     setAuthors,
     selectedRepos,
@@ -288,7 +289,7 @@ export const OrgPRsView: React.FC<OrgPRsViewProps> = ({
             className={`prs-subtab${orgSubTab === "merged" ? " active" : ""}`}
             onClick={() => handleOrgSubTab("merged")}
           >
-            Merged{!mergedPRsLoading && ` (${mergedPRs.length})`}
+            Merged{mergedPRsKnown && ` (${mergedPRs.length})`}
           </button>
         </div>
         {hasSelection && groupState.hasGroups && (

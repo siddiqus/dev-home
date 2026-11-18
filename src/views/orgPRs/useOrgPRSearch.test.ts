@@ -120,6 +120,7 @@ describe("useOrgPRSearch", () => {
   });
 
   it("loads the filter's recently merged PRs", async () => {
+    localStorage.setItem("dev-home-org-prs-subtab", "merged");
     const { result } = render();
     act(() => result.current.setSelectedRepos(["acme/web"]));
     await waitFor(() => expect(result.current.mergedPRs).toEqual([pr(9)]));
@@ -130,6 +131,7 @@ describe("useOrgPRSearch", () => {
   });
 
   it("reloads open and merged PRs when refreshKey changes", async () => {
+    localStorage.setItem("dev-home-org-prs-subtab", "merged");
     const { result, rerender } = render();
     act(() => result.current.setAuthors(["shunjid"]));
     await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
@@ -154,6 +156,7 @@ describe("useOrgPRSearch", () => {
   });
 
   it("searches a picked team as its members, with any people picked beside it", async () => {
+    localStorage.setItem("dev-home-org-prs-subtab", "merged");
     const { result } = render();
     await waitFor(() => expect(result.current.teams).toHaveLength(1));
     act(() => result.current.setAuthors(["team:web", "me", "shunjid"]));
@@ -184,7 +187,50 @@ describe("useOrgPRSearch", () => {
     await waitFor(() => expect(fetchOrgPRsMulti).toHaveBeenCalledWith(["a", "b"], [], ""));
   });
 
+  it("searches merged PRs only once Merged is open, and counts them only then", async () => {
+    const { result } = render();
+    act(() => result.current.setAuthors(["shunjid"]));
+    await waitFor(() => expect(result.current.prs).toEqual([pr(1)]));
+    expect(fetchRecentlyMergedPRs).not.toHaveBeenCalled();
+    expect(result.current.mergedPRsKnown).toBe(false);
+
+    act(() => result.current.setSubTab("merged"));
+    expect(result.current.mergedPRsLoading).toBe(true);
+    await waitFor(() => expect(result.current.mergedPRsKnown).toBe(true));
+    expect(result.current.mergedPRs).toEqual([pr(9)]);
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", ["shunjid"], [], {
+      force: false,
+      text: "",
+    });
+
+    act(() => result.current.setSubTab("open"));
+    act(() => result.current.setAuthors(["tashfia"]));
+    expect(result.current.mergedPRsKnown).toBe(false);
+  });
+
+  it("reloads Merged, forced, on its next opening after a refresh while it's closed", async () => {
+    const { result, rerender } = render();
+    act(() => result.current.setAuthors(["shunjid"]));
+    act(() => result.current.setSubTab("merged"));
+    await waitFor(() => expect(result.current.mergedPRsKnown).toBe(true));
+    act(() => result.current.setSubTab("open"));
+    vi.mocked(fetchRecentlyMergedPRs).mockClear();
+
+    rerender({ refreshKey: 1 });
+    await waitFor(() => expect(fetchOrgPRs).toHaveBeenCalledTimes(2));
+    expect(fetchRecentlyMergedPRs).not.toHaveBeenCalled();
+    expect(result.current.mergedPRsKnown).toBe(false);
+
+    act(() => result.current.setSubTab("merged"));
+    await waitFor(() => expect(result.current.mergedPRsKnown).toBe(true));
+    expect(fetchRecentlyMergedPRs).toHaveBeenCalledWith("org", ["shunjid"], [], {
+      force: true,
+      text: "",
+    });
+  });
+
   it("searches the whole org by text alone, open and any-time merged, and pages by it", async () => {
+    localStorage.setItem("dev-home-org-prs-subtab", "merged");
     const { result } = render();
     act(() => result.current.setQuery("  token refresh "));
     expect(result.current.query).toBe("token refresh");
