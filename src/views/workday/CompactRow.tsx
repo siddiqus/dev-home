@@ -11,7 +11,7 @@ import { jiraBrowseUrl } from "../../utils/tickets";
 import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
 import { MergeButton } from "../../components/MergeButton";
-import { RequestReviewButton } from "../../components/RequestReviewButton";
+import { RequestReviewButton, RequestReviewIcon } from "../../components/RequestReviewButton";
 import { Participants } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
 import { blurOnPointer } from "./pointer";
@@ -183,6 +183,7 @@ export function PRLinkIcons({ pr, external = true }: { pr: GitHubPR; external?: 
           <IconExternalLink size={13} stroke={1.8} />
         </a>
       )}
+      <RequestReviewIcon pr={pr} className="pr-cluster-icon-btn" />
     </>
   );
 }

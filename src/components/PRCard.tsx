@@ -5,7 +5,7 @@ import { formatRelativeTime } from "../utils/time";
 import { ChecksStatusIcon } from "./ChecksStatusIcon";
 import { CommentCountChip, useCommentCounts } from "./CommentCountChip";
 import { MergeButton } from "./MergeButton";
-import { RequestReviewButton } from "./RequestReviewButton";
+import { RequestReviewButton, RequestReviewIcon } from "./RequestReviewButton";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { prAction } from "../utils/prAction";
 import type { StateBadge } from "../views/workday/prState";
@@ -150,6 +150,7 @@ export function PRCard({
           >
             <IconExternalLink size={14} stroke={1.8} />
           </a>
+          <RequestReviewIcon pr={pr} className="pr-card-copy-link" size={14} />
           <CommentCountChip counts={comments} />
         </div>
 

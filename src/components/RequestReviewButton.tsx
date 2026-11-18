@@ -1,8 +1,15 @@
-import { useContext, type MouseEvent, type ReactNode, type SyntheticEvent } from "react";
+import {
+  createContext,
+  useContext,
+  type MouseEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import { IconUserPlus } from "@tabler/icons-react";
 import type { GitHubPR } from "../types";
 import { MergeContext, useCanRequestReview, useReviewStep } from "../context/MergeContext";
 import { blurOnPointer } from "../views/workday/pointer";
+import { repoRef } from "../views/workday/prState";
 import { Badge } from "./primitives/Badge";
 import "./RequestReview.css";
 
@@ -30,6 +37,46 @@ export function ModalRequestReviewButton({ pr }: { pr: GitHubPR }) {
   const step = useReviewStep(pr);
   const can = useCanRequestReview(pr);
   return can && !step ? <RequestReviewControl pr={pr} rerequest={false} /> : null;
+}
+
+/** Whether PR rows show RequestReviewIcon: on in PR search's results only. */
+export const RequestReviewIconContext = createContext(false);
+
+/**
+ * An add-reviewer icon beside a row's copy / open-on-GitHub icons, under
+ * RequestReviewIconContext: opens the picker (a plain request) on any PR the
+ * PR modal's Request a review would take.
+ */
+export function RequestReviewIcon({
+  pr,
+  className,
+  size = 13,
+}: {
+  pr: GitHubPR;
+  className: string;
+  size?: number;
+}) {
+  const on = useContext(RequestReviewIconContext);
+  const can = useCanRequestReview(pr);
+  const api = useContext(MergeContext);
+  if (!on || !can || !api) return null;
+  const onClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    blurOnPointer(e);
+    api.openReviewRequest(pr);
+  };
+  return (
+    <button
+      type="button"
+      className={className}
+      title="Request a review"
+      aria-label={`Request a review on ${repoRef(pr)}`}
+      onClick={onClick}
+      onKeyDown={stop}
+    >
+      <IconUserPlus size={size} stroke={1.8} aria-hidden="true" />
+    </button>
+  );
 }
 
 function RequestReviewControl({ pr, rerequest }: { pr: GitHubPR; rerequest: boolean }) {

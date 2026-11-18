@@ -9,6 +9,7 @@ import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
 import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { CopyPRLinkContext } from "../workday/CompactRow";
+import { RequestReviewIconContext } from "../../components/RequestReviewButton";
 import { DeckPRRow } from "../workday/DeckPRRow";
 import { PhoneFilterSheet } from "./PhoneFilterSheet";
 import { noMatches, PRSearchBox } from "./PRSearchBox";
@@ -80,117 +81,122 @@ export function PhonePRSearch({ configured, jiraBaseUrl, refreshKey, onLoadingCh
 
   return (
     <CopyPRLinkContext.Provider value={onCopyLink}>
-      <div className="phone-pr-search">
-        <h1 className="visually-hidden">PR search</h1>
-        <PRSearchBox
-          query={query}
-          onSearch={search.setQuery}
-          onOpenPR={setSelectedPR}
-          onLinkError={(message) => showToast(message, { tone: "danger" })}
-          busy={loading && !!query}
-        />
-        <div className="phone-pr-search__toolbar">
-          <div className="phone-pr-search__chips">
-            {chip("authors", "Authors", authorsLabel, authors.length > 0)}
-            {chip("repos", "Repos", reposLabel, selectedRepos.length > 0)}
+      <RequestReviewIconContext.Provider value>
+        <div className="phone-pr-search">
+          <h1 className="visually-hidden">PR search</h1>
+          <PRSearchBox
+            query={query}
+            onSearch={search.setQuery}
+            onOpenPR={setSelectedPR}
+            onLinkError={(message) => showToast(message, { tone: "danger" })}
+            busy={loading && !!query}
+          />
+          <div className="phone-pr-search__toolbar">
+            <div className="phone-pr-search__chips">
+              {chip("authors", "Authors", authorsLabel, authors.length > 0)}
+              {chip("repos", "Repos", reposLabel, selectedRepos.length > 0)}
+            </div>
+            <SegmentedTabs
+              className="inline-control"
+              activeKey={subTab}
+              onChange={(k) => search.setSubTab(k as "open" | "merged")}
+              tabs={[
+                { key: "open", label: "Open" },
+                { key: "merged", label: "Merged" },
+              ]}
+            />
           </div>
-          <SegmentedTabs
-            className="inline-control"
-            activeKey={subTab}
-            onChange={(k) => search.setSubTab(k as "open" | "merged")}
-            tabs={[
-              { key: "open", label: "Open" },
-              { key: "merged", label: "Merged" },
-            ]}
-          />
-        </div>
 
-        {!picked ? (
-          <EmptyState
-            icon={<IconFilter size={28} stroke={1.4} />}
-            title="Search, or pick a filter"
-            description="Type and tap Search, paste a PR link, or tap Anyone / All repos."
-          />
-        ) : query && !loading && list.length === 0 ? (
-          <EmptyState icon={<IconSearch size={28} stroke={1.4} />} {...noMatches(query, merged)} />
-        ) : (
-          <>
-            <div className="phone-pr-search__count">
-              {loading && list.length === 0 ? (
-                <Spinner animation="border" size="sm" variant="secondary" />
-              ) : (
-                // "Showing", since the search returns the most recent page, not every match.
-                `Showing ${list.length} ${listed} ${list.length === 1 ? "PR" : "PRs"}` +
-                (query ? ` matching "${query}"` : "")
-              )}
-            </div>
-            <div
-              role="listbox"
-              aria-label="Pull requests"
-              className={`phone-pr-search__list${loading && list.length > 0 ? " is-stale" : ""}`}
-            >
-              {list.map((pr) => (
-                <DeckPRRow
-                  key={pr.html_url}
-                  id={`pr-search-${pr.number}-${pr.repo_full_name}`}
-                  item={searchPR(pr, now)}
-                  ticketKey={null}
-                  selected={false}
-                  now={now}
-                  onSelect={noop}
-                  onOpen={setSelectedPR}
-                  alwaysShowAuthor
-                />
-              ))}
-            </div>
-            {!merged && search.hasNextPage && !search.isMultiMode && (
-              <div className="phone-pr-search__more">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={search.fetchNextPage}
-                  disabled={search.loadingMore}
-                >
-                  {search.loadingMore ? "Loading…" : "Load more"}
-                </Button>
+          {!picked ? (
+            <EmptyState
+              icon={<IconFilter size={28} stroke={1.4} />}
+              title="Search, or pick a filter"
+              description="Type and tap Search, paste a PR link, or tap Anyone / All repos."
+            />
+          ) : query && !loading && list.length === 0 ? (
+            <EmptyState
+              icon={<IconSearch size={28} stroke={1.4} />}
+              {...noMatches(query, merged)}
+            />
+          ) : (
+            <>
+              <div className="phone-pr-search__count">
+                {loading && list.length === 0 ? (
+                  <Spinner animation="border" size="sm" variant="secondary" />
+                ) : (
+                  // "Showing", since the search returns the most recent page, not every match.
+                  `Showing ${list.length} ${listed} ${list.length === 1 ? "PR" : "PRs"}` +
+                  (query ? ` matching "${query}"` : "")
+                )}
               </div>
-            )}
-          </>
-        )}
+              <div
+                role="listbox"
+                aria-label="Pull requests"
+                className={`phone-pr-search__list${loading && list.length > 0 ? " is-stale" : ""}`}
+              >
+                {list.map((pr) => (
+                  <DeckPRRow
+                    key={pr.html_url}
+                    id={`pr-search-${pr.number}-${pr.repo_full_name}`}
+                    item={searchPR(pr, now)}
+                    ticketKey={null}
+                    selected={false}
+                    now={now}
+                    onSelect={noop}
+                    onOpen={setSelectedPR}
+                    alwaysShowAuthor
+                  />
+                ))}
+              </div>
+              {!merged && search.hasNextPage && !search.isMultiMode && (
+                <div className="phone-pr-search__more">
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={search.fetchNextPage}
+                    disabled={search.loadingMore}
+                  >
+                    {search.loadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
 
-        <PhoneFilterSheet
-          show={sheet === "authors"}
-          onHide={() => setSheet(null)}
-          title="Authors"
-          searchPlaceholder="Search people or teams…"
-          items={authorItems(members, teams, 22).map(({ icon, ...item }) => ({
-            ...item,
-            avatar: icon,
-          }))}
-          values={authors}
-          onChange={search.setAuthors}
-          refresh={{
-            onClick: search.refreshMembers,
-            busy: search.membersLoading || search.teamsLoading,
-            label: "Refresh people and teams",
-          }}
-        />
-        <PhoneFilterSheet
-          show={sheet === "repos"}
-          onHide={() => setSheet(null)}
-          title="Repos"
-          searchPlaceholder="Search repos…"
-          items={orgRepos.map((r) => ({ value: r.full_name, label: r.name }))}
-          values={selectedRepos}
-          onChange={search.setSelectedRepos}
-        />
-        <PRDetailModal
-          pr={selectedPR}
-          onHide={() => setSelectedPR(null)}
-          jiraBaseUrl={jiraBaseUrl}
-        />
-        <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
-      </div>
+          <PhoneFilterSheet
+            show={sheet === "authors"}
+            onHide={() => setSheet(null)}
+            title="Authors"
+            searchPlaceholder="Search people or teams…"
+            items={authorItems(members, teams, 22).map(({ icon, ...item }) => ({
+              ...item,
+              avatar: icon,
+            }))}
+            values={authors}
+            onChange={search.setAuthors}
+            refresh={{
+              onClick: search.refreshMembers,
+              busy: search.membersLoading || search.teamsLoading,
+              label: "Refresh people and teams",
+            }}
+          />
+          <PhoneFilterSheet
+            show={sheet === "repos"}
+            onHide={() => setSheet(null)}
+            title="Repos"
+            searchPlaceholder="Search repos…"
+            items={orgRepos.map((r) => ({ value: r.full_name, label: r.name }))}
+            values={selectedRepos}
+            onChange={search.setSelectedRepos}
+          />
+          <PRDetailModal
+            pr={selectedPR}
+            onHide={() => setSelectedPR(null)}
+            jiraBaseUrl={jiraBaseUrl}
+          />
+          <Toast message={toast.message} visible={toast.visible} tone={toast.tone} />
+        </div>
+      </RequestReviewIconContext.Provider>
     </CopyPRLinkContext.Provider>
   );
 }

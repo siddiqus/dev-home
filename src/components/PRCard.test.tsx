@@ -4,6 +4,7 @@ import { PRCard, type PRCardFields } from "./PRCard";
 import type { GitHubPR } from "../types";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { MergeProvider } from "../context/MergeContext";
+import { RequestReviewIconContext } from "./RequestReviewButton";
 import { commentCounts } from "../utils/commentCounts";
 
 vi.mock("../utils/commentCounts", () => ({ commentCounts: vi.fn() }));
@@ -541,5 +542,25 @@ describe("PRCard merge button", () => {
     renderMine(makePR({ review_status: "APPROVED", checks_status: "PENDING" }));
     expect(screen.getByText("✓ Approved · merge when CI passes")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Merge" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PRCard Request review icon", () => {
+  const renderRow = (inSearch: boolean) =>
+    render(
+      <ViewerLoginContext.Provider value="me">
+        <MergeProvider>
+          <RequestReviewIconContext.Provider value={inSearch}>
+            <PRCard pr={makePR()} fields={FIELDS.full} onOpen={noop} />
+          </RequestReviewIconContext.Provider>
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+
+  it("shows beside the GitHub link only in PR search's results", () => {
+    renderRow(false);
+    expect(screen.queryByRole("button", { name: /^Request a review on/ })).toBeNull();
+    renderRow(true);
+    expect(screen.getByRole("button", { name: "Request a review on r#42" })).toBeInTheDocument();
   });
 });

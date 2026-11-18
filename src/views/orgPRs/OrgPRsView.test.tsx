@@ -30,13 +30,14 @@ vi.mock("../../services/filters", () => ({
 }));
 // The table's rows aren't under test here; it shows the titles it's given, or its empty title.
 vi.mock("../../components/PRTable", async () => {
-  const { forwardRef } = await import("react");
+  const { forwardRef, useContext } = await import("react");
+  const { RequestReviewIconContext } = await import("../../components/RequestReviewButton");
   return {
     PRTable: forwardRef(({ prs, empty }: { prs: GitHubPR[]; empty?: { title: string } }, _ref) =>
       prs.length === 0 && empty ? (
         <p>{empty.title}</p>
       ) : (
-        <ul>
+        <ul data-review-icons={useContext(RequestReviewIconContext)}>
           {prs.map((p) => (
             <li key={p.number}>{p.title}</li>
           ))}
@@ -132,6 +133,8 @@ describe("OrgPRsView (desktop All PRs)", () => {
     render(<OrgPRsView configured jiraBaseUrl="" />);
     expect(screen.getByText("Cached PR")).toBeInTheDocument();
     expect(screen.getByText("Open PRs (1)")).toBeInTheDocument();
+    // Its rows offer Request a review (RequestReviewIcon).
+    expect(screen.getByRole("list")).toHaveAttribute("data-review-icons", "true");
     // Merged isn't searched until it's opened, so it has no count yet.
     expect(screen.getByRole("button", { name: "Merged" })).toBeInTheDocument();
     expect(fetchRecentlyMergedPRs).not.toHaveBeenCalled();

@@ -11,7 +11,12 @@ import {
 } from "../services/github";
 import { ViewerLoginContext } from "../context/ViewerLoginContext";
 import { MergeProvider, nameList, reviewRequestSource } from "../context/MergeContext";
-import { ModalRequestReviewButton, RequestReviewButton } from "./RequestReviewButton";
+import {
+  ModalRequestReviewButton,
+  RequestReviewButton,
+  RequestReviewIcon,
+  RequestReviewIconContext,
+} from "./RequestReviewButton";
 
 vi.mock("../services/github", () => ({
   approvePR: vi.fn(),
@@ -340,6 +345,47 @@ describe("ModalRequestReviewButton", () => {
     renderModalButton(myPR());
     renderModalButton(myPR({ review_status: "REVIEWED" }));
     expect(screen.queryByRole("button", { name: /request/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("RequestReviewIcon", () => {
+  function renderIcon(pr: GitHubPR, { inSearch = true, provider = true } = {}) {
+    const row = (
+      <div onClick={rowClick}>
+        <RequestReviewIcon pr={pr} className="icon" />
+      </div>
+    );
+    return render(
+      <ViewerLoginContext.Provider value="me">
+        <RequestReviewIconContext.Provider value={inSearch}>
+          {provider ? <MergeProvider>{row}</MergeProvider> : row}
+        </RequestReviewIconContext.Provider>
+      </ViewerLoginContext.Provider>,
+    );
+  }
+
+  it("opens a plain request on anyone's PR, and the row doesn't open", async () => {
+    const pr = myPR({
+      user: { login: "abu", avatar_url: "" },
+      review_status: "REVIEWED",
+      participants: [{ login: "rkhan", state: "COMMENTED" }],
+    });
+    renderIcon(pr);
+    const picker = await openPicker("Request a review on app#12");
+    expect(rowClick).not.toHaveBeenCalled();
+    expect(within(picker).queryByRole("region", { name: "Reviewed before" })).toBeNull();
+    fireEvent.click(within(picker).getByLabelText("me"));
+    fireEvent.click(within(picker).getByRole("button", { name: "Request review" }));
+    await settle();
+    expect(requestPRReviewers).toHaveBeenCalledWith(pr, { users: ["me"], teams: [] });
+  });
+
+  it("isn't there outside PR search, outside a MergeProvider, or on drafts and merged PRs", () => {
+    renderIcon(myPR(), { inSearch: false });
+    renderIcon(myPR(), { provider: false });
+    renderIcon(myPR({ draft: true }));
+    renderIcon(myPR({ merged_at: "2026-10-03T00:00:00Z" }));
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 

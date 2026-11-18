@@ -2,6 +2,7 @@ import { act, cleanup, render, screen, fireEvent, within } from "@testing-librar
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { GitHubPR } from "../../types";
 import { ViewerLoginContext } from "../../context/ViewerLoginContext";
+import { MergeProvider } from "../../context/MergeContext";
 import { fetchPR } from "../../services/github";
 import { useOrgPRSearch } from "./useOrgPRSearch";
 import { PhonePRSearch } from "./PhonePRSearch";
@@ -282,6 +283,21 @@ describe("PhonePRSearch", () => {
     fireEvent.change(box, { target: { value: "acme/cmp-server#9" } });
     await act(async () => {});
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load acme/cmp-server#9");
+  });
+
+  it("offers Request a review on each result card", () => {
+    vi.mocked(useOrgPRSearch).mockReturnValue(
+      search({ authors: ["shunjid"], prs: [pr(1, "shunjid")] }),
+    );
+    render(
+      <ViewerLoginContext.Provider value="me">
+        <MergeProvider>
+          <PhonePRSearch configured jiraBaseUrl="" />
+        </MergeProvider>
+      </ViewerLoginContext.Provider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Request a review on cmp-server#1" }));
+    expect(screen.getByRole("dialog", { name: "Request a review" })).toBeInTheDocument();
   });
 
   it("tells the app when it's loading, for the pull-to-refresh spinner", () => {
