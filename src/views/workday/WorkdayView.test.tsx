@@ -496,6 +496,29 @@ describe("WorkdayView deck", () => {
     expect(within(card()).queryByRole("listbox")).toBeNull();
   });
 
+  it("leaves Resolved and Won't Fix tickets out of the deck and the sprint split", () => {
+    const inStatus = (key: string, name: string) =>
+      issue(key, name, {
+        status: { name, statusCategory: { key: "indeterminate", colorName: "yellow" } },
+      });
+    renderView({
+      openPRs: [],
+      assignedIssues: [
+        issue("CCP-371", "Thumbnail backfill"),
+        inStatus("AO-181", "Resolved"),
+        inStatus("CCP-372", "Won't Fix"),
+      ],
+    });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(
+      within(rail)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual([expect.stringContaining("371")]);
+    const { assigned } = useWorkdayExtrasSpy.mock.lastCall![3];
+    expect(assigned.issues.map((i: JiraIssue) => i.key)).toEqual(["CCP-371"]);
+  });
+
   it("does not open PR modal when Enter is pressed on the Refresh button", () => {
     renderDeck();
     const refreshButton = screen.getByRole("button", { name: /Refresh/ });

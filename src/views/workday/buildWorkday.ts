@@ -54,6 +54,11 @@ export function statusCategoryOf(issue: JiraIssue): StatusCategoryKey {
   return "new";
 }
 
+/** Finished whatever their category: "Resolved" is an In Progress status on some projects (AO). */
+const FINISHED_STATUSES = new Set(["resolved", "won't fix"]);
+export const isFinishedStatus = (issue: JiraIssue) =>
+  FINISHED_STATUSES.has(issue.status?.name?.toLowerCase() ?? "");
+
 /** Compose the Workday sections from dashboard data plus the workday extras. */
 export function buildWorkday(inp: WorkdayInputs, now: Date): WorkdaySections {
   const { extras } = inp;

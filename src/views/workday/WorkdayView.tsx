@@ -14,7 +14,7 @@ import { usePRCopyActions } from "../../hooks/usePRCopyActions";
 import { useWorkdayExtras } from "../../hooks/useWorkdayExtras";
 import { useStoredState } from "../../hooks/useStoredState";
 import { isTypingTarget } from "../../utils/dom";
-import { buildWorkday } from "./buildWorkday";
+import { buildWorkday, isFinishedStatus } from "./buildWorkday";
 import { buildFocus } from "./buildFocus";
 import { formatSinceLabel, LOOKBACKS, sinceFor, type Lookback } from "./dates";
 import type { TicketRef, WorkdaySections } from "./types";
@@ -236,7 +236,7 @@ export function WorkdayView(props: WorkdayViewProps) {
     openPRs,
     reviewRequests,
     reviewingPRs,
-    assignedIssues,
+    assignedIssues: allAssigned,
     allIssues,
     githubMentions = NO_MENTIONS,
     jiraMentions = NO_MENTIONS,
@@ -261,6 +261,10 @@ export function WorkdayView(props: WorkdayViewProps) {
   } = props;
 
   const now = useMemo(() => props.now ?? new Date(), [props.now, refreshKey]);
+  const assignedIssues = useMemo(
+    () => allAssigned.filter((i) => !isFinishedStatus(i)),
+    [allAssigned],
+  );
   const [storedMode, setMode] = useStoredState<Mode>(MODE_KEY, "focus", MODES);
   // A phone only gets Focus; the stored mode is the desktop's.
   const mode: Mode = phone ? "focus" : storedMode;
