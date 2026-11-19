@@ -93,6 +93,28 @@
   color: var(--color-text-secondary);
 }
 
+.description-modal .pr-modal-skeleton {
+  display: inline-block;
+  max-width: 100%;
+  height: 1em;
+  border-radius: var(--radius-sm);
+  background: var(--color-skeleton);
+  animation: pr-modal-pulse 1.2s ease-in-out infinite;
+}
+
+.description-modal .pr-modal-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+@keyframes pr-modal-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* One size across the row: the shared branch / diff indicators carry their own
    slightly different card sizes, so pin them to the row's. */
 .description-modal .pr-modal-meta .pr-card-branch,

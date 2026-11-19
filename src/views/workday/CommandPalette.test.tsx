@@ -354,13 +354,9 @@ describe("⌘K command palette", () => {
     expect(screen.getByText("Marked unread")).toHaveClass("is-visible");
   });
 
-  it("opens a PR that isn't in the deck through getPrDetail", async () => {
-    getPrDetail.mockResolvedValue({
-      pr: pr(5, "Outside change", "2026-10-01T10:00:00Z", {
-        html_url: "https://github.com/x/y/pull/5",
-        repo_full_name: "x/y",
-      }),
-    });
+  it("opens the PR modal at once on a PR that isn't in the deck, with placeholders until it loads", async () => {
+    let resolve!: (v: unknown) => void;
+    getPrDetail.mockReturnValue(new Promise((r) => (resolve = r)));
     renderDeck();
     openPalette();
     type("https://github.com/x/y/pull/5");
@@ -368,11 +364,23 @@ describe("⌘K command palette", () => {
     key("Enter");
     await flush();
     expect(getPrDetail).toHaveBeenCalledWith({ owner: "x", repo: "y", number: 5 });
-    const dialog = await screen.findByRole("dialog");
+    const loading = screen.getByRole("dialog");
+    expect(loading.textContent).toContain("x/y#5");
+    expect(loading.querySelector('[aria-busy="true"]')).not.toBeNull();
+    await act(async () => {
+      resolve({
+        pr: pr(5, "Outside change", "2026-10-01T10:00:00Z", {
+          html_url: "https://github.com/x/y/pull/5",
+          repo_full_name: "x/y",
+        }),
+      });
+    });
+    const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("Outside change");
+    expect(dialog.querySelector('[aria-busy="true"]')).toBeNull();
   });
 
-  it("toasts when an outside PR can't be loaded", async () => {
+  it("toasts and closes the loading modal when an outside PR can't be loaded", async () => {
     getPrDetail.mockRejectedValue(new Error("nope"));
     renderDeck();
     openPalette();
@@ -380,9 +388,10 @@ describe("⌘K command palette", () => {
     key("Enter");
     await flush();
     expect(screen.getByText("Couldn't load that PR")).toHaveClass("is-visible");
+    expect(document.querySelector('.description-modal [aria-busy="true"]')).toBeNull();
   });
 
-  it("drops an outside PR that loads after the palette was reopened", async () => {
+  it("drops an outside PR that loads after its loading modal was closed", async () => {
     let resolve!: (v: unknown) => void;
     getPrDetail.mockReturnValue(new Promise((r) => (resolve = r)));
     renderDeck();
@@ -390,8 +399,7 @@ describe("⌘K command palette", () => {
     type("x/y#5");
     key("Enter");
     await flush();
-    expect(getPrDetail).toHaveBeenCalled();
-    openPalette();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
     await act(async () => {
       resolve({
         pr: pr(5, "Outside change", "2026-10-01T10:00:00Z", {
@@ -401,7 +409,6 @@ describe("⌘K command palette", () => {
       });
     });
     expect(screen.queryByText(/Outside change/)).toBeNull();
-    expect(input()).toBeTruthy();
   });
 
   it("repeated ⌘⌫ on an empty query toggles the same row, not its neighbour", () => {

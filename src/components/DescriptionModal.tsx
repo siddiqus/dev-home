@@ -562,6 +562,35 @@ function PrModalHeader({
   );
 }
 
+/** A PR the modal opened on before it loaded (a pasted link). */
+export interface PendingPR {
+  repo: string;
+  number: number;
+  url: string;
+}
+
+/** Stands in for PrModalHeader while the PR loads: its repo#number, pulsing bars for the rest. */
+function PendingPrHeader({ pending }: { pending: PendingPR }) {
+  return (
+    <div className="pr-modal-header" aria-busy="true">
+      <div className="pr-modal-title" aria-hidden="true">
+        <span className="pr-modal-skeleton" style={{ width: "min(420px, 70%)" }} />
+      </div>
+      <div className="pr-modal-meta">
+        <span className="pr-modal-repo">
+          <a href={pending.url} target="_blank" rel="noopener noreferrer" title={pending.url}>
+            {pending.repo}#{pending.number}
+          </a>
+        </span>
+        <span className="pr-modal-sep">{"·"}</span>
+        <span className="pr-modal-skeleton" style={{ width: 220 }} aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
+const PENDING_LINES = ["100%", "92%", "64%"];
+
 interface DescriptionModalProps {
   show: boolean;
   onHide: () => void;
@@ -579,6 +608,8 @@ interface DescriptionModalProps {
   onImageError?: () => void;
   /** Refetch this PR; shows a Refresh button when set. */
   onRefresh?: () => Promise<void>;
+  /** No `pr` yet: a header and description of placeholders until it loads. */
+  pending?: PendingPR;
 }
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
@@ -594,6 +625,7 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   pr,
   onImageError,
   onRefresh,
+  pending,
 }) => {
   const sortedChecks =
     checks && checks.length > 0
@@ -681,21 +713,26 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
   const openNotes =
     pr && notesApi ? notesForPr(notesApi.notes, pr).filter((n) => n.resolved === 0).length : 0;
 
-  const descriptionBody =
-    loading && !description ? (
-      <div className="d-flex align-items-center gap-2 text-secondary-custom">
-        <Spinner animation="border" size="sm" variant="secondary" />
-        <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
-      </div>
-    ) : description ? (
-      <ImageExpiredContext.Provider value={onImageError}>
-        <Markdown>{description}</Markdown>
-      </ImageExpiredContext.Provider>
-    ) : (
-      <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>
-        No description provided.
-      </p>
-    );
+  const descriptionBody = pending ? (
+    <div className="pr-modal-skeleton-lines" aria-hidden="true">
+      {PENDING_LINES.map((width) => (
+        <span key={width} className="pr-modal-skeleton" style={{ width }} />
+      ))}
+    </div>
+  ) : loading && !description ? (
+    <div className="d-flex align-items-center gap-2 text-secondary-custom">
+      <Spinner animation="border" size="sm" variant="secondary" />
+      <span style={{ fontSize: "0.8125rem" }}>Loading…</span>
+    </div>
+  ) : description ? (
+    <ImageExpiredContext.Provider value={onImageError}>
+      <Markdown>{description}</Markdown>
+    </ImageExpiredContext.Provider>
+  ) : (
+    <p className="text-secondary-custom" style={{ fontStyle: "italic" }}>
+      No description provided.
+    </p>
+  );
 
   const titleSection = (
     <div
@@ -712,6 +749,8 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
             copyLink={!phone}
             refresh={phone ? null : refresh}
           />
+        ) : pending ? (
+          <PendingPrHeader pending={pending} />
         ) : (
           <>
             <div style={{ fontSize: "1rem", fontWeight: 600 }}>{title}</div>
@@ -750,9 +789,15 @@ export const DescriptionModal: React.FC<DescriptionModalProps> = ({
     >
       {phone && (
         <PhoneTopBar
-          label={pr ? `${pr.repo_full_name.split("/").pop()}#${pr.number}` : ""}
+          label={
+            pr
+              ? `${pr.repo_full_name.split("/").pop()}#${pr.number}`
+              : pending
+                ? `${pending.repo.split("/").pop()}#${pending.number}`
+                : ""
+          }
           url={url ?? pr?.html_url}
-          isPR={!!pr}
+          isPR={!!pr || !!pending}
           onHide={onHide}
           refresh={refresh}
         />

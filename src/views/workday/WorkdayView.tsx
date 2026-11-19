@@ -6,6 +6,7 @@ import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note, NoteType } 
 import { EmptyState } from "../../components/EmptyState";
 import { LastUpdated } from "../../components/LastUpdated";
 import { PRDetailModal } from "../../components/PRDetailModal";
+import type { PendingPR } from "../../components/DescriptionModal";
 import { SegmentedTabs } from "../../components/SegmentedTabs";
 import { Toast } from "../../components/Toast";
 import { usePersistedSet } from "../../hooks/usePersistedSet";
@@ -271,6 +272,8 @@ export function WorkdayView(props: WorkdayViewProps) {
   const [railOpen, setRailOpen] = useState(false);
   const [lookback, setLookback] = useStoredState<Lookback>(LOOKBACK_KEY, "workday", LOOKBACKS);
   const [selectedPR, setSelectedPR] = useState<GitHubPR | null>(null);
+  const [pendingPR, setPendingPR] = useState<PendingPR | null>(null);
+  const prModalOpen = selectedPR !== null || pendingPR !== null;
   const { copy, onCopyLink, onCopyLinks, onCopyTicketLink, onCopyBranch, toast } =
     usePRCopyActions();
   const showToast = toast.show;
@@ -292,14 +295,15 @@ export function WorkdayView(props: WorkdayViewProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || selectedPR || paletteOpen || helpOpen || drawerOpen()) return;
+      if (isTypingTarget(e.target) || prModalOpen || paletteOpen || helpOpen || drawerOpen())
+        return;
       const key = e.key.toLowerCase();
       const next = MODES.find((m) => MODE_KEYS[m].toLowerCase() === key);
       if (next) setMode(next);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setMode, selectedPR, paletteOpen, helpOpen]);
+  }, [setMode, prModalOpen, paletteOpen, helpOpen]);
 
   const weekendKey = weekendDays.join(",");
   const since = useMemo(
@@ -669,7 +673,7 @@ export function WorkdayView(props: WorkdayViewProps) {
   const onDwell = useCallback(() => seenRef.current(), []);
   // Merged tabs aren't seen-tracked (and their key's Jira mentions belong to the open tab).
   useSeenTimer(
-    configured && mode === "focus" && !selectedPR && !isMergedTab(selectedId) ? selectedId : null,
+    configured && mode === "focus" && !prModalOpen && !isMergedTab(selectedId) ? selectedId : null,
     onDwell,
   );
 
@@ -760,9 +764,15 @@ export function WorkdayView(props: WorkdayViewProps) {
   refreshRef.current = onRefresh;
   const refresh = useCallback(() => refreshRef.current(), []);
 
-  // The ⌘K outside-PR fetch in flight: opening the palette again (or a newer
-  // fetch) supersedes it, so a late result never lands a modal on the palette.
+  // The ⌘K outside-PR fetch in flight: closing its loading modal, opening the
+  // palette again or a newer fetch supersedes it, so a late result never
+  // reopens a closed modal or lands one on the palette.
   const prFetchSeq = useRef(0);
+  const hidePRModal = useCallback(() => {
+    prFetchSeq.current++;
+    setPendingPR(null);
+    setSelectedPR(null);
+  }, []);
   const openPalette = useCallback(() => {
     prFetchSeq.current++;
     setPaletteOpen(true);
@@ -770,8 +780,8 @@ export function WorkdayView(props: WorkdayViewProps) {
   // ⌘K: ignored while another modal or drawer is open (two focus traps would fight).
   const togglePalette = useCallback(() => {
     if (paletteOpen) setPaletteOpen(false);
-    else if (!drawerOpen() && selectedPR === null) openPalette();
-  }, [paletteOpen, selectedPR, openPalette]);
+    else if (!drawerOpen() && !prModalOpen) openPalette();
+  }, [paletteOpen, prModalOpen, openPalette]);
   const deckKeys = useMemo<DeckKeyHandlers>(() => {
     // The drawer/modal check lives in useDeckKeys (isBlocked), before any
     // preventDefault; this guard covers ⌘K's palette commands calling handlers.
@@ -866,7 +876,7 @@ export function WorkdayView(props: WorkdayViewProps) {
   ]);
   useDeckKeys(deckKeys, {
     enabled: configured && mode === "focus",
-    blocked: selectedPR !== null || helpOpen,
+    blocked: prModalOpen || helpOpen,
     isBlocked: drawerOpen,
   });
 
@@ -916,12 +926,17 @@ export function WorkdayView(props: WorkdayViewProps) {
         if (action === "jump" || action === "openModal") {
           const [owner, repo] = ext.repo.split("/");
           const seq = ++prFetchSeq.current;
+          setPendingPR(ext);
           fetchPR(owner, repo, ext.number).then(
             (pr) => {
-              if (seq === prFetchSeq.current) setSelectedPR(pr);
+              if (seq !== prFetchSeq.current) return;
+              setPendingPR(null);
+              setSelectedPR(pr);
             },
             () => {
-              if (seq === prFetchSeq.current) showToast("Couldn't load that PR");
+              if (seq !== prFetchSeq.current) return;
+              setPendingPR(null);
+              showToast("Couldn't load that PR");
             },
           );
         } else if (action === "openGitHub") openTab(ext.url);
@@ -1313,7 +1328,8 @@ export function WorkdayView(props: WorkdayViewProps) {
 
               <PRDetailModal
                 pr={selectedPR}
-                onHide={() => setSelectedPR(null)}
+                pending={pendingPR}
+                onHide={hidePRModal}
                 jiraBaseUrl={jiraBaseUrl}
                 onRefreshed={onModalPRRefreshed}
               />
