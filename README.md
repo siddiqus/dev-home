@@ -89,22 +89,22 @@ Create a token at https://github.com/settings/tokens. A **classic** token is rec
 
 | Scope (classic token) | Why it's needed |
 |---|---|
-| `repo` | Read PRs, commits, check statuses and review threads across public and private repos, and merge your PRs from the **Merge** button |
-| `read:org` | List organization members and repositories (Teams and All PRs) |
+| `repo` | Read PRs, commits, check statuses and review threads across public and private repos, and use the **Merge**, **Approve** and **Request review** buttons |
+| `read:org` | List organization members, teams and repositories (Teams, All PRs and the team picker in **Request review**) |
 | `notifications` | Read your GitHub notifications (mentions and review requests) for the Comments tab |
 
 A **fine-grained** token also works, with these permissions:
 
 | Permission | Access | Why it's needed |
 |---|---|---|
-| Pull requests | Read | Search and read PRs you authored or are asked to review |
+| Pull requests | Read and write | Search and read PRs; approve PRs, request reviewers and merge |
+| Contents | Read and write | Read repository contents and branch rules; merge PRs |
 | Checks | Read | Read CI check runs on PRs |
 | Commit statuses | Read | Read commit statuses on PRs |
-| Contents | Read | Read repository contents and branch rules |
 | Metadata | Read | Required for all fine-grained tokens |
-| Members | Read (organization) | List organization members |
+| Members | Read (organization) | List organization members and teams |
 
-To use the **Merge** button with a fine-grained token, give **Contents** and **Pull requests** read and write access. Everything else works with read access alone.
+Without write access, everything except the **Merge**, **Approve** and **Request review** buttons still works. **Approve** and **Request review** need **Pull requests** write; **Merge** needs **Contents** write as well.
 
 GitHub's notifications API doesn't accept fine-grained tokens, so the **Comments** tab stays empty with one. Use a classic token if you need it.
 
@@ -118,7 +118,7 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 | Browse issues | Read issue details (summary, status, priority and so on) |
 | Read comments | Fetch comments on issues to find mentions of you |
 
-No write permissions are needed. The app only reads data from Jira, and the Jira proxy only forwards read-only endpoints. On GitHub, the only write is the **Merge** button on your own ready PRs.
+No Jira write permissions are needed. The app only reads data from Jira, and the Jira proxy only forwards read-only endpoints. GitHub is where the app writes, and only when you click **Merge**, **Approve** or **Request review**.
 
 #### Jira Host Restriction
 

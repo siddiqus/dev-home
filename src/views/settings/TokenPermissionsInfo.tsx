@@ -27,13 +27,16 @@ const INFO: Record<"github" | "jira", ProviderInfo> = {
     rows: [
       {
         name: "repo",
-        why: "Read PRs, commits, checks and review threads (private repos too), and merge your PRs",
+        why: "Read PRs, commits, checks and review threads (private repos too); merge, approve and request reviewers",
       },
-      { name: "read:org", why: "List org members and repos (teams and org PRs)" },
+      {
+        name: "read:org",
+        why: "List org members, teams and repos (teams, org PRs and reviewer teams)",
+      },
       { name: "notifications", why: "Read mentions and review requests for the Comments tab" },
     ],
     footnote:
-      "Fine-grained tokens also work with read access to Pull requests, Checks, Commit statuses, Contents and Metadata, plus org Members. The Merge button needs write access to Contents and Pull requests. GitHub's notifications API doesn't accept fine-grained tokens, so the Comments tab stays empty.",
+      "Fine-grained tokens also work: Pull requests and Contents read and write, Checks, Commit statuses and Metadata read, plus org Members read. Without write access, only Merge, Approve and Request review stop working. GitHub's notifications API doesn't accept fine-grained tokens, so the Comments tab stays empty.",
   },
   jira: {
     createUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
