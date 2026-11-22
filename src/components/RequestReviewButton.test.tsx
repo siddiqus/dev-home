@@ -200,6 +200,21 @@ describe("RequestReviewButton", () => {
     expect(screen.queryByRole("button", { name: "Request a review" })).not.toBeInTheDocument();
   });
 
+  it("requests on ⌘↵ once someone is picked", async () => {
+    const pr = myPR();
+    renderButton(pr);
+    const picker = await openPicker();
+    fireEvent.keyDown(picker, { key: "Enter", metaKey: true });
+    await settle();
+    expect(requestPRReviewers).not.toHaveBeenCalled();
+
+    fireEvent.click(within(picker).getByLabelText("abu"));
+    fireEvent.keyDown(picker, { key: "Enter", metaKey: true });
+    await settle();
+
+    expect(requestPRReviewers).toHaveBeenCalledWith(pr, { users: ["abu"], teams: [] });
+  });
+
   it("asks again once fresh data shows the PR needs another request", async () => {
     const pr = myPR();
     const tree = (p: GitHubPR) => (

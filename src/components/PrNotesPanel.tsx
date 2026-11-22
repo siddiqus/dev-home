@@ -5,6 +5,7 @@ import { prNoteKey, notesForPr } from "../utils/prNotes";
 import { getNoteDisplayTitle } from "../utils/text";
 import { describeReminder } from "../utils/time";
 import { ReminderControl } from "./ReminderControl";
+import { isSubmitShortcut, submitShortcutHint } from "../hooks/useSubmitShortcut";
 import {
   IconPlus,
   IconCheck,
@@ -49,9 +50,18 @@ function NoteEditor({
   }, []);
 
   const canSave = content.trim().length > 0;
+  const save = () => onSave(content.trim(), title.trim(), remindAt);
 
   return (
-    <div className="pr-notes-editor">
+    <div
+      className="pr-notes-editor"
+      onKeyDown={(e) => {
+        if (!isSubmitShortcut(e.nativeEvent)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (canSave) save();
+      }}
+    >
       <input
         type="text"
         className="pr-notes-title-input"
@@ -73,9 +83,9 @@ function NoteEditor({
           type="button"
           className="pr-notes-btn pr-notes-btn--primary"
           disabled={!canSave}
-          onClick={() => onSave(content.trim(), title.trim(), remindAt)}
+          onClick={save}
         >
-          Save
+          Save<span aria-hidden="true"> ({submitShortcutHint})</span>
         </button>
         <button type="button" className="pr-notes-btn pr-notes-btn--secondary" onClick={onCancel}>
           Cancel

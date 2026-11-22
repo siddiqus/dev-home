@@ -111,6 +111,33 @@ describe("PrNotesPanel", () => {
     );
   });
 
+  it("saves on ⌘↵ from the editor once there's content", () => {
+    const api = makeNotesApi([]);
+    render(
+      <NotesProvider value={api}>
+        <PrNotesPanel pr={makePR({ repo_full_name: "o/r", number: 1 })} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByTitle("Add note"));
+    const contentTextarea = screen.getByPlaceholderText("Note content...");
+    fireEvent.keyDown(contentTextarea, { key: "Enter", ctrlKey: true });
+    expect(api.addNote).not.toHaveBeenCalled();
+
+    fireEvent.change(contentTextarea, { target: { value: "New note content" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Title (optional)"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    expect(api.addNote).toHaveBeenCalledWith(
+      "github_pr",
+      "New note content",
+      "o/r#1",
+      undefined,
+      null,
+    );
+  });
+
   it("clicking add button, typing title and content, clicking Save calls addNote with title", () => {
     const api = makeNotesApi([]);
     const pr = makePR({ repo_full_name: "o/r", number: 1 });

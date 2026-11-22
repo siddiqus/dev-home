@@ -14,7 +14,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ReminderControl } from "../../components/ReminderControl";
 import "./notes.css";
 import "./tiptap.css";
-import { isMac } from "../../hooks/useKeyboardShortcuts";
+import { submitShortcutHint, useSubmitShortcut } from "../../hooks/useSubmitShortcut";
 import { useBackClose } from "../../hooks/useBackClose";
 
 // tiptap-markdown doesn't ship type declarations for its storage
@@ -234,25 +234,13 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const hasContent = editorContent.trim().length > 0;
   const canSave = isEditing ? isDirty : hasContent;
 
-  // Cmd+Enter (macOS) / Ctrl+Enter (Windows/Linux) saves the note
-  useEffect(() => {
-    if (!show) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (canSave && !saving) handleSave();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [show, canSave, saving, handleSave]);
+  useSubmitShortcut(() => {
+    if (canSave && !saving) handleSave();
+  }, show);
 
   const titlePlaceholder = useMemo(() => {
     return hasContent ? deriveTitleFromContent(editorContent) : "Untitled";
   }, [hasContent, editorContent]);
-
-  const saveShortcutHint = isMac ? "⌘↵" : "Ctrl ↵";
 
   return (
     <Modal
@@ -327,10 +315,11 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                 <Spinner animation="border" size="sm" className="me-2" />
                 Saving...
               </>
-            ) : isEditing ? (
-              `Save Changes (${saveShortcutHint})`
             ) : (
-              `Add Note (${saveShortcutHint})`
+              <>
+                {isEditing ? "Save Changes" : "Add Note"}
+                <span aria-hidden="true"> ({submitShortcutHint})</span>
+              </>
             )}
           </Button>
         )}

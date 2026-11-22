@@ -3,6 +3,7 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import { IconTrash } from "@tabler/icons-react";
 import { MemberSearchRow } from "./MemberSearchRow";
+import { submitShortcutHint, useSubmitShortcut } from "../../hooks/useSubmitShortcut";
 import { SearchableDropdown, type DropdownItem } from "../../components/SearchableDropdown";
 import {
   fetchTeamMembers,
@@ -152,6 +153,9 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
       setSaving(false);
     }
   };
+  useSubmitShortcut(() => {
+    if (!saving) handleSave();
+  }, show);
 
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered>
@@ -220,7 +224,13 @@ export function TeamModal({ team, show, onClose, onSaved }: Props) {
           Cancel
         </Button>
         <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? (
+            "Saving…"
+          ) : (
+            <>
+              Save<span aria-hidden="true"> ({submitShortcutHint})</span>
+            </>
+          )}
         </Button>
       </Modal.Footer>
     </Modal>

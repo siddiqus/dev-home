@@ -15,6 +15,7 @@ import { TokenPermissionsInfo } from "./TokenPermissionsInfo";
 import { UsageAnalytics } from "./UsageAnalytics";
 import { analyticsAvailable } from "../../lib/analytics";
 import { useIsPhone } from "../../hooks/useIsPhone";
+import { submitShortcutHint, useSubmitShortcut } from "../../hooks/useSubmitShortcut";
 import "./settings.css";
 import { Toast } from "../../components/Toast";
 
@@ -129,6 +130,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setSaving(false);
     }
   };
+  useSubmitShortcut(() => {
+    if (!saving) handleSave();
+  }, true);
 
   return (
     <div className="settings-page">
@@ -153,7 +157,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Saving...
             </>
           ) : (
-            "Save Settings"
+            <>
+              Save Settings<span aria-hidden="true"> ({submitShortcutHint})</span>
+            </>
           )}
         </Button>
       </div>

@@ -14,6 +14,7 @@ import {
 } from "../services/github";
 import { useBackClose } from "../hooks/useBackClose";
 import { useIsPhone } from "../hooks/useIsPhone";
+import { submitShortcutHint, useSubmitShortcut } from "../hooks/useSubmitShortcut";
 import { TeamIcon } from "./primitives/TeamIcon";
 import { repoRef } from "../views/workday/prState";
 import "./RequestReview.css";
@@ -180,6 +181,7 @@ export function RequestReviewModal({ pr, rerequest, show, onHide, onSubmit }: Pr
     setRefusal(reason);
     setBusy(false);
   };
+  useSubmitShortcut(submit, show);
 
   const loading = members.data === null && !members.error;
   const title = rerequest ? "Re-request review" : "Request a review";
@@ -296,7 +298,14 @@ export function RequestReviewModal({ pr, rerequest, show, onHide, onSubmit }: Pr
           disabled={picked.size === 0 || busy}
           aria-busy={busy || undefined}
         >
-          {busy ? "Requesting…" : rerequest ? "Re-request review" : "Request review"}
+          {busy ? (
+            "Requesting…"
+          ) : (
+            <>
+              {rerequest ? "Re-request review" : "Request review"}
+              <span aria-hidden="true"> ({submitShortcutHint})</span>
+            </>
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
