@@ -102,6 +102,7 @@ const phoneDeck = (o: Partial<NonNullable<DeckModeProps["phone"]>> = {}) => ({
   position: 1,
   total: 3,
   tickets: 3,
+  onFind: vi.fn(),
   jumps: [
     { kind: "authored" as const, label: "Authored", count: 7, firstId: "CCP-1" },
     { kind: "review" as const, label: "To Review", count: 2, firstId: "CCP-2" },
@@ -850,6 +851,19 @@ describe("DeckMode on a phone", () => {
   it("leaves the jump chips out while loading", () => {
     renderDeck({ deck: three(), phone: phone(), loading: true });
     expect(screen.queryByRole("group", { name: "Jump to" })).toBeNull();
+  });
+
+  it("ends the deck bar with Find, there before the chips and on an empty deck", () => {
+    for (const props of [{ loading: true }, { deck: deck({}) }]) {
+      const onFind = vi.fn();
+      renderDeck({ deck: three(), ...props, phone: phone({ onFind }) });
+      const bar = screen.getByTestId("deck-phone-bar");
+      const find = within(bar).getByRole("button", { name: "Find and act" });
+      expect(bar.lastElementChild).toBe(find);
+      fireEvent.click(find);
+      expect(onFind).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
   });
 
   it("hides every count until all sources have landed", () => {

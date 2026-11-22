@@ -1387,6 +1387,133 @@ button.deck-rail-row:focus-visible {
   color: var(--color-text-muted);
 }
 
+/* A phone: a full-width panel from the top, its height kept above the keyboard. */
+.deck-palette--phone .deck-palette-dialog {
+  max-width: none;
+  margin: 0;
+}
+.deck-palette--phone .modal-content {
+  border-width: 0 0 1px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.deck-palette--phone .deck-palette-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 100dvh;
+}
+.deck-palette-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.deck-palette--phone .deck-palette-input.form-control {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+.deck-palette-cancel {
+  flex: none;
+  padding: var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: 0.9375rem;
+}
+.deck-palette--phone .deck-palette-chips {
+  display: block;
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.deck-palette--phone .deck-palette-chips-label {
+  display: none;
+}
+.deck-palette--phone .deck-palette-chip-list {
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.deck-palette--phone .deck-palette-chip {
+  flex: none;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.deck-palette--phone .deck-palette-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+.deck-palette--phone .deck-palette-option {
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+}
+.deck-palette-more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+}
+/* A row's ⋯ sheet: its actions from the bottom, over the palette. */
+.deck-palette-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.5);
+}
+.deck-palette-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 75dvh;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+.deck-palette-sheet-title {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck-palette-sheet-item,
+.deck-palette-sheet-cancel {
+  flex: none;
+  padding: 0.6875rem var(--space-3);
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: none;
+  color: var(--color-accent);
+  font-size: 0.9375rem;
+}
+.deck-palette-sheet-cancel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  font-weight: 600;
+}
+
 /* ---------- Key hints, shortcut sheet (spec §5.1, §5.12) ---------- */
 
 .deck-hints {
@@ -1855,6 +1982,13 @@ button.deck-rail-row:focus-visible {
   margin-left: auto;
   overflow-x: auto;
   scrollbar-width: none;
+}
+.deck-phone-find {
+  flex: none;
+  margin-left: auto;
+}
+.deck-phone-jumps + .deck-phone-find {
+  margin-left: 0;
 }
 .deck-jump {
   display: inline-flex;

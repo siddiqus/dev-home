@@ -2,7 +2,12 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Button from "react-bootstrap/Button";
 import Offcanvas from "react-bootstrap/Offcanvas";
-import { IconChevronLeft, IconChevronRight, IconListDetails } from "@tabler/icons-react";
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconListDetails,
+  IconSearch,
+} from "@tabler/icons-react";
 import type { GitHubPR, Note } from "../../types";
 import { useSwipe } from "../../hooks/useSwipe";
 import { useWheelSwipe } from "../../hooks/useWheelSwipe";
@@ -85,6 +90,8 @@ export interface PhoneDeck {
   jumps: DeckJump[];
   /** Something merged that the drawer hasn't shown yet: a purple dot on the Items button. */
   mergedNew?: boolean;
+  /** The deck bar's last button: opens the ⌘K palette. */
+  onFind(): void;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -309,6 +316,14 @@ export function DeckMode({
               })}
             </div>
           )}
+          <button
+            type="button"
+            className="deck-rail-trigger deck-phone-find"
+            aria-label="Find and act"
+            onClick={phone.onFind}
+          >
+            <IconSearch size={14} aria-hidden="true" />
+          </button>
         </div>
       )}
       <div ref={setStage} className="deck-stage">

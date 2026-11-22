@@ -27,6 +27,18 @@ vi.mock("../../api/github", async (importOriginal) => ({
 import { WorkdayView } from "./WorkdayView";
 import { CommandPalette, UNMATCHED_CAP } from "./CommandPalette";
 
+// The phone rail drawer is an Offcanvas, which checks a responsive breakpoint; jsdom has no matchMedia.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false,
+})) as unknown as typeof window.matchMedia;
+
 const NOW = new Date(2026, 9, 14, 10, 0);
 
 function pr(n: number, title: string, created: string, o: Partial<GitHubPR> = {}): GitHubPR {
@@ -516,6 +528,116 @@ describe("⌘K command palette", () => {
   });
 });
 
+describe("⌘K on a phone", () => {
+  let writeText: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    localStorage.clear();
+    writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  });
+  const openFromBar = () =>
+    fireEvent.click(
+      within(screen.getByTestId("deck-phone-bar")).getByRole("button", { name: "Find and act" }),
+    );
+  const sheetFor = (label: RegExp) => {
+    fireEvent.click(
+      within(screen.getByRole("option", { name: label })).getByRole("button", {
+        name: "More actions",
+      }),
+    );
+    return screen.getByRole("menu", { name: label });
+  };
+
+  it("opens from the deck bar with the phone's commands and no key hints", () => {
+    seedSeen([1150]);
+    renderDeck({ phone: true });
+    openFromBar();
+    expect(screen.getByRole("option", { name: /r#1150/ })).toBeTruthy();
+    expect(input()).toBeTruthy();
+    const commands = within(screen.getByRole("listbox", { name: "Commands" }))
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(commands).toEqual(["Next updated ticket", "Show only current", "Show closed"]);
+    expect(screen.queryByRole("listbox", { name: "Actions" })).toBeNull();
+    expect(screen.queryByText(/esc close/)).toBeNull();
+    expect(document.querySelector(".deck-palette-option--active")).toBeNull();
+  });
+
+  it("opens the Items drawer for Show closed, where a phone keeps the Closed group", async () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    fireEvent.click(screen.getByRole("option", { name: "Show closed" }));
+    await flush();
+    expect(queryInput()).toBeNull();
+    expect(screen.getByRole("dialog", { name: "All Items" })).toBeTruthy();
+  });
+
+  it("closes on Cancel", () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(queryInput()).toBeNull();
+  });
+
+  it("hides the keyboard on Search instead of opening the top result", () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    type("1199");
+    key("Enter");
+    expect(input()).not.toHaveFocus();
+    expect(screen.getByRole("option", { name: /r#1199/ })).toBeTruthy();
+  });
+
+  it("runs a row's action from its ⋯ sheet", async () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    type("1199");
+    const sheet = sheetFor(/r#1199/);
+    expect(input()).not.toHaveFocus();
+    expect(
+      within(sheet)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual([
+      "Jump to card",
+      "Toggle “I'm on it”",
+      "Open PR",
+      "Open on GitHub",
+      "Copy branch name",
+      "Copy PR link",
+      "Add note…",
+      "Close tab",
+      "Mark unread",
+    ]);
+    fireEvent.click(within(sheet).getByRole("menuitem", { name: "Copy branch name" }));
+    await flush();
+    expect(writeText).toHaveBeenCalledWith("branch-1199");
+    expect(queryInput()).toBeNull();
+  });
+
+  it("stays open after Close tab from the sheet, the row marked closed", () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    type("1199");
+    fireEvent.click(within(sheetFor(/r#1199/)).getByRole("menuitem", { name: "Close tab" }));
+    expect(stored().closed).toHaveProperty("CCP-401");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(within(screen.getByRole("option", { name: /r#1199/ })).getByText("closed")).toBeTruthy();
+  });
+
+  it("drops Open PR (modal) for an outside PR, whose Open PR already opens it", () => {
+    renderDeck({ phone: true });
+    openFromBar();
+    type("https://github.com/x/other/pull/77");
+    const sheet = sheetFor(/other#77/);
+    expect(
+      within(sheet)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual(["Open PR", "Open on GitHub", "Copy PR link"]);
+  });
+});
+
 describe("CommandPalette", () => {
   const mention = (i: number): MentionItem => ({
     id: `m${i}`,
@@ -573,6 +695,55 @@ describe("CommandPalette", () => {
     );
     const actions = within(screen.getByRole("listbox", { name: "Actions" })).getAllByRole("option");
     expect(actions.map((a) => a.textContent)).toEqual(["Open comment⏎"]);
+  });
+
+  it("has no ⋯ on a phone for a row with one action", () => {
+    render(
+      <CommandPalette
+        phone
+        show
+        onHide={() => {}}
+        deck={deck([mention(1)])}
+        commands={[]}
+        onAction={vi.fn()}
+        onOpenMention={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
+    type("CCP-999");
+    expect(screen.getByRole("option", { name: /CCP-999/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
+  });
+
+  it("fits a phone's palette above the on-screen keyboard", () => {
+    const listeners = new Set<() => void>();
+    const viewport = {
+      height: 400,
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+    };
+    Object.defineProperty(window, "visualViewport", { value: viewport, configurable: true });
+    try {
+      render(
+        <CommandPalette
+          phone
+          show
+          onHide={() => {}}
+          deck={deck([])}
+          commands={[]}
+          onAction={vi.fn()}
+          onOpenMention={vi.fn()}
+        />,
+      );
+      const body = document.querySelector<HTMLElement>(".deck-palette-body")!;
+      expect(body.style.maxHeight).toBe("400px");
+      viewport.height = 300;
+      act(() => listeners.forEach((fn) => fn()));
+      expect(body.style.maxHeight).toBe("300px");
+    } finally {
+      delete (window as { visualViewport?: unknown }).visualViewport;
+    }
   });
 
   it("says when nothing is new or nothing matches", () => {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Modal from "react-bootstrap/Modal";
+import { IconDots } from "@tabler/icons-react";
 import { Badge } from "../../components/primitives/Badge";
+import { useBackClose } from "../../hooks/useBackClose";
 import { repoRef } from "./prState";
 import type { MentionItem } from "./types";
 import { searchDeck, type SearchResult } from "./deckSearch";
@@ -73,6 +75,11 @@ function restoresFocus(action: PaletteAction): boolean {
 }
 
 export interface CommandPaletteProps {
+  /**
+   * Phone layout: a full-width panel from the top with Cancel, the commands
+   * under the box, and a ⋯ sheet per row in place of the actions tray.
+   */
+  phone?: boolean;
   show: boolean;
   onHide(): void;
   deck: DeckData;
@@ -88,6 +95,7 @@ export interface CommandPaletteProps {
  * bottom always shows the selected row's actions and the commands as chips.
  */
 export function CommandPalette({
+  phone = false,
   show,
   onHide,
   deck,
@@ -95,6 +103,7 @@ export function CommandPalette({
   onAction,
   onOpenMention,
 }: CommandPaletteProps) {
+  useBackClose(show, onHide);
   // Work that needs the palette gone first (opening a modal, focusing the note
   // composer) waits for the modal to exit, so focus traps never fight.
   const pending = useRef<(() => void) | null>(null);
@@ -123,11 +132,13 @@ export function CommandPalette({
       onExited={onExited}
       animation={false}
       restoreFocus={restoreFocus}
-      className="deck-palette"
+      className={`deck-palette${phone ? " deck-palette--phone" : ""}`}
       dialogClassName="deck-palette-dialog"
       aria-label="Find and act"
     >
       <PaletteBody
+        phone={phone}
+        onCancel={onHide}
         deck={deck}
         commands={commands}
         onAction={(action, result) => {
@@ -241,6 +252,28 @@ function actionsFor(r: SearchResult, queryEmpty: boolean): ActionDef[] {
   return list.filter((a): a is ActionDef => a !== false);
 }
 
+/** A phone's ⋯ sheet: the modal is its only PR view, so one plain Open PR. */
+function sheetActionsFor(r: SearchResult, queryEmpty: boolean): ActionDef[] {
+  return actionsFor(r, queryEmpty).flatMap((a) => {
+    if (a.action !== "openModal") return [a];
+    return r.external ? [] : [{ ...a, label: "Open PR" }];
+  });
+}
+
+/** The height a phone shows above its on-screen keyboard, while `on`. */
+function useVisibleHeight(on: boolean): number | null {
+  const [height, setHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!on || !viewport) return;
+    const update = () => setHeight(viewport.height);
+    update();
+    viewport.addEventListener("resize", update);
+    return () => viewport.removeEventListener("resize", update);
+  }, [on]);
+  return on ? height : null;
+}
+
 /** The ⌘/Ctrl shortcut (or ⌥⏎) for an action, from a keydown. */
 function shortcutOf(e: KeyboardEvent, queryEmpty: boolean): PaletteAction | null {
   const mod = e.metaKey || e.ctrlKey;
@@ -261,12 +294,16 @@ function shortcutOf(e: KeyboardEvent, queryEmpty: boolean): PaletteAction | null
 let paletteSeq = 0;
 
 function PaletteBody({
+  phone,
+  onCancel,
   deck,
   commands,
   onAction,
   onCommand,
   onOpenMention,
 }: {
+  phone: boolean;
+  onCancel(): void;
   deck: DeckData;
   commands: PaletteCommand[];
   onAction(action: PaletteAction, result: SearchResult): void;
@@ -275,6 +312,10 @@ function PaletteBody({
 }) {
   const [uid] = useState(() => `deck-palette-${++paletteSeq}`);
   const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const visibleHeight = useVisibleHeight(phone);
+  const [sheet, setSheet] = useState<SearchResult | null>(null);
+  useBackClose(sheet !== null, () => setSheet(null));
   // Selection follows the entry id, so a row that moves keeps it; the index
   // is the fallback when that entry is gone.
   const [active, setActive] = useState(0);
@@ -325,13 +366,12 @@ function PaletteBody({
   const current = entries[index] ?? null;
   const closedIds = useMemo(() => new Set(deck.closed.map((t) => t.id)), [deck]);
   // Closed state is read live, so a row closed or reopened here offers the other action.
-  const currentResult =
-    current?.kind === "result"
-      ? {
-          ...current.result,
-          closed: current.result.ticketId ? closedIds.has(current.result.ticketId) : false,
-        }
-      : null;
+  const live = (r: SearchResult): SearchResult => ({
+    ...r,
+    closed: r.ticketId ? closedIds.has(r.ticketId) : false,
+  });
+  const currentResult = current?.kind === "result" ? live(current.result) : null;
+  const sheetResult = sheet && live(sheet);
   const actions = currentResult ? actionsFor(currentResult, queryEmpty) : [];
   const runAction = (action: PaletteAction) => {
     if (!currentResult) return;
@@ -349,7 +389,11 @@ function PaletteBody({
           },
         ]
       : actions.map((a) => ({ id: a.action, ...a, run: () => runAction(a.action) }));
-  const commandChips: Chip[] = commands.map((c) => ({ ...c, run: () => onCommand(c) }));
+  const commandChips: Chip[] = commands.map((c) => ({
+    ...c,
+    keys: phone ? undefined : c.keys,
+    run: () => onCommand(c),
+  }));
   const zones: Zone[] = ["results"];
   if (actionChips.length > 0) zones.push("actions");
   if (commandChips.length > 0) zones.push("commands");
@@ -390,6 +434,11 @@ function PaletteBody({
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return;
     const key = e.key;
+    if (phone && key === "Enter") {
+      e.preventDefault();
+      e.currentTarget.blur();
+      return;
+    }
     const inChips = zoneNow !== "results";
     // ←→ (and ↑↓) walk a chip row; in the results, ←→ stay with the input.
     if (
@@ -441,28 +490,64 @@ function PaletteBody({
     }
   };
 
+  const openSheet = (r: SearchResult) => {
+    inputRef.current?.blur();
+    setSheet(r);
+  };
+  const runFromSheet = (action: PaletteAction) => {
+    setSheet(null);
+    if (sheetResult) onAction(action, sheetResult);
+  };
+
   let flat = 0;
   const listId = `${uid}-list`;
+  const commandRow = (
+    <ChipRow
+      label="Commands"
+      className="deck-palette-command"
+      chips={commandChips}
+      activeIndex={zoneNow === "commands" ? chipAt : -1}
+      chipId={(j) => chipId("commands", j)}
+    />
+  );
+  const field = (
+    <input
+      ref={inputRef}
+      type="text"
+      className="form-control deck-palette-input"
+      role="combobox"
+      aria-label="Find a ticket, PR or command"
+      aria-expanded="true"
+      aria-controls={listId}
+      aria-autocomplete="list"
+      aria-activedescendant={activeId}
+      placeholder="Find a ticket, PR, person or paste a link…"
+      enterKeyHint={phone ? "search" : undefined}
+      autoFocus
+      value={query}
+      onChange={(e) => {
+        setQuery(e.target.value);
+        moveTo(0, null);
+      }}
+      onKeyDown={onKeyDown}
+    />
+  );
   return (
-    <div className="deck-palette-body">
-      <input
-        type="text"
-        className="form-control deck-palette-input"
-        role="combobox"
-        aria-label="Find a ticket, PR or command"
-        aria-expanded="true"
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={activeId}
-        placeholder="Find a ticket, PR, person or paste a link…"
-        autoFocus
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          moveTo(0, null);
-        }}
-        onKeyDown={onKeyDown}
-      />
+    <div
+      className="deck-palette-body"
+      style={visibleHeight ? { maxHeight: visibleHeight } : undefined}
+    >
+      {phone ? (
+        <div className="deck-palette-search">
+          {field}
+          <button type="button" className="deck-palette-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        field
+      )}
+      {phone && commandRow}
       <div className="deck-palette-list" role="listbox" id={listId} aria-label="Results">
         {sections.map((section) => (
           <div key={section.label} role="group" aria-label={section.label}>
@@ -481,37 +566,79 @@ function PaletteBody({
                   role="option"
                   id={optionId(i)}
                   aria-selected={selected && zoneNow === "results"}
-                  className={`deck-palette-option${selected ? " deck-palette-option--active" : ""}`}
+                  className={`deck-palette-option${selected && !phone ? " deck-palette-option--active" : ""}`}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runPrimary(entry)}
                 >
                   {renderEntry(entry, tickets, closedIds)}
+                  {phone &&
+                    entry.kind === "result" &&
+                    sheetActionsFor(entry.result, queryEmpty).length > 1 && (
+                      <button
+                        type="button"
+                        className="deck-palette-more"
+                        aria-label="More actions"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openSheet(entry.result);
+                        }}
+                      >
+                        <IconDots size={16} aria-hidden="true" />
+                      </button>
+                    )}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-      <div className="deck-palette-tray">
-        <ChipRow
-          label="Actions"
-          className="deck-palette-action"
-          chips={actionChips}
-          empty="Select a result to act on it"
-          activeIndex={zoneNow === "actions" ? chipAt : -1}
-          chipId={(j) => chipId("actions", j)}
-        />
-        <ChipRow
-          label="Commands"
-          className="deck-palette-command"
-          chips={commandChips}
-          activeIndex={zoneNow === "commands" ? chipAt : -1}
-          chipId={(j) => chipId("commands", j)}
-        />
-      </div>
-      <div className="deck-palette-footer">
-        ↑↓ move · ⏎ open · Tab actions, commands · esc close
-      </div>
+      {!phone && (
+        <>
+          <div className="deck-palette-tray">
+            <ChipRow
+              label="Actions"
+              className="deck-palette-action"
+              chips={actionChips}
+              empty="Select a result to act on it"
+              activeIndex={zoneNow === "actions" ? chipAt : -1}
+              chipId={(j) => chipId("actions", j)}
+            />
+            {commandRow}
+          </div>
+          <div className="deck-palette-footer">
+            ↑↓ move · ⏎ open · Tab actions, commands · esc close
+          </div>
+        </>
+      )}
+      {sheetResult && (
+        <div className="deck-palette-sheet-backdrop" onClick={() => setSheet(null)}>
+          <div
+            className="deck-palette-sheet"
+            role="menu"
+            aria-label={`Actions for ${sheetResult.label}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="deck-palette-sheet-title" aria-hidden="true">
+              {sheetResult.label}
+            </div>
+            {sheetActionsFor(sheetResult, queryEmpty).map((a) => (
+              <button
+                key={a.action}
+                type="button"
+                role="menuitem"
+                className="deck-palette-sheet-item"
+                onClick={() => runFromSheet(a.action)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="deck-palette-sheet-cancel">
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }

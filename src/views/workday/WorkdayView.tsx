@@ -137,6 +137,8 @@ const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer
 const SOURCE_PREFIX =
   /(?:^|; )(GitHub PRs|GitHub Reviews|GitHub Mentions|JIRA Issues|JIRA Mentions): /g;
 const DECK_SOURCES = new Set(["GitHub PRs", "GitHub Reviews", "JIRA Issues"]);
+/** ⌘K commands a phone keeps: it has no other modes, no key hints, and pull to refresh. */
+const PHONE_COMMANDS = new Set(["next", "only-current", "closed"]);
 
 /** The sources named in a useDashboard error message. */
 const errorSources = (error: string) =>
@@ -1023,6 +1025,11 @@ export function WorkdayView(props: WorkdayViewProps) {
     [openIssue, jiraBaseUrl],
   );
 
+  // On a phone the Closed group lives in the rail drawer, so it opens too.
+  const showClosed = useCallback(() => {
+    setClosedFolded(false);
+    if (phone) setRailOpen(true);
+  }, [setClosedFolded, phone]);
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
       {
@@ -1048,7 +1055,8 @@ export function WorkdayView(props: WorkdayViewProps) {
         label: closedFolded ? "Show closed" : "Hide closed",
         run: () => {
           setMode("focus");
-          setClosedFolded((v) => !v);
+          if (closedFolded) showClosed();
+          else setClosedFolded(true);
         },
       },
       { id: "refresh", label: "Refresh", keys: "r", run: refresh },
@@ -1075,15 +1083,15 @@ export function WorkdayView(props: WorkdayViewProps) {
       setOnlyCurrent,
       setClosedFolded,
       setHideHints,
+      showClosed,
     ],
+  );
+  const shownCommands = useMemo(
+    () => (phone ? paletteCommands.filter((c) => PHONE_COMMANDS.has(c.id)) : paletteCommands),
+    [phone, paletteCommands],
   );
   const hidePalette = useCallback(() => setPaletteOpen(false), []);
   const hideHelp = useCallback(() => setHelpOpen(false), []);
-  // On a phone the Closed group lives in the rail drawer, so it opens too.
-  const showClosed = useCallback(() => {
-    setClosedFolded(false);
-    if (phone) setRailOpen(true);
-  }, [setClosedFolded, phone]);
   const toStandup = useCallback(() => setMode("standup"), [setMode]);
   const copyStandup = useCallback(
     () => copy(markdown, "Copied standup to clipboard"),
@@ -1252,6 +1260,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                           tickets: rail.length,
                           jumps: deckJumps(rail),
                           mergedNew: mergedSeen.hasNew,
+                          onFind: openPalette,
                         }
                       : undefined
                   }
@@ -1335,10 +1344,11 @@ export function WorkdayView(props: WorkdayViewProps) {
               />
 
               <CommandPalette
+                phone={phone}
                 show={paletteOpen}
                 onHide={hidePalette}
                 deck={deck}
-                commands={paletteCommands}
+                commands={shownCommands}
                 onAction={onPaletteAction}
                 onOpenMention={onOpenMention}
               />
