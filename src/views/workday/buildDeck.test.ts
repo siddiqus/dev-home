@@ -150,6 +150,23 @@ describe("buildDeck grouping", () => {
     expect(ids(deck.open)).toEqual(["CCP-1"]);
     expect(numbers(deck.open[0])).toEqual([1]);
   });
+
+  it("drops it for a merged PR too, but only while the first key's card lists that PR", () => {
+    const named = pr(2, {
+      title: "CCP-1 CCP-2: Scope reads",
+      state: "merged",
+      merged_at: "2026-10-13T12:00:00Z",
+    });
+    const deck = build({
+      openPRs: [pr(1, { title: "CCP-1 more" })],
+      ticketMergedPRs: [named],
+      assignedIssues: [issue("CCP-2")],
+    });
+    expect(ids(deck.open)).toEqual(["CCP-1"]);
+    expect(numbers(deck.open[0])).toEqual([1, 2]);
+    const alone = build({ ticketMergedPRs: [named], assignedIssues: [issue("CCP-2")] });
+    expect(ids(alone.open)).toEqual(["CCP-2"]);
+  });
 });
 
 describe("buildDeck collection and de-duplication", () => {

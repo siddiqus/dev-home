@@ -496,7 +496,11 @@ export function buildDeck(
   }
 
   // Step 3: in-progress tickets assigned to me with no open PR (v1's workingOn rule).
-  const namedInTitles = new Set(collected.flatMap((c) => ticketKeysIn(c.pr.title)));
+  const onDeck = [
+    ...collected.map((c) => c.pr),
+    ...[...byKey.keys()].flatMap((k) => mergedByKey.get(k) ?? []).map((p) => p.pr),
+  ];
+  const namedInTitles = new Set(onDeck.flatMap((pr) => ticketKeysIn(pr.title)));
   for (const issue of inp.assignedIssues) {
     const key = issue.key.toUpperCase();
     if (statusCategoryOf(issue) === "indeterminate" && !byKey.has(key) && !namedInTitles.has(key)) {
