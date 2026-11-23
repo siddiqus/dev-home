@@ -68,7 +68,7 @@ function deck(o: Partial<DeckData> = {}): DeckData {
   };
 }
 
-/** searchDeck without the Jira row a ticket key query adds. */
+/** searchDeck without the outside-link row a ticket key or `repo#123` query adds. */
 const deckRows = (query: string, d: DeckData) => searchDeck(query, d).filter((r) => !r.external);
 
 describe("parseLink", () => {
@@ -522,9 +522,38 @@ describe("searchDeck", () => {
         ],
       });
       for (const q of ["119", "#119", "repo#119"]) {
-        expect(searchDeck(q, d).map((r) => r.pr?.number)).toEqual([1199]);
+        expect(deckRows(q, d).map((r) => r.pr?.number)).toEqual([1199]);
       }
       expect(searchDeck("other#119", d)).toEqual([]);
+    });
+
+    it("finds repo#123 outside the deck, with the owner of a deck PR in that repo", () => {
+      const d = deck({
+        open: [ticket("CCP-1", [pr(1199, { repo_full_name: "Owner/Repo" })])],
+        merged: [ticket("CCP-2", [pr(3, { repo_full_name: "elsewhere/lib" })])],
+      });
+      const results = searchDeck("repo#119", d, "acme");
+      expect(results.map((r) => r.external ?? r.pr?.number)).toEqual([
+        {
+          kind: "pr",
+          repo: "Owner/Repo",
+          number: 119,
+          url: "https://github.com/Owner/Repo/pull/119",
+        },
+        1199,
+      ]);
+      expect(searchDeck("lib#4", d)[0].external).toMatchObject({ repo: "elsewhere/lib" });
+      expect(searchDeck("Repo#1199", d, "acme").map((r) => r.external ?? r.pr?.number)).toEqual([
+        1199,
+      ]);
+    });
+
+    it("finds repo#123 in the configured org when no deck PR is in that repo", () => {
+      const d = deck({ open: [ticket("CCP-1", [pr(1)])] });
+      expect(searchDeck("tools#5", d, " acme ")).toMatchObject([
+        { label: "tools#5", external: { kind: "pr", repo: "acme/tools", number: 5 } },
+      ]);
+      expect(searchDeck("tools#5", d)).toEqual([]);
     });
 
     it("ranks an exact PR number above a prefix match, and a prefix above a title match", () => {

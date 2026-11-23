@@ -392,6 +392,25 @@ describe("⌘K command palette", () => {
     expect(dialog.querySelector('[aria-busy="true"]')).toBeNull();
   });
 
+  it("opens repo#123 outside the deck from a deck repo, or else the configured org", async () => {
+    getPrDetail.mockReturnValue(new Promise(() => {}));
+    localStorage.setItem("dev-home-settings", JSON.stringify({ githubOrg: "acme" }));
+    renderDeck();
+    openPalette();
+    type("r#5");
+    expect(activeOption()?.textContent).toContain("not in deck");
+    key("Enter");
+    await flush();
+    expect(getPrDetail).toHaveBeenLastCalledWith({ owner: "o", repo: "r", number: 5 });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    await flush();
+    openPalette();
+    type("tools#6");
+    key("Enter");
+    await flush();
+    expect(getPrDetail).toHaveBeenLastCalledWith({ owner: "acme", repo: "tools", number: 6 });
+  });
+
   it("toasts and closes the loading modal when an outside PR can't be loaded", async () => {
     getPrDetail.mockRejectedValue(new Error("nope"));
     renderDeck();

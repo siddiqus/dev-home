@@ -3,6 +3,7 @@ import Modal from "react-bootstrap/Modal";
 import { IconDots } from "@tabler/icons-react";
 import { Badge } from "../../components/primitives/Badge";
 import { useBackClose } from "../../hooks/useBackClose";
+import { loadSettings } from "../../services/config";
 import { repoRef } from "./prState";
 import type { MentionItem } from "./types";
 import { searchDeck, type SearchResult } from "./deckSearch";
@@ -352,7 +353,7 @@ function PaletteBody({
       ];
     }
     shown.current = new Map();
-    const results = searchDeck(query, deck).map<Entry>((r, i) => ({
+    const results = searchDeck(query, deck, loadSettings().githubOrg).map<Entry>((r, i) => ({
       kind: "result",
       id: `r:${i}`,
       result: r,

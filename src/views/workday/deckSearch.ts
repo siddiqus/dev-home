@@ -143,12 +143,27 @@ function searchTag(tag: string, rest: string, deck: DeckData): SearchResult[] {
 }
 
 /**
+ * `repo#123` as a PR link: the owner of a deck PR in that repo, else `org`.
+ * Null without either.
+ */
+function shortPRRef(query: string, deck: DeckData, org: string): LinkTarget | null {
+  const m = query.match(/^([\w.-]+)#(\d+)$/);
+  if (!m) return null;
+  const [, name, number] = m;
+  const known = [...deck.current, ...deck.open, ...deck.closed, ...deck.merged]
+    .flatMap((t) => t.prs.map((p) => p.pr.repo_full_name))
+    .find((r) => r.split("/")[1]?.toLowerCase() === name.toLowerCase());
+  const repo = known ?? (org.trim() ? `${org.trim()}/${name}` : null);
+  return repo ? parseLink(`https://github.com/${repo}/pull/${number}`) : null;
+}
+
+/**
  * Fuzzy search over the deck. Returns results sorted by score (highest first).
  * Exact key or PR number matches rank first. Closed tabs are included with
  * `closed: true`. A parsed link not in the deck returns a single result with
- * `external` set.
+ * `external` set; a `repo#123` one keeps its deck matches after it.
  */
-export function searchDeck(query: string, deck: DeckData): SearchResult[] {
+export function searchDeck(query: string, deck: DeckData, org = ""): SearchResult[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
@@ -156,7 +171,9 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   if (tagQuery) return searchTag(tagQuery.tag, tagQuery.rest, deck);
 
   // Check if the query is a link
-  const linkTarget = parseLink(trimmed);
+  const parsed = parseLink(trimmed);
+  const shortRef = parsed ? null : shortPRRef(trimmed, deck, org);
+  const linkTarget = parsed ?? shortRef;
   const subsequence = linkTarget?.kind !== "ticket";
 
   // Collect all searchable items
@@ -264,8 +281,9 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
     external: linkTarget,
   };
   const linked = results.filter((r) => r.score >= TITLE_NAMES_KEY).length;
-  // A link that isn't in the deck: only the external result.
-  if (linked === 0) return [external];
+  // A link that isn't in the deck: only the external result. `repo#12` also
+  // keeps PRs whose number it starts (repo#1234), as typing it would.
+  if (linked === 0) return shortRef ? [external, ...results] : [external];
   // A key the deck has also opens on its own, after the key's matches.
   if (linkTarget.kind === "ticket") {
     results.splice(linked, 0, { ...external, sub: "Open in Jira drawer", score: TITLE_NAMES_KEY });
