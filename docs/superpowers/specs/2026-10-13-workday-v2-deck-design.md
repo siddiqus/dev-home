@@ -347,7 +347,8 @@ Opened with ⌘K / Ctrl+K from anywhere on the page. Esc closes it.
 - **Pasted links** jump straight to the item:
   - GitHub PR URLs (any sub-path: `/files`, `/commits`, `#discussion_r…`),
     parsed with the existing `normalizeNoteRef`,
-  - Jira URLs (`/browse/KEY`, `?selectedIssue=KEY`) and bare keys.
+  - Jira URLs (`/browse/KEY`, `?selectedIssue=KEY`) and bare keys. When the
+    deck has the key, an "Open in Jira drawer" row follows its matches.
 - **Not in the deck?** The result still shows. ⏎ opens the PR in the existing
   `PRDetailModal` (fetched on demand through `getPrDetail`) or the ticket in
   the Jira drawer.

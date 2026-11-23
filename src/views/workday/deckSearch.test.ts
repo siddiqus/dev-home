@@ -68,6 +68,9 @@ function deck(o: Partial<DeckData> = {}): DeckData {
   };
 }
 
+/** searchDeck without the Jira row a ticket key query adds. */
+const deckRows = (query: string, d: DeckData) => searchDeck(query, d).filter((r) => !r.external);
+
 describe("parseLink", () => {
   it("returns null for empty/whitespace strings", () => {
     expect(parseLink("")).toBeNull();
@@ -226,7 +229,7 @@ describe("searchDeck", () => {
   describe("fuzzy matching", () => {
     it("matches on ticket key", () => {
       const d = deck({ open: [ticket("CCP-412", [pr(1)])] });
-      const results = searchDeck("ccp-412", d);
+      const results = deckRows("ccp-412", d);
       expect(results).toHaveLength(1);
       expect(results[0].ticketKey).toBe("CCP-412");
     });
@@ -365,14 +368,14 @@ describe("searchDeck", () => {
     it("includes closed tabs in results with closed: true", () => {
       const t = ticket("CCP-1", [pr(1)]);
       const d = deck({ closed: [t] });
-      const results = searchDeck("CCP-1", d);
+      const results = deckRows("CCP-1", d);
       expect(results).toHaveLength(1);
       expect(results[0].closed).toBe(true);
     });
 
     it("marks open tabs with closed: false", () => {
       const d = deck({ open: [ticket("CCP-1", [pr(1)])] });
-      const results = searchDeck("CCP-1", d);
+      const results = deckRows("CCP-1", d);
       expect(results).toHaveLength(1);
       expect(results[0].closed).toBe(false);
     });
@@ -407,7 +410,7 @@ describe("searchDeck", () => {
 
     it("finds a PR by a ticket key its title names after the key it is grouped under", () => {
       const d = deck({ open: [ticket("CCP-1", [pr(7, { title: "CCP-1 CCP-88: Scope reads" })])] });
-      const results = searchDeck("ccp-88", d);
+      const results = deckRows("ccp-88", d);
       expect(results).toHaveLength(1);
       expect(results[0].external).toBeUndefined();
       expect(results[0].pr?.number).toBe(7);
@@ -422,7 +425,25 @@ describe("searchDeck", () => {
           ticket("CCP-468", [pr(9, { title: "CCP-468: filter; 400 for invalid" })]),
         ],
       });
-      expect(searchDeck("ccp-80", d).map((r) => r.pr?.number)).toEqual([7]);
+      expect(deckRows("ccp-80", d).map((r) => r.pr?.number)).toEqual([7]);
+    });
+
+    it("offers a ticket key in the deck in Jira, after the key's own matches", () => {
+      const d = deck({
+        open: [
+          ticket("CCP-1", [pr(7, { title: "CCP-1 CCP-88: Scope reads" })]),
+          ticket("CCP-88", [pr(8)]),
+          ticket("CCP-880", []),
+        ],
+      });
+      const results = searchDeck("ccp-88", d);
+      expect(results.map((r) => r.pr?.number ?? r.ticketKey)).toEqual([8, 7, "CCP-88", "CCP-880"]);
+      expect(results[2]).toMatchObject({
+        ticketId: null,
+        label: "CCP-88",
+        sub: "Open in Jira drawer",
+        external: { kind: "ticket", key: "CCP-88" },
+      });
     });
 
     it("does not add an external result if the link is in the deck", () => {
@@ -439,7 +460,7 @@ describe("searchDeck", () => {
       const d = deck({
         open: [ticket("CCP-1", [pr(1, { title: "backend" }), pr(2, { title: "frontend" })])],
       });
-      const results = searchDeck("CCP-1", d);
+      const results = deckRows("CCP-1", d);
       expect(results).toHaveLength(2);
       expect(results.map((r) => r.pr?.number).sort()).toEqual([1, 2]);
     });
@@ -457,7 +478,7 @@ describe("searchDeck", () => {
   describe("tickets without PRs", () => {
     it("returns a ticket without PRs when it matches", () => {
       const d = deck({ open: [ticket("CCP-1", [], { title: "No PR yet" })] });
-      const results = searchDeck("CCP-1", d);
+      const results = deckRows("CCP-1", d);
       expect(results).toHaveLength(1);
       expect(results[0].ticketKey).toBe("CCP-1");
       expect(results[0].pr).toBeNull();
@@ -476,7 +497,7 @@ describe("searchDeck", () => {
       const d = deck({
         open: [ticket("CCP-1", [pr(1)]), ticket("CCP-12", [pr(12)])],
       });
-      const results = searchDeck("CCP-12", d);
+      const results = deckRows("CCP-12", d);
       expect(results.map((r) => r.ticketKey)).toEqual(["CCP-12"]);
     });
 
@@ -524,7 +545,7 @@ describe("searchDeck", () => {
           ticket("CCP-22", [], { title: "Something" }),
         ],
       });
-      const results = searchDeck("CCP-22", d);
+      const results = deckRows("CCP-22", d);
       expect(results.map((r) => r.ticketKey)).toEqual(["CCP-22", "CCP-1"]);
       expect(results[0].score).toBeGreaterThan(results[1].score);
     });

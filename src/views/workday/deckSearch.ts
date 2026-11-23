@@ -249,25 +249,27 @@ export function searchDeck(query: string, deck: DeckData): SearchResult[] {
   // Sort by score descending
   results.sort((a, b) => b.score - a.score);
 
+  if (!linkTarget) return results;
+  const external: SearchResult = {
+    ticketId: null,
+    pr: null,
+    ticketKey: linkTarget.kind === "ticket" ? linkTarget.key : null,
+    label:
+      linkTarget.kind === "pr"
+        ? `${linkTarget.repo.split("/").pop()}#${linkTarget.number}`
+        : linkTarget.key,
+    sub: linkTarget.kind === "pr" ? linkTarget.url : "",
+    closed: false,
+    score: Infinity,
+    external: linkTarget,
+  };
+  const linked = results.filter((r) => r.score >= TITLE_NAMES_KEY).length;
   // A link that isn't in the deck: only the external result.
-  if (linkTarget && !results.some((r) => r.score >= TITLE_NAMES_KEY)) {
-    return [
-      {
-        ticketId: null,
-        pr: null,
-        ticketKey: linkTarget.kind === "ticket" ? linkTarget.key : null,
-        label:
-          linkTarget.kind === "pr"
-            ? `${linkTarget.repo.split("/").pop()}#${linkTarget.number}`
-            : linkTarget.key,
-        sub: linkTarget.kind === "pr" ? linkTarget.url : "",
-        closed: false,
-        score: Infinity,
-        external: linkTarget,
-      },
-    ];
+  if (linked === 0) return [external];
+  // A key the deck has also opens on its own, after the key's matches.
+  if (linkTarget.kind === "ticket") {
+    results.splice(linked, 0, { ...external, sub: "Open in Jira drawer", score: TITLE_NAMES_KEY });
   }
-
   return results;
 }
 

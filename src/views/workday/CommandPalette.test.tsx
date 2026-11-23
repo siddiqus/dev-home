@@ -507,6 +507,24 @@ describe("⌘K command palette", () => {
     open.mockRestore();
   });
 
+  it("opens a ticket key whose PRs are in the deck in Jira from the row after them", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    renderDeck();
+    openPalette();
+    type("ccp-401");
+    expect(activeOption()?.textContent).toContain("Webhook retry policy");
+    key("ArrowDown");
+    expect(activeOption()?.textContent).toBe("CCP-401Open in Jira drawer");
+    key("Enter");
+    await flush();
+    expect(open).toHaveBeenCalledWith(
+      "https://example.atlassian.net/browse/CCP-401",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    open.mockRestore();
+  });
+
   it("runs commands: Switch to Standup, and ⌘K still works there", async () => {
     renderDeck();
     openPalette();

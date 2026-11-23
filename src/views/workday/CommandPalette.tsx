@@ -714,6 +714,9 @@ function renderEntry(
   const current = r.pr
     ? (ticket?.prs.find((p) => p.pr.html_url === r.pr?.html_url)?.current ?? false)
     : (ticket?.current ?? false);
+  const ext = r.external;
+  const inDeck =
+    ext?.kind === "ticket" && [...tickets.values()].some((t) => t.key?.toUpperCase() === ext.key);
   return (
     <>
       <span className="deck-palette-text">
@@ -725,7 +728,7 @@ function renderEntry(
       )}
       {current && !closed && <Badge variant="warning">current</Badge>}
       {closed && <Badge variant="neutral">closed</Badge>}
-      {r.external && <Badge variant="info">not in deck</Badge>}
+      {ext && !inDeck && <Badge variant="info">not in deck</Badge>}
     </>
   );
 }
