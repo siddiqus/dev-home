@@ -2,6 +2,8 @@ import React from "react";
 import {
   IconGitPullRequest,
   IconGitPullRequestDraft,
+  IconGitPullRequestClosed,
+  IconGitMerge,
   IconGitBranch,
   IconCopy,
   IconMessageCircle,
@@ -133,15 +135,59 @@ export function SignalChip({ signal }: { signal: Signal }) {
   );
 }
 
-/** The leading PR icon — draft (muted) vs open. */
+/** Which PR glyph a PR gets. A PR in the merge queue reads as merged — it's on
+    its way in and nothing more is asked of it. */
+export type PRIconState = "merged" | "closed" | "draft" | "open";
+
+export type PRIconInput = Pick<GitHubPR, "state" | "merged_at" | "in_merge_queue"> &
+  Partial<Pick<GitHubPR, "draft">>;
+
+export function prIconState(pr: PRIconInput): PRIconState {
+  if (pr.merged_at || pr.in_merge_queue) return "merged";
+  if (pr.state === "closed") return "closed";
+  if (pr.draft) return "draft";
+  return "open";
+}
+
+const PR_STATE_ICONS = {
+  merged: IconGitMerge,
+  closed: IconGitPullRequestClosed,
+  draft: IconGitPullRequestDraft,
+  open: IconGitPullRequest,
+} as const;
+
+/** The bare PR glyph for a PR's state, for callers placing their own wrapper. */
+export function PRIcon({
+  pr,
+  size = 16,
+  stroke = 1.8,
+  className,
+  style,
+}: {
+  pr: PRIconInput;
+  size?: number;
+  stroke?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const state = prIconState(pr);
+  const Icon = PR_STATE_ICONS[state];
+  return (
+    <Icon
+      size={size}
+      stroke={stroke}
+      className={`pr-icon pr-icon--${state}${className ? ` ${className}` : ""}`}
+      style={style}
+      aria-hidden="true"
+    />
+  );
+}
+
+/** The leading PR icon — merged / closed / draft (muted) / open. */
 export function PRStateIcon({ pr, size = 20 }: { pr: GitHubPR; size?: number }) {
   return (
     <span className={`pr-card-icon${pr.draft ? " pr-card-icon--muted" : ""}`}>
-      {pr.draft ? (
-        <IconGitPullRequestDraft size={size} stroke={1.8} />
-      ) : (
-        <IconGitPullRequest size={size} stroke={1.8} />
-      )}
+      <PRIcon pr={pr} size={size} />
     </span>
   );
 }

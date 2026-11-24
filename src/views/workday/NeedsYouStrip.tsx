@@ -192,6 +192,7 @@ export function NeedsYouStrip({
                   tone={item.tone}
                   dot
                   icon="pr"
+                  pr={item.pr}
                   ticketKey={item.ticketKey}
                   // The verb keeps the key column; by PR, the key leads the title.
                   hideKey

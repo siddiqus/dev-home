@@ -19,6 +19,25 @@
   color: var(--color-text-secondary);
 }
 
+/* The PR glyph carries its own state colour wherever it renders (list rows,
+   modal header, Workday rows, linked PRs): merged/queued purple, closed red,
+   draft muted, open green. */
+.pr-icon--merged {
+  color: var(--color-status-purple);
+}
+
+.pr-icon--closed {
+  color: var(--color-status-danger);
+}
+
+.pr-icon--draft {
+  color: var(--color-text-secondary);
+}
+
+.pr-icon--open {
+  color: var(--color-status-success);
+}
+
 /* ---- Jira ticket link ---- */
 .pr-card-ticket {
   flex-shrink: 0;
@@ -123,7 +142,9 @@ a.pr-card-ticket:hover {
   color: var(--color-text-muted);
   cursor: pointer;
   line-height: 0;
-  transition: color 120ms ease, background-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 /* Follow the button color (overrides `.pr-card-branch svg`, which would

@@ -311,6 +311,12 @@
   color: var(--color-text-secondary);
 }
 
+/* The glyph says which state the PR is in; the icon column stays monochrome —
+   colour here belongs to the row's badge. */
+.workday-row-icon .pr-icon {
+  color: inherit;
+}
+
 .workday-line:hover,
 .workday-item:hover,
 .workday-mention:hover {

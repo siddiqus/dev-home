@@ -2,7 +2,7 @@ import React from "react";
 import Offcanvas from "react-bootstrap/Offcanvas";
 import Button from "react-bootstrap/Button";
 import Spinner from "react-bootstrap/Spinner";
-import { IconExternalLink, IconGitPullRequest, IconRefresh } from "@tabler/icons-react";
+import { IconExternalLink, IconRefresh } from "@tabler/icons-react";
 import { JiraIssue } from "../types";
 import type { LinkedPR } from "../types/teams";
 import { useIssueDescription } from "../hooks/useIssueDescription";
@@ -16,6 +16,7 @@ import { Markdown } from "./Markdown";
 import "./JiraIssueDrawer.css";
 import { jiraBrowseUrl } from "../utils/tickets";
 import { prNoteKey } from "../utils/prNotes";
+import { PRIcon } from "./prIndicators";
 
 interface JiraIssueDrawerProps {
   issue: JiraIssue | null;
@@ -233,7 +234,12 @@ const JiraDrawerDetails: React.FC<{
               className="d-flex align-items-start gap-2 text-decoration-none"
               style={{ fontSize: "0.8125rem" }}
             >
-              <IconGitPullRequest size={15} stroke={1.5} style={{ flexShrink: 0, marginTop: 2 }} />
+              <PRIcon
+                pr={{ state: pr.state, merged_at: pr.mergedAt ?? undefined }}
+                size={15}
+                stroke={1.5}
+                style={{ flexShrink: 0, marginTop: 2 }}
+              />
               <span style={{ minWidth: 0 }}>
                 <span className="text-secondary-custom">{pr.repo_full_name}</span>{" "}
                 <span className="text-secondary-custom">#{pr.number}</span>

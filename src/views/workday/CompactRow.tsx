@@ -12,7 +12,7 @@ import { TicketChip } from "../../components/TicketGroupHeader";
 import { Badge } from "../../components/primitives/Badge";
 import { MergeButton } from "../../components/MergeButton";
 import { RequestReviewButton, RequestReviewIcon } from "../../components/RequestReviewButton";
-import { Participants } from "../../components/prIndicators";
+import { Participants, PRIcon, type PRIconInput } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
 import { blurOnPointer } from "./pointer";
 import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
@@ -243,14 +243,21 @@ function clickable(onClick?: () => void) {
 /** Tickets get no icon (the key chip says it); only PRs and mentions do. */
 export type RowKind = "pr" | "mention";
 
-const ROW_ICONS = { pr: IconGitPullRequest, mention: IconMessageCircle };
-
-/** The shared grid's icon column; an empty cell when the row has no icon. */
-export function RowIcon({ kind }: { kind?: RowKind }) {
-  const Icon = kind && ROW_ICONS[kind];
+/**
+ * The shared grid's icon column; an empty cell when the row has no icon. A PR
+ * row passes its `pr` so the glyph matches the PR's state (merged / queued,
+ * closed, draft, open) the same way the list rows and modal do.
+ */
+export function RowIcon({ kind, pr }: { kind?: RowKind; pr?: PRIconInput }) {
   return (
     <span className="workday-row-icon">
-      {Icon && <Icon size={16} stroke={1.75} aria-hidden="true" />}
+      {kind === "mention" && <IconMessageCircle size={16} stroke={1.75} aria-hidden="true" />}
+      {kind === "pr" &&
+        (pr ? (
+          <PRIcon pr={pr} size={16} stroke={1.75} />
+        ) : (
+          <IconGitPullRequest size={16} stroke={1.75} aria-hidden="true" />
+        ))}
     </span>
   );
 }
@@ -263,6 +270,8 @@ interface WorkdayLineProps {
   dot?: boolean;
   /** Icon in the icon column: what the row is (none for a ticket). */
   icon?: RowKind;
+  /** The row's PR, so a "pr" icon shows the PR's state glyph. */
+  pr?: PRIconInput;
   ticketKey: string | null;
   /** Show the lead instead of the key (lines under a ticket header). */
   hideKey?: boolean;
@@ -284,6 +293,7 @@ export function WorkdayLine({
   tone,
   dot,
   icon,
+  pr,
   ticketKey,
   hideKey,
   jiraBaseUrl,
@@ -305,7 +315,7 @@ export function WorkdayLine({
           {lead}
         </span>
       )}
-      <RowIcon kind={icon} />
+      <RowIcon kind={icon} pr={pr} />
       <span className="workday-line-title">
         <span className="workday-line-text">{title}</span>
         {extra}
@@ -368,7 +378,7 @@ export function WorkdayItemRow({
       ) : (
         <span />
       )}
-      {kind && <RowIcon kind={kind} />}
+      {kind && <RowIcon kind={kind} pr={pr} />}
       <div className="workday-item-main">
         <div className="workday-item-line1">
           <span className="workday-item-title">{title}</span>
