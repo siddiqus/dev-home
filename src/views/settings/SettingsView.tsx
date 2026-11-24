@@ -261,6 +261,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </SettingsSection>
       )}
 
+      <SettingsSection title="Mentions" description="Which GitHub @-mentions show up in Mentions.">
+        <Form.Check
+          type="switch"
+          id="settings-mentions-direct-only"
+          label="Only mentions of me, not my teams"
+          checked={!!formState.mentionsDirectOnly}
+          onChange={(e) =>
+            setFormState((prev) => ({ ...prev, mentionsDirectOnly: e.target.checked }))
+          }
+        />
+      </SettingsSection>
+
       <SettingsSection
         title="Weekend"
         description={'Days off. Workday\'s "Done since last workday" skips these.'}

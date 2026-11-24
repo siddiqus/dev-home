@@ -243,6 +243,17 @@ describe("getGithubMentions own-PR comments", () => {
   });
 });
 
+describe("getGithubMentions directOnly setting", () => {
+  it("drops team mentions only when mentionsDirectOnly is set", async () => {
+    const team = { ...notification(2), reason: "team_mention" };
+    inbox = [notification(1), team];
+    expect((await getGithubMentions()).mentions.map((m) => m.id).sort()).toEqual([1, 2]);
+
+    saveSettings({ ...BASE_SETTINGS, mentionsDirectOnly: true });
+    expect((await getGithubMentions()).mentions.map((m) => m.id)).toEqual([1]);
+  });
+});
+
 describe("getGithubMentions caching", () => {
   it("sends If-Modified-Since on the next call and makes no comment requests on 304", async () => {
     inbox = [notification(1), notification(2)];

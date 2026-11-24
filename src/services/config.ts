@@ -11,6 +11,8 @@ export interface AppSettings {
   hiddenTabs: string[];
   /** Days off, as JS getDay() values (0 = Sun). Absent → DEFAULT_WEEKEND_DAYS. */
   weekendDays?: number[];
+  /** Mentions: drop notifications for team @-mentions, keeping only ones addressed to the user. */
+  mentionsDirectOnly?: boolean;
 }
 
 export const SETTINGS_KEY = "dev-home-settings";
@@ -67,7 +69,12 @@ export function accountIdentity(s: AppSettings): string {
 
 /** Every setting that changes what remote calls return (UI prefs excluded). */
 export function credentialsFingerprint(s: AppSettings): string {
-  return [accountIdentity(s), s.jiraApiToken, s.githubToken].join("|");
+  return [
+    accountIdentity(s),
+    s.jiraApiToken,
+    s.githubToken,
+    s.mentionsDirectOnly ? "direct" : "",
+  ].join("|");
 }
 
 /** Checks the Jira passthrough proxy; the version is the app build's own. */
