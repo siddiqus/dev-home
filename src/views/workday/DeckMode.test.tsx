@@ -835,6 +835,23 @@ describe("DeckMode on a phone", () => {
     ).toBeNull();
   });
 
+  it("dots the Items button in blue while unseen activity waits in the drawer", () => {
+    renderDeck({ deck: three(), phone: phone({ activityNew: true }) });
+    const button = screen.getByRole("button", { name: "Show items, new activity" });
+    const dots = button.querySelectorAll(".deck-rail-trigger-dot");
+    expect(dots).toHaveLength(1);
+    expect(dots[0].className).not.toContain("--merged");
+  });
+
+  it("shows both dots when activity and a merge are waiting", () => {
+    renderDeck({ deck: three(), phone: phone({ activityNew: true, mergedNew: true }) });
+    const button = screen.getByRole("button", {
+      name: "Show items, new activity and new merges",
+    });
+    expect(button.querySelectorAll(".deck-rail-trigger-dot")).toHaveLength(2);
+    expect(button.querySelectorAll(".deck-rail-trigger-dot--merged")).toHaveLength(1);
+  });
+
   it("marks a new merge in the drawer with a purple dot", () => {
     const merged = ticket("merged:CCP-9", { key: "CCP-9", unseen: true });
     renderDeck({

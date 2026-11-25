@@ -506,6 +506,12 @@ export function WorkdayView(props: WorkdayViewProps) {
   // changes without an intent (a refresh dropping the ticket, `g c` narrowing)
   // and mode switches don't glide. The direction is derived during render so
   // the carousel knows where to glide from as the new card renders.
+  // Phone: a blue dot on All Items for unseen activity waiting in the drawer.
+  // Not the card on show — its dot clears as it's read, and it's not "in there".
+  const activityNew = useMemo(
+    () => rail.some((t) => t.unseen && !isMergedTab(t.id) && t.id !== selectedId),
+    [rail, selectedId],
+  );
   const railIds = useMemo(() => rail.map((t) => t.id), [rail]);
   const [navIntent, setNavIntent] = useState<{ to: string; dir: SwipeDirection | "rail" } | null>(
     null,
@@ -1260,6 +1266,7 @@ export function WorkdayView(props: WorkdayViewProps) {
                           tickets: rail.length,
                           jumps: deckJumps(rail),
                           mergedNew: mergedSeen.hasNew,
+                          activityNew,
                           onFind: openPalette,
                         }
                       : undefined

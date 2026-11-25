@@ -1965,16 +1965,27 @@ button.deck-rail-row:focus-visible {
   font-weight: 600;
   white-space: nowrap;
 }
-/* Something merged that the drawer hasn't shown: a purple dot on the button's corner. */
-.deck-rail-trigger-dot {
+/* What the drawer hasn't shown yet, on the button's corner: blue for new
+   activity, purple for new merges — the rail rows' dots. Both can show, so
+   they sit in a row rather than on top of each other. */
+.deck-rail-trigger-dots {
   position: absolute;
   top: -3px;
   right: -3px;
+  display: flex;
+  gap: 2px;
+}
+
+.deck-rail-trigger-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-status-purple);
+  background: var(--color-status-info);
   box-shadow: 0 0 0 2px var(--color-bg-app);
+}
+
+.deck-rail-trigger-dot--merged {
+  background: var(--color-status-purple);
 }
 /* Jump chips at the bar's right end; scroll sideways rather than squeeze if a phone is narrow. */
 .deck-phone-jumps {

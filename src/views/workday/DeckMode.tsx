@@ -90,11 +90,19 @@ export interface PhoneDeck {
   jumps: DeckJump[];
   /** Something merged that the drawer hasn't shown yet: a purple dot on the Items button. */
   mergedNew?: boolean;
+  /** Unseen activity on an item that isn't on the deck's card: a blue dot beside it. */
+  activityNew?: boolean;
   /** The deck bar's last button: opens the ⌘K palette. */
   onFind(): void;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** The Items button names what its dots stand for, so a screen reader gets it too. */
+function railTriggerLabel({ activityNew, mergedNew }: PhoneDeck): string {
+  const waiting = [activityNew && "new activity", mergedNew && "new merges"].filter(Boolean);
+  return waiting.length > 0 ? `Show items, ${waiting.join(" and ")}` : "Show items";
+}
 
 /** Stands in for the deck while loading, so no cached tab shows under the skeletons. */
 const LOADING_DECK: DeckData = {
@@ -288,13 +296,22 @@ export function DeckMode({
           <button
             type="button"
             className="deck-rail-trigger"
-            aria-label={phone.mergedNew ? "Show items, new merges" : "Show items"}
+            aria-label={railTriggerLabel(phone)}
             aria-expanded={phone.railOpen}
             onClick={() => phone.onRailOpenChange(true)}
           >
             <IconListDetails size={14} aria-hidden="true" />
             <span className="deck-rail-trigger-label">All Items</span>
-            {phone.mergedNew && <span className="deck-rail-trigger-dot" aria-hidden="true" />}
+            {(phone.activityNew || phone.mergedNew) && (
+              // Same two dots the rail's rows carry, so the button says what's
+              // waiting inside: blue for new activity, purple for new merges.
+              <span className="deck-rail-trigger-dots" aria-hidden="true">
+                {phone.activityNew && <span className="deck-rail-trigger-dot" />}
+                {phone.mergedNew && (
+                  <span className="deck-rail-trigger-dot deck-rail-trigger-dot--merged" />
+                )}
+              </span>
+            )}
           </button>
           {showCounts && phone.jumps.length > 0 && (
             // A tap goes to the kind's first card, as a pick from the drawer does;
