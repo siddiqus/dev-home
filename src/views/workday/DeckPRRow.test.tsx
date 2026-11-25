@@ -283,11 +283,25 @@ describe("DeckPRRow open-on-GitHub icon", () => {
     expect(screen.getByRole("link", { name: "Open r#7 on GitHub" })).toBeInTheDocument();
   });
 
-  it("shows on a phone too, next to the copy icon", () => {
+  it("is left out on a phone, where the row's tap opens the PR", () => {
+    onPhone(true);
+    renderRow(item({}, []));
+    expect(screen.queryByRole("link", { name: "Open r#7 on GitHub" })).toBeNull();
+  });
+});
+
+describe("DeckPRRow age", () => {
+  it("sits on the stats line on desktop", () => {
+    onPhone(false);
+    const { container } = renderRow(item({}, []));
+    expect(container.querySelector(".deck-pr-stats > .deck-pr-when")).not.toBeNull();
+  });
+
+  it("moves up next to repo#number on a phone", () => {
     onPhone(true);
     const { container } = renderRow(item({}, []));
-    const links = container.querySelector(".deck-pr-links")!;
-    expect(links).toContainElement(screen.getByRole("link", { name: "Open r#7 on GitHub" }));
+    expect(container.querySelector(".deck-pr-who > .deck-pr-when")).not.toBeNull();
+    expect(container.querySelector(".deck-pr-stats > .deck-pr-when")).toBeNull();
   });
 });
 

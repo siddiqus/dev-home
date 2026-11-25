@@ -14,6 +14,7 @@ import { MergeButton } from "../../components/MergeButton";
 import { RequestReviewButton, RequestReviewIcon } from "../../components/RequestReviewButton";
 import { Participants, PRIcon, type PRIconInput } from "../../components/prIndicators";
 import type { GitHubPR } from "../../types";
+import { useIsPhone } from "../../hooks/useIsPhone";
 import { blurOnPointer } from "./pointer";
 import { myPRState, repoRef, worstState, type StateBadge } from "./prState";
 import { groupUpdatedAt, type KeyedGroup } from "./buildWorkday";
@@ -143,9 +144,14 @@ export function LineSub({ pr, after }: { pr: GitHubPR; after?: string }) {
   );
 }
 
-/** Copy-link and open-on-GitHub icons for a PR; they don't open the row. */
+/**
+ * Copy-link and open-on-GitHub icons for a PR; they don't open the row. The
+ * open-on-GitHub link is desktop-only — on a phone the GitHub app/site is a
+ * worse read than the PR modal, and the row has little width to spare.
+ */
 export function PRLinkIcons({ pr, external = true }: { pr: GitHubPR; external?: boolean }) {
   const onCopy = React.useContext(CopyPRLinkContext);
+  const phone = useIsPhone();
   const ref = repoRef(pr);
   return (
     <>
@@ -165,7 +171,7 @@ export function PRLinkIcons({ pr, external = true }: { pr: GitHubPR; external?: 
           <IconCopy size={13} stroke={1.8} />
         </button>
       )}
-      {external && (
+      {external && !phone && (
         <a
           className="pr-cluster-ext"
           href={pr.html_url}

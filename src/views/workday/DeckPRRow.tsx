@@ -42,9 +42,12 @@ function ageTitle({ pr, unseen, seenOn }: DeckPR): string {
  * and the unseen dot on the right; the title without the key; up to four
  * signal chips with "+N", then the comment count (never folded into "+N",
  * since unread feedback is a reason to act); the newest unseen comment and my
- * newest unresolved note. The copy-link and open-on-GitHub icons are there on a
- * phone too (deliberate taps); the signal chips still don't link out there, so
- * a stray tap opens the PR modal instead of a GitHub tab.
+ * newest unresolved note. On a phone the meta runs as two lines and the age
+ * moves up to the first one, so it's at the card's top right next to
+ * repo#number rather than trailing the wrapping stats. The copy-link icon is
+ * there on a phone too (a deliberate tap); open-on-GitHub isn't. The signal
+ * chips don't link out there either, so a stray tap opens the PR modal
+ * instead of a GitHub tab.
  */
 export function DeckPRRow({
   id,
@@ -79,6 +82,21 @@ export function DeckPRRow({
     onSelect(pr.html_url);
     onOpen(pr);
   };
+  // The age sits at the right end of the first meta line: on a phone that's the
+  // line with repo#number (the stats line below wraps and would push it around).
+  const when = (
+    <span className="deck-pr-when">
+      {item.current && <span className="deck-pr-current">▶ current</span>}
+      <span
+        className={item.unseen ? "deck-pr-age deck-pr-age--new" : "deck-pr-age"}
+        title={ageTitle(item)}
+      >
+        {item.unseen && "updated "}
+        {age === "now" ? "just now" : `${age} ago`}
+      </span>
+      {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
+    </span>
+  );
   const classes = ["deck-pr", item.current && "deck-pr--current", selected && "deck-pr--selected"]
     .filter(Boolean)
     .join(" ");
@@ -109,6 +127,7 @@ export function DeckPRRow({
             <span className="deck-pr-links">
               <PRLinkIcons pr={pr} />
             </span>
+            {phone && when}
           </span>
           <span className="deck-pr-stats">
             <DiffStat pr={pr} />
@@ -118,17 +137,7 @@ export function DeckPRRow({
                 <Participants pr={{ ...pr, participants }} />
               </>
             )}
-            <span className="deck-pr-when">
-              {item.current && <span className="deck-pr-current">▶ current</span>}
-              <span
-                className={item.unseen ? "deck-pr-age deck-pr-age--new" : "deck-pr-age"}
-                title={ageTitle(item)}
-              >
-                {item.unseen && "updated "}
-                {age === "now" ? "just now" : `${age} ago`}
-              </span>
-              {item.unseen && <span className="deck-dot" role="img" aria-label="new activity" />}
-            </span>
+            {!phone && when}
           </span>
         </div>
         <div className="deck-pr-title">{titleWithoutKey(pr.title, ticketKey)}</div>
