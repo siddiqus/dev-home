@@ -901,6 +901,18 @@ export function WorkdayView(props: WorkdayViewProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, [configured, mode, togglePalette]);
 
+  useEffect(() => {
+    if (!configured) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== "r") return;
+      e.preventDefault();
+      refresh();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [configured, refresh]);
+
   // ⌘K jump: reopens a closed tab, and clears `g c` if the target isn't current.
   const jumpTo = useCallback(
     (ticketId: string, prUrl: string | null) => {

@@ -526,6 +526,30 @@ describe("WorkdayView deck", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("⌘R refreshes Workday's data instead of reloading the page, in every mode", () => {
+    const onRefresh = vi.fn();
+    renderDeck({ onRefresh });
+    const ev = new KeyboardEvent("keydown", {
+      key: "r",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    press("r", { ctrlKey: true });
+    expect(onRefresh).toHaveBeenCalledTimes(2);
+    press("r", { metaKey: true, shiftKey: true });
+    expect(onRefresh).toHaveBeenCalledTimes(2);
+    cleanup();
+
+    localStorage.setItem("workday-v2.mode", "standup");
+    renderDeck({ onRefresh });
+    press("r", { metaKey: true });
+    expect(onRefresh).toHaveBeenCalledTimes(3);
+  });
+
   it("⌘K stays shut while the Jira drawer is open", () => {
     renderDeck();
     const drawer = document.createElement("div");
