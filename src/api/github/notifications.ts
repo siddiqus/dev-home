@@ -37,6 +37,10 @@ const ALLOWED_REASONS = new Set([
   "team_mention",
 ]);
 
+/** The reasons kept; `directOnly` drops team @-mentions. */
+const reasonsFor = (directOnly: boolean) =>
+  directOnly ? new Set([...ALLOWED_REASONS].filter((r) => r !== "team_mention")) : ALLOWED_REASONS;
+
 /** Most mention threads processed per refresh (newest first). */
 export const MAX_MENTION_THREADS = 50;
 
@@ -181,7 +185,8 @@ export function pruneMentionsCache(threadIds: Iterable<string>): void {
 
 /**
  * Fetch pages of notifications from the GitHub REST API (newest first),
- * filtered to only relevant participation reasons. Paging stops once a page
+ * filtered to only relevant participation reasons (team @-mentions only when
+ * `directOnly` is false; the cache is reset when settings change). Paging stops once a page
  * brings the count to MAX_MENTION_THREADS, since only the newest are used.
  * The first page is a conditional request when a previous list is cached;
  * a 304 returns the cached list without fetching further pages. A 304 with
@@ -192,7 +197,9 @@ export async function fetchAllNotifications(
   github: HttpClient,
   since: string,
   signal?: AbortSignal,
+  directOnly = false,
 ): Promise<any[]> {
+  const reasons = reasonsFor(directOnly);
   const all: any[] = [];
   let page = 1;
   const perPage = 100;
@@ -216,7 +223,7 @@ export async function fetchAllNotifications(
 
     const data = response.data;
     for (const n of data) {
-      if (ALLOWED_REASONS.has(n.reason)) all.push(trimNotification(n));
+      if (reasons.has(n.reason)) all.push(trimNotification(n));
     }
     if (data.length < perPage || all.length >= MAX_MENTION_THREADS) break;
     page++;

@@ -309,7 +309,12 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
   ownPrComments.catch(() => {});
 
   hydrateMentionsCache();
-  const allNotifications = await fetchAllNotifications(github, since, signal);
+  const allNotifications = await fetchAllNotifications(
+    github,
+    since,
+    signal,
+    config.mentionsDirectOnly,
+  );
   // Cap before the open-state check so at most MAX_MENTION_THREADS subjects are looked up.
   const newest = [...allNotifications]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
