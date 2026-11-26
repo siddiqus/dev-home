@@ -1,4 +1,4 @@
-import { useContext, useId } from "react";
+import { useContext, useEffect, useId } from "react";
 import Button from "react-bootstrap/Button";
 import type { GitHubPR, Note } from "../../types";
 import { Badge } from "../../components/primitives/Badge";
@@ -61,6 +61,13 @@ export function DeckCard({
   const rowIds = useId();
   const copyLinks = useContext(CopyPRLinksContext);
   const prRowId = (index: number) => `${rowIds}pr-${index}`;
+  const activeRowIndex = ticket.prs.findIndex((p) => p.pr.html_url === selectedPrUrl);
+  useEffect(() => {
+    if (activeRowIndex === -1) return;
+    document
+      .getElementById(`${rowIds}pr-${activeRowIndex}`)
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [rowIds, activeRowIndex, ticket.id]);
   if (ticket.noteItem) {
     return (
       <DeckNoteCard

@@ -1408,6 +1408,26 @@ describe("WorkdayView polish", () => {
     expect(column()).toHaveAttribute("data-swipe", "prev");
   });
 
+  it("a palette jump to a PR scrolls its row into view on the card", async () => {
+    const scrolled: Element[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      renderDeck();
+      press("ArrowRight");
+      press("k", { metaKey: true });
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "r#1207" } });
+      fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+      await act(async () => {});
+      expect(card()).toHaveAccessibleName(/^CCP-412/);
+      expect(selectedPRRow()).toHaveTextContent("#1207");
+      expect(scrolled.at(-1)).toBe(selectedPRRow());
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
+  });
+
   it("doesn't swipe when a refresh drops the selected ticket", () => {
     const { rerender } = renderDeck();
     fireEvent.click(screen.getByRole("option", { name: /401/ }));
