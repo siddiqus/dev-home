@@ -150,8 +150,9 @@ const MY_PR_ACTIVITY_FIELDS = `reviews(last: 20) {
  * the Mentions view, keeping this list query light.
  */
 export const SEARCH_MY_PRS_QUERY = `
-  query SearchMyPRs($query: String!, $first: Int!) {
-    search(query: $query, type: ISSUE, first: $first) {
+  query SearchMyPRs($query: String!, $first: Int!, $after: String) {
+    search(query: $query, type: ISSUE, first: $first, after: $after) {
+      pageInfo { hasNextPage endCursor }
       nodes {
         ... on PullRequest {
           ${PR_BASE_FIELDS}
@@ -187,8 +188,9 @@ export const PR_REFRESH_QUERY = `
  * bodies, for merging into GitHub mentions (see extractOwnPRComments).
  */
 export const OWN_PR_COMMENTS_QUERY = `
-  query OwnPRComments($query: String!, $first: Int!) {
-    search(query: $query, type: ISSUE, first: $first) {
+  query OwnPRComments($query: String!, $first: Int!, $after: String) {
+    search(query: $query, type: ISSUE, first: $first, after: $after) {
+      pageInfo { hasNextPage endCursor }
       nodes {
         ... on PullRequest {
           number

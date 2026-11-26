@@ -109,6 +109,28 @@ describe("getOrgPrs", () => {
   });
 });
 
+describe("getPrs", () => {
+  it("pages past the first 100 open PRs", async () => {
+    adapter.mockImplementation(async (config: any) => {
+      if (!String(config.url).endsWith("/graphql")) throw notFound(config);
+      const { after } = JSON.parse(config.data).variables;
+      const page = after
+        ? { nodes: [prNode(101)], pageInfo: { hasNextPage: false, endCursor: null } }
+        : {
+            nodes: Array.from({ length: 100 }, (_, i) => prNode(i + 1)),
+            pageInfo: { hasNextPage: true, endCursor: "c1" },
+          };
+      return ok(config, { data: { search: page } });
+    });
+    const { prs } = await getPrs();
+    expect(prs).toHaveLength(101);
+    expect(graphqlBodies().map((b) => [b.variables.first, b.variables.after])).toEqual([
+      [100, null],
+      [100, "c1"],
+    ]);
+  });
+});
+
 describe("getOrgMembers", () => {
   it("returns no members when githubOrg is empty", async () => {
     saveSettings({ ...BASE_SETTINGS, githubOrg: "" });

@@ -241,6 +241,32 @@ describe("getGithubMentions own-PR comments", () => {
     const { mentions } = await getGithubMentions();
     expect(mentions.map((m) => m.id).sort((a, b) => a - b)).toEqual([1, 11]);
   });
+
+  it("pages the user's open PRs past the first 100", async () => {
+    const pr = (number: number, commentId: number) => ({
+      number,
+      title: `PR ${number}`,
+      state: "OPEN",
+      repository: { nameWithOwner: "test-org/app" },
+      comments: { nodes: [prComment(commentId, "alice")] },
+      reviewThreads: { nodes: [] },
+    });
+    const defaultAdapter = adapter.getMockImplementation() as (config: any) => Promise<any>;
+    adapter.mockImplementation(async (config: any) => {
+      if (String(config.url).endsWith("/graphql")) {
+        const body = JSON.parse(config.data);
+        if (body.query.includes("OwnPRComments")) {
+          const search = body.variables.after
+            ? { nodes: [pr(101, 2)], pageInfo: { hasNextPage: false, endCursor: null } }
+            : { nodes: [pr(1, 1)], pageInfo: { hasNextPage: true, endCursor: "c1" } };
+          return response(config, { data: { search } });
+        }
+      }
+      return defaultAdapter(config);
+    });
+    const { mentions } = await getGithubMentions();
+    expect(mentions.map((m) => m.id).sort((a, b) => a - b)).toEqual([1, 2]);
+  });
 });
 
 describe("getGithubMentions caching", () => {

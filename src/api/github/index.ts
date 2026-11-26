@@ -51,6 +51,21 @@ function myOpenPrsQuery(username: string): string {
   return `author:${username} type:pr state:open updated:>=${monthsAgo()}`;
 }
 
+/** Every page of the user's open PRs, 100 (GitHub's max) at a time. */
+async function searchMyOpenPrs(query: string, signal?: AbortSignal): Promise<any[]> {
+  const search = myOpenPrsQuery(requireSettings().githubUsername);
+  const nodes: any[] = [];
+  let after: string | null = null;
+  do {
+    const result: {
+      search: { nodes: any[]; pageInfo?: { hasNextPage: boolean; endCursor: string | null } };
+    } = await githubGraphql(query, { query: search, first: 100, after }, { signal });
+    nodes.push(...(result.search.nodes || []));
+    after = result.search.pageInfo?.hasNextPage ? result.search.pageInfo.endCursor : null;
+  } while (after);
+  return nodes;
+}
+
 /**
  * Formerly GET /api/github/prs.
  * Fetch open pull requests authored by the configured user, with review/approval
@@ -59,13 +74,7 @@ function myOpenPrsQuery(username: string): string {
 export async function getPrs(signal?: AbortSignal): Promise<{ prs: any[] }> {
   const config = requireSettings();
 
-  const result = await githubGraphql<{ search: { nodes: any[] } }>(
-    SEARCH_MY_PRS_QUERY,
-    { query: myOpenPrsQuery(config.githubUsername), first: 50 },
-    { signal },
-  );
-
-  const nodes = result.search.nodes || [];
+  const nodes = await searchMyOpenPrs(SEARCH_MY_PRS_QUERY, signal);
   const prs = (await mapOpenPrsWithChecks(nodes, config.githubUsername)).filter(
     (pr: any) => pr.state === "open",
   );
@@ -293,11 +302,9 @@ export async function getGithubMentions(signal?: AbortSignal): Promise<{ mention
   const github = githubRest();
   const since = `${monthsAgo(2)}T00:00:00Z`;
 
-  const ownPrComments = githubGraphql<{ search: { nodes: any[] } }>(
-    OWN_PR_COMMENTS_QUERY,
-    { query: myOpenPrsQuery(config.githubUsername), first: 50 },
-    { signal },
-  ).then((r) => extractOwnPRComments(r.search.nodes || [], config.githubUsername));
+  const ownPrComments = searchMyOpenPrs(OWN_PR_COMMENTS_QUERY, signal).then((nodes) =>
+    extractOwnPRComments(nodes, config.githubUsername),
+  );
   // Awaited below; this only stops an unhandled rejection if notifications fail first.
   ownPrComments.catch(() => {});
 
