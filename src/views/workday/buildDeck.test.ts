@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../../types";
-import { buildDeck, deckProjects, shortKey, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
+import { buildDeck, EMPTY_DECK_STATE, type DeckState } from "./buildDeck";
 import type { DeckInputs, DeckTicket } from "./deckTypes";
 
 const NOW = new Date("2026-10-14T12:00:00Z");
@@ -952,29 +952,6 @@ describe("buildDeck off-sprint", () => {
   it("defaults to not off-sprint without offSprintKeys", () => {
     const deck = build({ openPRs: [pr(1, { title: "CCP-1 a" })] });
     expect(deck.open[0].ticket?.offSprint).toBe(false);
-  });
-});
-
-describe("shortKey", () => {
-  const t = (key: string | null): DeckTicket =>
-    ({ id: key ?? "pr:x", key }) as unknown as DeckTicket;
-
-  it("shortens to the number when every keyed ticket shares one prefix", () => {
-    const deck = [t("CCP-412"), t("CCP-7"), t(null)];
-    expect(shortKey("CCP-412", deck)).toBe("412");
-  });
-
-  it("accepts a precomputed project set", () => {
-    const projects = deckProjects([t("CCP-412"), t("CCP-7")]);
-    expect(shortKey("CCP-412", projects)).toBe("412");
-    expect(shortKey("OPS-1", projects)).toBe("OPS-1");
-    expect(shortKey("OPS-1", deckProjects([t("CCP-412"), t("OPS-7")]))).toBe("OPS-1");
-  });
-
-  it("keeps the full key when prefixes differ", () => {
-    const deck = [t("CCP-412"), t("OPS-7")];
-    expect(shortKey("CCP-412", deck)).toBe("CCP-412");
-    expect(shortKey("OPS-7", deck)).toBe("OPS-7");
   });
 });
 

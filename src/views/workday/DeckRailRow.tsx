@@ -8,7 +8,7 @@ export interface DeckRailRowProps {
   /** DOM id, referenced by the rail's `aria-activedescendant`. */
   id?: string;
   ticket: DeckTicket;
-  /** The key as shown: shortened to the number when every ticket shares one project. */
+  /** The key as shown: the Jira key, or repo#number for a ticketless PR. */
   label: string;
   selected: boolean;
   onSelect(id: string, e: MouseEvent): void;

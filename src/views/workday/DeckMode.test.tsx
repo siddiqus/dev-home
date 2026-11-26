@@ -281,6 +281,13 @@ describe("DeckMode rail", () => {
     expect(rail).toHaveFocus();
   });
 
+  it("keeps the project in a rail key when every ticket shares one project", () => {
+    renderDeck({ deck: deck({ open: [ticket("AC-65"), ticket("AC-7")] }) });
+    const rail = screen.getByRole("listbox", { name: "Tickets" });
+    expect(within(rail).getByText("AC-65")).toHaveClass("deck-key");
+    expect(within(rail).getByText("AC-7")).toHaveClass("deck-key");
+  });
+
   it("labels a ticketless PR tab repo#number, in the key colour", () => {
     const p = deckPR(77, {}, { repo_full_name: "org/widgets" });
     renderDeck({

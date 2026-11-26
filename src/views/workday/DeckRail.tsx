@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
-import { deckProjects, shortKey } from "./buildDeck";
 import { DeckRailRow } from "./DeckRailRow";
 import { blurOnPointer } from "./pointer";
 import type { DeckData, DeckTicket } from "./deckTypes";
@@ -33,9 +32,9 @@ const CLOSED_LIST_ID = "deck-rail-closed-list";
 /** DOM id of a rail row: index-based, since ticket ids can be URLs. */
 const rowId = (group: string, index: number) => `deck-rail-${group}-${index}`;
 
-/** The key column: short key, 📝 for a note tab, or `repo#number` for a ticketless PR tab. */
-function railLabel(t: DeckTicket, projects: Set<string>): string {
-  if (t.key) return shortKey(t.key, projects);
+/** The key column: the Jira key, 📝 for a note tab, or `repo#number` for a ticketless PR tab. */
+function railLabel(t: DeckTicket): string {
+  if (t.key) return t.key;
   if (t.noteItem) return "📝";
   const pr = t.prs[0]?.pr;
   // The short repo (no org), as on the card's PR rows: "#123" alone is ambiguous across repos.
@@ -63,8 +62,6 @@ export function DeckRail({
   sourceError = null,
   onRetry,
 }: DeckRailProps) {
-  // Built once per render: every row's short key checks against it.
-  const projects = deckProjects([...deck.current, ...deck.merged, ...deck.open, ...deck.closed]);
   // Open note tabs get their own group under Open (buildDeck already orders them last,
   // so ←/→ still walks the rail top to bottom).
   const groups = [
@@ -172,7 +169,7 @@ export function DeckRail({
                       key={t.id}
                       id={rowId(g.name, i)}
                       ticket={t}
-                      label={railLabel(t, projects)}
+                      label={railLabel(t)}
                       selected={t.id === selectedId}
                       onSelect={(id) => onSelect(id)}
                     />
@@ -206,7 +203,7 @@ export function DeckRail({
                     <DeckRailRow
                       as="button"
                       ticket={t}
-                      label={railLabel(t, projects)}
+                      label={railLabel(t)}
                       selected={false}
                       onSelect={(id, e) => {
                         onReopen?.(id);

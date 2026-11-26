@@ -325,8 +325,7 @@ describe("WorkdayView deck", () => {
       expect.stringContaining("401"),
       expect.stringContaining("388"),
     ]);
-    // Short keys: everything shares the CCP project.
-    expect(within(rows[0]).getByText("412")).toBeTruthy();
+    expect(within(rows[0]).getByText("CCP-412")).toBeTruthy();
     expect(within(rows[0]).getByText("Move asset sync to a queue")).toHaveAttribute(
       "title",
       "Move asset sync to a queue",

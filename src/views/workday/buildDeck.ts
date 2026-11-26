@@ -2,7 +2,7 @@ import type { GitHubComment, GitHubPR, JiraComment, JiraIssue, Note } from "../.
 import type { BadgeVariant } from "../../components/primitives/Badge";
 import { ticketKeyOf } from "../../utils/tickets";
 import { normalizeNoteRef, prNoteKey } from "../../utils/prNotes";
-import { projectOfKey, ticketKeysIn } from "../../../shared/tickets";
+import { ticketKeysIn } from "../../../shared/tickets";
 import { githubMentionItem, jiraMentionItem } from "./buildFocus";
 import { statusCategoryOf } from "./buildWorkday";
 import { repoRef, reviewingState, titleWithoutKey } from "./prState";
@@ -639,20 +639,4 @@ export function buildDeck(
     },
     stateUpdates,
   };
-}
-
-/** The projects of every keyed ticket on the deck, for `shortKey`. */
-export function deckProjects(deck: DeckTicket[]): Set<string> {
-  return new Set(deck.flatMap((t) => (t.key ? [projectOfKey(t.key)] : [])));
-}
-
-/**
- * A ticket key for the rail: just the number when every keyed ticket shares one
- * project. Pass `deckProjects(deck)` when shortening many keys, so the project
- * set is built once per render rather than once per row.
- */
-export function shortKey(key: string, deck: DeckTicket[] | Set<string>): string {
-  const projects = deck instanceof Set ? deck : deckProjects(deck);
-  const only = projects.size === 0 || (projects.size === 1 && projects.has(projectOfKey(key)));
-  return only ? key.slice(key.lastIndexOf("-") + 1) : key;
 }
